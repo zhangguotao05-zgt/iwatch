@@ -37,12 +37,24 @@
 </tr>
 </thead>
 <tbody>
+<tr>
+<td><a href="docs/ui/架构复审与开发基线_v1.1.html">架构复审与开发基线 v1.1</a></td>
+<td>现存源码问题、BSP 来源、启动与故障路径、开发和上板准入条件</td>
+</tr>
+<tr>
+<td><a href="docs/ui/功能逻辑与页面契约_v1.html">功能逻辑与页面契约</a></td>
+<td>页面路由、输入优先级、亮度与时间设置、计时/闹钟状态和异常流程</td>
+</tr>
+<tr>
+<td><a href="docs/ui/模块接口与开发任务_v1.html">模块接口与开发任务</a></td>
+<td>消息和数据模型、线程所有权、资源预算、D01–D18 任务与 T01–T25 测试</td>
+</tr>
 <tr class="odd">
 <td><a href="docs/UI复刻计划_watchOS26.html">Series 11 界面复刻计划</a></td>
 <td>watchOS 26 参考范围、系统/App/表盘清单、离线实现深度、开发阶段与验收标准</td>
 </tr>
 <tr class="even">
-<td><a href="docs/ui/系统架构_v1.html">系统架构 v1</a></td>
+<td><a href="docs/ui/系统架构_v1.html">系统架构 v1.1</a></td>
 <td>分层、线程、消息、页面生命周期、时间/存储/电源、内存与故障恢复</td>
 </tr>
 <tr class="odd">
@@ -106,12 +118,13 @@
 <li>已保存的电路基线是 <strong>原理图 v0.3</strong>，主控 SF32LB586VDD36，采用原开发套装的屏幕转接接口。</li>
 <li>2026-09-11 的记录包含 153 个器件/测试点位置，以及当时原理图 DRC 的 0 致命错误、0 错误、0 警告。这些结果不能替代实际布线和硬件测试。</li>
 <li>主板 PCB1 的未布线准备稿当时保存在在线 EDA 私人工程中，本仓库<strong>没有该主板 PCB 文件</strong>。连接器封装工程自带的 PCB 预览页只是封装预览。</li>
-<li>最新拟选屏幕为 <strong>亚特联 CWS05 / C50396528，390×450 QSPI AMOLED，CO5300AF + CST820</strong>。其 24 针、1.8 V 数字接口不能直接接原版 3.3 V 显示/触摸接口。</li>
+<li>当前实物 UI 验证使用 <strong>390×450 QSPI AMOLED 开发模组，CO5300 + FT6146</strong>，已经点亮。佩戴版另有 CWS05 / C50396528（CO5300AF + CST820）修订评估；它的 24 针、1.8 V 数字接口不能直接接原版 3.3 V 接口，两者不能混用驱动和电源定义。</li>
 <li>佩戴版拟采用普通阻容优先评估英制 <strong>0201</strong> 的策略；复位/下载按键改测试接点，Home/唤醒拟并入表冠按压。</li>
 <li>电池、马达、表冠、板框、屏幕配对连接器和部分供电定义仍需确定。联网、官方微信/支付宝等暂不属于当前阶段。</li>
 </ul>
 <p><strong>注意版本体系：</strong>文件名中的“方案/BOM v0.4”是早期规划文档版本，不代表原理图已经升级到 v0.4。历史方案中的模组及旧屏幕建议，以最新原理图说明和修订评估为准。</p>
-<p>项目现名为 <strong>iwatch</strong>。已归档的 v0.1–v0.3 硬件文件继续保留原来的 <code>HealthWatch-SF58</code> 文件名和校验值，避免破坏已有工程包；后续新版本使用 <code>iwatch</code> 名称。</p>
+<p>项目现名为 <strong>iwatch</strong>。已归档的 v0.1–v0.3 电路文件和 ZIP 工程包继续保留原来的 <code>HealthWatch-SF58</code> 文件名及校验值；说明文档改为 HTML 后，目录中的校验清单同步指向当前 HTML。后续新版本使用 <code>iwatch</code> 名称。</p>
+<p>固件已完成部分 M0 基础代码和构建验证，开发板仍运行先前的点亮基线。下一批执行生命周期修复、构建来源核对和 GUI 等待限制；随后建立服务、组件与首个界面闭环。全部新增测试当前均为待执行，具体见开发任务文档。</p>
 </section>
 <section id="目录" class="level2">
 <h2>目录</h2>
@@ -128,21 +141,6 @@ docs/           项目状态、资料来源及复现说明</code></pre>
     </main>
   </div>
   <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
-  <script>
-    document.querySelectorAll('table').forEach(function (table) {
-      var wrapper = document.createElement('div');
-      wrapper.className = 'table-wrap';
-      table.parentNode.insertBefore(wrapper, table);
-      wrapper.appendChild(table);
-    });
-  </script>
-  <script type="module">
-    if (document.querySelector('.mermaid')) {
-      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
-        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
-        module.default.run({ querySelector: '.mermaid' });
-      });
-    }
-  </script>
+  <script src="docs/assets/engineering.js"></script>
 </body>
 </html>

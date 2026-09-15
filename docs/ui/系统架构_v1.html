@@ -4,13 +4,13 @@
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="description" content="iwatch 嵌入式智能手表工程文档">
-  <title>iwatch 系统架构 v1 · iwatch</title>
+  <title>iwatch 系统架构 v1.1 · iwatch</title>
   <link rel="stylesheet" href="../assets/engineering.css">
 </head>
 <body>
   <header class="site-header">
     <a class="brand" href="../../index.html">iwatch</a>
-    <span class="doc-name">iwatch 系统架构 v1</span>
+    <span class="doc-name">iwatch 系统架构 v1.1</span>
   </header>
   <div class="page-shell">
     <nav class="toc" aria-label="文档目录">
@@ -43,18 +43,14 @@
     </nav>
     <main>
 <section id="iwatch-系统架构-v1" class="level1">
-<h1>iwatch 系统架构 v1</h1>
+<h1>iwatch 系统架构 v1.1</h1>
 <p>日期：2026-09-15。基准：SF32LB58 开发板、390×450 CO5300/FT6146 模组、SiFli-SDK v2.5.1、LVGL 9.4.0。</p>
 <p>本文确定后续实现的边界和约束；除明确列入实施记录的部分，其余均为设计。界面覆盖范围见 <a href="../UI复刻计划_watchOS26.html">UI 复刻计划</a>，像素与动效规范见 <a href="视觉与交互规范_v1.html">视觉与交互规范</a>，落地次序见 <a href="实施与验收_v1.html">实施与验收</a>。</p>
+<p>本次修订补充了源码审查、M1 服务依赖、命令结果保留、24 槽提醒容量和可实现的转场策略。配套文件：<a href="架构复审与开发基线_v1.1.html">复审问题与开发准入</a>、<a href="功能逻辑与页面契约_v1.html">功能逻辑与页面契约</a>、<a href="模块接口与开发任务_v1.html">模块接口与开发任务</a>。协议字段、状态转换和测试编号以这三份细化文档为准；本文保留总体结构。</p>
 <section id="架构决定" class="level2">
 <h2>1. 架构决定</h2>
 <p>采用 <strong>C + RT-Thread + SiFli GUI 应用框架 + LVGL</strong>。应用、系统壳层、后台服务和设备适配分开，项目核心逻辑保持可在 PC 上测试。第一阶段运行离线功能；联网、官方 App 执行环境不在本架构实现范围。</p>
-<table style="width:17%;">
-<colgroup>
-<col style="width: 5%" />
-<col style="width: 5%" />
-<col style="width: 5%" />
-</colgroup>
+<table>
 <thead>
 <tr class="header">
 <th>决策</th>
@@ -146,12 +142,7 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 <section id="已读到的硬件与软件基线" class="level2">
 <h2>3. 已读到的硬件与软件基线</h2>
 <p>2026-09-15 通过 COM10、1,000,000 baud、8N1 执行只读命令，记录见 <a href="板上基线_2026-09-15.html">板上基线</a>。这是现有演示固件的单次快照，不是新架构压力测试。</p>
-<table style="width:17%;">
-<colgroup>
-<col style="width: 5%" />
-<col style="width: 5%" />
-<col style="width: 5%" />
-</colgroup>
+<table>
 <thead>
 <tr class="header">
 <th>项目</th>
@@ -162,7 +153,7 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 <tbody>
 <tr class="odd">
 <td>主控</td>
-<td>SF32LB586VDD36；HCPU HCLK 240 MHz，LCPU HCLK 48 MHz</td>
+<td>当前验证板为 SF32LB58-DevKit-LCD A128R32N1，A1 修订；HCPU HCLK 240 MHz，LCPU HCLK 48 MHz</td>
 <td>v1 应用与服务先运行 HCPU；LCPU 保留 SDK 支持，不立即搬运业务</td>
 </tr>
 <tr class="even">
@@ -209,6 +200,7 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 </table>
 <section id="已发现的布局问题" class="level3">
 <h3>3.1 已发现的布局问题</h3>
+<p>自研原理图选型为 SF32LB586VDD36；当前板型 <code>rtconfig.py</code> 的 <code>PACKAGE='SF32LB587'</code> 是 SDK 编译选择，不能替代实物料号核验。当前生成的 Keil 工程仍从外部 SDK 引用四个 <code>bsp_*</code> 源文件，仓库内存在同名副本并不代表它们参与构建。版本、路径和 SDK 工作区差异见 <a href="架构复审与开发基线_v1.1.html#baseline">复审基线</a>。</p>
 <p>当前项目分区来源为 <code>firmware/iwatch/project/iwatch_sf32lb58_a128_qspi_hcpu/ptab.json</code>，不能只看通用板级 <code>ptab.yaml</code>。</p>
 <ul>
 <li>PSRAM1 原配置为代码 6 MiB + 数据 12 MiB，总计 18 MiB，超过板级配置的 16 MiB。第一批修改将数据区收敛至 <strong>10 MiB</strong>，并在构建前检查边界。</li>
@@ -252,9 +244,9 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 <td>固定无条件喂狗、重渲染页面</td>
 </tr>
 <tr class="even">
-<td><code>iw_service</code>，后续新增</td>
+<td><code>iw_service</code>，M1.0 引入</td>
 <td>17 / 4 KiB</td>
-<td>命令、计时期限、提醒调度、快照发布</td>
+<td>M1.0：命令、时间、设置与快照；M2：计时期限和提醒调度</td>
 <td>阻塞存储和渲染；一轮持续占用 CPU</td>
 </tr>
 <tr class="odd">
@@ -278,8 +270,8 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 <h2>5. 数据流与消息契约</h2>
 <section id="命令和快照" class="level3">
 <h3>5.1 命令和快照</h3>
-<p>服务接口使用明确类型，典型命令为 <code>TIMER_START</code>、<code>TIMER_CANCEL</code>、<code>SET_BRIGHTNESS</code>、<code>SAVE_SETTING</code>。命令带 <code>request_id</code>，回执带相同 ID、错误码与新状态版本。短命令/事件按值复制，协议目标不超过 32 B；照片等大数据用有引用计数和容量上限的资源句柄传递，不能发送局部变量指针。</p>
-<p>统一错误类型：参数错误、忙、队列满、设备不存在、设备故障、超时、存储不可用、资源不足。超时只表示结果未确认；相同 <code>request_id</code> 的重试必须幂等，不能重复新增闹钟或触发两次振动。设备发生不可恢复错误后，服务保留错误状态供下一次查询。</p>
+<p>服务接口使用明确类型，典型命令为 <code>TIMER_START</code>、<code>TIMER_CANCEL</code>、<code>SET_BRIGHTNESS</code>、<code>SAVE_SETTING</code>。命令为固定 32 B，带 <code>session_id / request_id / page_id / page_generation</code>、协议版本和按值复制的短载荷；回执带请求键、错误码与状态版本。照片等大数据另用有引用计数和容量上限的资源句柄传递，不能发送局部变量指针。字段和接口见 <a href="模块接口与开发任务_v1.html#ipc">命令契约</a>。</p>
+<p>统一错误类型：参数错误、忙、队列满、设备不存在、设备故障、结果待确认、存储不可用、资源不足。入队成功只表示 QUEUED；执行完成和持久化分别确认。超时不是失败或撤销：同一服务会话内以相同请求键查询或重试，不重复新增闹钟。结果账本满时在执行前拒绝新请求；已确认的旧请求通过序号水位防重放，不能因记录淘汰再执行。服务重启后重新核对模型，不承诺跨断电恰好执行一次。</p>
 <p>建议容量与溢出策略：</p>
 <table>
 <thead>
@@ -301,9 +293,9 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 <td>返回 <code>BUSY</code>；控件保留原状态，给出轻提示</td>
 </tr>
 <tr class="odd">
-<td>服务→UI 回执</td>
+<td>服务→UI 完成提示</td>
 <td style="text-align: right;">16 条</td>
-<td>服务结果保留在带版本的状态中；回执未入队时置脏标记，UI 再读结果，不无限重试</td>
+<td>只是唤醒提示；终态保存在 32 槽结果账本，最多 16 个未完成请求。GUI 全局消费器查询、确认，不能由已经退出的页面负责清理</td>
 </tr>
 <tr class="even">
 <td>高频状态</td>
@@ -312,8 +304,8 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 </tr>
 <tr class="odd">
 <td>待处理提醒</td>
-<td style="text-align: right;">固定 8 个记录</td>
-<td>服务保留未确认记录，容量满拒绝新建，不依赖一次通知消息保证送达</td>
+<td style="text-align: right;">固定 24 槽</td>
+<td>为 8 个计时器和 16 个闹钟各保留一槽，普通通知另设 32 槽。未确认提醒不能被普通通知挤掉；同来源重复发生合并并累计 missed_count</td>
 </tr>
 </tbody>
 </table>
@@ -328,8 +320,8 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
     participant N as 提醒与系统壳层
     U-&gt;&gt;S: START(request_id, duration)
     S-&gt;&gt;S: 校验容量，记录单调期限
-    S--&gt;&gt;U: ACCEPTED(timer_id, version)
-    S-&gt;&gt;I: 异步保存检查点
+    S--&gt;&gt;U: APPLIED(timer_id, version)
+    S-&gt;&gt;I: M4 后异步保存检查点
     Note over U: 页面退出，销毁动画和控件
     S-&gt;&gt;S: 到期，状态变 EXPIRED
     S-&gt;&gt;N: 提醒待确认记录
@@ -348,7 +340,7 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 <li>单个 App 子页面深度上限 8；超出时拒绝打开并记录问题，不丢弃当前页面。</li>
 <li>系统叠层最多 1 个交互弹层；通知横幅另设一个有限槽，新的同类提示合并。</li>
 <li>缓存遵循预算，后台 App 可被销毁；恢复时从业务状态和页面位置重建。</li>
-<li>每个异步请求携带 <code>{page_id, generation}</code>。旧页面返回的结果必须丢弃，不能写入新页面同名控件。</li>
+<li>每个异步请求携带 <code>{page_id, generation}</code>。旧页面的显示结果不再投递；全局结果消费器仍完成服务结果确认及资源释放，不能写入新页面同名控件，也不能把业务结果一起遗失。</li>
 </ul>
 </section>
 <section id="与-sdk-生命周期对应" class="level3">
@@ -371,7 +363,7 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 </tr>
 <tr class="odd">
 <td><code>ONPAUSE</code></td>
-<td>停止动画和刷新计时器；保存滚动位置；取消页面请求，不停止后台业务</td>
+<td>暂停不可见的动画和刷新；保存滚动位置，撤销可取消的页面资源请求。已接受的设置、计时和保存命令继续执行，由全局消费器接收结果</td>
 </tr>
 <tr class="even">
 <td><code>ONSTOP</code></td>
@@ -380,14 +372,14 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 </tbody>
 </table>
 <p>LVGL 动画、定时器、事件订阅、异步请求和缓存引用都必须登记在页面作用域。删除根控件不能替代全部清理。内存紧张时先释放后台缓存；单次重试仍失败就恢复到常驻简洁表盘/错误界面，不能递归重试分配。</p>
-<p>新路由正在转场时，同方向滚动量可合并；返回可打断当前转场并从当前视觉位置接续。完成与取消都只提交一次最终路由。任何表盘都不能自行接管控制中心或全局锁屏。</p>
+<p>首版转场策略为单事务加一个 pending 返回：正在转场时不再开始第二次栈变更，返回请求合并一次，当前公开框架事务收敛后立即执行。资源失败恢复到已提交页面；完成与取消只提交一次。真正的中途反向接续须验证 SDK 公开 API、回调顺序和所有权后另行开启，不能直接修改框架私有栈。任何表盘都不能自行接管控制中心或全局锁屏。</p>
 </section>
 </section>
 <section id="输入时间与电源" class="level2">
 <h2>7. 输入、时间与电源</h2>
 <section id="输入" class="level3">
 <h3>7.1 输入</h3>
-<p>FT6146 触摸走现有 LVGL 输入驱动；手势仲裁由 GUI 所有者完成。按键/表冠回调只上报事件。SDK 当前按键回调来自软定时处理，现有示例在回调中调用 <code>lv_disp_trig_activity()</code>，第一批将它移到 GUI 线程。</p>
+<p>FT6146 触摸走现有 LVGL 输入驱动；手势仲裁由 GUI 所有者完成。按键/表冠回调只上报事件。M0 已将按键活动通知移入 GUI 队列消费；当前仅注册 KEY1，KEY2 与旋转输入尚未接入。M1 以 PRESS/RELEASE 构建单击、双击和长按，忽略 SDK 的复合 CLICK/LONG 事件，并移除 M0 的立即 Home 分支，防止同次操作执行两遍。</p>
 <p>触摸状态机为 <code>IDLE→PRESSED→DRAG/SCROLL/LONG_PRESS→RELEASE/CANCEL</code>。移动超过阈值后取消长按，拖动后不再点击；水锁过滤触摸但保留退出水锁的物理按键入口。屏幕方向变更由同一坐标变换映射处理。</p>
 <p>单/双击有统一时间窗；不能第一次点击已打开控制中心、第二次又同时打开钱包。视图可立即显示按下反馈，单击导航等双击窗口结束才提交。旋钮原始增量先防抖、限速，再转成滚动/缩放语义。起始参数见视觉规范，通过实物调节；软件命令入口只用于测试，不能算物理表冠已验证。</p>
 </section>
@@ -397,7 +389,7 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 <li>日历、日期、闹钟时刻使用 RTC 墙上时间，并带时间有效性和时区。</li>
 <li>秒表和正在运行的倒计时使用 64 位单调时间，避免用户改时间影响已运行时长。</li>
 <li>RTOS 32 位 tick 的扩展只由一个服务更新，处理回绕；休眠恢复使用已验证的低功耗计时源补偿，不能默认 <code>rt_tick_get()</code> 在深睡中连续。</li>
-<li>删除每次启动将 RTC 改成 2022-07-01 的示例逻辑；只有无效时钟才进入设置时间流程。</li>
+<li>M1.0 必须删除每次启动将 RTC 改成 2022-07-01 的示例逻辑；当前源码仍保留此行为。只有无效时钟才进入设置时间流程，历史固定日期本身不能作为时钟可信的证据。</li>
 <li>重新上电没有可信 RTC 时，不能猜测断电经过时间；保存的计时器显示“计时需确认”。闹钟防止时钟回调引发重复提醒；大幅改时间采用重新计算并告知用户的策略。</li>
 </ul>
 </section>
@@ -478,7 +470,7 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 </tr>
 <tr class="even">
 <td>页面请求返回时页面已退出</td>
-<td>generation 不匹配，释放返回资源并丢弃结果</td>
+<td>generation 不匹配时丢弃页面更新；全局消费器确认业务终态并释放返回资源</td>
 <td>过期响应次数</td>
 </tr>
 <tr class="odd">
@@ -519,7 +511,7 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 </section>
 <section id="迁移边界与完成标准" class="level2">
 <h2>10. 迁移边界与完成标准</h2>
-<p>先保留已点亮的 CO5300/FT6146 BSP。第一批可靠性基础之后，再建立主题组件与系统壳层，并用“表盘→桌面→设置→亮度→返回”作为完整纵向样例；随后把计时器作为跨页面后台任务样例。两条样例通过后再批量扩展 App 和表盘。</p>
+<p>先保留已点亮的 CO5300/FT6146 BSP。M0.1 修复现存生命周期问题并核对构建来源；M1.0 建立时间、命令回执、RAM 设置和亮度适配；M1.1 建立主题组件与路由，M1.2 完成“表盘→桌面→设置→亮度→返回”；M2 再扩展计时器、秒表、闹钟。详见 D01–D18 任务依赖，先通过基础闭环再扩展 App 和表盘。</p>
 <p>现有 <code>app_mainmenu.c</code>、<code>app_clock_main.c</code> 的示例注册和资源逐页迁移；不一口气删除已工作的入口。每迁移一个 App 就给它补上可达路由、错误状态、资源清理和板上性能记录。每个版本必须声明“已实现、编译验证、板上验证、待实现”，四项不能混为一谈。</p>
 <p>架构 v1 的主要决定已确定。待实物调定的参数是触摸阈值、按键时间窗、动效质量档、实际并发缓存、唤醒源与看门狗阈值；这些参数调整不改变模块所有权。</p>
 </section>
@@ -527,37 +519,6 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
     </main>
   </div>
   <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
-  <script>
-    document.querySelectorAll('table').forEach(function (table) {
-      var wrapper = document.createElement('div');
-      wrapper.className = 'table-wrap';
-      table.parentNode.insertBefore(wrapper, table);
-      wrapper.appendChild(table);
-    });
-  </script>
-  <script src="../assets/vendor/mermaid-11.17.0.min.js"></script>
-  <script>
-    if (document.querySelector('.mermaid')) {
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: 'base',
-        securityLevel: 'strict',
-        themeVariables: {
-          background: '#f6f8fb',
-          primaryColor: '#e7edf5',
-          primaryTextColor: '#172033',
-          primaryBorderColor: '#7d8797',
-          lineColor: '#536276',
-          secondaryColor: '#dfe8f3',
-          secondaryTextColor: '#172033',
-          tertiaryColor: '#eef2f7',
-          tertiaryTextColor: '#172033',
-          noteBkgColor: '#fff4cc',
-          noteTextColor: '#172033'
-        }
-      });
-      mermaid.run({ querySelector: '.mermaid' });
-    }
-  </script>
+  <script src="../assets/engineering.js"></script>
 </body>
 </html>

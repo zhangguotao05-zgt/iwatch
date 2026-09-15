@@ -58,12 +58,7 @@
 </section>
 <section id="当前工程基线" class="level2">
 <h2>2. 当前工程基线</h2>
-<table style="width:17%;">
-<colgroup>
-<col style="width: 5%" />
-<col style="width: 5%" />
-<col style="width: 5%" />
-</colgroup>
+<table>
 <thead>
 <tr class="header">
 <th>项目</th>
@@ -74,7 +69,7 @@
 <tbody>
 <tr class="odd">
 <td>主控与开发板</td>
-<td>SF32LB58-DevKit-LCD A128R32N1；工程目标 SF32LB586VDD36；A1 修订配置使用 LCPU_CONFIG_AUTO；2026-09-15 HCPU HCLK 实测报告 240 MHz</td>
+<td>SF32LB58-DevKit-LCD A128R32N1；自研原理图目标 SF32LB586VDD36；当前 SDK 编译 PACKAGE 为 SF32LB587，不能当作实物丝印；A1 修订使用 LCPU_CONFIG_AUTO；HCPU HCLK 实测报告 240 MHz</td>
 <td>持续运行稳定性与负载下性能</td>
 </tr>
 <tr class="even">
@@ -116,6 +111,7 @@
 </table>
 <p>基线文件：<a href="../firmware/README.html">固件说明</a>、<a href="../firmware/iwatch/project/proj.conf">应用配置</a>、<a href="../firmware/boards/iwatch_sf32lb58_a128_qspi/hcpu/board.conf">板级配置</a>。</p>
 <p>后续已形成 <a href="ui/系统架构_v1.html">系统架构 v1</a>、<a href="ui/视觉与交互规范_v1.html">视觉与交互规范</a> 和 <a href="ui/实施与验收_v1.html">实施与验收</a>。其中记录了实机内存/时钟基线和对原分区问题的修正，内存与实施状态以这组文档为准。</p>
+<p>最新细化见 <a href="ui/架构复审与开发基线_v1.1.html">v1.1 架构复审</a>、<a href="ui/功能逻辑与页面契约_v1.html">页面契约</a> 和 <a href="ui/模块接口与开发任务_v1.html">接口与任务</a>。本计划继续保留全部目标范围；新契约先覆盖可进入首批开发的路由，其余 App、表盘和地区变体要逐批补齐契约，不能把首批路由数当作全部页面数。</p>
 <p>当前点亮的是 CO5300 + FT6146 开发模组。历史文档中的 CWS05 + CST820 属于另一种拟选裸屏，不能混用触摸芯片、供电或接线定义。移到自研 PCB 时单独做板级适配。</p>
 </section>
 <section id="所有界面如何计数和验收" class="level2">
@@ -725,14 +721,9 @@
 </section>
 <section id="实施阶段与阶段验收" class="level2">
 <h2>10. 实施阶段与阶段验收</h2>
+<p>下表 P0–P6 是原始范围估算；实际代码顺序统一采用 M0–M6 和 D01–D18，不维护第二套独立进度。对应关系：P0→M0/M0.1 与持续参考核对；P1→M1/M3；P2→M2、M4 持久化及 M5 工具；P3/P4/P5→M3/M5 分批扩展；P6→M6。M1.0 服务基础必须先于亮度闭环，新的 NAND 布局必须先通过备份和引导准入。</p>
 <p>人日为单个熟悉本工程的工程师的粗估工作量；需要有参考画面、开发板可调试和及时实物反馈。不是自动执行的日程，也不包括硬件重新设计、健康算法和正式联网服务。</p>
-<table style="width:22%;">
-<colgroup>
-<col style="width: 5%" />
-<col style="width: 5%" />
-<col style="width: 5%" />
-<col style="width: 5%" />
-</colgroup>
+<table>
 <thead>
 <tr class="header">
 <th>阶段</th>
@@ -824,28 +815,13 @@
 </section>
 <section id="交付状态与下一步" class="level2">
 <h2>13. 交付状态与下一步</h2>
-<p>界面覆盖清单和验收方法已经建立。M0 可靠性基础代码已完成主机测试与 GCC 构建；新的产品界面、实屏视觉校准和新分区上板验证尚未完成。</p>
-<p>建议从 P0 和第一批 12 页开始：先保存点亮基线和测输入，再冻结首批参考画面及适配样式，然后实现主交互框架。开发中继续按清单补齐全部适用的系统页面、App、表盘和状态。</p>
+<p>界面覆盖清单和验收方法已经建立。部分 M0 基础代码已通过主机测试与 GCC 构建；复审发现的生命周期问题、新产品界面、实屏视觉校准和新分区上板验证仍未完成。</p>
+<p>当前先执行 D01–D03，保存可恢复的点亮基线并验证输入；随后冻结首批参考画面、建立 M1 服务和组件，完成表盘→桌面→设置→亮度闭环。第一批 12 页是视觉范围清单，实际实现可按依赖拆分，后续继续补齐全部适用的系统页面、App、表盘和状态。</p>
 </section>
 </section>
     </main>
   </div>
   <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
-  <script>
-    document.querySelectorAll('table').forEach(function (table) {
-      var wrapper = document.createElement('div');
-      wrapper.className = 'table-wrap';
-      table.parentNode.insertBefore(wrapper, table);
-      wrapper.appendChild(table);
-    });
-  </script>
-  <script type="module">
-    if (document.querySelector('.mermaid')) {
-      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
-        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
-        module.default.run({ querySelector: '.mermaid' });
-      });
-    }
-  </script>
+  <script src="assets/engineering.js"></script>
 </body>
 </html>

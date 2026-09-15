@@ -118,11 +118,7 @@
 <section id="资源与功耗预算" class="level2">
 <h2>7. 资源与功耗预算</h2>
 <p>以下是工程目标和可修改假设，尚无本机实测数据。</p>
-<table style="width:11%;">
-<colgroup>
-<col style="width: 5%" />
-<col style="width: 5%" />
-</colgroup>
+<table>
 <thead>
 <tr class="header">
 <th>项目</th>
@@ -257,37 +253,6 @@
     </main>
   </div>
   <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
-  <script>
-    document.querySelectorAll('table').forEach(function (table) {
-      var wrapper = document.createElement('div');
-      wrapper.className = 'table-wrap';
-      table.parentNode.insertBefore(wrapper, table);
-      wrapper.appendChild(table);
-    });
-  </script>
-  <script src="../docs/assets/vendor/mermaid-11.17.0.min.js"></script>
-  <script>
-    if (document.querySelector('.mermaid')) {
-      mermaid.initialize({
-        startOnLoad: false,
-        theme: 'base',
-        securityLevel: 'strict',
-        themeVariables: {
-          background: '#f6f8fb',
-          primaryColor: '#e7edf5',
-          primaryTextColor: '#172033',
-          primaryBorderColor: '#7d8797',
-          lineColor: '#536276',
-          secondaryColor: '#dfe8f3',
-          secondaryTextColor: '#172033',
-          tertiaryColor: '#eef2f7',
-          tertiaryTextColor: '#172033',
-          noteBkgColor: '#fff4cc',
-          noteTextColor: '#172033'
-        }
-      });
-      mermaid.run({ querySelector: '.mermaid' });
-    }
-  </script>
+  <script src="../docs/assets/engineering.js"></script>
 </body>
 </html>

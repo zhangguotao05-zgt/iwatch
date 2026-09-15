@@ -1,0 +1,217 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><meta name="description" content="iwatch 嵌入式智能手表工程文档"><title>模块接口与开发任务 v1 · iwatch</title><link rel="stylesheet" href="../assets/engineering.css"></head>
+<body><header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">模块接口与开发任务 v1</span></header>
+<div class="page-shell"><nav class="toc" aria-label="文档目录"><ul><li><a href="#owners">1. 模块所有权与允许依赖</a></li>
+<li><a href="#ipc">2. 命令、结果与幂等契约</a></li>
+<li><a href="#models">3. 数据模型、单位与容量</a></li>
+<li><a href="#schedule">4. 调度与显示所有权</a></li>
+<li><a href="#lifecycle">5. 页面生命周期与路由事务</a></li>
+<li><a href="#resources">6. 资源、美术与视觉开发约束</a></li>
+<li><a href="#storage">7. 持久化、崩溃恢复与监督</a></li>
+<li><a href="#tasks">8. 可按顺序执行的开发任务</a></li>
+<li><a href="#tests">9. 测试矩阵与判定标准</a></li>
+<li><a href="#records">10. 开发记录与提交要求</a></li></ul></nav><main>
+<h1>模块接口与开发任务 v1</h1>
+<p class="doc-meta">2026-09-15 · 接口与任务为待实现契约 · 固件实现基线：761d355</p>
+<p>本文规定模块所有权、接口输入输出、资源限制和开发依赖。它是后续代码评审和测试的共同依据，不表示这些接口已经存在。功能行为见 <a href="功能逻辑与页面契约_v1.html">页面契约</a>，现有问题见 <a href="架构复审与开发基线_v1.1.html">架构复审</a>。</p>
+
+<section id="owners"><h2>1. 模块所有权与允许依赖</h2>
+<table><thead><tr><th>模块 / 计划路径</th><th>拥有的数据与接口</th><th>执行上下文 / 禁止项</th></tr></thead><tbody>
+<tr><td>core/iw_input<br>core/iw_time<br>core/iw_timer</td><td>纯 C 状态转换、回绕扩展、期限计算、固定容量容器。</td><td>调用者串行执行；不含 RTOS、LVGL 或 HAL；不创建线程和隐藏堆分配。</td></tr>
+<tr><td>platform/iw_platform</td><td>RTOS 队列/事件、单调源、RTC、板型能力、诊断时钟。</td><td>只封装板级 API；页面不能绕过它读 GPIO 或设备寄存器。</td></tr>
+<tr><td>services/iw_service</td><td>业务模型、命令账本、settings/time/timer/alarm/alert 快照。</td><td>iw_service 唯一写入；GUI 获取副本；不调用 LVGL 或同步写文件。</td></tr>
+<tr><td>platform/iw_display</td><td>亮度/电源请求邮箱、显示操作完成序号；适配 SDK 的显示所有权。</td><td>由 GUI 在安全边界消费，实际 DMA 仍归 SDK lcd_task；不创建第二套 flush 状态。</td></tr>
+<tr><td>services/iw_storage</td><td>持久化队列、记录编解码、提交状态；资源读取任务。</td><td>iw_io 执行存储；不能持有控件、GUI 锁或长期持有模型锁。</td></tr>
+<tr><td>gui_core/iw_navigator</td><td>路由验证、pending 导航、历史摘要；SDK App 栈为真实栈。</td><td>app_watch；只使用经验证的公开框架入口。</td></tr>
+<tr><td>gui_core/iw_page_scope</td><td>页面 generation、订阅、外部事件回调、定时器、动画、句柄。</td><td>app_watch；STOP 先失效再释放，清理可重入。</td></tr>
+<tr><td>gui_core/iw_theme<br>gui_core/iw_components</td><td>主题令牌、共享样式、小组件；Presenter 提供显示模型。</td><td>app_watch；组件不自己访问服务或创建业务计时器。</td></tr>
+<tr><td>gui_apps/*</td><td>View、Presenter、页面描述和临时编辑草稿。</td><td>app_watch；运行中业务状态不保存在 lv_obj user_data。</td></tr>
+<tr><td>platform/iw_supervisor</td><td>执行进度、deadline、故障计数、复位原因。</td><td>后续 iw_super；不从该线程直接重建 LVGL 对象。</td></tr>
+</tbody></table>
+<p>复用现有 <code>core/iw_input_queue.[ch]</code>，避免为重命名破坏已测接口。新增模块按任务落地，不预建大量空文件。依赖检查允许服务调用平台抽象，禁止 core→platform、services→gui_apps、页面→HAL；例外必须限定到适配文件并记录原因。</p>
+</section>
+
+<section id="ipc"><h2>2. 命令、结果与幂等契约</h2>
+<p>短命令按值复制，固定 32 B。下例是后续头文件布局要求；目标编译器必须使用 <code>_Static_assert(sizeof(iw_command_t) == 32)</code> 验证，不能把裸结构内存直接当作磁盘格式。</p>
+<pre><code>typedef struct {
+    uint32_t session_id;
+    uint32_t request_id;
+    uint32_t page_generation;
+    uint16_t page_id;
+    uint16_t opcode;
+    uint16_t version;
+    uint16_t payload_bytes;
+    uint8_t  payload[12];
+} iw_command_t;</code></pre>
+<p><code>request_id</code> 由唯一 GUI 命令入口单调分配，同一服务会话内不复用；达到上限返回错误，不悄然回绕。<code>session_id</code> 区分服务重建会话，不能依赖随机撞号概率作为正确性保证。当前命令仅在本机 RAM 中流转，不接受跨冷启动的命令重放。</p>
+<p>消息先检查 version、opcode 与精确 payload_bytes，再校验范围。12 B 载荷由具名编码函数写入，不用未对齐的强制类型转换。首期接口族如下；数值 opcode 在头文件中固定，不能依赖枚举插入顺序改变协议。</p>
+<table><thead><tr><th>命令族</th><th>载荷字段 / 字节数</th><th>受理规则</th></tr></thead><tbody>
+<tr><td>SET_BRIGHTNESS</td><td>level:u8、kind:u8、reserved:u16、expected_revision:u32、setting_sequence:u32；12 B。</td><td>kind 为 PREVIEW/FINAL；每字段独立递增 sequence。FINAL 使用同一编辑会话最新 revision，旧页面的过期修改返回冲突。</td></tr>
+<tr><td>SET_CLOCK</td><td>utc_seconds:i64、offset_minutes:i16、reserved:u16；12 B。</td><td>检查 2000–2099 范围及偏移；独占时间编辑会话；提交成功后增加 clock_revision。</td></tr>
+<tr><td>TIMER_CREATE</td><td>duration_ms:u32；4 B。</td><td>1,000–86,400,000 ms；分配 ID、模型槽和提醒槽后才受理。</td></tr>
+<tr><td>TIMER_PAUSE / RESUME / CANCEL / RESTART</td><td>timer_id:u32、expected_revision:u32；8 B。</td><td>先推进到期，再比较实体版本和状态；旧 revision 返回 STATE_CONFLICT。</td></tr>
+<tr><td>ACK_ALERT / SNOOZE_ALERT</td><td>entity_id:u32、occurrence:u32、source_type:u16、reserved:u16；12 B。</td><td>精确确认所看到的发生；新发生不能被旧页面的 ACK 一并清除。</td></tr>
+<tr><td>ALARM_APPLY</td><td>edit_handle:u32、expected_revision:u32；8 B。</td><td>草稿池最多 2 项，每项 ≤128 B；句柄带 generation，提交后冻结，服务复制完成后释放引用。不能把长标签塞进命令或保存页面指针。</td></tr>
+<tr><td>STOPWATCH_START / PAUSE / RESET / LAP</td><td>expected_revision:u32；4 B。</td><td>先按单调时间更新模型；不允许的状态明确拒绝。</td></tr>
+</tbody></table>
+<table><thead><tr><th>接口（计划）</th><th>调用者 / 返回值</th><th>所有权与超时</th></tr></thead><tbody>
+<tr><td>iw_command_submit(command)</td><td>GUI → service；QUEUED 或 BUSY_NO_ADMISSION / INVALID。</td><td>QUEUED 只表示已入队；没有代表实际硬件执行成功。调用立即返回，不等待服务。</td></tr>
+<tr><td>iw_result_get(session, request, out)</td><td>GUI 读取已受理/进行中/成功/失败/结果已过期。</td><td>复制结果；回执队列满时仍能查询；过期结果不得触发重新执行。</td></tr>
+<tr><td>iw_result_ack(token)</td><td>GUI 通知该结果已处理。</td><td>释放可回收账本槽，但已受理序号水位保留，旧请求不能再次执行。</td></tr>
+<tr><td>iw_snapshot_read(topic, out, capacity)</td><td>GUI / 诊断读取版本化副本。</td><td>锁内只做有界复制，锁外排版/日志；长度不足返回 required size，不写半份快照。</td></tr>
+<tr><td>iw_display_request(value, seq)</td><td>service 写最新显示目标，GUI 安全边界消费。</td><td>旧 seq 的完成结果可记录，但不能覆盖更新目标；超时查询实际应用序号。</td></tr>
+<tr><td>iw_clock_read(out)</td><td>服务获得 mono_ms、utc_ms、valid、clock_revision。</td><td>64 位值用受保护快照；32 位 MCU 不直接裸读两个半字。</td></tr>
+</tbody></table>
+<p>命令队列 16 条；未终结命令最多 16 条；结果账本 32 槽（活动与已完成合计，每槽预算不超过 96 B）。服务受理前先保留模型容量、账本槽和需要的提醒槽。任何一项失败都不产生业务副作用。完成结果优先保留到 GUI 确认，压力下只回收已确认终态；没有可回收槽时拒绝新受理。</p>
+<p>重复 token：账本仍在则返回同一执行结果；token 早于已受理序号水位而记录已回收则返回 RESULT_EXPIRED，绝不重做操作。GUI 只按顺序生成新请求，重试仍用原 token。一个未受理请求被后来的新请求越过后，需要显式建立新操作才能获得新 token。服务重启只保证持久化模型恢复，不承诺任意命令跨重启恰好执行一次。</p>
+<p>全局 GUI 消息泵即使页面已退出仍须处理结果并 ACK；页面 generation 仅决定是否把结果交给 Presenter。页面消失不能导致账本永远占满。资源句柄的完成消息被忽略时，持有者仍必须释放引用。</p>
+<p>连续亮度只保留一个尚未送出的最新目标。已经受理、但尚未执行且被更大 sequence 替代的预览必须结束为 SUPERSEDED，并由 GUI 确认回收账本；不能让旧请求永久 IN_PROGRESS。已经执行的旧值保留实际 applied 记录，新的目标继续收敛。已受理的 FINAL 不由旧预览替代；其后明确的新操作可覆盖它，但仍需给出各自终态。</p>
+<table><thead><tr><th>统一状态 / 错误</th><th>页面处理</th></tr></thead><tbody>
+<tr><td>QUEUED / ACCEPTED / IN_PROGRESS</td><td>显示忙态，可退出；按操作 deadline 查询结果，禁止永久转圈。</td></tr>
+<tr><td>OK_APPLIED / OK_PERSISTED</td><td>更新实际值；只有后者可声明跨重启保存。</td></tr>
+<tr><td>SUPERSEDED</td><td>旧预览已被更新目标替代；结束旧等待并查询最新模型，不显示设备故障，也不谎称该旧值曾应用。</td></tr>
+<tr><td>INVALID / STATE_CONFLICT</td><td>保持已知状态，刷新模型，指出输入或状态冲突。</td></tr>
+<tr><td>BUSY_NO_ADMISSION / CAPACITY</td><td>保留草稿，可重试；不能显示操作已成功。</td></tr>
+<tr><td>ABSENT / DEVICE_FAULT / NO_MEMORY / STORAGE_UNAVAILABLE</td><td>显示能力或可恢复错误；保留返回入口。</td></tr>
+<tr><td>UNCONFIRMED_TIMEOUT / RESULT_EXPIRED</td><td>查询模型和操作版本；超时不等同于撤销，不能用新 token 自动重做非幂等操作。</td></tr>
+</tbody></table>
+<p>首期交互超时目标：普通命令受理 100 ms、亮度执行确认 250 ms、设置存储 2 s。它们是诊断与 UI 状态阈值；驱动执行预算须量测后调整。超时不杀死正在执行的线程，也不假定硬件已经撤销。</p>
+</section>
+
+<section id="models"><h2>3. 数据模型、单位与容量</h2>
+<table><thead><tr><th>模型</th><th>必要字段</th><th>初期容量 / 不变量</th></tr></thead><tbody>
+<tr><td>ClockSnapshot</td><td>mono_ms:u64、utc_ms:i64、offset_min:i16、valid、revision、source。</td><td>一份；mono 不倒退；UTC 与时区显示分离，修改 UTC 不改变运行期限。</td></tr>
+<tr><td>Setting</td><td>key、desired/applied/persisted、三个版本、last_error。</td><td>固定字段结构；禁止任意长度键值字符串出现在 GUI 命令。</td></tr>
+<tr><td>Timer</td><td>id、revision、state、duration_ms、deadline_ms、remaining_ms、occurrence。</td><td>8 个；非 RUNNING 不按 deadline 触发；ID 在会话内不复用。</td></tr>
+<tr><td>Alarm</td><td>id、revision、enabled、hour/minute、weekday_mask、last_occurrence、snooze。</td><td>16 个；时刻在合法范围，重复掩码约定 bit0=周一。</td></tr>
+<tr><td>Alert</td><td>source_type、entity_id、occurrence、first_due_mono_ms、last_due_utc_ms、state、missed_count。</td><td>24 槽，8+16 按源预留；排序使用同一 mono 域，UTC 只用于日期展示；相同发生只创建一次。</td></tr>
+<tr><td>Stopwatch</td><td>state、accumulated_ms、segment_start_ms、laps[100]。</td><td>一实例；每 lap 预算 16 B，100 次上限 1600 B。</td></tr>
+<tr><td>Notification</td><td>id、sequence、received_time、read、source、UTF-8 内容。</td><td>32 条，每条文本槽 256 B（含终止零）；普通通知总预算 12 KiB。</td></tr>
+<tr><td>MetricSnapshot</td><td>metric_id、value、unit、source、quality、sample_mono_ms、period_ms。</td><td>每主题最新快照；value 与有效性同时更新，绝不单独读数值。</td></tr>
+<tr><td>ResourceHandle</td><td>slot、generation、type；实际指针只在管理器中。</td><td>最多 64 个句柄；槽复用时 generation 变更，防止旧句柄指向新图。</td></tr>
+<tr><td>PageResume</td><td>page_id、选中实体 ID、滚动位置、有限编辑草稿。</td><td>最多 6 份历史摘要，每份 ≤128 B；不含 lv_obj 指针。</td></tr>
+</tbody></table>
+<p>分配前验证乘法溢出、长宽范围和最大解码大小；文本长度以 UTF-8 字节计算并保留完整码点。时间差使用同一来源的时间戳。测量单位定义在模型中：心率 bpm，SpO₂ 百分数的定点比例需由适配明确，电压 mV、步数 count；原始 ADC 值不能冒充物理单位。</p>
+<p>实体 ID、revision、occurrence、句柄 generation 和设置 sequence 的边界各自显式检查；耗尽后拒绝新增或重建受控会话，不能在仍有旧引用时静默回绕。missed_count 与诊断丢弃计数使用饱和累加。句柄编码由各自管理器声明并静态校验位宽，调用者只能校验/复制不拆解。</p>
+<p>32 位 tick 在 1000 Hz 时约 49.7 天回绕。扩展由一个 owner 至少每秒取样，使用无符号差；必须保证两次取样相隔小于一整轮 tick。深睡期间 tick 连续性没有保证，M4 使用已验证 RTC/AON 补偿，不把简单的高位加一当作长期休眠解决方案。</p>
+</section>
+
+<section id="schedule"><h2>4. 调度与显示所有权</h2>
+<p>RT-Thread 中数值越小优先级越高：沿用 tpread=10、lcd_task=12、app_watch=19。新增 iw_service=17/4 KiB；iw_io=22/4 KiB 在存储阶段引入；iw_super=15/2 KiB 在监督阶段引入。GUI 原 16 KiB 栈保留。新增固定数据预算计入主堆/静态 RAM，不能与原预算重复累计。</p>
+<ol>
+<li>GUI 醒来先限量消费离散事件，再处理服务结果/脏主题；每轮最多 8 项或 2 ms，超出留到下轮。</li>
+<li>有安全显示请求时，在无未完成传输的边界应用亮度；不等待 DMA、不持业务模型锁。若 SDK 控制接口会阻塞，先测量并通过现有 LCD 串行任务适配，不能直接塞进 GUI 循环。</li>
+<li>调用 LVGL 定时与渲染处理，保存进度和耗时；最后等待输入/服务唤醒或最近 LVGL 截止时间。</li>
+<li>ACTIVE 时等待上限 20 ms；LVGL “无 timer”哨兵、0 delay、超范围值显式转换。没有工作时允许睡眠等待，禁止持续忙轮询。</li>
+<li>service 每轮先推进到期任务，再处理有限命令、执行完成和状态变化；更新一次快照后阻塞到下一期限或消息。一次连续 CPU 工作目标 ≤1 ms。</li>
+</ol>
+<p>锁规则：IRQ 临界区仅保护小型输入队列索引/事件复制；线程模型用优先级继承互斥锁或经验证的消息所有权。禁止拿模型锁调用设备、文件、LVGL 或发送可能等待的消息。64 位快照读写、取消和统计读也遵守同一同步规则。</p>
+<p>服务的显示请求使用单槽最新目标与 applied_seq，忙态可合并；GUI 报告当前实际 applied_seq，服务忽略低于已应用序号的迟到结果。设置预览不与“关闭显示”“睡眠”并发修改设备：电源关闭请求优先，亮度在下次安全唤醒时应用。</p>
+<p>GUI 唤醒事件允许合并，业务结果不可仅靠一个唤醒位保存。关中断只能处理当前 HCPU 共享数据，未来跨 HCPU/LCPU 通信必须增加 mailbox/IPC，不能沿用本地 IRQ 临界区。</p>
+</section>
+
+<section id="lifecycle"><h2>5. 页面生命周期与路由事务</h2>
+<p>项目只存当前导航意图、候选目标和 resume 摘要；真实运行栈归 SiFli。一个导航从 <code>IDLE→PREPARING→TRANSITIONING→COMMITTED</code>，准备失败走 ABORTED 回当前页。只有收到目标 ONRESUME 且转场完成条件满足后，才提交历史和释放旧页转场资源；两个事件次序均须测试。</p>
+<table><thead><tr><th>事件</th><th>动作顺序</th><th>失败规则</th></tr></thead><tbody>
+<tr><td>创建</td><td>验证 route/能力/深度→分配 scope→创建根对象→登记子资源→订阅快照。</td><td>任一步失败按逆序退还；不得先写“当前页面已切换”。</td></tr>
+<tr><td>恢复可见</td><td>读最新模型→更新一次布局→恢复可见动画/刷新→登记焦点。</td><td>资源缺失只替换该内容；页面模型不从过时控件回填。</td></tr>
+<tr><td>暂停</td><td>停止可见动画/定时刷新→保存滚动摘要→释放可回收快照。</td><td>后台业务不取消；触摸状态 CANCEL，下一页需新按压。</td></tr>
+<tr><td>停止</td><td>generation 失效→取消/注销外部回调→取消任务订阅→停止动画/timer→释放句柄→删除项目拥有对象→释放状态。</td><td>SDK 拥有的屏幕根节点交由框架删除；实现前用生命周期追踪验证实际顺序，避免双重删除。</td></tr>
+</tbody></table>
+<p>scope 上限：每页最多 8 个 timer、8 个动画登记、16 个订阅/外部回调、16 个资源句柄。超额返回容量错误并保留现有页面。scope 登记空间包含在每页状态预算内。display 级回调必须显式注销，删除页面树不会自动清除这些回调。</p>
+<p>最多 2 个运行 App、单 App 子页深度 8、历史 6。转场只允许一笔事务；在途普通请求返回 BUSY；返回意图占一个专用待处理槽，可覆盖重复返回。关键提醒先记账，等待合法层级接管；普通通知不能打断关键确认。</p>
+<p>首期通过 SDK 公开 <code>gui_app_create_page_ext</code>、公开手动转场入口和生命周期实现，不调用 <code>gui_app_int.h</code> 的私有中断函数。动画终止能力未验证时使用完成后返回；后续可在同一 navigator 接口内升级可中断转场。</p>
+</section>
+
+<section id="resources"><h2>6. 资源、美术与视觉开发约束</h2>
+<p>资源清单每项记录 ID、类型、许可证来源、包版本、尺寸、像素格式、压缩长度、最大解码长度、校验值和 fallback。内置启动字体/数字表盘/错误图标不依赖 NAND 文件系统；大照片和复杂动态资源后移到 M4/M5。</p>
+<table><thead><tr><th>资源类别</th><th>初始配额</th><th>回收与降级</th></tr></thead><tbody>
+<tr><td>绘制缓冲</td><td>双 50 行 RGB565 = 78,000 B，SDK 所有。</td><td>传输完成前禁止覆盖；不计入页面独占缓存两次。</td></tr>
+<tr><td>页面快照</td><td>共 768 KiB；两张全屏 RGB565 共 702,000 B。</td><td>预算只剩约 84 KiB，不能再附加任意全屏透明层；预留失败时关闭该转场效果。</td></tr>
+<tr><td>图像缓存</td><td>现有 PSRAM 2,100,000 B + SRAM 50,000 B；字体池现有 160,000 B。</td><td>按资源句柄 pin/use 完成解锁；LRU 只回收既未被引用、也未参与传输的条目。</td></tr>
+<tr><td>UI PSRAM 工作集</td><td>首期 ≤8 MiB，包含上述缓存、快照、字形、临时层和屏幕缓冲实际所在池。</td><td>维护去重账本；渲染中临时层失败回 Q0，不改变布局与业务状态。</td></tr>
+<tr><td>主 RAM</td><td>业务固定池新增暂留 32 KiB，轻量恢复层另留 16 KiB；全流程主堆峰值 ≤1.2 MiB。</td><td>与已有实际主堆容量比对，保留 ≥25% 空闲；检查最大空闲块而非仅总空闲。</td></tr>
+</tbody></table>
+<p>RGBA 全屏临时层为 390×450×4=702,000 B，已近一份快照总预算。Q1 采用预烘焙高光/边缘与局部透明，默认不做全屏实时模糊。Q2 开启前记录新增中间层尺寸与存活时间；RGB565 色阶通过实屏图检查，HTML 预览颜色不能替代 AMOLED 验收。</p>
+<p>每个代表页先交付 390×450 的布局稿、全部状态清单、中文/大字号和圆角裁切样例，再落成组件。第一批视觉验收样例为数字表盘、列表、亮度选择器、计时详情和提醒层；组件通过后再扩展蜂窝图标与复杂表盘。</p>
+</section>
+
+<section id="storage"><h2>7. 持久化、崩溃恢复与监督</h2>
+<p>M1–M3 业务模型在 RAM 中运行；M4 才开放经过验证的持久化 Provider。文件系统未挂载、只读或未知 schema 均保留原数据并使用会话默认值，禁止失败后自动格式化。UI 展示已保存状态必须以存储回执为准。</p>
+<p>设置记录的逻辑格式：magic、schema_version、record_kind、sequence、payload_length、payload_crc、payload；序列化明确字节序和长度，不保存指针/编译器填充。先向非当前 A/B 位置写完整记录→flush/close→回读校验→提交标记并同步→确认当前记录。启动选择最新完整记录；两份都无效则默认值并保留原文件用于诊断。</p>
+<p>A/B 方案必须运行在确认了 ECC、坏块映射和文件系统提交语义的层上。CRC 能发现损坏，不能保证两个文件不会共用一个被破坏的物理擦除块；提交标记也不能自行创造原子写。只有实际掉电矩阵通过后才能宣称已具备所测条件下的恢复能力。</p>
+<p>计时检查点存逻辑状态、剩余时间、RTC 对照及其可信性，不保存下次启动不能继续使用的绝对 mono deadline。复位后 RTC 连续性不明则恢复待确认；已过期项合并为可查看的错过记录，不在启动时狂响全部历史闹钟。</p>
+<p>监督先采集 GUI loop、服务 batch、显示提交/完成、I/O 活动的进度值。每个模块登记工作 deadline 和允许休眠状态，空闲不推进业务并不算死锁。看门狗只在全部必须存活的模块仍有进展或处于批准等待时喂养；超时只能请求受控恢复，不能从监督线程跨线程调用 LVGL。</p>
+<p>本地恢复入口保留：组件资源错误→占位；页面构造失败→已存在的恢复层；设备故障→能力 fault；GUI 或显示无法收敛→有限尝试后受控重启。连续启动失败使用有可靠保存基础的启动计数才可进入安全模式，不能提前承诺现有硬件具备这一机制。</p>
+</section>
+
+<section id="tasks"><h2>8. 可按顺序执行的开发任务</h2>
+<p>以下为工程任务，不是已实现清单。每项提交必须附其指定测试结果；可编辑器浏览或 HTML 演示不计为板上通过。</p>
+<table><thead><tr><th>ID / 阶段</th><th>交付与主要文件</th><th>前置 / 验收</th></tr></thead><tbody>
+<tr><td>D01 · M0.1</td><td>修复表盘退出遍历、桌面 display 回调注销；先建立最小常驻错误层，再加入构造失败退路。</td><td>无；T01、T02。先围绕可触发路径修复，不重写全部旧桌面。</td></tr>
+<tr><td>D02 · M0.1</td><td>板级来源清单、有效配置核对、双工具链产物身份与构建后检查。</td><td>无；T03。记录实际编译路径，干净 SDK 验证。</td></tr>
+<tr><td>D03 · M0.1</td><td>统一 GUI 活跃等待与唤醒；取消输入的恢复规则。</td><td>D01；T04、T05。原 M0 队列测试继续通过。</td></tr>
+<tr><td>D04 · M1.0</td><td>iw_time：单调时间、RTC 有效性、校时事件，移除启动固定日期。</td><td>D03；T06、T07。</td></tr>
+<tr><td>D05 · M1.0</td><td>iw_service：32 B 命令、16 在途/32 账本、快照、全局结果回收。</td><td>D03、D04；T08–T10。</td></tr>
+<tr><td>D06 · M1.0</td><td>显示目标 mailbox、会话设置、applied/persisted 状态。</td><td>D05；T11。供 UI 首批闭环使用，不等待 M2。</td></tr>
+<tr><td>D07 · M1.1</td><td>主题/共享组件、组件展示页；复用 D01 的最小错误层并完善视觉。</td><td>D01、D02、D06；T12。中文、大字、忙态和错误状态齐全。</td></tr>
+<tr><td>D08 · M1.1</td><td>scope、navigator、页面注册表、返回合并策略。</td><td>D05、D07；T13、T14。</td></tr>
+<tr><td>D09 · M1.1</td><td>双键输入语义、表冠旋转注入、全局仲裁。</td><td>D03、D08；T05、T15。实际 KEY2 和旋钮按硬件条件记录。</td></tr>
+<tr><td>D10 · M1.2</td><td>数字表盘、应用列表、设置/亮度、手动校时和关于页完整流程。</td><td>D04–D09；T07、T11–T15、T22。</td></tr>
+<tr><td>D11 · M2</td><td>计时器/秒表核心、服务与 View；8 个计时器、100 lap。</td><td>D10；T16、T17。</td></tr>
+<tr><td>D12 · M2</td><td>16 闹钟、24 提醒槽、互斥输出、全局提醒页。</td><td>D11；T18、T19。</td></tr>
+<tr><td>D13 · M3</td><td>控制中心、通知、叠放、切换器、输入锁、水锁、表盘选择/编辑。</td><td>D12；T14、T15、T20。</td></tr>
+<tr><td>D14 · M3</td><td>蜂窝桌面与复杂表盘性能样例，改进可中断转场。</td><td>D10；T22、T23。未通过时保留 Q0/Q1 和完成后返回。</td></tr>
+<tr><td>D15 · M4</td><td>NAND/FAL 接入、A/B 设置、资源包读取与损坏降级。</td><td>D02、G2 首烧门槛；T21。发布前说明实际恢复保证。</td></tr>
+<tr><td>D16 · M4</td><td>灭屏→唤醒→深睡；期限补偿、唤醒锁、监督与看门狗。</td><td>D12、D15；T24、T25。</td></tr>
+<tr><td>D17 · M5</td><td>健康/运动真实 Provider，照片、工具 App 和离线展示页面。</td><td>D13、对应硬件适配与资源能力；T20–T23，每 App 独立契约。</td></tr>
+<tr><td>D18 · M6</td><td>1000 次导航、8 小时混合压力、资源/功耗测量、自研板适配与发布。</td><td>已发布能力对应任务全部验收；T23–T25。</td></tr>
+</tbody></table>
+<p>G2 是 <a href="架构复审与开发基线_v1.1.html#gates">镜像可上板门槛</a>，与主机代码开发并行准备。首批开发从 D01、D02、D03 开始；没有完成这些基础项时不宣布 M1 产品流程已稳定。</p>
+</section>
+
+<section id="tests"><h2>9. 测试矩阵与判定标准</h2>
+<table><thead><tr><th>测试</th><th>操作/故障注入</th><th>通过条件 / 环境</th></tr></thead><tbody>
+<tr><td>T01</td><td>建立 ≥3 个表盘→停止，重复循环。</td><td>链表释放无越界/释放后访问；主机内存检测或目标断点辅助，板上退出回归。</td></tr>
+<tr><td>T02</td><td>桌面停止后刷新；每个创建分配点故意失败。</td><td>display 回调数回基线；无空指针或未释放状态；主机适配测试+板上。</td></tr>
+<tr><td>T03</td><td>改错分区/地址/工具链身份，检查干净 SDK 构建。</td><td>错误包被阻止发布；实际 BSP 路径明确，记录 3 个镜像哈希；主机构建。</td></tr>
+<tr><td>T04</td><td>GUI 无 timer、服务晚到事件、连续输入。</td><td>活跃等待≤20 ms 配置上限，无忙轮询；测 P95 输入消费延迟；板上。</td></tr>
+<tr><td>T05</td><td>队满且 RELEASE 丢失、两个键交错。</td><td>无幽灵点击；恢复必须可信释放；每键状态隔离；主机+板上。</td></tr>
+<tr><td>T06</td><td>tick 从 0xFFFFFFF0 跨零，期间计时。</td><td>单调时间连续、到期一次；主机使用可注入时钟。</td></tr>
+<tr><td>T07</td><td>设置有效日期→重启；无备份掉主电；跨闰日。</td><td>有效时间不覆盖；失效正确标识；非法日期拒绝；主机+板上。</td></tr>
+<tr><td>T08</td><td>相同 token 重投、原记录已回收、session 已变化。</td><td>不重复副作用；返回原结果/RESULT_EXPIRED/会话失效；主机。</td></tr>
+<tr><td>T09</td><td>命令/结果队列满，完成消息未到达。</td><td>模型和账本可查询；未受理无副作用；主机。</td></tr>
+<tr><td>T10</td><td>页面退出后响应，再进入同 page_id。</td><td>旧 generation 不触控件；全局结果仍 ACK；无句柄泄漏；主机+板上。</td></tr>
+<tr><td>T11</td><td>亮度连续拖动→返回；预览被 FINAL 替代；注入驱动 busy/失败/超时。</td><td>最终值一致，SUPERSEDED 请求账本可回收，失败回有效值；板上测真实亮度命令。</td></tr>
+<tr><td>T12</td><td>长中文、最大字号、缺图、Q0/Q1、RGB565 色阶。</td><td>没有重叠/越界/读不清；占位不改变交互；模拟器布局+实屏。</td></tr>
+<tr><td>T13</td><td>导航忙时重复返回，ONRESUME 与转场完成两种顺序。</td><td>路由只提交一次，当前页不悬空，历史正确；主机策略测试+框架板测。</td></tr>
+<tr><td>T14</td><td>8 级子页/第 9 级、6 项历史/第 7 项、缩略图分配失败。</td><td>深度拒绝且当前可用，历史有界，图标回退；主机+板上。</td></tr>
+<tr><td>T15</td><td>双击窗口边界、长按与水锁、触摸滚动同时发生。</td><td>一个输入一个语义；旧 CLICK 不额外触发 Home；主机+实物。</td></tr>
+<tr><td>T16</td><td>deadline 同时 PAUSE/CANCEL，暂停后改 RTC。</td><td>到期先推进，冲突明确，单调期限不变；主机。</td></tr>
+<tr><td>T17</td><td>退出计时页→到期；秒表第 101 lap。</td><td>业务继续，提醒一次，计次满但秒表继续；主机+板上。</td></tr>
+<tr><td>T18</td><td>8 计时器+16 闹钟同时到期，通知队列拥塞。</td><td>24 源全部保留，确认顺序稳定，无重复输出；主机+板上。</td></tr>
+<tr><td>T19</td><td>闹钟跨多日回拨、前调、长期不确认、旧 occurrence ACK、稍后/常规同到期、删除。</td><td>不重复响旧发生，旧 ACK 不清新发生，同源合并、删除释放槽；主机。</td></tr>
+<tr><td>T20</td><td>缺硬件/断连/低质量；切换演示 Provider。</td><td>数据来源可辨；真实记录未被样例覆盖；主机+板上。</td></tr>
+<tr><td>T21</td><td>写 body/同步/校验/提交任一步失败或掉电。</td><td>恢复完整版本或明确默认降级；不自动格式化；软件注入+物理掉电。</td></tr>
+<tr><td>T22</td><td>固定 390×450、同资源同文本，测常用转场。</td><td>目标平均≥30 fps，P95帧间隔≤40 ms，P99≤67 ms；无&gt;150 ms 的交互停顿。复杂场景另记，当前未测。</td></tr>
+<tr><td>T23</td><td>缓存预热后 1000 次导航，释放回静态表盘。</td><td>已销毁页面 timer/订阅归零，当前表盘回到基线数量；缓存回稳；无持续内存增长；主堆空闲≥25%、栈峰值≤75%。</td></tr>
+<tr><td>T24</td><td>100 次睡眠唤醒，含正在拖动、DMA、计时到期。</td><td>输入先清状态，首帧正确，时间补偿正确，无重复提醒；实物。</td></tr>
+<tr><td>T25</td><td>GUI/服务故意停滞；8 h 混合使用。</td><td>正确识别故障并留下原因，正常空闲/睡眠不误复位；实物。</td></tr>
+</tbody></table>
+<p>上表是待执行测试设计。现有通过证据仍仅为 M0 输入队列主机测试、8 个布局测试、目标构建/Keil 工程生成及旧固件的只读板上快照。</p>
+</section>
+
+<section id="records"><h2>10. 开发记录与提交要求</h2>
+<p>每次功能提交附：需求/任务 ID、实际修改模块、启用能力、主机测试结果、构建/资源哈希、板上验证状态、已知差异。文档保留 HTML 格式，新增功能通过首页进入。公开文档不记录个人目录、口令、串口原始隐私数据。</p>
+<p>测试记录字段：<code>test_id、commit、SDK commit、compiler、board_id、partition_version、resource_version、mode、input_sequence、expected、actual、result、log_ref、frame_ref</code>。源码基线和结果文件匹配后才把状态从“设计/构建通过”改成“板上通过”。</p>
+<p>可立即执行的只读/主机入口：</p>
+<pre><code>py -3 tools/docs/check_html.py
+.\firmware\tests\run-core-tests.ps1
+py -3 firmware/check_layout.py
+py -3 firmware/check_layout.py --build-dir firmware/iwatch/project/build_iwatch_sf32lb58_a128_qspi_hcpu</code></pre>
+<p>构建入口为 <code>firmware/build-gcc.ps1</code> 与 <code>firmware/generate-keil.ps1</code>；当前输出目录共享，因此依次运行。发布与烧录是两个独立检查点，不因执行了编译命令自动进入烧录。</p>
+</section></main></div>
+<footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script src="../assets/engineering.js"></script>
+</body></html>

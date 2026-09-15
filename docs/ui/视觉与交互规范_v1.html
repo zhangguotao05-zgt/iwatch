@@ -30,6 +30,7 @@
 <section id="iwatch-视觉与交互规范-v1" class="level1">
 <h1>iwatch 视觉与交互规范 v1</h1>
 <p>日期：2026-09-15。设计对象为实际 390×450 AMOLED；参考 Apple Watch Series 11、watchOS 26 中文界面。这里的像素、颜色和时长是本项目起始设计值，待参考截图与实屏对照调整，不是 Apple 公布的内部参数。</p>
+<p>功能状态、输入优先级与真实数据规则见 <a href="功能逻辑与页面契约_v1.html">功能逻辑与页面契约</a>；线程、接口和资源验收见 <a href="模块接口与开发任务_v1.html">模块接口与开发任务</a>。视觉调整不得改变已经确定的状态转换或隐藏未完成操作。</p>
 <section id="观感目标与取舍" class="level2">
 <h2>1. 观感目标与取舍</h2>
 <p>优先还原信息层级、圆角轮廓、字体比例、滚动手感和页面进入/退出关系。保持黑底、清晰大字、克制的强调色，让表盘成为视觉中心。复杂特效服从连续操作的流畅性。</p>
@@ -39,12 +40,7 @@
 <section id="布局与主题令牌" class="level2">
 <h2>2. 布局与主题令牌</h2>
 <p>以 390×450 为设计坐标。其他屏幕由 profile 提供尺寸、圆角避让、字体尺度；组件只读令牌，禁止在各 App 中复制一套不同的魔法数字。</p>
-<table style="width:17%;">
-<colgroup>
-<col style="width: 5%" />
-<col style="width: 5%" />
-<col style="width: 5%" />
-</colgroup>
+<table>
 <thead>
 <tr class="header">
 <th>类别</th>
@@ -249,7 +245,7 @@
 <tr class="even">
 <td>控制中心/通知</td>
 <td style="text-align: right;">220–280 ms</td>
-<td>从对应层次出现；支持中途反向与关闭</td>
+<td>从对应层次出现；首版合并一个关闭请求并在当前转场完成后执行</td>
 </tr>
 <tr class="odd">
 <td>卡片吸附</td>
@@ -269,7 +265,7 @@
 </tbody>
 </table>
 <p>单个可见场景的并行动画组初始上限 4；每组允许多个属性同步。缓存整组变换优先于对几十个子控件同时做复杂透明混合。长时间后台动画暂停，秒表以服务提供的经过时间重绘，不依赖动画跑了多少帧。</p>
-<p>绘制前完成资源预热；切页回调不临时解码大图。动画必须可中断，取消后释放回调并落到确定的页面状态。屏幕录制测到的动画流畅性与代码中设置的时长分开验收。</p>
+<p>绘制前完成资源预热；切页回调不临时解码大图。页面内动画可取消，清理后落到确定状态；SDK 路由转场先采用“当前事务完成＋单个待处理返回”。中途反向接续属于后续增强，需要公开 API 与生命周期验证后开启。屏幕录制测到的动画流畅性与代码中设置的时长分开验收。</p>
 </section>
 <section id="系统输入矩阵" class="level2">
 <h2>6. 系统输入矩阵</h2>
@@ -329,7 +325,7 @@
 </tbody>
 </table>
 <p>以官方按钮与手势说明核对最终细节；锁屏、水锁、弹层是高于普通页面的输入上下文。<a href="https://support.apple.com/en-asia/guide/watch/apd1d9d7efca/26/watchos/26">Apple Watch 操作说明</a></p>
-<p>起始阈值：物理消抖沿用 SDK 20 ms；双击窗 280 ms；触摸长按 500 ms；开始拖动距离 12 px。表冠长按、水锁退出长按分别配置；这些值均需要板上调优。单击识别等双击窗口，但按下反馈立即显示。UI 响应目标区分“输入到按下反馈”和“语义确认到导航首帧”，不把双击识别等待隐藏进测量结果。</p>
+<p>起始阈值：物理消抖沿用 SDK 20 ms；双击窗 280 ms；触摸长按 500 ms；开始拖动距离 12 px；表冠长按 800 ms，侧键长按 1,500 ms，水锁退出长按 2,000 ms，分别配置。这些均为板上待调参数。单击识别等双击窗口，但按下反馈立即显示；长按已生效后释放不再派发单击。UI 响应目标区分“输入到按下反馈”和“语义确认到导航首帧”。</p>
 </section>
 <section id="页面契约与视觉验收" class="level2">
 <h2>7. 页面契约与视觉验收</h2>
@@ -339,7 +335,7 @@
 <ol type="1">
 <li>固定时间、语言、数据与资源版本，截取开发板实际输出；与重排至 390×450 的布局目标对照。</li>
 <li>检查字形基线、圆角裁切、间距、文本截断、黑边、触摸反馈和返回方向；用叠图辅助，不以不同字体逐像素相等作为通过标准。</li>
-<li>录制连续“点击→进入→滚动→返回”，检查动画反向、取消、快速连按及触摸边缘。模拟器只能辅助，不替代 AMOLED 实屏检查。</li>
+<li>录制连续“点击→进入→滚动→返回”，检查转场中返回的最终落点、重复请求合并、快速连按及触摸边缘；启用中途反向的场景另测接续。模拟器只能辅助，不替代 AMOLED 实屏检查。</li>
 <li>用灰阶/渐变图检查 RGB565 色带、透明效果和字体边缘；用全屏边缘标尺检查显示方向与触摸坐标。</li>
 <li>普通页面最低目标为稳定 30 fps；轻量场景争取 60 fps。要求提供实际测量结果，不能只写 <code>LV_DEF_REFR_PERIOD=16</code> 就声称达到 60 fps。</li>
 </ol>
@@ -349,21 +345,6 @@
     </main>
   </div>
   <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
-  <script>
-    document.querySelectorAll('table').forEach(function (table) {
-      var wrapper = document.createElement('div');
-      wrapper.className = 'table-wrap';
-      table.parentNode.insertBefore(wrapper, table);
-      wrapper.appendChild(table);
-    });
-  </script>
-  <script type="module">
-    if (document.querySelector('.mermaid')) {
-      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
-        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
-        module.default.run({ querySelector: '.mermaid' });
-      });
-    }
-  </script>
+  <script src="../assets/engineering.js"></script>
 </body>
 </html>

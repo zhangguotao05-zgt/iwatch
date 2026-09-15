@@ -18,12 +18,7 @@
 <p>这份文件记录新的设计输入与选型方向，不是已修改完成的 EDA 原理图。当前在线电路仍是 v0.3，原有屏幕接口不能直接用于 CWS05。</p>
 <p><strong>屏幕：适合作为接下来的选型候选，不能按现有接线直接替换。</strong></p>
 <p>依据项目采用的 CWS05 v1.0、2024-06-13 规格书，已核查 P4~P12 及 P15 的相关尺寸、供电、针表、时序、光学参数和寿命说明；P5 的原始机械图也单独提取放大核查。</p>
-<table style="width:17%;">
-<colgroup>
-<col style="width: 5%" />
-<col style="width: 5%" />
-<col style="width: 5%" />
-</colgroup>
+<table>
 <thead>
 <tr class="header">
 <th>项目</th>
@@ -74,12 +69,7 @@
 </ul>
 <p>P6的ELVDD/ELVSS、VDD/VEE等包含面板内部工作电源，不能直接推导为主板要各产生一条电源。P12在600nit全白条件下列了200h寿命项；P15以亮度下降到某比例（举例95%）定义寿命，不能解释为200小时后损坏。具体衰减阈值、长期常亮指标和整模组VBAT输入电流仍需供应商确认。</p>
 <p><strong>四个直插按键：佩戴版不应保留四个原型号。</strong></p>
-<table style="width:17%;">
-<colgroup>
-<col style="width: 5%" />
-<col style="width: 5%" />
-<col style="width: 5%" />
-</colgroup>
+<table>
 <thead>
 <tr class="header">
 <th>位号</th>
@@ -126,21 +116,6 @@
     </main>
   </div>
   <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
-  <script>
-    document.querySelectorAll('table').forEach(function (table) {
-      var wrapper = document.createElement('div');
-      wrapper.className = 'table-wrap';
-      table.parentNode.insertBefore(wrapper, table);
-      wrapper.appendChild(table);
-    });
-  </script>
-  <script type="module">
-    if (document.querySelector('.mermaid')) {
-      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
-        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
-        module.default.run({ querySelector: '.mermaid' });
-      });
-    }
-  </script>
+  <script src="../../docs/assets/engineering.js"></script>
 </body>
 </html>

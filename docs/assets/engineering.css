@@ -157,6 +157,10 @@ img, svg { max-width: 100%; height: auto; }
   font-size: 12px;
   text-align: center;
 }
+.doc-meta { color: var(--muted); font-size: 14px; }
+.diagram-error { color: var(--warn); }
+.table-wrap:focus-visible { outline: 2px solid var(--accent); outline-offset: 4px; }
+td code { overflow-wrap: anywhere; }
 
 @media (max-width: 900px) {
   .site-header { padding: 0 18px; }

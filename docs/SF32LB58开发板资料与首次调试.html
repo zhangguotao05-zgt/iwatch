@@ -74,13 +74,7 @@ Please enable LCPU_CONFIG_AUTO and ensure LCPU_CONFIG_V2 is not enabled in BOTH 
 customer/boards/sf32lb58-lcd_a128r32n1_qspi/lcpu/board.conf</code></pre>
 <p>修正后的 HCPU 和 Bootloader <code>.config</code> 均为 <code>CONFIG_LCPU_CONFIG_AUTO=y</code>、<code>CONFIG_LCPU_CONFIG_V2</code> 未启用；构建系统针对本芯片生成 <code>LCPU_CONFIG_V1</code> 编译定义。不要再使用未修正的 V2 固件。</p>
 <p>本次修正版烧录内容如下，三段均由 <code>sftool</code> 开启写后校验：</p>
-<table style="width:25%;">
-<colgroup>
-<col style="width: 5%" />
-<col style="width: 6%" />
-<col style="width: 6%" />
-<col style="width: 5%" />
-</colgroup>
+<table>
 <thead>
 <tr class="header">
 <th>内容</th>
@@ -179,13 +173,7 @@ customer/boards/sf32lb58-lcd_a128r32n1_qspi/lcpu/board.conf</code></pre>
 <section id="选对-qspi-板型" class="level2">
 <h2>选对 QSPI 板型</h2>
 <p>SDK v2.5.1 已提供专门的 QSPI 配置；本套装应按实际存储型号选择以下目标。不要因为开发板名称带 LCD，就套用 DSI/DPI 屏的配置。</p>
-<table style="width:22%;">
-<colgroup>
-<col style="width: 5%" />
-<col style="width: 5%" />
-<col style="width: 5%" />
-<col style="width: 5%" />
-</colgroup>
+<table>
 <thead>
 <tr class="header">
 <th>板上模组标识</th>
@@ -262,12 +250,7 @@ customer/boards/sf32lb58-lcd_a128r32n1_qspi/lcpu/board.conf</code></pre>
 <section id="本地下载记录" class="level2">
 <h2>本地下载记录</h2>
 <p>以下官方原件已下载到项目本地的 <code>references/vendor/sifli-sf32lb58/</code>，并通过压缩包完整性检查。该目录由 <code>.gitignore</code> 排除；仓库保存索引和原厂链接。<code>downloads.json</code> 记录了原始下载地址、大小、SHA256 和包内文件列表。</p>
-<table style="width:18%;">
-<colgroup>
-<col style="width: 5%" />
-<col style="width: 6%" />
-<col style="width: 5%" />
-</colgroup>
+<table>
 <thead>
 <tr class="header">
 <th>文件</th>
@@ -299,21 +282,6 @@ customer/boards/sf32lb58-lcd_a128r32n1_qspi/lcpu/board.conf</code></pre>
     </main>
   </div>
   <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
-  <script>
-    document.querySelectorAll('table').forEach(function (table) {
-      var wrapper = document.createElement('div');
-      wrapper.className = 'table-wrap';
-      table.parentNode.insertBefore(wrapper, table);
-      wrapper.appendChild(table);
-    });
-  </script>
-  <script type="module">
-    if (document.querySelector('.mermaid')) {
-      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
-        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
-        module.default.run({ querySelector: '.mermaid' });
-      });
-    }
-  </script>
+  <script src="assets/engineering.js"></script>
 </body>
 </html>

@@ -29,14 +29,10 @@
 <section id="iwatch-架构实施与验收-v1" class="level1">
 <h1>iwatch 架构实施与验收 v1</h1>
 <p>日期：2026-09-15。架构见 <a href="系统架构_v1.html">系统架构</a>，视觉标准见 <a href="视觉与交互规范_v1.html">视觉与交互规范</a>。本表控制执行顺序，不代替完整界面覆盖清单。</p>
+<p>v1.1 复审后增加 M0.1，拆细 M1，并将其所需时间/服务基础前移。逐项工作见 <a href="模块接口与开发任务_v1.html#tasks">D01–D18 开发任务</a>，新增边界用例见 <a href="模块接口与开发任务_v1.html#tests">T01–T25 测试矩阵</a>。下面的 R01 等记录保留原有范围；新增 T 系列均待执行，不能沿用旧测试的通过结果。</p>
 <section id="分阶段交付" class="level2">
 <h2>1. 分阶段交付</h2>
-<table style="width:17%;">
-<colgroup>
-<col style="width: 5%" />
-<col style="width: 5%" />
-<col style="width: 5%" />
-</colgroup>
+<table>
 <thead>
 <tr class="header">
 <th>阶段</th>
@@ -48,22 +44,32 @@
 <tr class="odd">
 <td>M0 可靠性基础</td>
 <td>修正 PSRAM1 范围；构建布局/镜像检查；按键跨线程消息；诊断计数；保存板上基线</td>
-<td>主机边界测试、GCC 构建；随后板上按键与触摸回归</td>
+<td>部分基础代码已通过主机测试与 GCC 构建；新布局、输入仍需板上验证</td>
 </tr>
 <tr class="even">
-<td>M1 统一视觉与路由</td>
-<td>主题令牌、组件展示页、页面作用域、SiFli 路由门面、单/双击和全局上下文</td>
-<td>表盘→桌面→设置→亮度→返回闭环，无资源遗留</td>
+<td>M0.1 缺陷收敛，D01–D03</td>
+<td>修复链表释放、注销显示事件、分配失败回退；核对 BSP 来源和构建后检查；限制 GUI 等待</td>
+<td>生命周期故障用例、源码路径检查、完整编译通过；满足 G1 后才能进入新固件板测</td>
+</tr>
+<tr>
+<td>M1.0 服务基础，D04–D06</td>
+<td>单调时间与 RTC 有效性、命令/结果账本、RAM 设置、亮度邮箱</td>
+<td>不会在启动覆盖有效时间；重复请求不重复执行；退出页面不遗失回执</td>
+</tr>
+<tr>
+<td>M1.1 / M1.2 视觉与首个闭环，D07–D10</td>
+<td>组件展示页、页面作用域、SiFli 路由门面、单/双击与全局上下文；数字表盘、列表桌面、设置和亮度</td>
+<td>表盘→桌面→设置→亮度→返回闭环，无资源遗留；真实按键与触摸回归通过</td>
 </tr>
 <tr class="odd">
 <td>M2 后台业务纵向样例</td>
-<td>单调时间与 RTC 有效性；计时服务、提醒记录、请求/回执</td>
+<td>复用 M1 的时间与 IPC；实现 8 个计时器、1 个秒表、16 个闹钟及 24 槽待确认提醒</td>
 <td>退出页面后计时继续；修改日历不破坏秒表；溢出/过期响应测试通过</td>
 </tr>
 <tr class="even">
 <td>M3 系统壳层</td>
-<td>控制中心、通知、智能叠放、切换器、锁屏、水锁、表盘选择</td>
-<td>全局按键/触摸矩阵完整，快速交互可中断，低内存可降级</td>
+<td>控制中心、通知、智能叠放、切换器、输入锁、水锁、表盘选择；蜂窝桌面</td>
+<td>全局按键/触摸矩阵完整，连续操作最终路由确定，低内存可降级；安全密码锁另行设计</td>
 </tr>
 <tr class="odd">
 <td>M4 存储与电源</td>
@@ -86,7 +92,7 @@
 </section>
 <section id="第一批代码范围" class="level2">
 <h2>2. 第一批代码范围</h2>
-<p>第一批先实现 M0：</p>
+<p>以下保留 M0 基础批次的范围，实际完成状态见第 6 节；当前待执行的下一批为 M0.1 的 D01–D03：</p>
 <ul>
 <li>构建前检查本板 PSRAM/NAND 区域的容量和重叠；构建后检查实际装载镜像大小。</li>
 <li>PSRAM1 数据区由 12 MiB 修正为 10 MiB；main 装载槽改为 NAND 偏移 16 MiB、容量 6 MiB，保持已有 NAND 数据分区地址不变。新槽与启动表的实物验证单独执行。</li>
@@ -221,11 +227,7 @@
 <section id="m0-实施记录" class="level2">
 <h2>6. M0 实施记录</h2>
 <p>架构与视觉基线冻结后，M0 基础代码按以下状态实施：</p>
-<table style="width:11%;">
-<colgroup>
-<col style="width: 5%" />
-<col style="width: 5%" />
-</colgroup>
+<table>
 <thead>
 <tr class="header">
 <th>项目</th>
@@ -273,27 +275,12 @@
 </table>
 <p>C 队列测试包含 11,000 条事件的入队/出队顺序验证；它不模拟 RTOS 抢占或真实触摸，板上并发回归仍必需。现有 SDK 构建还有驱动/链接警告，构建通过不等同于消除了全部上游警告。</p>
 <p>相关入口：<a href="../../firmware/iwatch/src/core/iw_input_queue.c">输入核心</a>、<a href="../../firmware/iwatch/src/gui_apps/watch_demo.c">现有 GUI 适配</a>、<a href="../../firmware/check_layout.py">布局校验</a>、<a href="../../firmware/tests/run-core-tests.ps1">主机测试脚本</a>。本地构建日志在忽略入库的 <code>logs/architecture-m0-gcc.log</code> 与 <code>logs/architecture-m0-keil.log</code>。</p>
-<p>接下来执行 M0 的新布局备份/引导和按键回归；M1 首个产品界面闭环为“数字表盘→桌面→设置→亮度→返回”，同时完成组件展示页。新页面不能绕过本架构直接堆进示例文件。</p>
+<p>2026-09-15 复审补充：M0 尚未完成全部可靠性验收，仍发现表盘链表释放风险、桌面刷新回调未注销和 GUI 无等待上限。先执行 D01–D03，再按 <a href="架构复审与开发基线_v1.1.html#gates">G1–G4 准入条件</a>分开开展构建、备份、引导和实屏验证。M1 先建立时间与服务基础，再完成“数字表盘→桌面→设置→亮度→返回”，新页面不能绕过架构直接堆进示例文件。</p>
 </section>
 </section>
     </main>
   </div>
   <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
-  <script>
-    document.querySelectorAll('table').forEach(function (table) {
-      var wrapper = document.createElement('div');
-      wrapper.className = 'table-wrap';
-      table.parentNode.insertBefore(wrapper, table);
-      wrapper.appendChild(table);
-    });
-  </script>
-  <script type="module">
-    if (document.querySelector('.mermaid')) {
-      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
-        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
-        module.default.run({ querySelector: '.mermaid' });
-      });
-    }
-  </script>
+  <script src="../assets/engineering.js"></script>
 </body>
 </html>

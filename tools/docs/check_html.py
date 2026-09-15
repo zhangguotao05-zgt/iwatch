@@ -1,6 +1,7 @@
 from html.parser import HTMLParser
 from pathlib import Path
 from urllib.parse import unquote, urlsplit
+import hashlib
 import re
 import sys
 
@@ -20,11 +21,14 @@ class DocumentParser(HTMLParser):
         super().__init__(convert_charrefs=True)
         self.links = []
         self.ids = set()
+        self.duplicate_ids = set()
         self.text = []
 
     def handle_starttag(self, tag, attrs):
         values = dict(attrs)
         if "id" in values:
+            if values["id"] in self.ids:
+                self.duplicate_ids.add(values["id"])
             self.ids.add(values["id"])
         for name in ("href", "src"):
             if name in values:
@@ -49,6 +53,8 @@ def main():
     errors = []
     for path, doc in parsed.items():
         relative = path.relative_to(ROOT)
+        for duplicate in sorted(doc.duplicate_ids):
+            errors.append(f"{relative}: duplicate id: {duplicate}")
         visible_text = " ".join(doc.text)
         for pattern in FORBIDDEN:
             if pattern.search(visible_text):
@@ -67,11 +73,29 @@ def main():
                     errors.append(f"{relative}: missing fragment: {raw_link}")
     if not (ROOT / "index.html").is_file():
         errors.append("index.html is missing")
+    checksum_count = 0
+    for manifest in sorted((ROOT / "hardware").rglob("SHA256SUMS.txt")):
+        for line_number, line in enumerate(manifest.read_text(encoding="utf-8-sig").splitlines(), 1):
+            if not line.strip() or line.startswith("#"):
+                continue
+            match = re.fullmatch(r"([0-9a-fA-F]{64}) [ *](.+)", line)
+            if not match:
+                errors.append(f"{manifest.relative_to(ROOT)}:{line_number}: invalid checksum entry")
+                continue
+            expected, filename = match.groups()
+            target = manifest.parent / filename
+            if not target.is_file():
+                errors.append(f"{manifest.relative_to(ROOT)}: missing checksum target: {filename}")
+                continue
+            actual = hashlib.sha256(target.read_bytes()).hexdigest()
+            if actual != expected.lower():
+                errors.append(f"{manifest.relative_to(ROOT)}: checksum mismatch: {filename}")
+            checksum_count += 1
     for error in errors:
         print(f"HTML ERROR: {error}")
     if errors:
         return 1
-    print(f"HTML checks passed: {len(documents)} documents, local links and anchors valid")
+    print(f"HTML checks passed: {len(documents)} documents; local links, unique anchors and {checksum_count} checksums valid")
     return 0
 
 

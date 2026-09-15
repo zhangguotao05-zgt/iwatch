@@ -30,11 +30,17 @@
 <p>13 页原理图；主控为 1 颗 SF32LB586VDD36，直接贴装，不采购核心模块。屏幕按已确认的 1.85 英寸 390×450 QSPI AMOLED 开发套装，首板使用其转接板。</p>
 <p>在线已保存 PCB1 未布线准备稿，153 个器件/测试点位置、726 个焊盘网络与原理图模型一致。本地 epro 为原理图及封装库备份，PCB1 在在线工程中。默认双层 PCB 文档尚未冻结板层工艺。</p>
 <p>下一阶段：锁定板框与电池/表冠/LRA/裸屏接口等实物参数，完成电源和阻容采购细节、ESD 方案、PCB 布局布线及制造审查。本资料不是可直接下单的 Gerber，也尚无实物测试结果。</p>
-<p>2026-09-15 开发板进展：已在 SF32LB58-DevKit-LCD A128R32N1 实物上烧录并运行 SDK v2.5.1 <code>watch_v9</code>。实物芯片为 A1 修订版，官方 QSPI 板型默认的 <code>LCPU_CONFIG_V2</code> 会在启动阶段断言；HCPU、LCPU 板级配置改为 <code>LCPU_CONFIG_AUTO</code> 后启动正常。COM9 用于下载，COM10 为 1 Mbps HCPU 日志口。无屏状态下 RT-Thread、LVGL 和 Main 应用已运行，显示 ID 与触摸 I2C 错误等待屏幕到货后复测。</p>
+<p>2026-09-15 开发板进展：已在 SF32LB58-DevKit-LCD A128R32N1 实物运行 SDK v2.5.1 <code>watch_v9</code>。启动日志报告 A1 修订；HCPU、LCPU 板级配置使用 <code>LCPU_CONFIG_AUTO</code> 后启动正常。COM9 用于下载，COM10 为 1 Mbps HCPU 日志口。当前 CO5300 + FT6146 开发模组已经点亮，触摸 ID 已读出；此前无屏阶段的显示/I²C 报错仅保留为历史记录。触摸坐标、边缘、连续拖动和新架构稳定性仍待实测。</p>
 <ul>
 <li><a href="SF32LB58开发板资料与首次调试.html">开发板资料与首次实测记录</a></li>
 </ul>
-<p>同日已将可修改的 <code>watch_v9</code> 应用源码、A128 QSPI/A1 板级修正和项目专用分区表迁入仓库的 <a href="../firmware/README.html">firmware</a> 目录。项目名称统一为 <strong>iwatch</strong>。M0 版本已完成 GCC 全量构建和 Keil 工程生成，Keil 工程包含 925 个有效源码引用；新分区和输入队列尚未烧录到开发板。</p>
+<p>同日已将可修改的 <code>watch_v9</code> 应用源码、A128 QSPI/A1 板级配置和项目分区表迁入仓库的 <a href="../firmware/README.html">firmware</a> 目录。项目名称统一为 <strong>iwatch</strong>。部分 M0 基础代码已通过主机测试、GCC 全量构建和 Keil 工程生成；当次 Keil 工程含 925 个有效源码引用。新分区和输入队列尚未烧录到开发板。</p>
+<p>架构复审发现表盘链表释放风险、桌面刷新回调未注销、启动覆盖 RTC、GUI 等待缺少上限等未修复问题。当前生成工程仍使用外部 SDK 中的四个公共 BSP 源文件，本地同名副本尚未接管构建。下一批先修复生命周期并固定构建来源，再实现 M1 的服务、组件、路由与亮度闭环。</p>
+<ul>
+<li><a href="ui/架构复审与开发基线_v1.1.html">复审发现与开发准入</a></li>
+<li><a href="ui/功能逻辑与页面契约_v1.html">页面状态与功能逻辑</a></li>
+<li><a href="ui/模块接口与开发任务_v1.html">18 项开发任务与 25 项待执行测试</a></li>
+</ul>
 <p>2026-09-11 后续设计输入：佩戴版拟改用亚特联 CWS05 / C50396528（390×450 QSPI AMOLED，CO5300AF + CST820）。新屏为24针、1.8V数字接口，不能直接接现版3.3V显示/触摸电源域；连接器与部分供电定义仍需确认。普通阻容优先评估英制0201，复位/下载直插键改为测试接点，Home/唤醒功能计划并入表冠按压。上述内容仍处于修订评估阶段，尚未同步到v0.3在线电路。</p>
 <ul>
 <li><a href="../hardware/CWS05屏幕与佩戴版修订评估/评估与修订方向.html">CWS05屏幕与佩戴版修订评估</a></li>
@@ -43,21 +49,6 @@
     </main>
   </div>
   <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
-  <script>
-    document.querySelectorAll('table').forEach(function (table) {
-      var wrapper = document.createElement('div');
-      wrapper.className = 'table-wrap';
-      table.parentNode.insertBefore(wrapper, table);
-      wrapper.appendChild(table);
-    });
-  </script>
-  <script type="module">
-    if (document.querySelector('.mermaid')) {
-      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
-        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
-        module.default.run({ querySelector: '.mermaid' });
-      });
-    }
-  </script>
+  <script src="assets/engineering.js"></script>
 </body>
 </html>
