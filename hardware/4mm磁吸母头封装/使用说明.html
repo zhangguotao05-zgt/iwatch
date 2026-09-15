@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch 嵌入式智能手表工程文档">
+  <title>4mm 磁吸母头 PCB 封装草稿 R01 · iwatch</title>
+  <link rel="stylesheet" href="../../docs/assets/engineering.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../../index.html">iwatch</a>
+    <span class="doc-name">4mm 磁吸母头 PCB 封装草稿 R01</span>
+  </header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录">
+<ul>
+<li><a href="#mm-磁吸母头-pcb-封装草稿-r01">4mm 磁吸母头 PCB 封装草稿 R01</a><ul>
+<li><a href="#导入与使用">导入与使用</a></li>
+<li><a href="#焊盘定义">焊盘定义</a></li>
+<li><a href="#图纸标注与推算依据">图纸标注与推算依据</a></li>
+<li><a href="#图层与校核">图层与校核</a></li>
+<li><a href="#下一步复核">下一步复核</a></li>
+</ul></li>
+</ul>
+    </nav>
+    <main>
+<section id="mm-磁吸母头-pcb-封装草稿-r01" class="level1">
+<h1>4mm 磁吸母头 PCB 封装草稿 R01</h1>
+<p>已按项目存档的机械 PDF 制作嘉立创 EDA 专业版封装草稿。所有表格和设计参数的单位为 mm。 本文为可编辑的工程草稿：侧脚厚度和底座外径包含按图形比例得到的估算值，槽孔中心距属于初始设计取值，投板前必须按实物复核。</p>
+<section id="导入与使用" class="level2">
+<h2>导入与使用</h2>
+<ol type="1">
+<li>在嘉立创 EDA 专业版选择 <strong>文件 → 导入 → 嘉立创EDA（专业版）</strong>。</li>
+<li>首选导入 <code>4mm磁吸母头_嘉立创专业版_封装草稿.epro</code>。它含一个放置了该封装的 PCB 预览页，未画生产板框。</li>
+<li>导入时可提取封装库；也可打开工程后，在工程库中找到 <code>CON-MAGNETIC-F-4MM-TH_DRAFT_R01</code> 并另存到自己的封装库。</li>
+<li>同目录的 <code>.efoo</code> 是独立封装源码；支持独立封装文件的导入界面可直接选择它。</li>
+<li>后续在器件编辑器绑定封装，按实际电气连接映射焊盘编号。</li>
+</ol>
+<p>导入流程依据：<a href="https://prodocs.lceda.cn/cn/import-export/import-easyeda-pro/">嘉立创 EDA 专业版官方导入说明</a>。 本次完成了本地文件结构与几何校核，未声称已在 EDA 编辑器里导入成功或通过原生 DRC。</p>
+</section>
+<section id="焊盘定义" class="level2">
+<h2>焊盘定义</h2>
+<p>PCB 顶视图，原点为中心针，X 向右，Y 向上。尺寸均为旋转后的实际 X/Y 尺寸。</p>
+<table>
+<thead>
+<tr class="header">
+<th>编号</th>
+<th>位置</th>
+<th style="text-align: right;">中心 X</th>
+<th style="text-align: right;">中心 Y</th>
+<th>铜尺寸 X × Y</th>
+<th>孔尺寸 X × Y</th>
+<th>孔型</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>中心针</td>
+<td style="text-align: right;">0</td>
+<td style="text-align: right;">0</td>
+<td>Ø1.40</td>
+<td>Ø0.80</td>
+<td>镀铜圆孔</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>左侧脚</td>
+<td style="text-align: right;">-1.70</td>
+<td style="text-align: right;">0</td>
+<td>1.50 × 2.50</td>
+<td>0.90 × 1.90</td>
+<td>镀铜长圆槽孔</td>
+</tr>
+<tr class="odd">
+<td>3</td>
+<td>右侧脚</td>
+<td style="text-align: right;">+1.70</td>
+<td style="text-align: right;">0</td>
+<td>1.50 × 2.50</td>
+<td>0.90 × 1.90</td>
+<td>镀铜长圆槽孔</td>
+</tr>
+</tbody>
+</table>
+<p>槽孔尺寸为两端外缘之间的完整尺寸，不是铣刀移动行程。原生源码用 <code>SLOT</code> + <code>OVAL</code> 并旋转 90° 表示竖向槽；三个焊盘均为 Multi-Layer，孔壁镀铜。 所列孔径是封装中的设计孔径，实际成品孔及公差需和板厂确认。 本图没有电气定义：1/2/3 是本草稿的物理编号，未指定正负极，也未把两侧脚强制设成同一个编号或网络。确认两侧共通后，可在原理图接至同一网络并核对符号映射。</p>
+</section>
+<section id="图纸标注与推算依据" class="level2">
+<h2>图纸标注与推算依据</h2>
+<p>图纸直接标注：上台阶 Ø4.00、接触端孔 Ø1.10、本体高 3.50、台阶高 1.30、出脚长 2.00、中心针 Ø0.50、侧脚宽 1.25、侧脚外圆弧 R2。</p>
+<p>图形比例推算：以已标注的 Ø4.00、Ø0.50 及 1.25 为比例交叉参照，底座直径约 Ø5.00，侧脚内圆弧半径约 1.50，径向壁厚约 0.50。R2 标注的箭头尖落在侧脚外弧，不是最外侧底座圆。</p>
+<p>侧脚是圆弧截面，不能简单把 0.50 × 1.25 矩形当作完整脚形。按推算的内 R1.50 / 外 R2.00、Y=±0.625 截取，右侧脚 X 包络约为 1.364～2.000。因此槽孔中心暂取 X=±1.70，孔宽/长取 0.90 × 1.90，给圆弧脚形留出插入空间。 <strong>3.40 mm 是所设计两槽孔的中心距，不是厂家图纸直接标注的侧脚中心距。</strong></p>
+<p>按这一推算截面采样，脚形到槽孔边界的名义最小余量约 0.091 mm；该结果不含器件、孔径、位置或装配公差，不能替代实物试装。</p>
+</section>
+<section id="图层与校核" class="level2">
+<h2>图层与校核</h2>
+<ul>
+<li>多层：三个镀铜通孔焊盘。顶/底阻焊各外扩 0.05；未添加自定义钢网图形。专业版中通孔焊盘的助焊扩展设置不生效，见<a href="https://prodocs.lceda.cn/cn/api/reference/pro-api.ipcb_primitivesoldermaskandpastemaskexpansion.html">官方 API 说明</a>。</li>
+<li>顶层丝印：Ø5.60，线宽 0.15，位号 <code>J?</code>。</li>
+<li>顶层装配层：本体约 Ø5.00 / 上台阶 Ø4.00 的参考轮廓。</li>
+<li>文档层：中心针、推算侧脚截面、脚号及 <code>DRAFT - VERIFY FIT</code> 标记。</li>
+<li>自定义 <code>Courtyard_REF</code> 层：6.20 × 6.20 参考占位框。它是参考线框，不是电气禁布区，也不保证自动参加 DRC。</li>
+</ul>
+<p>计算检查：最小焊环 0.30，异焊盘铜间距 0.25，阻焊桥 0.15，丝印到阻焊开窗最小间距约 0.153。 已核对三焊盘唯一编号、镀铜属性、槽孔旋转、mil/mm 换算、压缩工程完整性及工程内封装一致性。未完成 EDA 原生导入/DRC 或实物试装。</p>
+</section>
+<section id="下一步复核" class="level2">
+<h2>下一步复核</h2>
+<p>制作正式 PCB 前，测量底座外径、两侧脚截面/位置，试装孔位，并测通确认中心针和两侧脚之间的电气关系。 如参数改变，可编辑 <code>封装参数.json</code>；生成脚本使用工作目录 <code>tools/magnetic-4mm-footprint/config.json</code>，同步相应值后运行 <code>build_footprint.py</code>、<code>render_review.py</code> 重新生成。 详细数值见 <code>焊盘尺寸_mm.csv</code> 与 <code>校核记录.json</code>。预览 PDF/PNG 由同一个原生封装文件独立渲染，不是 EDA 截图。</p>
+</section>
+</section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script>
+    document.querySelectorAll('table').forEach(function (table) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'table-wrap';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    });
+  </script>
+  <script type="module">
+    if (document.querySelector('.mermaid')) {
+      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
+        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
+        module.default.run({ querySelector: '.mermaid' });
+      });
+    }
+  </script>
+</body>
+</html>

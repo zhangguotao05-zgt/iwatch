@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch 嵌入式智能手表工程文档">
+  <title>离线智能手表原理图 v0.1 · iwatch</title>
+  <link rel="stylesheet" href="../../docs/assets/engineering.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../../index.html">iwatch</a>
+    <span class="doc-name">离线智能手表原理图 v0.1</span>
+  </header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录">
+<ul>
+<li><a href="#离线智能手表原理图-v0.1">离线智能手表原理图 v0.1</a><ul>
+<li><a href="#文件与使用">文件与使用</a></li>
+<li><a href="#这一版实际画了什么">这一版实际画了什么</a></li>
+<li><a href="#已作出的选择与前提">已作出的选择与前提</a></li>
+<li><a href="#检查结果与未完成项">检查结果与未完成项</a></li>
+<li><a href="#开发板到货后的调试顺序">开发板到货后的调试顺序</a></li>
+<li><a href="#主要原厂依据">主要原厂依据</a></li>
+</ul></li>
+</ul>
+    </nav>
+    <main>
+<section id="离线智能手表原理图-v0.1" class="level1">
+<h1>离线智能手表原理图 v0.1</h1>
+<p>2026-09-11。<strong>可编辑的电气审阅初稿，尚未达到 PCB 投板条件。</strong></p>
+<p>已保存到立创 EDA 个人私有工程：在线私人工程未随仓库公开；可导入随附的 .epro 文件。没有购买器件、提交 PCB 订单或公开工程。</p>
+<section id="文件与使用" class="level2">
+<h2>文件与使用</h2>
+<ul>
+<li><code>HealthWatch-SF58-Offline-v0.1.epro</code>：原生立创 EDA 专业版工程，内含符号和已经选用的参考封装。可通过“文件 → 导入 → 嘉立创 EDA 专业版”导入。</li>
+<li><code>HealthWatch-SF58-v0.1-原理图审阅.pdf</code>：8 页矢量图纸，由同一设计模型本地渲染。不是网页导出的 PDF；网页 PDF 导出未取得可确认的下载文件。</li>
+<li><code>BOM_v0.1.csv</code>：91 个位号的初稿清单，含资料来源及封装待办；没有虚构库存、报价或商城编号。未选定完整料号的被动件、连接器、保险丝、晶振和 LRA 不能按这一版直接整单采购。</li>
+<li><code>pin-net-map_v0.1.csv</code>：474 个物理引脚与网络的对应关系。空白 net 表示有意悬空。</li>
+<li><code>validation-model.json</code>：本地设计模型检查结果，不能代替 EDA DRC。</li>
+<li><code>.esch</code> 与 <code>circuit-model.json</code>：逐页源码及可复核数据。正常编辑优先打开 <code>.epro</code>。</li>
+</ul>
+<p>云端保留了当前编辑布局，本地文件是对应电路的基线版本，部分符号绘制和位置可能略有差别。后续若继续在云端改线，应从 EDA 重新导出工程，不要用本地基线覆盖新修改。</p>
+</section>
+<section id="这一版实际画了什么" class="level2">
+<h2>这一版实际画了什么</h2>
+<table>
+<thead>
+<tr class="header">
+<th>页</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>01 CORE AND DEBUG</td>
+<td>SF32LB58 模块电源、启动/复位、1.8 V UART 与 SWD、显示侧 IO 电压选择</td>
+</tr>
+<tr class="even">
+<td>02 BATTERY AND CHARGER</td>
+<td>USB-C 充电输入、BQ24074 电源路径、电池/NTC 接口、充电状态</td>
+</tr>
+<tr class="odd">
+<td>03 POWER RAILS</td>
+<td>TPS62840 1.8 V、TPS63031 3.3 V、TPS610997 可控 5 V</td>
+</tr>
+<tr class="even">
+<td>04 DISPLAY AND CONTROLS</td>
+<td>QSPI 屏转接接口、I2C 触摸、表冠 AB 相及按压、侧键/HOME</td>
+</tr>
+<tr class="odd">
+<td>05 IMU AND HAPTICS</td>
+<td>LSM6DSO、DRV2605L/LRA 接口、电池电压采样、传感器主控引脚</td>
+</tr>
+<tr class="even">
+<td>06 PPG MODULE</td>
+<td>MAXM86146 电源、I2C/MFIO/复位、时钟、参考电压、PD2 短接及 LED 驱动</td>
+</tr>
+<tr class="odd">
+<td>07 OPTICAL EMITTERS</td>
+<td>MAX14689、红/红外 LED、两颗绿灯及切换电路</td>
+</tr>
+<tr class="even">
+<td>08 MODULE UNUSED PADS</td>
+<td>模块剩余引脚，补全 138 个焊盘的去向</td>
+</tr>
+</tbody>
+</table>
+<p>保留离线 UI、触摸、旋转/按压交互、震动、计步与心率/血氧硬件路线。本版没有蜂窝、Wi-Fi、联网应用、支付、音频链路或 Apple 原装器件兼容设计。</p>
+</section>
+<section id="已作出的选择与前提" class="level2">
+<h2>已作出的选择与前提</h2>
+<ol type="1">
+<li><strong>首板使用 SF32LB58-MOD-N16R32N1 模块载板。</strong> 模块约 24 × 24 mm，内部已带晶振和存储器。它用于先验证电路与固件；当前图纸不是最终能装进 46 mm 表壳的 PCB。主控裸片及最终紧凑布板留到下一阶段。</li>
+<li><strong>屏幕先连接配套转接板。</strong> J401 使用思澈 CONN2 中显示需要的引脚，其他音频、串口等引脚不接。截图中的 CO5300/FT6146 型号不能代替屏幕 FPC 定义。裸屏供电、时序及连接器需取得实物资料后再画。</li>
+<li><strong>电源采用公开资料可核对的独立器件。</strong> 先以 BQ24074 + 三路 DC/DC 验证供电。它会占用更多面积，待机损耗也需要测量；不把它当作最终小型化 PMIC 方案的结论。</li>
+<li><strong>电池按 4.2 V 充满的单节锂电池设计。</strong> BQ24074 的充电终止电压为 4.2 V。400 mAh 仅作容量预算，不能直接套用此前讨论中的 3.85 V 高压电芯。电芯额定充电电压、保护板、NTC 与尺寸均需实物确认。6.98 kΩ 的 ISET 对应典型约 127.5 mA，需计入芯片和电阻公差。</li>
+<li><strong>PB、调试与传感器总线采用 1.8 V。</strong> PA 显示侧默认 3.3 V，R103/R104 只能装一个。RESET_N 上拉到 1.8 V；BOOT_MODE 随 VIOA。GPIO 复用、核间外设归属和唤醒极性须与 BSP 一起核对。</li>
+<li><strong>LSM6DSO 由 SF58 读取，再向 MAXM86146 输入加速度数据。</strong> 不把它当作 ADI 参考设计中直接接到传感器 SPI 的加速度计替代品。MAXM86146 还需要匹配的算法固件、主机协议与光学调试，焊好芯片不等于已完成血氧/心率功能。</li>
+</ol>
+</section>
+<section id="检查结果与未完成项" class="level2">
+<h2>检查结果与未完成项</h2>
+<p>本地模型已检查：模块 138 个焊盘全部列出、跨分单元无重复物理引脚、每个引脚明确连接或悬空、71 个命名网络无孤立单端网络；工程的符号引用可解析。</p>
+<p>立创 EDA 已接受导入，图纸可打开编辑。2026-09-11 15:42 的 DRC 结果为：<strong>25 项“缺少封装”致命项、0 项普通错误、4 组悬空警告，合计 120 个有意不连接的引脚</strong>。图中 NC 目前是说明文字，尚未转换为 EDA 的非连接标识。因此不能说 DRC 已通过，不能直接转 PCB 下单。DRC 的缺封装检查也不等同于完整的模拟、电源与电池设计审查。</p>
+<p>当前需补齐：</p>
+<ul>
+<li>为 IC、连接器、晶振、LRA、保险丝等选择并逐脚审核真实封装，确认焊盘号、方向和热焊盘。模块和少数通用封装来自思澈参考工程，也须在布局前复核。</li>
+<li>将有意悬空的 120 个引脚放置正式非连接标识，再重新运行 DRC。</li>
+<li>确认屏幕转接板的版本、方向、IO 电压、耗流与供电时序。J401 的 5 V 与光学 LED 共用升压，必须验证叠加负载。</li>
+<li>明确电芯/保护板/NTC、USB-C 实物脚号、表冠/按键、LRA 额定电压与谐振频率、光学结构。</li>
+<li>绿灯符号暂用 A/K 逻辑焊盘，物理焊盘对应关系不能靠猜。模块 114/115 焊盘没有用于本方案，名称暂标 <code>UNVERIFIED_UNUSED</code>，后续使用前需查模块焊盘图。</li>
+<li>校核 3 路电源的带载启动、上电顺序、纹波、欠压与峰值电流。L/C 的最终厂商料号要按电感饱和、陶瓷电容偏压降容及布局选定。</li>
+</ul>
+<p>已在资料复核中纠正光学连线：<strong>LED1_DRV 通过 R701 接 GREEN1_K，与 MAX14689 的 NO1 共用绿灯阴极</strong>；不是接 IR_K。该修正在本地和云端均已应用。F201 的临时电阻封装关联也已去除。</p>
+</section>
+<section id="开发板到货后的调试顺序" class="level2">
+<h2>开发板到货后的调试顺序</h2>
+<ol type="1">
+<li>用官方示例确认屏幕、触摸和烧录，记录模块/屏幕/转接板版本，取得配套原理图与驱动。</li>
+<li>UI 按 390 × 450 测试。RGB565 双缓冲约 685.5 KiB；RGB888 双缓冲约 1.004 MiB。先为图像缓存预留 4 MiB、GUI 堆预留 2 MiB，实际按 HCPU 可访问的 PSRAM 区域和链接脚本调整；不能把 32 MB 的不同存储区当成统一连续内存。</li>
+<li>主频初始按官方 BSP，目标 HCPU 240 MHz；时钟由模块内部提供。先测 UI 帧率、触摸延迟和内存峰值，再确定动画预算。</li>
+<li>自制载板先分级限流上电，检查 1.8/3.3/5 V、RESET、BOOT 与 1.8 V UART/SWD，再烧录最小固件。</li>
+<li>依次启动 IMU、表冠/按键、LRA，最后接入光学传感器。检查 I2C 波形、LED 脉冲、5 V 纹波、输入功耗、待机电流和充电温升。</li>
+<li>UI 与传感器验证通过后，再做紧凑 PCB、光学隔光结构和最终表壳设计。</li>
+</ol>
+</section>
+<section id="主要原厂依据" class="level2">
+<h2>主要原厂依据</h2>
+<ul>
+<li><a href="https://wiki.sifli.com/board/sf32lb58x/SF32LB58-DevKit-LCD.html">思澈 SF32LB58 开发板说明与模块引脚表</a>、<a href="https://downloads.sifli.com/hardware/files/documentation/ProPrj_SF32LB58-DevKit-LCD_2025-09-24.epro">原生 EDA 参考工程</a>、<a href="https://wiki.sifli.com/en/hardware/SF32LB58x-HW-Application.html">SF58 硬件设计指南</a>。模块符号经过重新整理，参考工程封装只用于已注明的项目。</li>
+<li><a href="https://www.ti.com/lit/ds/symlink/bq24074.pdf">TI BQ24074</a>、<a href="https://www.ti.com/lit/ds/symlink/tps62840.pdf">TPS62840</a>、<a href="https://www.ti.com/lit/ds/symlink/tps63031.pdf">TPS63031</a>、<a href="https://www.ti.com/lit/ds/symlink/tps61099.pdf">TPS61099x</a>、<a href="https://www.ti.com/lit/ds/symlink/drv2605l.pdf">DRV2605L</a>：充电、电源及振动驱动的引脚与典型电路。</li>
+<li><a href="https://www.st.com/resource/en/datasheet/lsm6dso.pdf">ST LSM6DSO</a>：Mode 1 I2C 引脚配置。</li>
+<li><a href="https://www.analog.com/media/en/technical-documentation/data-sheets/maxm86146.pdf">ADI MAXM86146</a>：PPG 模块引脚、主机加速度数据路径与第 18 页典型电路；<a href="https://www.analog.com/media/en/technical-documentation/data-sheets/MAX14689.pdf">MAX14689</a>：WLP 引脚与 LED 切换器件。</li>
+<li><a href="https://look.ams-osram.com/m/17a2f1b05b6528bd/original/SFH-7015.pdf">OSRAM SFH7015</a>、<a href="https://look.ams-osram.com/m/7a84e13abf7bd695/original/CT-DBLP31-12.pdf">CT DBLP31.12</a>：光学发射器规格；绿灯最终封装映射仍待审核。</li>
+</ul>
+</section>
+</section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script>
+    document.querySelectorAll('table').forEach(function (table) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'table-wrap';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    });
+  </script>
+  <script type="module">
+    if (document.querySelector('.mermaid')) {
+      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
+        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
+        module.default.run({ querySelector: '.mermaid' });
+      });
+    }
+  </script>
+</body>
+</html>

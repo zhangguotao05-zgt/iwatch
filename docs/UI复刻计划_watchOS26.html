@@ -1,0 +1,851 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch 嵌入式智能手表工程文档">
+  <title>iwatch：Apple Watch Series 11 界面复刻计划 · iwatch</title>
+  <link rel="stylesheet" href="assets/engineering.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../index.html">iwatch</a>
+    <span class="doc-name">iwatch：Apple Watch Series 11 界面复刻计划</span>
+  </header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录">
+<ul>
+<li><a href="#iwatchapple-watch-series-11-界面复刻计划">iwatch：Apple Watch Series 11 界面复刻计划</a><ul>
+<li><a href="#目标与参考版本">1. 目标与参考版本</a></li>
+<li><a href="#当前工程基线">2. 当前工程基线</a></li>
+<li><a href="#所有界面如何计数和验收">3. “所有界面”如何计数和验收</a></li>
+<li><a href="#系统页面范围">4. 系统页面范围</a></li>
+<li><a href="#表盘计划">5. 表盘计划</a></li>
+<li><a href="#app-页面范围与当前功能深度">6. App 页面范围与当前功能深度</a></li>
+<li><a href="#设置页必须展开到子菜单">7. 设置页必须展开到子菜单</a></li>
+<li><a href="#输入与导航规则">8. 输入与导航规则</a></li>
+<li><a href="#软件方案与资源预算">9. 软件方案与资源预算</a><ul>
+<li><a href="#架构">架构</a></li>
+<li><a href="#初始性能目标">初始性能目标</a></li>
+<li><a href="#内存和存储预算">内存和存储预算</a></li>
+</ul></li>
+<li><a href="#实施阶段与阶段验收">10. 实施阶段与阶段验收</a></li>
+<li><a href="#第一批具体交付">11. 第一批具体交付</a></li>
+<li><a href="#每批交付与验收证据">12. 每批交付与验收证据</a></li>
+<li><a href="#交付状态与下一步">13. 交付状态与下一步</a></li>
+</ul></li>
+</ul>
+    </nav>
+    <main>
+<section id="iwatchapple-watch-series-11-界面复刻计划" class="level1">
+<h1>iwatch：Apple Watch Series 11 界面复刻计划</h1>
+<p>版本：UI 计划 v0.1<br />
+日期：2026-09-15<br />
+状态：设计基线 v0.1；本文所列界面均需按实施记录逐项确认，不能仅凭页面清单认定完成。</p>
+<section id="目标与参考版本" class="level2">
+<h2>1. 目标与参考版本</h2>
+<p>目标是在现有 SF32LB58 开发板及 390×450 AMOLED 上，实现尽量接近 Apple Watch Series 11 的视觉、页面结构、触摸与表冠操作，以及各页面之间的完整流程。</p>
+<p>界面盘点采用以下基准：</p>
+<ul>
+<li>设备参考：Apple Watch Series 11，46 mm，GPS 普通版。</li>
+<li>系统参考：watchOS 26 系列；中文优先，简体中文作为第一套语言。</li>
+<li>参考画面：先以 Apple 官方 watchOS 26 手册和 Series 11 发布资料为索引。P0 必须记录参考设备的具体系统小版本、地区和截图/录像日期；目前小版本尚未冻结。</li>
+<li>当前开发范围：离线 UI 和能够在现有硬件上实际运行的本地功能。需要网络、手机、账号或新增传感器的页面仍纳入盘点，先实现明确标识的离线演示和不可用状态。</li>
+<li>实现系统：C + RT-Thread + SiFli 版 LVGL 9.4.0。复现页面不会让开发板获得运行 watchOS 或官方 watchOS App 的能力。</li>
+</ul>
+<p>Series 11 的 46 mm 版本原始分辨率为 416×496；当前开发屏为 390×450，两者宽高比也不同。因此以当前屏幕重新排版，保留布局关系、形状、文字层级和交互目标，不能靠非等比拉伸整张截图完成。<a href="https://support.apple.com/en-us/125093">Apple 技术规格</a></p>
+<p>watchOS 26 的玻璃材质、叠放卡片和导航控件是视觉参考。项目先实现可控的半透明、遮罩、渐变和背景缓存，再根据板上性能决定动态模糊与折射的精度。<a href="https://developer.apple.com/videos/play/wwdc2025/334/">Apple watchOS 26 发布介绍</a></p>
+</section>
+<section id="当前工程基线" class="level2">
+<h2>2. 当前工程基线</h2>
+<table style="width:17%;">
+<colgroup>
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>项目</th>
+<th>已确认事实</th>
+<th>仍需验证</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>主控与开发板</td>
+<td>SF32LB58-DevKit-LCD A128R32N1；工程目标 SF32LB586VDD36；A1 修订配置使用 LCPU_CONFIG_AUTO；2026-09-15 HCPU HCLK 实测报告 240 MHz</td>
+<td>持续运行稳定性与负载下性能</td>
+</tr>
+<tr class="even">
+<td>屏幕</td>
+<td>390×450 QSPI AMOLED，CO5300 ID 返回 0x331100；实物显示已点亮</td>
+<td>色序、方向、亮度、撕裂、休眠/唤醒</td>
+</tr>
+<tr class="odd">
+<td>触摸</td>
+<td>FT6146 读到 ID，重新打开时未见之前的 I²C 超时</td>
+<td>全屏坐标、边缘触控、拖动、长按和多次唤醒后的连续使用</td>
+</tr>
+<tr class="even">
+<td>图形软件</td>
+<td>SiFli-SDK v2.5.1；本机外部库 lv_version.h 为 9.4.0</td>
+<td>当前示例只是移植基线，不计作 Series 11 UI 完成项</td>
+</tr>
+<tr class="odd">
+<td>显存配置</td>
+<td>当前生成配置为 RGB565，双 50 行绘制缓冲区；板上接口报告 200 Mbps，SDK 驱动默认请求 50 MHz QSPI</td>
+<td>刷新完成时间、DMA 和渲染是否重叠</td>
+</tr>
+<tr class="even">
+<td>存储配置</td>
+<td>工程配置为两路各 16 MiB PSRAM、128 MiB NAND；原代码运行窗口 6 MiB、NAND 装载槽仅 4 MiB，FS 6 MiB；已发现原 PSRAM1 数据预算超界</td>
+<td>已在本地架构 v1 修正；新布局未烧录，详见下方架构链接</td>
+</tr>
+<tr class="odd">
+<td>持久化</td>
+<td>历史启动记录仍有 flash1 的 FAL 分区缺失提示</td>
+<td>在设置、闹钟、资源扩容前修正本板的实际存储映射</td>
+</tr>
+<tr class="even">
+<td>输入器件</td>
+<td>项目已打开 encoder 与按键支持</td>
+<td>配置开启不等于实物旋钮可用，先验证或补接带按压编码器及侧键</td>
+</tr>
+</tbody>
+</table>
+<p>基线文件：<a href="../firmware/README.html">固件说明</a>、<a href="../firmware/iwatch/project/proj.conf">应用配置</a>、<a href="../firmware/boards/iwatch_sf32lb58_a128_qspi/hcpu/board.conf">板级配置</a>。</p>
+<p>后续已形成 <a href="ui/系统架构_v1.html">系统架构 v1</a>、<a href="ui/视觉与交互规范_v1.html">视觉与交互规范</a> 和 <a href="ui/实施与验收_v1.html">实施与验收</a>。其中记录了实机内存/时钟基线和对原分区问题的修正，内存与实施状态以这组文档为准。</p>
+<p>当前点亮的是 CO5300 + FT6146 开发模组。历史文档中的 CWS05 + CST820 属于另一种拟选裸屏，不能混用触摸芯片、供电或接线定义。移到自研 PCB 时单独做板级适配。</p>
+</section>
+<section id="所有界面如何计数和验收" class="level2">
+<h2>3. “所有界面”如何计数和验收</h2>
+<p>一个 App 图标不等于一个完成的 App；一个首页也不等于完整界面覆盖。</p>
+<p>每个页面或状态单独记录：</p>
+<ul>
+<li>页面 ID、所属 App、参考系统小版本/地区、参考截图或录像时间点。</li>
+<li>入口、返回路径、表冠和侧键行为、滑动方向。</li>
+<li>默认态、空数据、加载、编辑、确认、取消、失败、完成等适用状态。</li>
+<li>当前数据来源：本地真实数据、明确标识的样例数据、硬件未接入。</li>
+<li>视觉校验、操作校验、板上性能校验三项独立结果。</li>
+<li>实物截图、构建版本和遗留差异。</li>
+</ul>
+<p>完成定义：冻结清单内所有适用项都具有参考依据、可达路径和测试结果。未观察到的页面记为“待参考”，先不凭想象宣称还原。数值、颜色、文字内容和通知数量的不同组合采用代表性用例覆盖，不把所有组合当作有限截图穷举。</p>
+<p>本计划是范围盘点，尚未得出准确页面总数。工程估算先按约 200–400 个页面/状态单元考虑；这是排期假设，不是 Apple 公布的页面数。细分后可能增加，新增项进入清单并保留变更记录。</p>
+<p>参考范围来自 <a href="https://support.apple.com/zh-cn/guide/watch/apdf1ebf8704/26/watchos/26">Apple Watch 内置 App 清单</a> 和各 App 的独立使用手册。第三方 App、地区差异和独占表盘各自单列，避免把整个 Apple Watch 家族的功能都误算到普通 Series 11 GPS。</p>
+</section>
+<section id="系统页面范围" class="level2">
+<h2>4. 系统页面范围</h2>
+<p>下表的细分状态是本项目的待核验与实现清单，不是声称已看到每一张原机页面。</p>
+<table>
+<thead>
+<tr class="header">
+<th>页面组</th>
+<th>纳入的页面、操作和状态</th>
+<th>首个阶段</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>开机与首次使用</td>
+<td>启动、语言/地区、佩戴方向、时间设置、使用引导；配对/同步流程的离线预览及退出路径</td>
+<td>P1；完整引导 P4</td>
+</tr>
+<tr class="even">
+<td>锁屏与密码</td>
+<td>数字键盘、密码错误、临时锁定、锁定标志、解锁返回</td>
+<td>P1</td>
+</tr>
+<tr class="odd">
+<td>表盘主页</td>
+<td>时间、日期、状态图标、复杂功能入口、明暗状态、回到表盘</td>
+<td>P1</td>
+</tr>
+<tr class="even">
+<td>App 主屏幕</td>
+<td>网格与列表、滚动、选中、打开/退出、排序、编辑及适用的移除确认</td>
+<td>P1</td>
+</tr>
+<tr class="odd">
+<td>通知</td>
+<td>提示、分组列表、详情、展开、清除、操作菜单、空列表、本地样例通知注入</td>
+<td>P1</td>
+</tr>
+<tr class="even">
+<td>智能叠放</td>
+<td>小组件、计时器等实时活动、展开、置顶、添加、移除、排序、提示</td>
+<td>P1；编辑 P5</td>
+</tr>
+<tr class="odd">
+<td>控制中心</td>
+<td>状态、按钮网格、滚动、电量/亮度、模式切换、手电筒、水锁、编辑</td>
+<td>P1；编辑 P5</td>
+</tr>
+<tr class="even">
+<td>App 切换器</td>
+<td>最近页面卡片、滚动、进入、移除、空状态；返回后保留原页面位置</td>
+<td>P1</td>
+</tr>
+<tr class="odd">
+<td>系统提示组件</td>
+<td>对话框、确认页、底部操作面板、滚动选择器、进度、提示条、输入焦点</td>
+<td>P1/P2</td>
+</tr>
+<tr class="even">
+<td>电源与充电</td>
+<td>电量提示、充电画面、低电量、节能、关机入口与确认；硬件事件未接入时走测试模式</td>
+<td>P1/P5</td>
+</tr>
+<tr class="odd">
+<td>专注与水锁</td>
+<td>静音、勿扰、睡眠/剧院模式的本地状态；水锁触摸拦截与表冠退出</td>
+<td>P1/P5</td>
+</tr>
+<tr class="even">
+<td>安全与恢复</td>
+<td>SOS、医疗急救卡、摔倒/事故提示、抹掉/恢复/更新流程的演示与取消</td>
+<td>P4/P5</td>
+</tr>
+<tr class="odd">
+<td>Siri 与文本输入</td>
+<td>唤起、聆听/思考/结果/不可用画面；数字、字母、候选/手写/听写界面分步评估</td>
+<td>P4/P5</td>
+</tr>
+<tr class="even">
+<td>单手手势相关</td>
+<td>互点两下、轻翻手腕、抬腕、遮盖静音的页面反馈和输入事件；识别算法另行验证</td>
+<td>P5</td>
+</tr>
+</tbody>
+</table>
+<p>Siri、SOS、配对、恢复等流程默认清楚显示离线演示或不可用；任何演示都不执行账号登录、紧急呼叫、真实抹除或支付。</p>
+</section>
+<section id="表盘计划" class="level2">
+<h2>5. 表盘计划</h2>
+<p>表盘既要有时间变化，也要有选择、编辑、保存、复杂功能跳转和适用的暗屏样式。</p>
+<p>第一批做 8 个有代表性的表盘方向，以较早验证不同渲染难点：</p>
+<table>
+<thead>
+<tr class="header">
+<th>首批方向</th>
+<th>验证重点</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>模块化</td>
+<td>数据布局、矩形小组件、文字和图形混排</td>
+</tr>
+<tr class="even">
+<td>健身记录数字</td>
+<td>大数字、圆环、时间与活动数据联动</td>
+</tr>
+<tr class="odd">
+<td>轮廓</td>
+<td>屏幕边缘字形、圆角避让、时间变化</td>
+</tr>
+<tr class="even">
+<td>照片</td>
+<td>图片解码、裁切、时间前后层关系</td>
+</tr>
+<tr class="odd">
+<td>精准时图 / Exactograph</td>
+<td>指针、多刻度盘、细线抗锯齿</td>
+</tr>
+<tr class="even">
+<td>流动 / Flow</td>
+<td>动态背景、玻璃数字、可承受的材质近似</td>
+</tr>
+<tr class="odd">
+<td>加州</td>
+<td>数字和刻度组合、指针、角落入口</td>
+</tr>
+<tr class="even">
+<td>日晷方向</td>
+<td>时间驱动的图形与日夜变化</td>
+</tr>
+</tbody>
+</table>
+<p>名称和可用项最终按冻结版本确认；复杂动画先做性能样片，不以静态图通过完整验收。<a href="https://support.apple.com/zh-cn/guide/watch/apde9218b440/26/watchos/26">Apple 表盘手册</a></p>
+<p>第二批完成该参考版本普通 Series 11 可用的其余表盘，按矢量刻度、数字排版、数据模块、图片、动画等类型复用渲染组件。Nike、Hermès、角色类和地区专属表盘逐项确认适用性及资源来源后登记；Ultra 独占表盘不属于普通 Series 11 默认范围。</p>
+<p>同时覆盖：</p>
+<ul>
+<li>已添加表盘横向浏览、添加图库、预览与选用。</li>
+<li>编辑颜色、样式、刻度、照片等该表盘实际支持的选项。</li>
+<li>复杂功能选择与点击跳转；时间、电量、闹钟、计时器使用统一服务的数据。</li>
+<li>删除、重排、取消编辑、重启后的保存结果。</li>
+<li>动画在暗屏、通知覆盖、离开页面时暂停或降频。</li>
+</ul>
+</section>
+<section id="app-页面范围与当前功能深度" class="level2">
+<h2>6. App 页面范围与当前功能深度</h2>
+<p>“本地”表示规划为实际运行功能；“演示”表示使用可重复的样例，不表示真实联网、采集或算法已完成。</p>
+<table>
+<thead>
+<tr class="header">
+<th>App/功能组</th>
+<th>计划展开的页面与操作</th>
+<th>当前离线版本</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>闹钟</td>
+<td>列表、新建、时分选择、重复、编辑、删除、响铃、稍后提醒</td>
+<td>本地；有音频/马达后接实际提醒</td>
+</tr>
+<tr class="even">
+<td>计时器</td>
+<td>预设、自定义、多计时器列表、运行、暂停、继续、结束、到时提示</td>
+<td>本地；离开界面仍计时</td>
+</tr>
+<tr class="odd">
+<td>秒表</td>
+<td>启停、计圈、复位、记录、原机支持的不同显示方式</td>
+<td>本地</td>
+</tr>
+<tr class="even">
+<td>世界时钟</td>
+<td>城市列表、时间差、详情、添加/删除</td>
+<td>本地；用有限城市时区表起步</td>
+</tr>
+<tr class="odd">
+<td>计算器</td>
+<td>数字/运算、清除、结果、适用地区的扩展页</td>
+<td>本地</td>
+</tr>
+<tr class="even">
+<td>日历</td>
+<td>月/日、日程列表、详情、编辑和空状态</td>
+<td>本地事件；同步状态演示</td>
+</tr>
+<tr class="odd">
+<td>提醒事项</td>
+<td>列表、事项、详情、新建、完成、删除</td>
+<td>本地存储</td>
+</tr>
+<tr class="even">
+<td>备忘录</td>
+<td>列表、正文、新建/编辑、置顶、删除</td>
+<td>本地存储；输入法分阶段</td>
+</tr>
+<tr class="odd">
+<td>健身记录</td>
+<td>圆环、日详情、目标、周统计、奖章、共享/竞赛、训练负荷入口</td>
+<td>页面与样例；有实测数据后接入</td>
+</tr>
+<tr class="even">
+<td>体能训练</td>
+<td>运动选择、目标、自定义、开始倒计时、实时多页、暂停、结束、摘要、记录</td>
+<td>时长真实；运动/心率指标先用样例</td>
+</tr>
+<tr class="odd">
+<td>训练扩展</td>
+<td>区间、心率区间、配速、骑行、游泳、多项目、Workout Buddy 等适用分支</td>
+<td>页面演示；逐项核实参考</td>
+</tr>
+<tr class="even">
+<td>心率</td>
+<td>开始测量、测量中、当前值、历史图、无佩戴、失败、高低心率提示</td>
+<td>演示/未接传感器状态</td>
+</tr>
+<tr class="odd">
+<td>血氧</td>
+<td>准备、倒计时、完成、重试、失败、记录</td>
+<td>演示；不显示假实测值</td>
+</tr>
+<tr class="even">
+<td>心电图</td>
+<td>引导、接触确认、采集过程、结果、失败</td>
+<td>演示；需要独立 ECG 硬件与算法</td>
+</tr>
+<tr class="odd">
+<td>睡眠</td>
+<td>定时、睡眠阶段、历史、睡眠评分、温度相关入口</td>
+<td>定时可本地；评分和阶段用样例</td>
+</tr>
+<tr class="even">
+<td>生命体征</td>
+<td>总览、指标详情、趋势、数据不足与异常提示</td>
+<td>演示；没有采集就显示无数据</td>
+</tr>
+<tr class="odd">
+<td>正念</td>
+<td>呼吸、沉思、时长、动画、完成摘要、心理状态记录</td>
+<td>本地计时与手动记录</td>
+</tr>
+<tr class="even">
+<td>经期跟踪</td>
+<td>日历、手动记录、详情、历史及适用的怀孕相关分支</td>
+<td>本地记录/演示；估算不冒充测量</td>
+</tr>
+<tr class="odd">
+<td>用药</td>
+<td>计划、详情、记录、提醒、历史</td>
+<td>本地提醒和手动记录</td>
+</tr>
+<tr class="even">
+<td>噪声</td>
+<td>实时页、区间、提示与设置</td>
+<td>先演示；校准采集另验</td>
+</tr>
+<tr class="odd">
+<td>指南针</td>
+<td>方位、详情、航点、回溯轨迹与无定位状态</td>
+<td>先演示；传感器/GNSS 未验收</td>
+</tr>
+<tr class="even">
+<td>水深</td>
+<td>水深、温度、时长、记录、单位和未入水状态</td>
+<td>先演示；不做下水试验</td>
+</tr>
+<tr class="odd">
+<td>天气</td>
+<td>城市、当前、逐时/多日、温湿度、降水、风、空气质量和无数据</td>
+<td>固定样例/无网络状态</td>
+</tr>
+<tr class="even">
+<td>潮汐</td>
+<td>地点、曲线、时段详情、无数据</td>
+<td>固定样例</td>
+</tr>
+<tr class="odd">
+<td>股市</td>
+<td>自选列表、价格详情、图表、增删</td>
+<td>固定样例，不表示实时行情</td>
+</tr>
+<tr class="even">
+<td>地图</td>
+<td>地图视图、搜索、详情、路线、导航、收藏、离线/定位缺失</td>
+<td>自制离线样例地图与路径</td>
+</tr>
+<tr class="odd">
+<td>电话</td>
+<td>最近记录、联系人入口、拨号、来电、通话控制、结束和失败</td>
+<td>离线演示，不建立通话</td>
+</tr>
+<tr class="even">
+<td>通讯录</td>
+<td>列表、搜索、详情、操作菜单</td>
+<td>本地虚构联系人</td>
+</tr>
+<tr class="odd">
+<td>信息</td>
+<td>会话、正文、编辑、回复选项、输入、附件/贴纸、发送状态</td>
+<td>本地样例；不收发实际消息</td>
+</tr>
+<tr class="even">
+<td>邮件</td>
+<td>收件箱、正文、操作、新建/回复、无连接</td>
+<td>本地样例</td>
+</tr>
+<tr class="odd">
+<td>音乐</td>
+<td>音乐库、专辑、歌曲、播放、队列、音量与输出设备</td>
+<td>先界面；音频输出验证后支持本地媒体</td>
+</tr>
+<tr class="even">
+<td>播放中</td>
+<td>进度、播放/暂停、上下曲、音量、来源</td>
+<td>共享本地播放器状态；无来源时为空</td>
+</tr>
+<tr class="odd">
+<td>播客</td>
+<td>节目、单集、播放、进度、速度、空列表</td>
+<td>样例；有本地文件后播放</td>
+</tr>
+<tr class="even">
+<td>有声书</td>
+<td>书库、章节、播放与进度</td>
+<td>样例；有本地文件后播放</td>
+</tr>
+<tr class="odd">
+<td>语音备忘录</td>
+<td>列表、录制、暂停、回放、重命名、删除</td>
+<td>先 UI；麦克风/编码/扬声器链路另验</td>
+</tr>
+<tr class="even">
+<td>音乐识别</td>
+<td>等待、识别中、结果、历史、失败</td>
+<td>离线演示</td>
+</tr>
+<tr class="odd">
+<td>照片</td>
+<td>相簿、网格、单图、缩放、收藏/选用等适用操作</td>
+<td>本地图片</td>
+</tr>
+<tr class="even">
+<td>相机遥控器</td>
+<td>未连接、取景、倒计时、快门和选项</td>
+<td>离线演示</td>
+</tr>
+<tr class="odd">
+<td>遥控器</td>
+<td>设备、配对入口、触控操作、断连</td>
+<td>离线演示</td>
+</tr>
+<tr class="even">
+<td>家庭</td>
+<td>房间、配件、控制、状态、无响应</td>
+<td>虚构配件的本地状态演示</td>
+</tr>
+<tr class="odd">
+<td>查找联系人</td>
+<td>列表、位置卡片、详情、找不到</td>
+<td>虚构位置样例</td>
+</tr>
+<tr class="even">
+<td>查找设备</td>
+<td>列表、详情、播放声音入口、离线</td>
+<td>虚构设备样例</td>
+</tr>
+<tr class="odd">
+<td>查找物品</td>
+<td>物品、详情、地图入口、丢失/不可用</td>
+<td>虚构物品样例</td>
+</tr>
+<tr class="even">
+<td>钱包</td>
+<td>卡片列表、详情、添加、双击侧键入口、不可用提示</td>
+<td>明示演示卡片；不含可支付凭证</td>
+</tr>
+<tr class="odd">
+<td>App Store</td>
+<td>发现、分类、搜索、详情、安装流程/失败、账号入口</td>
+<td>离线样例目录；不下载官方 App</td>
+</tr>
+<tr class="even">
+<td>快捷指令</td>
+<td>列表、参数、运行、完成/失败</td>
+<td>先实现亮度、计时器等本地动作子集</td>
+</tr>
+<tr class="odd">
+<td>翻译</td>
+<td>语言选择、输入、结果、历史、无服务</td>
+<td>本地固定例句；不承诺翻译引擎</td>
+</tr>
+<tr class="even">
+<td>拟我表情</td>
+<td>选择、预览、编辑类别、保存</td>
+<td>界面演示；头像素材单独评估</td>
+</tr>
+<tr class="odd">
+<td>提示</td>
+<td>分类、教程卡片、操作演练</td>
+<td>本地内容</td>
+</tr>
+<tr class="even">
+<td>设置</td>
+<td>见下一节</td>
+<td>本地支持项生效，其余清楚标出未支持</td>
+</tr>
+</tbody>
+</table>
+<p>上表是项目拟实现的流程拆分。App 的存在性及各自官方说明入口参见 <a href="https://support.apple.com/zh-cn/guide/watch/apdf1ebf8704/26/watchos/26">Apple 内置 App 清单</a>；具体状态、入口和地区变体在 P0 及各批实现前继续核验。</p>
+<p>News、对讲机、Apple Cash 等地区相关项目单独登记。微信、支付宝作为后续“第三方界面包”列入范围，必须先冻结各自的手表端版本和参考流程；当前只安排离线页面复现，不把自制 UI 当成官方客户端。</p>
+</section>
+<section id="设置页必须展开到子菜单" class="level2">
+<h2>7. 设置页必须展开到子菜单</h2>
+<table>
+<thead>
+<tr class="header">
+<th>设置分组</th>
+<th>计划覆盖</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>通用</td>
+<td>关于、方向、语言/地区、时间、返回表盘、储存、后台刷新、更新和重置入口</td>
+</tr>
+<tr class="even">
+<td>显示与亮度</td>
+<td>亮度、文字大小、粗体、唤醒时间、全天候显示与适用的唤醒方式</td>
+</tr>
+<tr class="odd">
+<td>声音与触感</td>
+<td>音量、静音、提示音、触感、表冠反馈；设备未就绪状态</td>
+</tr>
+<tr class="even">
+<td>主屏幕与 App</td>
+<td>网格/列表、排列、各 App 设置</td>
+</tr>
+<tr class="odd">
+<td>通知与智能叠放</td>
+<td>通知方式、隐私、实时活动、提示和小组件管理</td>
+</tr>
+<tr class="even">
+<td>专注与模式</td>
+<td>勿扰、睡眠、剧院、课堂时间及其适用的时段</td>
+</tr>
+<tr class="odd">
+<td>电池</td>
+<td>电量、用量、节能、充电/电池健康；实际板无数据时不可伪造健康度</td>
+</tr>
+<tr class="even">
+<td>密码与隐私</td>
+<td>开启/修改/关闭、本地锁定、权限、定位和健康数据入口</td>
+</tr>
+<tr class="odd">
+<td>无线连接</td>
+<td>蓝牙、Wi-Fi、飞行模式、设备详情、未连接；蜂窝页列入机型扩展</td>
+</tr>
+<tr class="even">
+<td>Siri 与手势</td>
+<td>唤起、语言、语音相关选项、互点两下及适用的手势设置</td>
+</tr>
+<tr class="odd">
+<td>健康与运动</td>
+<td>心率、睡眠、用药、正念、噪声、体能训练、水深等各自设置</td>
+</tr>
+<tr class="even">
+<td>辅助功能</td>
+<td>大文字、降低动态效果、对比度、缩放、触控/表冠、旁白等适用子页</td>
+</tr>
+<tr class="odd">
+<td>账号与手机协作</td>
+<td>Apple 账户、同步、配对、App 安装和恢复的离线/不可用流程</td>
+</tr>
+</tbody>
+</table>
+<p>设置项的视觉状态和真实能力分别记录；例如调亮度应立即影响本屏，打开未实现的 Wi-Fi 页面不能显示已连接。旁白、听写、手写、音频、手势识别均有独立能力验收，做了开关不等于实现了功能。</p>
+</section>
+<section id="输入与导航规则" class="level2">
+<h2>8. 输入与导航规则</h2>
+<table>
+<thead>
+<tr class="header">
+<th>输入</th>
+<th>规划行为</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>表盘上按一下表冠</td>
+<td>进入 App 主屏幕</td>
+</tr>
+<tr class="even">
+<td>App 中按一下表冠</td>
+<td>回到 App 主屏幕；再按一下回表盘</td>
+</tr>
+<tr class="odd">
+<td>双击表冠</td>
+<td>最近 App 切换器</td>
+</tr>
+<tr class="even">
+<td>旋转表冠</td>
+<td>当前页面的滚动、选择或缩放；表盘上按参考行为进入智能叠放等</td>
+</tr>
+<tr class="odd">
+<td>长按表冠</td>
+<td>Siri 界面；水锁等特殊状态有独立的长按处理</td>
+</tr>
+<tr class="even">
+<td>按一下侧键</td>
+<td>控制中心</td>
+</tr>
+<tr class="odd">
+<td>双击侧键</td>
+<td>钱包演示入口</td>
+</tr>
+<tr class="even">
+<td>长按侧键</td>
+<td>电源/紧急功能菜单；具体时序按参考记录</td>
+</tr>
+<tr class="odd">
+<td>表盘下滑</td>
+<td>通知中心</td>
+</tr>
+<tr class="even">
+<td>表盘上滑</td>
+<td>智能叠放</td>
+</tr>
+<tr class="odd">
+<td>长按表盘</td>
+<td>表盘选择和编辑</td>
+</tr>
+<tr class="even">
+<td>页面中的横滑/边缘返回</td>
+<td>按该 App 的实际行为定义，避免全局手势抢走列表与滑块操作</td>
+</tr>
+</tbody>
+</table>
+<p>按钮定义参考 <a href="https://support.apple.com/en-asia/guide/watch/apd1d9d7efca/26/watchos/26">Apple 按钮与手势</a>，App 返回和切换规则参考 <a href="https://support.apple.com/zh-cn/guide/watch/apda1bf1a95b/26/watchos/26">Apple 打开与切换 App</a>，叠放入口参考 <a href="https://support.apple.com/guide/watch/see-widgets-in-the-smart-stack-apdecf142fb9/26/watchos/26">Apple 智能叠放</a>。</p>
+<p>实现前验证开发板现有编码器/侧键能否映射这些输入。缺少旋转硬件时，可暂用开发按键或串口注入调试；验收表冠体验前补接真正的旋转编码器。抬腕和手指互点不是触摸屏双击，需要另外的传感器与识别验证。</p>
+</section>
+<section id="软件方案与资源预算" class="level2">
+<h2>9. 软件方案与资源预算</h2>
+<section id="架构" class="level3">
+<h3>架构</h3>
+<p>继续复用本工程已点亮的 BSP、CO5300 和 FT6146 驱动，以现有 SiFli GUI App 框架为基础增加：</p>
+<ol type="1">
+<li>页面管理：导航栈、生命周期、状态恢复、最近 App 和全局覆盖层。</li>
+<li>输入管理：触摸/表冠/侧键统一事件，明确单击、双击、长按和手势优先级。</li>
+<li>视觉规范：字号、色板、间距、圆角安全区、图标、按钮、卡片与动画曲线统一定义。</li>
+<li>组件库：圆角列表、进度圆环、选择器、图表、键盘、对话框、卡片切换和玻璃效果。</li>
+<li>数据服务：RTC、计时器、设置、通知、媒体、传感器接口，以及独立的样例数据提供器。</li>
+<li>资源管理：字体子集、图标、图片与动画资源按需装载；记录原始素材来源和许可。</li>
+<li>测试入口：固定时间/样例数据、页面直达、串口输入重放、截图和性能计数。</li>
+</ol>
+<p>所有 LVGL 对象操作统一在 GUI 线程进行；串口、存储、音频与后续传感器工作通过队列发消息，避免页面滑动时执行阻塞 I/O。计时器和闹钟属于后台服务，离开页面不能停止。大列表复用可见行，关闭页面时释放对象和定时器。</p>
+<p>拟新增路径（尚未创建代码）：</p>
+<ul>
+<li>firmware/iwatch/src/gui_core/：输入、主题、导航和公用组件。</li>
+<li>firmware/iwatch/src/gui_apps/：按现有框架增加系统页面和各 App。</li>
+<li>firmware/iwatch/src/services/：时间、设置、样例、通知、后续传感器服务。</li>
+<li>firmware/iwatch/src/resource/：继续管理图像、字库、语言和资源索引。</li>
+<li>docs/ui/：后续页面状态清单、对比记录和验收结果。</li>
+</ul>
+</section>
+<section id="初始性能目标" class="level3">
+<h3>初始性能目标</h3>
+<p>这些是设计目标，尚未实测达到：</p>
+<ul>
+<li>常用列表和切页首先稳定达到约 30 fps，再对热点页面争取 60 fps。</li>
+<li>快速连续操作不堆积旧动画；动画可被新的输入取消或接续。</li>
+<li>点击到可见反馈以 P95 不超过 100 ms 为起始指标；普通页面切换以 300 ms 左右作为起始目标，按原机参考时序调整。</li>
+<li>同时记录 GUI 绘制时间和 LCD flush 完成时间；只看软件 fps 不能证明实际屏幕帧率。</li>
+<li>玻璃效果先用局部半透明与背景快照。动态模糊、折射及重型表盘分别做性能试验，保留降低动态效果选项。</li>
+<li>暗屏/AOD 先验证驱动命令和功耗，再决定常亮策略；AMOLED 点亮不代表具备 Apple LTPO 的低功耗能力。</li>
+</ul>
+<p>本机当前 RGB565 的一帧是 390×450×2 = 351,000 字节，完整双缓冲约 686 KiB；当前两块 50 行缓冲合计 78,000 字节。60 fps 全屏像素载荷约 21.06 MB/s，50 MHz 四线 SDR 的理想载荷上限约 25 MB/s，尚未扣除命令、等待、渲染和内存搬运，因此不在测量前承诺全场景 60 fps。</p>
+</section>
+<section id="内存和存储预算" class="level3">
+<h3>内存和存储预算</h3>
+<ul>
+<li>HCPU 应用先保持在当前 6 MiB 代码/加载分区内，跟踪链接映像与执行区。</li>
+<li>新增 UI 动态资源初步以 8 MiB PSRAM 为峰值上限：绘制层、快照、字体和图片缓存都纳入，不代表整机只能用这些内存。</li>
+<li>内部 SRAM 优先保障栈、中断、DMA 所需区域与系统对象，新增预算在 P0 读取实际 map 和运行时余量后冻结。</li>
+<li>首轮可发布的图片/字体/表盘资源包先以 32 MiB NAND 为设计上限；当前文件系统只有 6 MiB，需先完成分区设计及资源按需装载。</li>
+<li>不能把 128 MiB NAND 当成连续可直接使用的 NOR Flash；保留引导、代码、坏块管理以及现有分区。修正 FAL、扩文件系统时保留可恢复基线并核验存储后端。</li>
+<li>资源变更带版本索引和校验；设置采用可恢复的保存方式，验证断电/复位后行为。</li>
+</ul>
+<p>当前时钟维持已经运行的配置。P0 记录 HCPU、PSRAM、QSPI 实际时钟；出现性能瓶颈先测绘制、传输和存储耗时，再调整。</p>
+</section>
+</section>
+<section id="实施阶段与阶段验收" class="level2">
+<h2>10. 实施阶段与阶段验收</h2>
+<p>人日为单个熟悉本工程的工程师的粗估工作量；需要有参考画面、开发板可调试和及时实物反馈。不是自动执行的日程，也不包括硬件重新设计、健康算法和正式联网服务。</p>
+<table style="width:22%;">
+<colgroup>
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>阶段</th>
+<th>主要交付</th>
+<th>通过条件</th>
+<th>粗估人日</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>P0 参考与基线</td>
+<td>冻结参考版本，页面状态登记模板；触摸坐标、帧率/内存基准；可恢复固件；存储问题处理方案</td>
+<td>五点及边缘触摸正确；反复重开显示/触摸无通信错误；记录真实性能/时钟；首批页面都有参考</td>
+<td>3–5</td>
+</tr>
+<tr class="even">
+<td>P1 主交互</td>
+<td>统一主题、导航、输入；首个表盘、网格/列表、通知、叠放、控制中心、切换器、锁屏</td>
+<td>主路径可以往返，状态保留；显示亮度实际可改；无死路和明显触摸偏移</td>
+<td>8–15</td>
+</tr>
+<tr class="odd">
+<td>P2 本地工具</td>
+<td>闹钟、计时器、秒表、计算器、日历、世界时钟、提醒和备忘录；常用设置</td>
+<td>时间功能跨页面继续运行；完成/取消/删除齐全；保存后重启可恢复适用数据</td>
+<td>7–12</td>
+</tr>
+<tr class="even">
+<td>P3 健康与运动</td>
+<td>活动圆环、体能训练完整流程、心率/血氧等页面、趋势和提示</td>
+<td>样例与真实数据区分；未接传感器正确提示；开始/暂停/结束/查看历史路径完整</td>
+<td>10–20</td>
+</tr>
+<tr class="odd">
+<td>P4 其余 App</td>
+<td>通信、媒体、天气、地图、钱包、App Store、Siri、手机协作等离线流程</td>
+<td>使用统一数据接口；页面可进入和退出；无连接/无内容状态明确；不假装成功交易或联网</td>
+<td>12–25</td>
+</tr>
+<tr class="even">
+<td>P5 表盘和覆盖补齐</td>
+<td>首批 8 个表盘再扩到冻结全库；表盘编辑；设置深层菜单；异常、地区分支和引导</td>
+<td>每个适用范围都有入口、参考与状态记录；遗漏项显式列出；复杂动画逐项验收</td>
+<td>15–35</td>
+</tr>
+<tr class="odd">
+<td>P6 性能与完整回归</td>
+<td>滚动/动画调优、内存释放、休眠唤醒、持久化、截图对比、构建打包</td>
+<td>清单内全部适用项通过；1000 次页面循环无持续内存增长；100 次唤醒无显示/触摸失效；8 小时混合操作无崩溃</td>
+<td>5–10</td>
+</tr>
+</tbody>
+</table>
+<p>整体约 60–120 人日，属于数月级离线界面工程；首个可操作系统框架预计约 11–20 人日。P0 结束后根据实际页面数和性能重新估算。第三方界面包单独排期，不混入尚未冻结参考版本的总量。</p>
+<p>阶段可交错：P1 期间先制作 Flow/照片等最难效果的性能样片，尽早发现渲染限制；后续 App 开发复用已经验证的组件。</p>
+</section>
+<section id="第一批具体交付" class="level2">
+<h2>11. 第一批具体交付</h2>
+<p>第一批优先把以下 12 个页面/状态做成连贯演示：</p>
+<ol type="1">
+<li>数字表盘，真实 RTC 时间和日期。</li>
+<li>App 网格主屏幕。</li>
+<li>App 列表主屏幕。</li>
+<li>通知列表。</li>
+<li>通知详情和清除。</li>
+<li>智能叠放首页。</li>
+<li>控制中心首页。</li>
+<li>最近 App 切换器。</li>
+<li>密码解锁页。</li>
+<li>设置首页。</li>
+<li>亮度设置页，直接控制本屏。</li>
+<li>一个简单表盘的选择与选用页。</li>
+</ol>
+<p>它们验证字体、布局、输入、页面状态和动画的共同基础。12 项完成只算第一批通过，不能当作“全部界面完成”。</p>
+</section>
+<section id="每批交付与验收证据" class="level2">
+<h2>12. 每批交付与验收证据</h2>
+<p>每批保留：</p>
+<ul>
+<li>源码与资源包、构建步骤、固件版本和校验值。</li>
+<li>GCC 构建结果；新增源码后重新生成并验证 Keil 工程。</li>
+<li>真机显示和触摸日志；页面截屏/视频或帧缓冲截图与实屏照片对照。</li>
+<li>页面状态清单的视觉、操作、性能通过结果。</li>
+<li>RAM/PSRAM 峰值、代码和文件系统占用。</li>
+<li>下一批依赖和已知差异。</li>
+</ul>
+<p>对照时固定时间、语言、样例数据和动画节点。尺寸不同先生成 390×450 的适配基准，再比对文字基线、边距、圆角、图标和点击区域；不用单个“相似度百分比”代替逐页审查。</p>
+<p>公开仓库继续使用 iwatch 项目身份，提交自行绘制或许可允许分发的字体、图标、音效和图片；参考截图仅做来源索引与对照管理。关于页展示实际设备与软件版本。</p>
+</section>
+<section id="交付状态与下一步" class="level2">
+<h2>13. 交付状态与下一步</h2>
+<p>界面覆盖清单和验收方法已经建立。M0 可靠性基础代码已完成主机测试与 GCC 构建；新的产品界面、实屏视觉校准和新分区上板验证尚未完成。</p>
+<p>建议从 P0 和第一批 12 页开始：先保存点亮基线和测输入，再冻结首批参考画面及适配样式，然后实现主交互框架。开发中继续按清单补齐全部适用的系统页面、App、表盘和状态。</p>
+</section>
+</section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script>
+    document.querySelectorAll('table').forEach(function (table) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'table-wrap';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    });
+  </script>
+  <script type="module">
+    if (document.querySelector('.mermaid')) {
+      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
+        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
+        module.default.run({ querySelector: '.mermaid' });
+      });
+    }
+  </script>
+</body>
+</html>

@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch 嵌入式智能手表工程文档">
+  <title>iwatch 架构实施与验收 v1 · iwatch</title>
+  <link rel="stylesheet" href="../assets/engineering.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../../index.html">iwatch</a>
+    <span class="doc-name">iwatch 架构实施与验收 v1</span>
+  </header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录">
+<ul>
+<li><a href="#iwatch-架构实施与验收-v1">iwatch 架构实施与验收 v1</a><ul>
+<li><a href="#分阶段交付">1. 分阶段交付</a></li>
+<li><a href="#第一批代码范围">2. 第一批代码范围</a></li>
+<li><a href="#验收用例">3. 验收用例</a></li>
+<li><a href="#性能记录规则">4. 性能记录规则</a></li>
+<li><a href="#设计变更规则">5. 设计变更规则</a></li>
+<li><a href="#m0-实施记录">6. M0 实施记录</a></li>
+</ul></li>
+</ul>
+    </nav>
+    <main>
+<section id="iwatch-架构实施与验收-v1" class="level1">
+<h1>iwatch 架构实施与验收 v1</h1>
+<p>日期：2026-09-15。架构见 <a href="系统架构_v1.html">系统架构</a>，视觉标准见 <a href="视觉与交互规范_v1.html">视觉与交互规范</a>。本表控制执行顺序，不代替完整界面覆盖清单。</p>
+<section id="分阶段交付" class="level2">
+<h2>1. 分阶段交付</h2>
+<table style="width:17%;">
+<colgroup>
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>阶段</th>
+<th>实现内容</th>
+<th>进入下一阶段的条件</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>M0 可靠性基础</td>
+<td>修正 PSRAM1 范围；构建布局/镜像检查；按键跨线程消息；诊断计数；保存板上基线</td>
+<td>主机边界测试、GCC 构建；随后板上按键与触摸回归</td>
+</tr>
+<tr class="even">
+<td>M1 统一视觉与路由</td>
+<td>主题令牌、组件展示页、页面作用域、SiFli 路由门面、单/双击和全局上下文</td>
+<td>表盘→桌面→设置→亮度→返回闭环，无资源遗留</td>
+</tr>
+<tr class="odd">
+<td>M2 后台业务纵向样例</td>
+<td>单调时间与 RTC 有效性；计时服务、提醒记录、请求/回执</td>
+<td>退出页面后计时继续；修改日历不破坏秒表；溢出/过期响应测试通过</td>
+</tr>
+<tr class="even">
+<td>M3 系统壳层</td>
+<td>控制中心、通知、智能叠放、切换器、锁屏、水锁、表盘选择</td>
+<td>全局按键/触摸矩阵完整，快速交互可中断，低内存可降级</td>
+</tr>
+<tr class="odd">
+<td>M4 存储与电源</td>
+<td>核对 FAL/NAND/ECC、持久化、资源包、灭屏/唤醒、监督与看门狗</td>
+<td>掉电恢复、100 次唤醒、失败路径验证通过</td>
+</tr>
+<tr class="even">
+<td>M5 扩展页面</td>
+<td>离线工具、健康状态页、媒体/通信占位、表盘插件</td>
+<td>按页面清单逐项验证；数据来源明确</td>
+</tr>
+<tr class="odd">
+<td>M6 收敛</td>
+<td>实屏视觉对照、灰阶优化、长期压力、资源压缩、佩戴板适配</td>
+<td>版本验收记录完整；标明剩余差异</td>
+</tr>
+</tbody>
+</table>
+<p>M0/M1 是先行基础，不是全部 watchOS 界面已经完成。复杂照片、Flow 类表盘及增强玻璃各做一次性能样例，确认成本后再扩大美术资源投入。</p>
+</section>
+<section id="第一批代码范围" class="level2">
+<h2>2. 第一批代码范围</h2>
+<p>第一批先实现 M0：</p>
+<ul>
+<li>构建前检查本板 PSRAM/NAND 区域的容量和重叠；构建后检查实际装载镜像大小。</li>
+<li>PSRAM1 数据区由 12 MiB 修正为 10 MiB；main 装载槽改为 NAND 偏移 16 MiB、容量 6 MiB，保持已有 NAND 数据分区地址不变。新槽与启动表的实物验证单独执行。</li>
+<li>用固定容量队列把按键事件交给 GUI 线程；软定时回调不再操作 LVGL，也不同时读写未保护的按键状态。</li>
+<li>GUI 按有限批次消费事件；溢出时取消当前输入序列并等待释放，提供入队/消费/丢弃/峰值深度诊断。</li>
+<li>保留现有单击 Home 行为；单/双击语义和新系统页面在 M1 一起接入，以免只有识别事件却没有对应界面。</li>
+</ul>
+<p>第一批不重写 LCD/I²C 驱动；只修改本地分区配置，没有移动/擦写板上 NAND 数据。构建、板上与视觉状态在下面的实施记录分别填写。新布局首烧前要备份旧固件、启动表和数据区，并验证地址转换与回滚。</p>
+</section>
+<section id="验收用例" class="level2">
+<h2>3. 验收用例</h2>
+<table>
+<thead>
+<tr class="header">
+<th>编号</th>
+<th>输入/故障</th>
+<th>必须观察到的结果</th>
+<th>验证位置</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>R01</td>
+<td>PSRAM 6+12 MiB 配置装入 16 MiB bank</td>
+<td>构建前明确报错，不继续生成可烧录包</td>
+<td>主机</td>
+</tr>
+<tr class="even">
+<td>R02</td>
+<td>main 镜像大于所声明装载槽，或下载脚本沿用旧地址</td>
+<td>构建后返回失败并指出槽名、大小或地址差异</td>
+<td>主机</td>
+</tr>
+<tr class="odd">
+<td>R03</td>
+<td>按键队列满，丢失释放/点击边缘</td>
+<td>无幽灵点击；恢复需要释放后新按压；计数可读</td>
+<td>主机 + 板上</td>
+</tr>
+<tr class="even">
+<td>R04</td>
+<td>同时触摸、连续按键、页面切换</td>
+<td>回调不跨线程操作 LVGL，退出后无过期回调访问</td>
+<td>板上</td>
+</tr>
+<tr class="odd">
+<td>R05</td>
+<td>页面退出后异步加载完成</td>
+<td>generation 拦截，资源被释放，旧页不复活</td>
+<td>主机 + 板上</td>
+</tr>
+<tr class="even">
+<td>R06</td>
+<td>开始计时→切换页面→到期</td>
+<td>提醒仅产生一次；返回显示正确状态</td>
+<td>主机 + 板上</td>
+</tr>
+<tr class="odd">
+<td>R07</td>
+<td>tick 回绕、修改 RTC、暂停/恢复</td>
+<td>单调经过时间不跳变，闹钟按约定重新调度</td>
+<td>主机</td>
+</tr>
+<tr class="even">
+<td>R08</td>
+<td>未接心率/血氧/电池计量硬件</td>
+<td><code>--</code> 或明确不可用；演示数据有标识</td>
+<td>板上</td>
+</tr>
+<tr class="odd">
+<td>R09</td>
+<td>损坏字体/图片、分配失败</td>
+<td>回退占位或简洁页，可返回，无重试死循环</td>
+<td>主机 + 板上</td>
+</tr>
+<tr class="even">
+<td>R10</td>
+<td>服务命令队列满，保存失败</td>
+<td>UI 结束等待并给出正确状态，界面保持可操作</td>
+<td>主机 + 板上</td>
+</tr>
+<tr class="odd">
+<td>R11</td>
+<td>持久化任一写入/提交步骤掉电</td>
+<td>恢复最近完整版本，不格式化或抹掉所有设置</td>
+<td>故障注入 + 板上</td>
+</tr>
+<tr class="even">
+<td>R12</td>
+<td>100 次灭屏唤醒，含触摸正在拖动</td>
+<td>无触摸卡住/坐标跳变/刷新不结束；首帧正确</td>
+<td>板上</td>
+</tr>
+<tr class="odd">
+<td>R13</td>
+<td>GUI 故意卡住、服务不再推进</td>
+<td>监督检测实际模块停滞，留下原因并按设计恢复</td>
+<td>板上</td>
+</tr>
+<tr class="even">
+<td>R14</td>
+<td>1000 次混合导航，缓存预热后比较</td>
+<td>无持续内存增长、对象残留或越来越大的堆碎片</td>
+<td>板上</td>
+</tr>
+<tr class="odd">
+<td>R15</td>
+<td>8 小时自动混合交互</td>
+<td>无断言/死锁；栈峰值≤75%，主堆保留≥25%</td>
+<td>板上</td>
+</tr>
+</tbody>
+</table>
+<p>测试纯逻辑的边界和不变量，不为每个颜色常量写单元测试。主机可测试消息取消、路由、期限、存储记录校验；设备时序、驱动恢复、光学效果和功耗必须实测。</p>
+</section>
+<section id="性能记录规则" class="level2">
+<h2>4. 性能记录规则</h2>
+<ul>
+<li>保存构建 ID、编译器、SDK 版本、板型、显示配置、资源清单、采集日期。</li>
+<li>触摸反馈目标 P95 &lt; 100 ms；导航从语义确认到首个新画面目标 &lt; 100 ms，常用转场约 220–320 ms。双击窗口另计。</li>
+<li>使用输入时刻、GUI 消费、渲染提交和驱动 flush 完成四个时间点；显示完成与真正肉眼出现仍有差别，必要时高速录像复核。</li>
+<li>帧率记录场景、窗口、平均值、P95/P99 帧间隔和最长停顿；30 fps 基线不能只用平均值掩盖明显卡顿。</li>
+<li>内存记录总量、当前、峰值、最大空闲块和页面退出后稳定值；同一缓存热态比较。</li>
+<li>所有阈值均是验收目标，当前尚没有长期测试和新系统界面帧率的通过结果。</li>
+</ul>
+</section>
+<section id="设计变更规则" class="level2">
+<h2>5. 设计变更规则</h2>
+<p>改变板型、电源、分区、线程所有权或资源上限，先修改架构与对应检查。普通页面的颜色和间距在主题令牌中修改。新增 App 先登记页面契约、依赖能力和预算，再写页面。</p>
+<p>仍待确认的事项：watchOS 26 的参考小版本/地区；实际表冠与侧键；FT6146 完整坐标和方向；NAND FAL 与提交语义；新界面实屏性能。均有对应阶段，不阻止先完成架构和离线基础。</p>
+</section>
+<section id="m0-实施记录" class="level2">
+<h2>6. M0 实施记录</h2>
+<p>架构与视觉基线冻结后，M0 基础代码按以下状态实施：</p>
+<table style="width:11%;">
+<colgroup>
+<col style="width: 5%" />
+<col style="width: 5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>项目</th>
+<th>当前状态</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>架构、线程/内存预算、页面生命周期、消息与恢复策略</td>
+<td>已写入架构 v1；后续模块按文档实施</td>
+</tr>
+<tr class="even">
+<td>布局/字体/组件/动效/玻璃质量档/输入矩阵</td>
+<td>已写入视觉规范；尚未形成新的实屏界面</td>
+</tr>
+<tr class="odd">
+<td>输入队列、溢出取消、单键点击过滤、GUI 线程消费、诊断</td>
+<td>已实现；纯逻辑主机测试与固件构建通过，实际按键待上板回归</td>
+</tr>
+<tr class="even">
+<td>PSRAM1 范围和 main 新装载槽</td>
+<td>本地已修正；没有擦写开发板，迁移/启动验证未完成</td>
+</tr>
+<tr class="odd">
+<td>构建检查</td>
+<td>已接入 GCC 构建前后、Keil 生成前；实际镜像和生成下载地址检查通过</td>
+</tr>
+<tr class="even">
+<td>GCC</td>
+<td>完整构建成功；<code>main.bin</code> 为 5,709,824 B，低于 6,291,456 B 的槽上限</td>
+</tr>
+<tr class="odd">
+<td>Keil</td>
+<td>已重新生成工程；925 个源码引用有效；SCons 生成流程完成 main/bootloader/ftab 链接，未进行 uVision 图形界面操作</td>
+</tr>
+<tr class="even">
+<td>主机回归</td>
+<td>8 个 Python 布局测试通过；C 队列测试通过 FIFO 回绕、队满取消、释放恢复、长按/点击互斥和计数饱和；C 编译采用 <code>/W4 /WX</code></td>
+</tr>
+<tr class="odd">
+<td>板上</td>
+<td>只读采集了修改前固件的时钟/堆/线程基线。新输入、布局、帧率、低功耗及长期测试均未上板验证</td>
+</tr>
+</tbody>
+</table>
+<p>C 队列测试包含 11,000 条事件的入队/出队顺序验证；它不模拟 RTOS 抢占或真实触摸，板上并发回归仍必需。现有 SDK 构建还有驱动/链接警告，构建通过不等同于消除了全部上游警告。</p>
+<p>相关入口：<a href="../../firmware/iwatch/src/core/iw_input_queue.c">输入核心</a>、<a href="../../firmware/iwatch/src/gui_apps/watch_demo.c">现有 GUI 适配</a>、<a href="../../firmware/check_layout.py">布局校验</a>、<a href="../../firmware/tests/run-core-tests.ps1">主机测试脚本</a>。本地构建日志在忽略入库的 <code>logs/architecture-m0-gcc.log</code> 与 <code>logs/architecture-m0-keil.log</code>。</p>
+<p>接下来执行 M0 的新布局备份/引导和按键回归；M1 首个产品界面闭环为“数字表盘→桌面→设置→亮度→返回”，同时完成组件展示页。新页面不能绕过本架构直接堆进示例文件。</p>
+</section>
+</section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script>
+    document.querySelectorAll('table').forEach(function (table) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'table-wrap';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    });
+  </script>
+  <script type="module">
+    if (document.querySelector('.mermaid')) {
+      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
+        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
+        module.default.run({ querySelector: '.mermaid' });
+      });
+    }
+  </script>
+</body>
+</html>

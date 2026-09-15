@@ -35,3 +35,4 @@ Thumbs.db
 /firmware/iwatch/project/project.uvoptx
 /firmware/iwatch/project/*.uvguix.*
 /firmware/iwatch/project/JLinkLog.txt
+/firmware/tests/build/

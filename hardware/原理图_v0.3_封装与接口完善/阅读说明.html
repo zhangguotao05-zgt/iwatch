@@ -1,0 +1,147 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch 嵌入式智能手表工程文档">
+  <title>HealthWatch SF58 v0.3：封装、接口和调试完善版 · iwatch</title>
+  <link rel="stylesheet" href="../../docs/assets/engineering.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../../index.html">iwatch</a>
+    <span class="doc-name">HealthWatch SF58 v0.3：封装、接口和调试完善版</span>
+  </header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录">
+<ul>
+<li><a href="#healthwatch-sf58-v0.3封装接口和调试完善版">HealthWatch SF58 v0.3：封装、接口和调试完善版</a><ul>
+<li><a href="#本版实际完成">本版实际完成</a></li>
+<li><a href="#文件怎么用">文件怎么用</a></li>
+<li><a href="#仍需落实的边界">仍需落实的边界</a></li>
+<li><a href="#主要原始依据">主要原始依据</a></li>
+</ul></li>
+</ul>
+    </nav>
+    <main>
+<section id="healthwatch-sf58-v0.3封装接口和调试完善版" class="level1">
+<h1>HealthWatch SF58 v0.3：封装、接口和调试完善版</h1>
+<p>本版继续使用 <strong>SF32LB586VDD36 封装芯片直接上板</strong>，不采购主控核心模块。屏幕锁定为已采购的 <strong>SF32LB58 DevKit + 1.85 英寸 390×450 QSPI AMOLED 触摸屏套装</strong>。当前目标是离线 UI、表冠/按键、触摸、运动传感、振动和 PPG 采集。</p>
+<p>在线私人工程：在线私人工程未随仓库公开；请导入随附的 .epro 文件。v0.2 保留。主控分布在多个图页的 U1 单元，合计仍是 <strong>1 颗 IC、256 个球位</strong>。</p>
+<section id="本版实际完成" class="level2">
+<h2>本版实际完成</h2>
+<ul>
+<li>13 页原理图，153 个物理位号：125 个默认装配位置、8 个预留不装位置、20 个板上焊盘结构（含 16 个测试点）。</li>
+<li>所有物理位号绑定封装；本地逐件检查结果为 0 缺失封装、0 符号引脚与封装焊盘集合不匹配。主控球位来自思澈官方芯片封装数据。</li>
+<li>USB-C 改为实际 18 焊盘编号；4 个按键补齐金属外壳接地；两颗绿光 LED 按实际 3 焊盘连接，两个阴极焊盘均连接。</li>
+<li>芯片封装、PMU 电感、晶体、MOS、PPG/LED 和电源器件封装按官方设计数据或器件手册建立，并记录来源。</li>
+<li>179 个明确不用的引脚改成 EDA 原生非连接标识。</li>
+<li>增加 VSYS、1.8 V、3.3 V、5 V、SiP/Flash 电源、复位、下载模式、I2C 和控制信号测试点。</li>
+<li>立创 EDA 原理图 DRC：<strong>0 致命错误、0 错误、0 警告</strong>。两条信息只是检查开始和完成日志，见 <code>validation-eda-drc.json</code>。</li>
+<li>13 页本地矢量审阅 PDF 已逐页渲染检查。PDF 来自同一电路模型的本地绘图，并非冒充 EDA 导出的检查报告。</li>
+<li>在线工程已增加 <code>PCB1</code> 未布线准备稿：153 个位置、726 个焊盘网络、1 颗 U1/256 球位。完整引脚网络指纹与本地模型一致，见 <code>validation-pcb-transfer.json</code>。当前默认双层文档/规则只是编辑器初始值，并非板层方案。</li>
+</ul>
+</section>
+<section id="文件怎么用" class="level2">
+<h2>文件怎么用</h2>
+<table style="width:11%;">
+<colgroup>
+<col style="width: 5%" />
+<col style="width: 5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>文件</th>
+<th>用途</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>HealthWatch-SF58-BareChip-v0.3.epro</code></td>
+<td>原生专业版原理图与封装库工程，导入时关闭自动关联封装/3D 模型</td>
+</tr>
+<tr class="even">
+<td><code>BOM_v0.3.csv</code></td>
+<td>每个位号的值、封装、装配状态和已选器件型号</td>
+</tr>
+<tr class="odd">
+<td><code>采购合并表.csv</code></td>
+<td>按型号/规格合并数量；通用阻容明确标为尚未锁定采购料号</td>
+</tr>
+<tr class="even">
+<td><code>pin-net-map_v0.3.csv</code></td>
+<td>全部引脚的网络映射，含有意悬空引脚</td>
+</tr>
+<tr class="odd">
+<td><code>chip-ball-audit.csv</code></td>
+<td>U1 全部球位核对记录</td>
+</tr>
+<tr class="even">
+<td><code>footprint-catalog.json</code> / <code>footprint-binding.json</code></td>
+<td>封装几何、依据和位号绑定</td>
+</tr>
+<tr class="odd">
+<td><code>validation-reference.json</code></td>
+<td>独立本地模型及几何检查结果</td>
+</tr>
+<tr class="even">
+<td><code>validation-pcb-transfer.json</code></td>
+<td>在线 PCB 转换后完整引脚网络指纹核对；本地 epro 仍是原理图/封装版，PCB1 保存在在线工程</td>
+</tr>
+<tr class="odd">
+<td><code>上电与固件调试.html</code></td>
+<td>供电限制、测试点、内存预算和分步调试流程</td>
+</tr>
+<tr class="even">
+<td><code>PCB实施约束.html</code></td>
+<td>转 PCB 前后需要落实的几何、电源、制造和结构事项</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="仍需落实的边界" class="level2">
+<h2>仍需落实的边界</h2>
+<p><strong>本版是通过原理图检查的工程设计稿，尚不能直接下单整表 PCB。</strong> DRC 不检查电感饱和、MLCC 偏压降容、实际面板电流、锂电包能力、光学结构或 BGA 扇出工艺。尚无硬件测试结果。</p>
+<ol type="1">
+<li><strong>首版使用套装转接板。</strong> J401 是官方 CONN2 信号对应的 2×20、2.54 mm 接口；这便于调试，但体积不适合最终 46 mm 表壳。裸 AMOLED 的 FPC 型号、脚位、电源时序和尺寸图仍未取得，不能把转接板接口当作裸屏 FPC。</li>
+<li><strong>外壳重新设计已确认，尺寸尚未冻结。</strong> 最终板框、孔位、屏幕贴合、旋转表冠、LRA、电池和光学隔光结构需要实际几何数据。当前的 TC1109 按键是调试样机用选件，不能直接视作最终表冠结构。</li>
+<li><strong>电池包待选。</strong> 按受保护单节 4.2 V 充电锂电包规划，400 mAh 只是容量假设；必须确认最大充放电电流、NTC 阻值/B 值和温度贴合。充电电流名义约 128 mA，仍须匹配实际电芯。</li>
+<li><strong>阻容不是已下单采购 BOM。</strong> 通用 R/C 目前固定数值和封装，厂家订货号仍待锁定；尤其电源输出及 5 V 上的 MLCC 要按实际直流偏压有效电容选择。BOM 中类似 <code>C 10uF/10V</code> 的字符串是规格，不是制造商型号。</li>
+<li><strong>PCB 制造审查待做。</strong> 0.4 mm BGA 扇出、板层/孔型、阻焊桥、钢网开窗和热焊盘处理需要结合板厂工艺。封装焊盘已建好不等于贴装工艺已放行。</li>
+<li><strong>接触接口的 ESD/EMI 方案待定。</strong> USB、电池焊线和外部控制接口的放电路径要结合机壳与 PCB 落点设计；本版没有把未选定的防护器件当作已经完成。</li>
+<li>PPG 已有真实发射/接收电路基础；算法固件、IMU 数据输入、LED 电流、光路、校准与运动下效果仍需开发和测试。</li>
+</ol>
+</section>
+<section id="主要原始依据" class="level2">
+<h2>主要原始依据</h2>
+<ul>
+<li><a href="https://wiki.sifli.com/en/hardware/SF32LB58x-HW-Application.html">思澈 SF32LB58 硬件应用</a>、<a href="https://wiki.sifli.com/board/sf32lb58x/SF32LB58-DevKit-LCD.html">DevKit-LCD</a>。采用官方芯片电路/封装数据，最终物料不包含核心模块。</li>
+<li><a href="https://www.analog.com/en/resources/evaluation-hardware-and-software/evaluation-boards-kits/maxm86146evsys.html">ADI MAXM86146 官方评估板资料</a>：参考其原理图、物料表及公开 ODB++ 封装数据。</li>
+<li><a href="https://www.ti.com/lit/ds/symlink/bq24074.pdf">TI BQ24074</a>、<a href="https://www.ti.com/lit/ds/symlink/tps62840.pdf">TPS62840</a>、<a href="https://www.ti.com/lit/ds/symlink/tps63031.pdf">TPS63031</a>、<a href="https://www.ti.com/lit/ds/symlink/tps61099.pdf">TPS61099</a>、<a href="https://www.ti.com/lit/ds/symlink/drv2605l.pdf">DRV2605L</a>。</li>
+<li><a href="https://www.st.com/resource/en/datasheet/lsm6dso.pdf">ST LSM6DSO</a>、<a href="https://www.puyasemi.com/en/h_series653/3187.html">普冉 PY25Q128HA</a>。</li>
+<li><a href="https://look.ams-osram.com/m/e1bd35e2ed36dce/original/SFH-7015.pdf">OSRAM SFH7015</a>、<a href="https://look.ams-osram.com/m/7a84e13abf7bd695/original/CT-DBLP31-12.pdf">CT DBLP31.12</a>。</li>
+</ul>
+<p>资料读取与核对日期：2026-09-11。没有核实实时库存、成交价格或交期，也没有代购。</p>
+</section>
+</section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script>
+    document.querySelectorAll('table').forEach(function (table) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'table-wrap';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    });
+  </script>
+  <script type="module">
+    if (document.querySelector('.mermaid')) {
+      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
+        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
+        module.default.run({ querySelector: '.mermaid' });
+      });
+    }
+  </script>
+</body>
+</html>

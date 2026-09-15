@@ -9,6 +9,8 @@ src = Glob('*.c')
 objs = list(src)
 inc+= [cwd]
 
+objs.extend(SConscript(os.path.join(cwd, 'core/SConscript'), variant_dir="core", duplicate=0))
+
 
 #Add resources.
 # Ensure directory is created before any builder is executed

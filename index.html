@@ -1,0 +1,148 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch 嵌入式智能手表工程文档">
+  <title>iwatch · iwatch</title>
+  <link rel="stylesheet" href="docs/assets/engineering.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="index.html">iwatch</a>
+    <span class="doc-name">iwatch</span>
+  </header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录">
+<ul>
+<li><a href="#iwatch">iwatch</a><ul>
+<li><a href="#从这里开始">从这里开始</a></li>
+<li><a href="#版本状态">版本状态</a></li>
+<li><a href="#目录">目录</a></li>
+</ul></li>
+</ul>
+    </nav>
+    <main>
+<section id="iwatch" class="level1">
+<h1>iwatch</h1>
+<p>基于 <strong>SF32LB586VDD36</strong> 的自研智能手表项目，当前阶段以离线界面、触摸/表冠交互、运动传感、振动反馈和心率/血氧采集为方向。主控采用芯片直接贴装，外壳自行设计。</p>
+<p>本仓库保存硬件工程、BOM、设计评估、生成脚本和可编译的手表 UI 固件基线。<strong>当前尚未完成佩戴版 PCB 布局布线、整机装配及实物验证，没有可直接生产的 Gerber；固件目前是开发板验证版本，并非完整产品固件。</strong></p>
+<section id="从这里开始" class="level2">
+<h2>从这里开始</h2>
+<table>
+<thead>
+<tr class="header">
+<th>资料</th>
+<th>内容</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="docs/UI复刻计划_watchOS26.html">Series 11 界面复刻计划</a></td>
+<td>watchOS 26 参考范围、系统/App/表盘清单、离线实现深度、开发阶段与验收标准</td>
+</tr>
+<tr class="even">
+<td><a href="docs/ui/系统架构_v1.html">系统架构 v1</a></td>
+<td>分层、线程、消息、页面生命周期、时间/存储/电源、内存与故障恢复</td>
+</tr>
+<tr class="odd">
+<td><a href="docs/ui/视觉与交互规范_v1.html">视觉与交互规范 v1</a></td>
+<td>布局、字体、组件、玻璃质量档、动效、表冠/触摸规则与视觉验收</td>
+</tr>
+<tr class="even">
+<td><a href="docs/ui/实施与验收_v1.html">架构实施与验收</a></td>
+<td>M0–M6 落地顺序、边界测试、板上验收与实际实施记录</td>
+</tr>
+<tr class="odd">
+<td><a href="firmware/README.html">固件源码与 Keil 工程</a></td>
+<td><code>watch_v9</code> 界面源码、A128 QSPI/A1 板级配置、GCC 构建和 Keil 工程生成方法</td>
+</tr>
+<tr class="even">
+<td><a href="docs/SF32LB58开发板资料与首次调试.html">SF32LB58 开发板资料与首次调试</a></td>
+<td>官方图纸、SDK v2.5.1、QSPI 板型选择和 LVGL 手表示例</td>
+</tr>
+<tr class="odd">
+<td><a href="hardware/原理图_v0.3_封装与接口完善/阅读说明.html">当前原理图 v0.3</a></td>
+<td>13 页原理图、器件封装、引脚网络、BOM 与校核记录</td>
+</tr>
+<tr class="even">
+<td><a href="hardware/原理图_v0.3_封装与接口完善/HealthWatch-SF58-BareChip-v0.3.epro">立创 EDA 专业版工程</a></td>
+<td>可导入的原理图及封装库，主板 PCB 不在这个本地文件中</td>
+</tr>
+<tr class="odd">
+<td><a href="hardware/原理图_v0.3_封装与接口完善/HealthWatch-SF58-v0.3-裸芯片原理图审阅.pdf">原理图审阅 PDF</a></td>
+<td>方便直接查看电路</td>
+</tr>
+<tr class="even">
+<td><a href="hardware/HealthWatch-SF58-v0.3-工程资料包.zip">工程资料包</a></td>
+<td>当前原理图、BOM、文档和校核文件的打包副本</td>
+</tr>
+<tr class="odd">
+<td><a href="hardware/原理图_v0.3_封装与接口完善/BOM_v0.3.csv">BOM</a></td>
+<td>按位号整理；普通阻容仍有待锁定的实际订货料号</td>
+</tr>
+<tr class="even">
+<td><a href="hardware/CWS05屏幕与佩戴版修订评估/评估与修订方向.html">CWS05 与 0201 修订评估</a></td>
+<td>下一版屏幕、按键和封装调整，尚未实现到 v0.3 原理图</td>
+</tr>
+<tr class="odd">
+<td><a href="hardware/佩戴版封装尺寸审查/封装尺寸审查.html">封装尺寸审查</a></td>
+<td>实际封装占位及小型化整改方向</td>
+</tr>
+<tr class="even">
+<td><a href="hardware/原理图_v0.3_封装与接口完善/上电与固件调试.html">上电与调试</a></td>
+<td>电源、接口和分阶段上电验证步骤</td>
+</tr>
+<tr class="odd">
+<td><a href="hardware/原理图_v0.3_封装与接口完善/PCB实施约束.html">PCB 实施约束</a></td>
+<td>板框、BGA 扇出、供电回路、光学及制造条件</td>
+</tr>
+</tbody>
+</table>
+</section>
+<section id="版本状态" class="level2">
+<h2>版本状态</h2>
+<ul>
+<li>已保存的电路基线是 <strong>原理图 v0.3</strong>，主控 SF32LB586VDD36，采用原开发套装的屏幕转接接口。</li>
+<li>2026-09-11 的记录包含 153 个器件/测试点位置，以及当时原理图 DRC 的 0 致命错误、0 错误、0 警告。这些结果不能替代实际布线和硬件测试。</li>
+<li>主板 PCB1 的未布线准备稿当时保存在在线 EDA 私人工程中，本仓库<strong>没有该主板 PCB 文件</strong>。连接器封装工程自带的 PCB 预览页只是封装预览。</li>
+<li>最新拟选屏幕为 <strong>亚特联 CWS05 / C50396528，390×450 QSPI AMOLED，CO5300AF + CST820</strong>。其 24 针、1.8 V 数字接口不能直接接原版 3.3 V 显示/触摸接口。</li>
+<li>佩戴版拟采用普通阻容优先评估英制 <strong>0201</strong> 的策略；复位/下载按键改测试接点，Home/唤醒拟并入表冠按压。</li>
+<li>电池、马达、表冠、板框、屏幕配对连接器和部分供电定义仍需确定。联网、官方微信/支付宝等暂不属于当前阶段。</li>
+</ul>
+<p><strong>注意版本体系：</strong>文件名中的“方案/BOM v0.4”是早期规划文档版本，不代表原理图已经升级到 v0.4。历史方案中的模组及旧屏幕建议，以最新原理图说明和修订评估为准。</p>
+<p>项目现名为 <strong>iwatch</strong>。已归档的 v0.1–v0.3 硬件文件继续保留原来的 <code>HealthWatch-SF58</code> 文件名和校验值，避免破坏已有工程包；后续新版本使用 <code>iwatch</code> 名称。</p>
+</section>
+<section id="目录" class="level2">
+<h2>目录</h2>
+<pre class="text"><code>hardware/       原理图、封装、BOM、审阅图、历史方案及最新评估
+firmware/       手表应用源码、项目专用板级配置和构建脚本
+tools/          原理图/封装/评估/BOM 的生成与校核脚本
+docs/           项目状态、资料来源及复现说明</code></pre>
+<p>导入工程时，在立创 EDA 专业版选择“文件 → 导入 → 嘉立创 EDA（专业版）”，使用 <code>.epro</code> 文件。优先阅读对应目录的说明，再修改电路。</p>
+<p>Python 脚本依赖见 <a href="requirements.txt" class="uri">requirements.txt</a>，使用限制和外部输入见 <a href="docs/复现说明.html">复现说明</a>。厂商资料与第三方来源见 <a href="docs/资料来源.html">资料来源</a>。</p>
+<p>2026-09-15 首次整理入库。公开副本移除了本机个人目录和在线私人工程链接，电路 <code>.epro</code>/<code>.esch</code> 内容保持原样；各资料目录的 <code>SHA256SUMS.txt</code> 对应仓库中的公开副本。</p>
+<p>本次未添加统一的开源许可证。工程引用的第三方资料、库和工具保留其各自的许可要求。</p>
+</section>
+</section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script>
+    document.querySelectorAll('table').forEach(function (table) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'table-wrap';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    });
+  </script>
+  <script type="module">
+    if (document.querySelector('.mermaid')) {
+      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
+        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
+        module.default.run({ querySelector: '.mermaid' });
+      });
+    }
+  </script>
+</body>
+</html>

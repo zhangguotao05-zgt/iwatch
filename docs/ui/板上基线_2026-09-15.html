@@ -1,0 +1,91 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch 嵌入式智能手表工程文档">
+  <title>SF32LB58 板上基线（2026-09-15） · iwatch</title>
+  <link rel="stylesheet" href="../assets/engineering.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../../index.html">iwatch</a>
+    <span class="doc-name">SF32LB58 板上基线（2026-09-15）</span>
+  </header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录">
+<ul>
+<li><a href="#sf32lb58-板上基线2026-09-15">SF32LB58 板上基线（2026-09-15）</a></li>
+</ul>
+    </nav>
+    <main>
+<section id="sf32lb58-板上基线2026-09-15" class="level1">
+<h1>SF32LB58 板上基线（2026-09-15）</h1>
+<p>固件：修改前的 <code>watch_v9</code> 基线。通道：COM10，1,000,000 baud，8N1。以下结果来自只读 MSH 命令，不代表 M0 固件验证结果。</p>
+<pre class="text"><code>free
+total memory: 1809900 used memory : 153264 maximum allocated memory: 202368
+
+list_memheap
+          pool size  max used size available size
+-------- ---------- ------------- --------------
+app_tiny 160000     72            159928
+app_mess 96000      72            95928
+app_imag 50000      72            49928
+app_imag 2100000    45112         2069016
+
+list_thread
+         pri  status      sp      top     stack size max used left tick  error
+-------- ---  ------- ---------- ---------- ---------- ------ ---------- ---
+tpread    10  suspend 0x20022af0 0x20022bfc 0x00000400    47%   0x00000009 000
+lcd_task  12  suspend 0x20022698 0x200227fc 0x00000800    45%   0x00000009 000
+app_watc  19  suspend 0x20030d20 0x20030e40 0x00004000    36%   0x0000000a 000
+tshell    20  ready   0x200374a8 0x20037624 0x00001000    28%   0x00000008 000
+tidle     31  ready   0x00027360 0x000273b8 0x00000200    22%   0x00000015 000
+timer      4  suspend 0x20022ef8 0x20022ffc 0x00000400    28%   0x00000009 000
+
+sysinfo
+HPSYS
+SYSCLK: 240.00MHz
+HCLK: 240.00MHz
+PCLK1: 60.00MHz
+PCLK2: 7.50MHz
+LPSYS
+SYSCLK: 48.00MHz
+HCLK: 48.00MHz
+PCLK1: 24.00MHz
+PCLK2: 6.00MHz
+BLESYS
+SYSCLK: 0.00 Hz
+HCLK: 0.00 Hz
+Memory
+MPI1: 144.00MHz
+MPI2: 144.00MHz
+MPI4: 0.00 Hz
+MPI5: 48.00MHz
+LCD
+Bandwidth: 200.00Mbps
+390x450, align:2
+rect type,RGB565</code></pre>
+<p>MPI4 报告 0 Hz 不能单独用于判断 NAND 状态；需要结合控制器状态、驱动访问和挂载结果分析。</p>
+</section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script>
+    document.querySelectorAll('table').forEach(function (table) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'table-wrap';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    });
+  </script>
+  <script type="module">
+    if (document.querySelector('.mermaid')) {
+      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
+        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
+        module.default.run({ querySelector: '.mermaid' });
+      });
+    }
+  </script>
+</body>
+</html>

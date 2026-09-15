@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch 嵌入式智能手表工程文档">
+  <title>iwatch SF32LB58 固件 · iwatch</title>
+  <link rel="stylesheet" href="../docs/assets/engineering.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../index.html">iwatch</a>
+    <span class="doc-name">iwatch SF32LB58 固件</span>
+  </header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录">
+<ul>
+<li><a href="#iwatch-sf32lb58-固件">iwatch SF32LB58 固件</a><ul>
+<li><a href="#目录">目录</a></li>
+<li><a href="#依赖">依赖</a></li>
+<li><a href="#gcc-构建">GCC 构建</a></li>
+<li><a href="#keil">Keil</a></li>
+<li><a href="#当前板级修正">当前板级修正</a></li>
+<li><a href="#架构与基础测试">架构与基础测试</a></li>
+<li><a href="#上游许可">上游许可</a></li>
+</ul></li>
+</ul>
+    </nav>
+    <main>
+<section id="iwatch-sf32lb58-固件" class="level1">
+<h1>iwatch SF32LB58 固件</h1>
+<p>这里保存本项目可修改、可提交的固件源码。当前基线来自 SiFli-SDK v2.5.1 的 <code>example/multimedia/lvgl/watch_v9</code>，已经使用 <strong>SF32LB58-DevKit-LCD、A128R32N1、QSPI 屏接口、A1 芯片修订版</strong>完成无屏启动验证。</p>
+<section id="目录" class="level2">
+<h2>目录</h2>
+<pre class="text"><code>firmware/
+├─ iwatch/
+│  ├─ src/                    手表 UI 与资源源码
+│  │  ├─ app_utils/           程序入口
+│  │  ├─ gui_apps/clock/      表盘
+│  │  ├─ gui_apps/main/       蜂窝菜单
+│  │  └─ resource/            图片、字体和语言资源
+│  └─ project/                SCons 配置、6 MB 项目分区表和 Keil 工程
+├─ boards/
+│  ├─ iwatch_sf32lb58_a128_qspi/     本项目 A128 QSPI/A1 板级配置
+│  └─ sf32lb58-lcd_base/             板级公共实现
+├─ build-gcc.ps1              GCC 完整构建
+├─ generate-keil.ps1          生成 Keil MDK5 工程
+└─ third_party/               上游许可证</code></pre>
+</section>
+<section id="依赖" class="level2">
+<h2>依赖</h2>
+<ul>
+<li>SiFli-SDK v2.5.1，默认本机路径：<code>C:\OpenSiFli\SiFli-SDK-v2.5.1</code></li>
+<li>GCC 构建环境由 SDK 的 <code>export.ps1</code> 提供</li>
+<li>Keil MDK5/Arm Compiler 6；本机已检测到 <code>D:\keil\MDK5.36</code></li>
+</ul>
+<p>SDK 作为外部依赖使用，构建缓存和整个 SDK 不提交到本仓库。项目自己的应用代码和板级配置均在本目录内。</p>
+<p>SiFli SDK v2.5.1 的 Windows Kconfig 工具不能直接处理含中文的工程路径。如果仓库所在路径含中文，构建脚本会自动创建纯英文目录联接 <code>C:\OpenSiFli\_workspaces\iwatch</code> 并从该入口构建；它仍指向本仓库中的同一份文件，不会复制源码。仓库本身处于纯英文路径时会直接构建。</p>
+</section>
+<section id="gcc-构建" class="level2">
+<h2>GCC 构建</h2>
+<p>在仓库根目录执行：</p>
+<pre class="powershell"><code>.\firmware\build-gcc.ps1</code></pre>
+<p>使用其他 SDK 路径时：</p>
+<pre class="powershell"><code>.\firmware\build-gcc.ps1 -SdkPath D:\path\to\SiFli-SDK-v2.5.1</code></pre>
+<p>输出位于 <code>firmware/iwatch/project/build_iwatch_sf32lb58_a128_qspi_hcpu/</code>。其中包含主程序、Bootloader、Flash Table 和 <code>sftool_param.json</code>；烧录前应按开发板串口下载流程使用 SiFli 工具，不要把 Keil 的 Download 按钮当成 CH342 串口下载。</p>
+<p>构建脚本现在在编译前校验内存布局，编译后核对镜像长度和下载地址。2026-09-15 的架构 v1 修改了 <strong>main 的 NAND 装载地址为 <code>0x69000000</code></strong>，装载槽 6 MiB；PSRAM1 划分为 6 MiB 代码窗口 + 10 MiB 数据窗口。当前开发板尚未切换到这份新布局。第一次使用前需备份旧固件、启动表和数据区，并验证 NAND 地址转换与新槽引导；不能把新镜像套进旧版下载脚本。详见 <a href="../docs/ui/系统架构_v1.html">系统架构的布局说明</a>。</p>
+</section>
+<section id="keil" class="level2">
+<h2>Keil</h2>
+<p>首次打开或新增/删除源码后，先生成工程：</p>
+<pre class="powershell"><code>.\firmware\generate-keil.ps1</code></pre>
+<p>随后使用 Keil 打开：</p>
+<pre class="text"><code>firmware/iwatch/project/project.uvprojx</code></pre>
+<p>生成脚本会把当前 <code>-SdkPath</code> 写入 Keil 工程，补充 SF32LB58 的 CDE 编译参数，并检查全部源文件引用。2026-09-15 生成结果包含 925 个有效的源码引用，并已加入 <code>Iwatch_core</code> 组；换电脑或改变 SDK 位置后重新运行脚本即可。</p>
+<p>Keil 工程用于编辑和编译 HCPU 应用。当前开发板的 CH342 USB 串口下载仍使用 SiFli 的串口烧录脚本；Keil 的 Download 按钮需要另接 J-Link/CMSIS-DAP 并配置对应 Flash 算法。</p>
+</section>
+<section id="当前板级修正" class="level2">
+<h2>当前板级修正</h2>
+<p>HCPU 和 LCPU 的 <code>board.conf</code> 均启用了 <code>CONFIG_LCPU_CONFIG_AUTO=y</code>，解决实物 A1 芯片使用原始 V2 配置时的启动断言。构建生成的最终编译宏可能显示 <code>LCPU_CONFIG_V1</code>，这是 AUTO 针对当前芯片生成的正常结果。</p>
+<p>历史启动日志中的三个 <code>flash1 is not found</code> 来自 SDK 默认 FAL 分区表；当前 UI 可启动不代表持久化可靠。在实现偏好数据库和资源文件系统前，需要补充本板专用 FAL 分区定义并验证 NAND 坏块/ECC 与掉电恢复。</p>
+</section>
+<section id="架构与基础测试" class="level2">
+<h2>架构与基础测试</h2>
+<p><a href="../docs/ui/系统架构_v1.html">系统架构</a>、<a href="../docs/ui/视觉与交互规范_v1.html">视觉规范</a> 和 <a href="../docs/ui/实施与验收_v1.html">实施记录</a> 定义后续开发边界。当前只开始 M0 基础代码，界面仍是原演示基线。</p>
+<p>Windows 主机测试需要 Visual Studio C/C++ 工具和 Python 3：</p>
+<pre class="powershell"><code>.\firmware\tests\run-core-tests.ps1</code></pre>
+<p>也可以单独运行只读布局检查；第二条必须指向与本次镜像匹配的完整输出目录：</p>
+<pre class="powershell"><code>py -3 firmware/check_layout.py
+py -3 firmware/check_layout.py --build-dir firmware/iwatch/project/build_iwatch_sf32lb58_a128_qspi_hcpu</code></pre>
+<p>手动直接运行 SCons 或从 uVision 编译时仍需执行相应的布局/实际镜像检查；包装脚本的通过结果不覆盖之后手动修改的分区或产物。新的按键诊断命令为 <code>iw_input_stat</code>，只有烧录 M0 固件后才存在；当前板上运行的旧固件尚无该命令。</p>
+</section>
+<section id="上游许可" class="level2">
+<h2>上游许可</h2>
+<p><code>iwatch/src</code>、项目构建文件和板级基线来自 OpenSiFli/SiFli-SDK v2.5.1，遵循 Apache License 2.0。许可证副本见 <a href="third_party/SiFli-SDK-LICENSE.txt">SiFli-SDK-LICENSE.txt</a>。后续新增的产品界面资源应保留清晰的来源和许可记录。</p>
+</section>
+</section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script>
+    document.querySelectorAll('table').forEach(function (table) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'table-wrap';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    });
+  </script>
+  <script type="module">
+    if (document.querySelector('.mermaid')) {
+      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
+        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
+        module.default.run({ querySelector: '.mermaid' });
+      });
+    }
+  </script>
+</body>
+</html>

@@ -49,6 +49,8 @@ $env:RTT_EXEC_PATH = $KeilPath
 
 Push-Location $projectDir
 try {
+    & python (Join-Path $firmwareRoot 'check_layout.py')
+    if ($LASTEXITCODE -ne 0) { throw 'Memory layout validation failed.' }
     & scons '--board=iwatch_sf32lb58_a128_qspi' "--board_search_path=$boardDir" '--target=mdk5' "-j$Jobs"
     if ($LASTEXITCODE -ne 0) {
         throw "Keil project generation failed with exit code $LASTEXITCODE"

@@ -2,6 +2,8 @@
 *.py text eol=lf
 *.mjs text eol=lf
 *.md text eol=lf
+*.html text eol=lf
+*.css text eol=lf
 *.json text eol=lf
 *.csv text eol=lf
 *.esch text eol=lf
@@ -18,3 +20,5 @@
 *.zip binary
 # Preserve archived engineering bytes and their SHA256 manifests exactly.
 hardware/** -text
+hardware/**/*.html text eol=lf
+docs/assets/vendor/*.min.js binary

@@ -1,0 +1,74 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch 嵌入式智能手表工程文档">
+  <title>文件维护与复现说明 · iwatch</title>
+  <link rel="stylesheet" href="assets/engineering.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../index.html">iwatch</a>
+    <span class="doc-name">文件维护与复现说明</span>
+  </header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录">
+<ul>
+<li><a href="#文件维护与复现说明">文件维护与复现说明</a><ul>
+<li><a href="#python">Python</a></li>
+<li><a href="#bom-工作簿脚本">BOM 工作簿脚本</a></li>
+<li><a href="#校验记录">校验记录</a></li>
+</ul></li>
+</ul>
+    </nav>
+    <main>
+<section id="文件维护与复现说明" class="level1">
+<h1>文件维护与复现说明</h1>
+<p>仓库维护目录为 <code>hardware/</code>、<code>tools/</code>、<code>docs/</code>。作者工作目录中的原始 <code>work/</code>、<code>outputs/</code> 和临时文件不纳入 Git；以后要同步到 GitHub 的修改应落在仓库维护目录并提交。</p>
+<p><code>.epro</code>、<code>.esch</code>、BOM 和审阅 PDF 可直接使用。脚本记录了设计生成过程，<strong>本次入库只校验脚本语法和文件完整性，没有重新运行全套电路生成、EDA DRC 或硬件测试</strong>。</p>
+<section id="python" class="level2">
+<h2>Python</h2>
+<div class="sourceCode"><pre class="sourceCode sh"><code class="sourceCode bash"><span class="ex">python</span> -m pip install -r requirements.txt</code></pre></div>
+<p>原脚本使用 Python 3.12 开发。部分 PDF 渲染脚本使用 Windows 字体路径，需要相应字体或自行调整。运行命令以仓库根目录为当前目录。</p>
+<p>原理图生成保留 v0.1 → v0.2 → v0.3 的依赖关系。主要入口：</p>
+<ul>
+<li><code>tools/schematic-v0.1/build_schematic.py</code></li>
+<li><code>tools/schematic-v0.2/build_barechip.py</code></li>
+<li><code>tools/schematic-v0.3/build.py</code>：v0.3 正式生成入口；同目录 <code>build_schematic.py</code> 是中间快照，不应作为独立入口。</li>
+<li><code>tools/schematic-v0.3/audit.py</code>：模型与封装校核。</li>
+<li><code>tools/footprint-size-review/review.py</code>：读取保存工程并计算封装占位。</li>
+</ul>
+<p>生成脚本需要原始厂商工程输入。按脚本中的文件名及 <a href="资料来源.html">资料来源</a> 取回 SiFli 官方 EDA/PADS 工程、器件规格书，以及 ADI 评估板 ODB++ 文件，放入相应 <code>tools/*/references/</code> 目录。部分提取后的 JSON、网络清单和 <code>.asc</code> 文件也属于生成输入；它们没有随着缓存目录入库，因此当前不是一键可重建项目。</p>
+<p>屏幕和连接器评估脚本使用的供应商 PDF 放在仓库根目录 <code>references/vendor/</code>，由使用者自行取得。各脚本或 <code>config.json</code> 中记录所需文件名。现有磁吸连接器封装均是独立草稿，未因此自动集成到手表主板。</p>
+</section>
+<section id="bom-工作簿脚本" class="level2">
+<h2>BOM 工作簿脚本</h2>
+<p><code>tools/bom-selection/</code> 和 <code>tools/reassessment-v0.3/</code> 下的 <code>.mjs</code> 依赖未随仓库发布，普通 Node.js 环境不保证可直接执行；已生成的 <code>.xlsx</code> 文件可用 Excel 或兼容软件打开。</p>
+</section>
+<section id="校验记录" class="level2">
+<h2>校验记录</h2>
+<p>硬件目录内的 <code>validation-*.json</code> 是原设计阶段的记录，不是每次 Git 提交都会自动执行的检查。在线主板 PCB 的保存状态不能从本地原理图文件中重建。对电路做修改后，应重新进行原理图检查、网表同步、PCB 检查及必要的实物验证。</p>
+</section>
+</section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script>
+    document.querySelectorAll('table').forEach(function (table) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'table-wrap';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    });
+  </script>
+  <script type="module">
+    if (document.querySelector('.mermaid')) {
+      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
+        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
+        module.default.run({ querySelector: '.mermaid' });
+      });
+    }
+  </script>
+</body>
+</html>

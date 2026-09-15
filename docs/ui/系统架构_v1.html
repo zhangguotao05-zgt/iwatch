@@ -1,0 +1,563 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch 嵌入式智能手表工程文档">
+  <title>iwatch 系统架构 v1 · iwatch</title>
+  <link rel="stylesheet" href="../assets/engineering.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../../index.html">iwatch</a>
+    <span class="doc-name">iwatch 系统架构 v1</span>
+  </header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录">
+<ul>
+<li><a href="#iwatch-系统架构-v1">iwatch 系统架构 v1</a><ul>
+<li><a href="#架构决定">1. 架构决定</a></li>
+<li><a href="#分层与依赖">2. 分层与依赖</a></li>
+<li><a href="#已读到的硬件与软件基线">3. 已读到的硬件与软件基线</a><ul>
+<li><a href="#已发现的布局问题">3.1 已发现的布局问题</a></li>
+</ul></li>
+<li><a href="#线程与调度">4. 线程与调度</a></li>
+<li><a href="#数据流与消息契约">5. 数据流与消息契约</a><ul>
+<li><a href="#命令和快照">5.1 命令和快照</a></li>
+<li><a href="#一次计时器操作">5.2 一次计时器操作</a></li>
+</ul></li>
+<li><a href="#导航页面与生命周期">6. 导航、页面与生命周期</a><ul>
+<li><a href="#所有权">6.1 所有权</a></li>
+<li><a href="#与-sdk-生命周期对应">6.2 与 SDK 生命周期对应</a></li>
+</ul></li>
+<li><a href="#输入时间与电源">7. 输入、时间与电源</a><ul>
+<li><a href="#输入">7.1 输入</a></li>
+<li><a href="#两种时钟">7.2 两种时钟</a></li>
+<li><a href="#电源状态">7.3 电源状态</a></li>
+</ul></li>
+<li><a href="#内存资源和刷新预算">8. 内存、资源和刷新预算</a></li>
+<li><a href="#鲁棒性策略">9. 鲁棒性策略</a></li>
+<li><a href="#迁移边界与完成标准">10. 迁移边界与完成标准</a></li>
+</ul></li>
+</ul>
+    </nav>
+    <main>
+<section id="iwatch-系统架构-v1" class="level1">
+<h1>iwatch 系统架构 v1</h1>
+<p>日期：2026-09-15。基准：SF32LB58 开发板、390×450 CO5300/FT6146 模组、SiFli-SDK v2.5.1、LVGL 9.4.0。</p>
+<p>本文确定后续实现的边界和约束；除明确列入实施记录的部分，其余均为设计。界面覆盖范围见 <a href="../UI复刻计划_watchOS26.html">UI 复刻计划</a>，像素与动效规范见 <a href="视觉与交互规范_v1.html">视觉与交互规范</a>，落地次序见 <a href="实施与验收_v1.html">实施与验收</a>。</p>
+<section id="架构决定" class="level2">
+<h2>1. 架构决定</h2>
+<p>采用 <strong>C + RT-Thread + SiFli GUI 应用框架 + LVGL</strong>。应用、系统壳层、后台服务和设备适配分开，项目核心逻辑保持可在 PC 上测试。第一阶段运行离线功能；联网、官方 App 执行环境不在本架构实现范围。</p>
+<table style="width:17%;">
+<colgroup>
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>决策</th>
+<th>实现规则</th>
+<th>解决的问题</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>单一 GUI 所有者</td>
+<td><code>app_watch</code> 独占页面、LVGL 对象、导航和动画操作</td>
+<td>避免线程同时删改控件产生崩溃</td>
+</tr>
+<tr class="even">
+<td>延用 SiFli 应用框架</td>
+<td>App 启停、子页面、转场沿用 <code>gui_app_*</code>；项目路由层只做策略和校验</td>
+<td>避免两套页面栈互相冲突</td>
+</tr>
+<tr class="odd">
+<td>后台服务拥有业务状态</td>
+<td>秒表、计时器、提醒、设置、采样状态不放在页面对象里</td>
+<td>页面销毁后任务仍继续</td>
+</tr>
+<tr class="even">
+<td>明确的消息协议</td>
+<td>命令、回执、状态快照均有固定结构、容量、版本和错误值</td>
+<td>不通过任意指针和字符串广播耦合模块</td>
+</tr>
+<tr class="odd">
+<td>有限资源</td>
+<td>队列、页面栈、缓存、后台任务都有上限；超过上限有明确退路</td>
+<td>控制长期使用中的内存增长</td>
+</tr>
+<tr class="even">
+<td>可降级视觉</td>
+<td>三档统一渲染质量，共用布局、颜色、输入和业务代码</td>
+<td>动效负载过高时仍保持可用</td>
+</tr>
+<tr class="odd">
+<td>能力与数据质量显式建模</td>
+<td><code>available / absent / fault / initializing</code>；数据区分有效、陈旧、样例和未知</td>
+<td>不把样例心率、电量或连接状态当成实测值</td>
+</tr>
+<tr class="even">
+<td>芯片与板型隔离</td>
+<td>页面不写 GPIO、I²C 地址或 FPC 引脚；由本板适配层提供能力</td>
+<td>后续自研 PCB 更换电源、触摸或按键时局部改动</td>
+</tr>
+</tbody>
+</table>
+<p>LVGL 文档说明了多线程并发访问的约束；本项目选择单一线程入口。<a href="https://lvgl.io/docs/open/9.4/details/integration/overview/threading">LVGL 9.4 线程说明</a></p>
+</section>
+<section id="分层与依赖" class="level2">
+<h2>2. 分层与依赖</h2>
+<div class="mermaid">flowchart TB
+    A[应用与表盘\n设置、闹钟、运动、照片、各类表盘]
+    B[系统壳层\n桌面、控制中心、通知、智能叠放、切换器、锁屏]
+    C[GUI 公共层\n路由策略、输入仲裁、主题组件、动效、资源生命周期]
+    D[SiFli GUI 框架 + LVGL\n页面生命周期、布局、渲染、刷新]
+    E[命令 / 回执 / 状态快照\n固定容量、版本与有效性]
+    F[后台服务\n时钟计时、提醒、设置、电源、传感器]
+    G[平台适配\nRTC、显示、触摸、按键、存储、振动、诊断]
+    H[RT-Thread + SiFli HAL / BSP\nCO5300、FT6146、PSRAM、NAND]
+    A --&gt; C
+    B --&gt; C
+    C --&gt; D
+    C &lt;--&gt; E
+    E &lt;--&gt; F
+    F --&gt; G
+    D --&gt; G
+    G --&gt; H</div>
+<p>图中的模块不是一模块一线程。一个页面由四部分组成：布局 View、将状态转换为显示内容的 Presenter、服务提供的 Model 快照、声明入口与能力的描述项。View 不执行文件读写、采样、业务倒计时；Presenter 不访问寄存器。</p>
+<p>约束：<code>services/</code> 不包含 <code>lvgl.h</code>；纯逻辑 <code>core/</code> 不包含 RTOS/HAL 头；新页面不直接调用 <code>rt_device_*</code>。SDK 的显示刷新、DMA 完成回调等合法驱动入口保留在适配层。新业务不依赖 LVGL 私有结构；现有示例对私有接口的使用在迁移时逐项移除。</p>
+<p>建议目录（按实施阶段创建，不建立空文件堆）：</p>
+<pre class="text"><code>firmware/iwatch/src/
+  core/                  纯 C 状态机、时间运算、输入语义、错误类型
+  platform/              RTOS 消息、板型能力、时间/存储/输入适配
+  services/              计时、提醒、设置、电源、采样
+  gui_core/              导航策略、主题、组件、动效、页面作用域
+  gui_apps/
+    watch_demo.c         现有 GUI 线程入口，逐步瘦身
+    shell/               表盘入口、桌面、通知、控制中心等
+    clock/               表盘容器与表盘插件
+    settings/ ...        每个业务 App 的 View 和 Presenter
+  resource/              字体、图标、压缩图片、字符串和资源清单
+firmware/tests/          与硬件隔离的边界测试、故障测试
+docs/ui/                 架构、交互、基线、验收与差异记录</code></pre>
+</section>
+<section id="已读到的硬件与软件基线" class="level2">
+<h2>3. 已读到的硬件与软件基线</h2>
+<p>2026-09-15 通过 COM10、1,000,000 baud、8N1 执行只读命令，记录见 <a href="板上基线_2026-09-15.html">板上基线</a>。这是现有演示固件的单次快照，不是新架构压力测试。</p>
+<table style="width:17%;">
+<colgroup>
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>项目</th>
+<th>实际结果 / 配置</th>
+<th>设计含义</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>主控</td>
+<td>SF32LB586VDD36；HCPU HCLK 240 MHz，LCPU HCLK 48 MHz</td>
+<td>v1 应用与服务先运行 HCPU；LCPU 保留 SDK 支持，不立即搬运业务</td>
+</tr>
+<tr class="even">
+<td>外部内存</td>
+<td>配置为 PSRAM1/2 各 16 MiB、NAND 128 MiB；MPI1/2 时钟报告 144 MHz</td>
+<td>物理总容量与具体可分配内存池要分别计算</td>
+</tr>
+<tr class="odd">
+<td>显示</td>
+<td>390×450，RGB565，矩形、对齐 2；接口报告 200 Mbps</td>
+<td>理论 25 MB/s，实际刷新还受命令、等待、渲染和总线竞争影响</td>
+</tr>
+<tr class="even">
+<td>GUI</td>
+<td><code>app_watch</code> 优先级 19，16 KiB 栈，当前栈使用峰值 36%</td>
+<td>先保留，不因一次快照缩栈</td>
+</tr>
+<tr class="odd">
+<td>驱动</td>
+<td><code>tpread</code> 优先级 10、1 KiB 栈；<code>lcd_task</code> 优先级 12、2 KiB 栈</td>
+<td>保留 SDK 分工</td>
+</tr>
+<tr class="even">
+<td>主堆</td>
+<td>总量 1,809,900 B，当前使用 153,264 B，历史峰值 202,368 B</td>
+<td>空闲约 1.58 MiB；这不是全部 PSRAM 可用量</td>
+</tr>
+<tr class="odd">
+<td>图像/字体池</td>
+<td>PSRAM 图像池 2,100,000 B，SRAM 图像池 50,000 B，字体池 160,000 B</td>
+<td>新预算必须包含现有缓存，不能重复申请一份后仍声称满足预算</td>
+</tr>
+<tr class="even">
+<td>触摸</td>
+<td>FT6146 已读出 ID；实物显示已经点亮</td>
+<td>坐标、边缘、连续拖动仍待板测</td>
+</tr>
+<tr class="odd">
+<td>低功耗</td>
+<td>当前有效配置未打开 <code>BSP_USING_PM</code></td>
+<td>灭屏/深睡属于后续独立验证阶段</td>
+</tr>
+</tbody>
+</table>
+<section id="已发现的布局问题" class="level3">
+<h3>3.1 已发现的布局问题</h3>
+<p>当前项目分区来源为 <code>firmware/iwatch/project/iwatch_sf32lb58_a128_qspi_hcpu/ptab.json</code>，不能只看通用板级 <code>ptab.yaml</code>。</p>
+<ul>
+<li>PSRAM1 原配置为代码 6 MiB + 数据 12 MiB，总计 18 MiB，超过板级配置的 16 MiB。第一批修改将数据区收敛至 <strong>10 MiB</strong>，并在构建前检查边界。</li>
+<li>修改前 PSRAM 中代码运行窗口为 6 MiB，NAND 中 <code>main</code> 镜像装载槽只有 <strong>4 MiB</strong>。进一步读取发现本地 <code>main.bin</code> 为 5,709,092 B，约 5.45 MiB，按旧下载地址会越过 KV 区并进入文件系统范围。尚未读出板上 NAND 内容，不能由此断定实际保存了哪些数据或哪些数据已经损坏。</li>
+<li>主文件系统分区是 6 MiB；32 MiB 的资源空间只能作为未来重新分区目标。扩容必须同步启动表、烧录脚本、文件系统、坏块处理与迁移方案。</li>
+<li>历史 <code>flash1</code> FAL 缺失提示仍待解决。在挂载和掉电恢复验证通过前，设置只能报告为本次会话有效，不宣称已永久保存。</li>
+</ul>
+<p>本地 v1 配置将 <code>main</code> 装载槽移到 NAND 偏移 <strong>0x01000000（16 MiB）</strong>，地址 <strong>0x69000000</strong>，大小 <strong>6 MiB</strong>；现有 KV、FS、FS_EX、ACPU 和启动 NOR 的地址保持原值。该区域在当前完整表中没有其他分区，且位于配置的 128 MiB NAND 内。第一批同时增加布局/镜像/下载地址检查。</p>
+<p>这是待上板验证的新布局；当前板上没有执行迁移。首次烧录前必须导出旧 flash table、数据区与现有固件，并确认实际 NAND 型号/容量及 SDK 的地址转换。随后验证新槽写入、校验、启动表切换和回滚路径。不能只替换 <code>main.bin</code> 后沿用旧烧录地址；源码检查通过不能替代新地址的实机引导验证。</p>
+</section>
+</section>
+<section id="线程与调度" class="level2">
+<h2>4. 线程与调度</h2>
+<p>RT-Thread 优先级数值越小越高。新增线程下表是起始预算，必须通过高负载栈峰值和执行耗时测量确认。</p>
+<table>
+<thead>
+<tr class="header">
+<th>执行上下文</th>
+<th>优先级 / 栈</th>
+<th>负责</th>
+<th>禁止</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>IRQ / SDK 定时回调</td>
+<td>SDK 配置</td>
+<td>记录输入、完成标志，发非阻塞消息</td>
+<td>LVGL、文件操作、等待锁、日志洪泛</td>
+</tr>
+<tr class="even">
+<td>SDK 触摸 / LCD</td>
+<td>10 / 1 KiB；12 / 2 KiB</td>
+<td>输入采集和显示传输</td>
+<td>应用业务与文件存储</td>
+</tr>
+<tr class="odd">
+<td><code>iw_super</code>，后续新增</td>
+<td>15 / 2 KiB</td>
+<td>心跳检查、错误计数、受控恢复</td>
+<td>固定无条件喂狗、重渲染页面</td>
+</tr>
+<tr class="even">
+<td><code>iw_service</code>，后续新增</td>
+<td>17 / 4 KiB</td>
+<td>命令、计时期限、提醒调度、快照发布</td>
+<td>阻塞存储和渲染；一轮持续占用 CPU</td>
+</tr>
+<tr class="odd">
+<td><code>app_watch</code>，已有</td>
+<td>19 / 16 KiB</td>
+<td>输入消费、导航、LVGL、显示状态</td>
+<td>同步读大图片、轮询传感器、等待服务回执</td>
+</tr>
+<tr class="even">
+<td><code>iw_io</code>，按需求新增</td>
+<td>22 / 4 KiB</td>
+<td>文件、配置日志、资源预读；分块执行</td>
+<td>持有 GUI 锁或 LVGL 对象</td>
+</tr>
+</tbody>
+</table>
+<p>服务线程处理完批次就等待消息或最近期限；单次 CPU 工作目标不超过 1 ms。GUI 每轮最多处理 8 条离散事件或 2 ms 的事件工作，随后进入 LVGL。GUI 活跃时等待上限 20 ms，避免 LVGL 空闲等待过长导致按键长期无人消费；若渲染占用过长，先测量再优化，不能靠提高 GUI 优先级解决。</p>
+<p>新增工作线程按阶段引入，不一开始为每个 App 建线程。深睡时的期限由 RTC/AON 唤醒源承担；关闭显示不关闭正在运行的提醒业务。</p>
+</section>
+<section id="数据流与消息契约" class="level2">
+<h2>5. 数据流与消息契约</h2>
+<section id="命令和快照" class="level3">
+<h3>5.1 命令和快照</h3>
+<p>服务接口使用明确类型，典型命令为 <code>TIMER_START</code>、<code>TIMER_CANCEL</code>、<code>SET_BRIGHTNESS</code>、<code>SAVE_SETTING</code>。命令带 <code>request_id</code>，回执带相同 ID、错误码与新状态版本。短命令/事件按值复制，协议目标不超过 32 B；照片等大数据用有引用计数和容量上限的资源句柄传递，不能发送局部变量指针。</p>
+<p>统一错误类型：参数错误、忙、队列满、设备不存在、设备故障、超时、存储不可用、资源不足。超时只表示结果未确认；相同 <code>request_id</code> 的重试必须幂等，不能重复新增闹钟或触发两次振动。设备发生不可恢复错误后，服务保留错误状态供下一次查询。</p>
+<p>建议容量与溢出策略：</p>
+<table>
+<thead>
+<tr class="header">
+<th>通道</th>
+<th style="text-align: right;">初始上限</th>
+<th>满时行为</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>按键离散输入</td>
+<td style="text-align: right;">16 条</td>
+<td>丢弃新事件并计数；GUI 发现溢出时重置按键组合状态并要求先释放再接收新按压，防止卡住或误触发</td>
+</tr>
+<tr class="even">
+<td>UI→服务命令</td>
+<td style="text-align: right;">16 条</td>
+<td>返回 <code>BUSY</code>；控件保留原状态，给出轻提示</td>
+</tr>
+<tr class="odd">
+<td>服务→UI 回执</td>
+<td style="text-align: right;">16 条</td>
+<td>服务结果保留在带版本的状态中；回执未入队时置脏标记，UI 再读结果，不无限重试</td>
+</tr>
+<tr class="even">
+<td>高频状态</td>
+<td style="text-align: right;">每主题一个最新快照</td>
+<td>合并为最新值；传感器采样缓存另行管理，不能为每个样本强制重绘</td>
+</tr>
+<tr class="odd">
+<td>待处理提醒</td>
+<td style="text-align: right;">固定 8 个记录</td>
+<td>服务保留未确认记录，容量满拒绝新建，不依赖一次通知消息保证送达</td>
+</tr>
+</tbody>
+</table>
+<p>单项设置采用“请求中→已应用→已持久化/仅本次有效”状态。UI 不在发命令后立即假定硬件执行成功。UI 读快照时短锁复制或使用经测试的双缓冲交换；裸 <code>volatile</code> 不承担并发同步。</p>
+</section>
+<section id="一次计时器操作" class="level3">
+<h3>5.2 一次计时器操作</h3>
+<div class="mermaid">sequenceDiagram
+    participant U as 计时器页面
+    participant S as 计时服务
+    participant I as 存储服务
+    participant N as 提醒与系统壳层
+    U-&gt;&gt;S: START(request_id, duration)
+    S-&gt;&gt;S: 校验容量，记录单调期限
+    S--&gt;&gt;U: ACCEPTED(timer_id, version)
+    S-&gt;&gt;I: 异步保存检查点
+    Note over U: 页面退出，销毁动画和控件
+    S-&gt;&gt;S: 到期，状态变 EXPIRED
+    S-&gt;&gt;N: 提醒待确认记录
+    N--&gt;&gt;S: 用户确认 timer_id
+    Note over S: 业务状态与页面是否存在无关</div>
+<p>每个快照携带采样时间、数据来源和质量。硬件未接入显示“未连接”或 <code>--</code>，演示数据在相关页面明显标注“演示”。不通过随机变化的数据假装实测心率/血氧。</p>
+</section>
+</section>
+<section id="导航页面与生命周期" class="level2">
+<h2>6. 导航、页面与生命周期</h2>
+<section id="所有权" class="level3">
+<h3>6.1 所有权</h3>
+<p>项目 <code>navigator</code> 是 SiFli 框架的入口门面：检查页面 ID、能力、锁屏条件、栈深及转场状态，再调用 <code>gui_app_run/create_page/goback</code>。它不复制 SiFli 的实际运行栈。应用切换器维护的是最多 6 项的历史模型，不要求 6 个应用都留在内存。</p>
+<ul>
+<li>同时最多 2 个 App 保持运行对象；转场期间允许前后两页共同存在。</li>
+<li>单个 App 子页面深度上限 8；超出时拒绝打开并记录问题，不丢弃当前页面。</li>
+<li>系统叠层最多 1 个交互弹层；通知横幅另设一个有限槽，新的同类提示合并。</li>
+<li>缓存遵循预算，后台 App 可被销毁；恢复时从业务状态和页面位置重建。</li>
+<li>每个异步请求携带 <code>{page_id, generation}</code>。旧页面返回的结果必须丢弃，不能写入新页面同名控件。</li>
+</ul>
+</section>
+<section id="与-sdk-生命周期对应" class="level3">
+<h3>6.2 与 SDK 生命周期对应</h3>
+<table>
+<thead>
+<tr class="header">
+<th>SiFli 事件</th>
+<th>项目动作</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ONSTART</code></td>
+<td>创建页面作用域；分配有上限的控件、订阅和资源；失败则显示轻量错误页</td>
+</tr>
+<tr class="even">
+<td><code>ONRESUME</code></td>
+<td>读取最新快照；恢复必要动画/刷新；按是否可见申请性能与显示唤醒</td>
+</tr>
+<tr class="odd">
+<td><code>ONPAUSE</code></td>
+<td>停止动画和刷新计时器；保存滚动位置；取消页面请求，不停止后台业务</td>
+</tr>
+<tr class="even">
+<td><code>ONSTOP</code></td>
+<td>先使 generation 失效，再撤销订阅/回调，释放页面作用域和资源句柄；允许重复清理</td>
+</tr>
+</tbody>
+</table>
+<p>LVGL 动画、定时器、事件订阅、异步请求和缓存引用都必须登记在页面作用域。删除根控件不能替代全部清理。内存紧张时先释放后台缓存；单次重试仍失败就恢复到常驻简洁表盘/错误界面，不能递归重试分配。</p>
+<p>新路由正在转场时，同方向滚动量可合并；返回可打断当前转场并从当前视觉位置接续。完成与取消都只提交一次最终路由。任何表盘都不能自行接管控制中心或全局锁屏。</p>
+</section>
+</section>
+<section id="输入时间与电源" class="level2">
+<h2>7. 输入、时间与电源</h2>
+<section id="输入" class="level3">
+<h3>7.1 输入</h3>
+<p>FT6146 触摸走现有 LVGL 输入驱动；手势仲裁由 GUI 所有者完成。按键/表冠回调只上报事件。SDK 当前按键回调来自软定时处理，现有示例在回调中调用 <code>lv_disp_trig_activity()</code>，第一批将它移到 GUI 线程。</p>
+<p>触摸状态机为 <code>IDLE→PRESSED→DRAG/SCROLL/LONG_PRESS→RELEASE/CANCEL</code>。移动超过阈值后取消长按，拖动后不再点击；水锁过滤触摸但保留退出水锁的物理按键入口。屏幕方向变更由同一坐标变换映射处理。</p>
+<p>单/双击有统一时间窗；不能第一次点击已打开控制中心、第二次又同时打开钱包。视图可立即显示按下反馈，单击导航等双击窗口结束才提交。旋钮原始增量先防抖、限速，再转成滚动/缩放语义。起始参数见视觉规范，通过实物调节；软件命令入口只用于测试，不能算物理表冠已验证。</p>
+</section>
+<section id="两种时钟" class="level3">
+<h3>7.2 两种时钟</h3>
+<ul>
+<li>日历、日期、闹钟时刻使用 RTC 墙上时间，并带时间有效性和时区。</li>
+<li>秒表和正在运行的倒计时使用 64 位单调时间，避免用户改时间影响已运行时长。</li>
+<li>RTOS 32 位 tick 的扩展只由一个服务更新，处理回绕；休眠恢复使用已验证的低功耗计时源补偿，不能默认 <code>rt_tick_get()</code> 在深睡中连续。</li>
+<li>删除每次启动将 RTC 改成 2022-07-01 的示例逻辑；只有无效时钟才进入设置时间流程。</li>
+<li>重新上电没有可信 RTC 时，不能猜测断电经过时间；保存的计时器显示“计时需确认”。闹钟防止时钟回调引发重复提醒；大幅改时间采用重新计算并告知用户的策略。</li>
+</ul>
+</section>
+<section id="电源状态" class="level3">
+<h3>7.3 电源状态</h3>
+<p>目标状态为 <code>ACTIVE→DIM→SCREEN_OFF→SLEEP</code>，充电、正在显示提醒、存储提交、显示 DMA 等通过有时限的唤醒锁阻止不合适的迁移。等待刷新完成、保存必要状态后才能关闭屏幕/电源。恢复顺序为时钟与总线→设备→触摸清状态→单调时间补偿→页面快照→首次刷新。</p>
+<p>当前第一阶段先稳定 ACTIVE。后续先验证灭屏再验证睡眠；不把“黑色画面”当作进入低功耗。缺少电池计量数据时状态为未知，避免使用示例固定 100%。</p>
+</section>
+</section>
+<section id="内存资源和刷新预算" class="level2">
+<h2>8. 内存、资源和刷新预算</h2>
+<p>单位 KiB/MiB 分别为 1024/1024² 字节。以下为目标上限，必须在链接、运行峰值和资源清单中实际落账。</p>
+<table>
+<thead>
+<tr class="header">
+<th>项目</th>
+<th>v1 预算 / 要求</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>主堆</td>
+<td>核心流程峰值 ≤ 1.2 MiB；稳定后保留 ≥ 25% 空闲，并记录最大可用块</td>
+</tr>
+<tr class="even">
+<td>线程栈</td>
+<td>上述固定预算；压力测试高水位使用 ≤ 75%，含日志与错误分支</td>
+</tr>
+<tr class="odd">
+<td>双 50 行 RGB565 绘制缓冲</td>
+<td>390×50×2×2 = 78,000 B，由现有显示适配拥有</td>
+</tr>
+<tr class="even">
+<td>单个完整 RGB565 图像</td>
+<td>351,000 B；同时两个约 686 KiB，不算压缩后文件大小</td>
+</tr>
+<tr class="odd">
+<td>页面快照</td>
+<td>总额 ≤ 768 KiB，离屏切换器图用缩略图，超额按 LRU 驱逐</td>
+</tr>
+<tr class="even">
+<td>PSRAM 图像缓存</td>
+<td>先沿用 2,100,000 B 上限，结合真实命中率再调</td>
+</tr>
+<tr class="odd">
+<td>UI 总 PSRAM 工作集</td>
+<td>首期 ≤ 8 MiB，包含图像、字体、快照、动画临时层等，逐池求和</td>
+</tr>
+<tr class="even">
+<td>编码字体 / 图标 / 图片</td>
+<td>各有 manifest 和版本、尺寸、最大解码大小、校验值；按页面包加载</td>
+</tr>
+<tr class="odd">
+<td>NAND 资源文件</td>
+<td>当前受 6 MiB 文件系统和其他占用约束；32 MiB 扩容待分区改版</td>
+</tr>
+</tbody>
+</table>
+<p>显示带宽核算：全屏 RGB565 每帧 351,000 B，30 fps 约 10.53 MB/s，60 fps 约 21.06 MB/s。现有接口报告理论 25 MB/s，60 fps 已接近传输上限，还没有计入渲染和等待。因此 <strong>常见页面以稳定 30 fps 验收，60 fps 是局部滚动/转场的优化目标</strong>。</p>
+<p>先局部刷新、预解码和复用对象，再考虑加大缓冲。列表只保持可见行与少量预取行；图表用定长环形历史。大字号数字和图标用预生成资源，减少运行时字体光栅化。RGB565 的浅色透明层和渐变用板上色阶图检查，必要时预烘焙抖动。</p>
+<p>DMA/EPIC 可用内存、缓存行对齐、clean/invalidate 和完成通知均由底层适配负责。GUI 不能在传输尚未完成时释放或覆盖源缓冲；不能把普通任意 PSRAM 指针默认视为 DMA 安全。</p>
+</section>
+<section id="鲁棒性策略" class="level2">
+<h2>9. 鲁棒性策略</h2>
+<table>
+<thead>
+<tr class="header">
+<th>故障</th>
+<th>系统行为</th>
+<th>留下的证据</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>输入队列满</td>
+<td>计数并重置组合输入状态；必须释放后再按，避免幽灵长按</td>
+<td>入队/丢弃/峰值深度</td>
+</tr>
+<tr class="even">
+<td>页面请求返回时页面已退出</td>
+<td>generation 不匹配，释放返回资源并丢弃结果</td>
+<td>过期响应次数</td>
+</tr>
+<tr class="odd">
+<td>大图损坏或内存不足</td>
+<td>资源校验失败后退到同尺寸占位/简洁表盘，释放后台缓存</td>
+<td>资源 ID、错误、峰值内存</td>
+</tr>
+<tr class="even">
+<td>I²C 超时</td>
+<td>有上限的重试/总线恢复；失败将设备标为 fault，页面仍可返回</td>
+<td>错误码、重试次数、最近成功时间</td>
+</tr>
+<tr class="odd">
+<td>显示刷新卡住</td>
+<td>由监督线程检测，协调刷新所有权后恢复设备；必要时受控重启</td>
+<td>最近刷新起止时间、复位原因</td>
+</tr>
+<tr class="even">
+<td>存储不可用</td>
+<td>UI 继续运行，设置标为“仅本次有效”，已有可读数据保留</td>
+<td>分区版本、挂载/提交错误</td>
+</tr>
+<tr class="odd">
+<td>计时结束事件未送到页面</td>
+<td>服务保留待确认状态，下一次 UI 拉取仍可显示</td>
+<td>提醒 ID 与状态版本</td>
+</tr>
+<tr class="even">
+<td>GUI 或服务长期无进展</td>
+<td>监督线程检查各自进度；恢复无效才允许看门狗复位</td>
+<td>模块心跳、页 ID、任务栈、复位原因</td>
+</tr>
+</tbody>
+</table>
+<p>看门狗第一阶段只采集心跳，先测量合法的最长阻塞路径，再确定阈值。深睡采用显式批准状态，不能误报正常睡眠。看门狗不能只由高优先级线程无条件喂养，否则 GUI 死锁仍无法被发现。</p>
+<p>持久化采用有版本、序号、长度和 CRC 的 A/B 记录。只有新记录完整校验且提交成功才成为当前版本；旧记录保留到下一次安全回收。A/B 逻辑必须运行在已经验证的 NAND 坏块/ECC/文件系统层之上，且验证物理掉电时的隔离与提交语义；不能凭 <code>rename()</code> 或 CRC 就宣称掉电安全。写入按防抖批量提交，避免每帧、每秒写闪存。升级遇到未知 schema 时保留旧记录并进入兼容降级。</p>
+<p>诊断保留有限 RAM 环形日志、构建 ID、分区版本、内存高水位、消息统计、页面转场耗时、输入到首帧耗时及显示完成时间。串口日志限频，不能每个触摸样本打印。生产显示层不出现驱动实现细节；详细原因留在诊断页和日志。</p>
+</section>
+<section id="迁移边界与完成标准" class="level2">
+<h2>10. 迁移边界与完成标准</h2>
+<p>先保留已点亮的 CO5300/FT6146 BSP。第一批可靠性基础之后，再建立主题组件与系统壳层，并用“表盘→桌面→设置→亮度→返回”作为完整纵向样例；随后把计时器作为跨页面后台任务样例。两条样例通过后再批量扩展 App 和表盘。</p>
+<p>现有 <code>app_mainmenu.c</code>、<code>app_clock_main.c</code> 的示例注册和资源逐页迁移；不一口气删除已工作的入口。每迁移一个 App 就给它补上可达路由、错误状态、资源清理和板上性能记录。每个版本必须声明“已实现、编译验证、板上验证、待实现”，四项不能混为一谈。</p>
+<p>架构 v1 的主要决定已确定。待实物调定的参数是触摸阈值、按键时间窗、动效质量档、实际并发缓存、唤醒源与看门狗阈值；这些参数调整不改变模块所有权。</p>
+</section>
+</section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script>
+    document.querySelectorAll('table').forEach(function (table) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'table-wrap';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    });
+  </script>
+  <script src="../assets/vendor/mermaid-11.17.0.min.js"></script>
+  <script>
+    if (document.querySelector('.mermaid')) {
+      mermaid.initialize({
+        startOnLoad: false,
+        theme: 'base',
+        securityLevel: 'strict',
+        themeVariables: {
+          background: '#f6f8fb',
+          primaryColor: '#e7edf5',
+          primaryTextColor: '#172033',
+          primaryBorderColor: '#7d8797',
+          lineColor: '#536276',
+          secondaryColor: '#dfe8f3',
+          secondaryTextColor: '#172033',
+          tertiaryColor: '#eef2f7',
+          tertiaryTextColor: '#172033',
+          noteBkgColor: '#fff4cc',
+          noteTextColor: '#172033'
+        }
+      });
+      mermaid.run({ querySelector: '.mermaid' });
+    }
+  </script>
+</body>
+</html>

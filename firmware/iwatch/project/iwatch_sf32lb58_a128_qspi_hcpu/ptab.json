@@ -47,7 +47,7 @@
             },
             {
                 "offset": "0x00600000",
-                "max_size": "0x00C00000",
+                "max_size": "0x00A00000",
                 "tags": [
                     "PSRAM_DATA"
                 ]
@@ -82,8 +82,8 @@
         "regions":
         [
             {
-                "offset": "0x00000000",
-                "max_size": "0x00400000",
+                "offset": "0x01000000",
+                "max_size": "0x00600000",
                 "tags": [
                     "HCPU_FLASH_CODE_LOAD_REGION"
                 ],

@@ -18,6 +18,7 @@
 #include "log.h"
 #include "lv_freetype.h"
 #include "lvsf.h"
+#include "iw_input_queue.h"
 #ifdef BSP_USING_PM
     #include "bf0_pm.h"
     #include "gui_app_pm.h"
@@ -109,37 +110,63 @@ typedef enum
     KEYPAD_KEY_HOME = 2,
 } keypad_key_code_t;
 
-typedef enum
-{
-    KEYPAD_KEY_STATE_REL,
-    KEYPAD_KEY_STATE_PRESSED,
-} keypad_key_state_t;
-
-typedef struct
-{
-    keypad_key_code_t last_key;
-    keypad_key_state_t last_key_state;
-} keypad_status_t;
-
 static int32_t key1_button_handle = -1;
-static keypad_status_t keypad_status;
+static iw_input_queue_t input_queue;
+static iw_input_gate_t input_gate;
+static bool keypad_release_next;
+
 void button_key_read(uint32_t *last_key, lv_indev_state_t *state)
 {
-    // rt_kprintf("button_key_read called\n");
-    if (last_key && state)
+    unsigned count;
+    if (!last_key || !state)
+        return;
+
+    /* LVGL calls this input reader from app_watch. Only this thread may
+     * change the keypad state or signal activity to LVGL. */
+    RT_ASSERT(rt_thread_self() == &watch_thread);
+    *last_key = KEYPAD_KEY_HOME;
+    *state = LV_INDEV_STATE_REL;
+    if (keypad_release_next)
     {
-        *last_key = keypad_status.last_key;
-        if (KEYPAD_KEY_STATE_REL == keypad_status.last_key_state)
-        {
-            *state = LV_INDEV_STATE_REL;
-        }
-        else
+        keypad_release_next = false;
+        return;
+    }
+    for (count = 0; count < 8; count++)
+    {
+        iw_input_event_t event;
+        rt_base_t level = rt_hw_interrupt_disable();
+        bool received = iw_input_queue_pop(&input_queue, &event);
+        rt_hw_interrupt_enable(level);
+        if (!received)
+            break;
+        if (!iw_input_gate_accept(&input_gate, event.action))
+            continue;
+        lv_disp_trig_activity(NULL);
+        if (event.action == IW_INPUT_CLICK)
         {
             *state = LV_INDEV_STATE_PR;
-            keypad_status.last_key_state = KEYPAD_KEY_STATE_REL;
+            keypad_release_next = true;
+            break;
         }
     }
 }
+
+static void iw_input_stat(void)
+{
+    iw_input_stats_t stats;
+    uint32_t pending;
+    rt_base_t level = rt_hw_interrupt_disable();
+    stats = input_queue.stats;
+    pending = input_queue.count;
+    rt_hw_interrupt_enable(level);
+    rt_kprintf("input accepted=%u consumed=%u rejected=%u discarded=%u "
+               "cancel=%u high=%u pending=%u\n",
+               (unsigned)stats.accepted, (unsigned)stats.consumed,
+               (unsigned)stats.rejected, (unsigned)stats.discarded,
+               (unsigned)stats.cancellations, (unsigned)stats.high_water,
+               (unsigned)pending);
+}
+MSH_CMD_EXPORT(iw_input_stat, Show bounded input queue statistics);
 
 /* button event handler in UI inactive state */
 static void button_event_handler(int32_t pin, button_action_t action)
@@ -187,22 +214,29 @@ static void button_event_handler(int32_t pin, button_action_t action)
     else
 #endif  /* BSP_USING_PM */
     {
-        LOG_I("button2:%d,%d", pin, action);
-        lv_disp_trig_activity(NULL);
+        iw_input_event_t event;
+        event.pin = pin;
+        event.tick = (uint32_t)rt_tick_get();
         switch (action)
         {
+        case BUTTON_PRESSED:
+            event.action = IW_INPUT_PRESS;
+            break;
+        case BUTTON_RELEASED:
+            event.action = IW_INPUT_RELEASE;
+            break;
+        case BUTTON_LONG_PRESSED:
+            event.action = IW_INPUT_LONG;
+            break;
         case BUTTON_CLICKED:
-        {
-            // LOG_I("button clicked");
-            keypad_status.last_key = KEYPAD_KEY_HOME;
-            keypad_status.last_key_state = KEYPAD_KEY_STATE_PRESSED;//value is 1
-            // rt_kprintf("LV_INDEV_STATE_PR: %d\n", KEYPAD_KEY_STATE_PRESSED);//1
-            // rt_kprintf(KEYPAD_KEY_STATE_PRESSED == keypad_status.last_key_state ? "Button pressed\n" : "Button released\n");
+            event.action = IW_INPUT_CLICK;
             break;
-        }
         default:
-            break;
+            return;
         }
+        rt_base_t level = rt_hw_interrupt_disable();
+        (void)iw_input_queue_push(&input_queue, event);
+        rt_hw_interrupt_enable(level);
     }
 }
 
@@ -210,6 +244,10 @@ static void init_pin(void)
 {
     button_cfg_t cfg;
 
+    iw_input_queue_init(&input_queue);
+    rt_memset(&input_gate, 0, sizeof(input_gate));
+    keypad_release_next = false;
+    rt_memset(&cfg, 0, sizeof(cfg));
     cfg.pin = SLEEP_CTRL_PIN;
     cfg.active_state = BUTTON_ACTIVE_POL;
     cfg.mode = PIN_MODE_INPUT;

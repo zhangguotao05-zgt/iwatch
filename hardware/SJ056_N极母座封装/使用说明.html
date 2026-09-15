@@ -1,0 +1,146 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch 嵌入式智能手表工程文档">
+  <title>SJ-056 N极母座2.0 — 嘉立创 EDA 专业版封装草稿 · iwatch</title>
+  <link rel="stylesheet" href="../../docs/assets/engineering.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../../index.html">iwatch</a>
+    <span class="doc-name">SJ-056 N极母座2.0 — 嘉立创 EDA 专业版封装草稿</span>
+  </header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录">
+<ul>
+<li><a href="#sj-056-n极母座2.0-嘉立创-eda-专业版封装草稿">SJ-056 N极母座2.0 — 嘉立创 EDA 专业版封装草稿</a><ul>
+<li><a href="#导入">导入</a></li>
+<li><a href="#电气与焊盘">电气与焊盘</a></li>
+<li><a href="#图纸尺寸与设计取值">图纸尺寸与设计取值</a></li>
+<li><a href="#阻焊与钢网">阻焊与钢网</a></li>
+<li><a href="#布局注意与验证">布局注意与验证</a></li>
+</ul></li>
+</ul>
+    </nav>
+    <main>
+<section id="sj-056-n极母座2.0-嘉立创-eda-专业版封装草稿" class="level1">
+<h1>SJ-056 N极母座2.0 — 嘉立创 EDA 专业版封装草稿</h1>
+<p>依据项目存档的《N极母座2.0.PDF》制作。型号 SJ-056，本体直径 4.00 mm、高度 2.00 mm；这是同心圆表面贴装母座。所有尺寸单位为 mm。</p>
+<section id="导入" class="level2">
+<h2>导入</h2>
+<p>在嘉立创 EDA 专业版选择 <strong>文件 → 导入 → 嘉立创EDA（专业版）</strong>，导入 <code>SJ056_N极母座_嘉立创专业版_封装草稿.epro</code>。 工程中含一个放置了该封装的 PCB 预览页。导入时可提取封装库，也可在工程库找到 <code>CON-MAGNETIC-SJ056-N-D4-H2-SMD_DRAFT_R01</code>，另存至自己的封装库后绑定器件。 同目录 <code>.efoo</code> 为独立封装源码，支持独立封装导入的界面可直接选择它。</p>
+<p>流程依据：<a href="https://prodocs.lceda.cn/cn/import-export/import-easyeda-pro/">专业版官方导入说明</a>。本次未实际启动 EDA 完成导入和原生 DRC，不能把本地几何检查视为导入成功记录。</p>
+</section>
+<section id="电气与焊盘" class="level2">
+<h2>电气与焊盘</h2>
+<p>图纸的“贴片焊盘正极”箭头指向中心接触面，“贴片焊盘负极”箭头指向外侧圆环。封装原点是同心圆中心。</p>
+<table>
+<thead>
+<tr class="header">
+<th>焊盘号</th>
+<th>电气定义</th>
+<th>PCB 铜形状</th>
+<th style="text-align: right;">铜外径</th>
+<th style="text-align: right;">铜内径</th>
+<th>PCB 孔</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>1</td>
+<td>正极</td>
+<td>中心实心圆盘</td>
+<td style="text-align: right;">1.40</td>
+<td style="text-align: right;">0</td>
+<td>无</td>
+</tr>
+<tr class="even">
+<td>2</td>
+<td>负极</td>
+<td>连续同心圆环</td>
+<td style="text-align: right;">3.90</td>
+<td style="text-align: right;">2.10</td>
+<td>无</td>
+</tr>
+</tbody>
+</table>
+<p>均在顶层。负极圆环用两个微量重叠的半圆环异形焊盘组成，两个图元都编号 <strong>2</strong>，铜形状合并后为连续圆环；不能把这两个半环独立重编号。两个半环的连接锚点位于各自铜区，避免将负极连接锚点放进中心正极。 “N极”是磁极标识，不是电气负极的依据；电气极性按本图的明确标注映射。</p>
+<p><strong>图纸上的 Ø0.50 是器件自身孔，不是 PCB 安装孔。</strong> 本封装未放置任何钻孔或过孔；中心 PCB 铜为实心圆盘，Ø0.50 只作为文档层参考轮廓。</p>
+</section>
+<section id="图纸尺寸与设计取值" class="level2">
+<h2>图纸尺寸与设计取值</h2>
+<table>
+<thead>
+<tr class="header">
+<th>项目</th>
+<th>图纸直接标注</th>
+<th>本次 PCB 设计</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>中心正极接触面</td>
+<td>外 Ø1.30，孔 Ø0.50</td>
+<td>铜 Ø1.40，无 PCB 孔</td>
+</tr>
+<tr class="even">
+<td>外环负极接触面</td>
+<td>外 Ø3.70，内 Ø2.30</td>
+<td>铜外 Ø3.90，内 Ø2.10</td>
+</tr>
+<tr class="odd">
+<td>本体</td>
+<td>外 Ø4.00，高 2.00</td>
+<td>装配层 Ø4.00 参考轮廓</td>
+</tr>
+<tr class="even">
+<td>正面配合结构</td>
+<td>Ø2.20 / Ø1.00</td>
+<td>非 PCB 焊盘尺寸</td>
+</tr>
+</tbody>
+</table>
+<p>原图 R1.85 / R1.15 分别与 Ø3.70 / Ø2.30 一致。本次没有使用上一款插件母头的脚距、长圆孔或未知极性设置。 铜盘相对中心接触面径向加宽 0.05；负极环内外边缘各向接触面外扩 0.10。它们是为编辑和装配评审提出的设计值，并不是供应商给出的推荐 PCB land pattern。</p>
+</section>
+<section id="阻焊与钢网" class="level2">
+<h2>阻焊与钢网</h2>
+<ul>
+<li>顶层阻焊各边外扩 0.05：中心开窗 Ø1.50，负极环开窗约外 Ø4.00 / 内 Ø2.00。</li>
+<li>正负铜间距 0.35；最小阻焊桥 0.25。</li>
+<li>取消焊盘自动助焊开窗，使用顶层助焊层的独立填充图形。</li>
+<li>中心正极分 4 个环形扇区开窗，外 Ø1.30 / 内 Ø0.60，每窗 70°，最窄连接桥约 0.104。</li>
+<li>外环负极分 4 个环形扇区开窗，外 Ø3.60 / 内 Ø2.40，每窗 82°，最窄连接桥约 0.167。</li>
+</ul>
+<p>分段让钢网中央区域保留连接桥，中心开窗避开器件 Ø0.50 孔；钢网孔不是 PCB 钻孔。 钢网厚度和回流工艺未设定，开窗是初始草案，需结合试焊和供应商工艺调整。图纸仅提到 PA46 胶料可过回炉，未提供整件（含磁铁）的回流温度曲线。 异形焊盘、圆环及自定义锡膏层设置参考<a href="https://prodocs.lceda.cn/cn/faq/pcb/">专业版官方 PCB 说明</a>。</p>
+</section>
+<section id="布局注意与验证" class="level2">
+<h2>布局注意与验证</h2>
+<p>完整负极环包围中心正极，中心线不能在顶层跨过负极铜环。<strong>在 PCB 布局阶段为 1 脚安排换层引出</strong>；本封装不预设板层和过孔。若采用盘中孔，需配合填孔/盖帽等具体板厂工艺，避免把普通敞口过孔直接当作稳定的贴片焊接面。 专业版的盘中孔工艺说明见<a href="https://prodocs.lceda.cn/cn/pcb/route-fanout-routing/index.html">官方扇出布线文档</a>。</p>
+<p>顶层丝印 Ø4.50，线宽 0.12，位号 <code>J?</code>；丝印与阻焊开窗的最小间距为 0.19。 <code>Courtyard_REF</code> 自定义层有 5.00 × 5.00 参考占位框，这是图形参考框，不是自动电气禁布区。 文档层保留图纸接触面、器件小孔轮廓、极性和草稿标记，装配层保留本体外形。</p>
+<p>已从保存后的原生封装重新解析圆弧和焊盘，完成 5040 个点位检查，覆盖 720 个角度，确认负极连续成环且不占据中心区；另校核钢网位于对应铜面内并避开器件中心孔、两个逻辑引脚、零 PCB 钻孔、文件结构及压缩工程完整性。 未执行 EDA 原生导入/DRC、PCB 完整布线检查、实物尺寸公差确认或回流试焊。 预览 PDF/PNG 由实际 <code>.efoo</code> 图元独立渲染，是审阅图，不是 EDA 截图。</p>
+<p>文件中的 <code>封装参数.json</code> 为参数快照。工作脚本位于 <code>tools/magnetic-n-pole-2mm-footprint/</code>，修改该目录 <code>config.json</code> 后，顺序运行 <code>build_footprint.py</code>、<code>render_review.py</code> 可重新生成。详见 <code>焊盘尺寸_mm.csv</code> 和 <code>校核记录.json</code>。</p>
+</section>
+</section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script>
+    document.querySelectorAll('table').forEach(function (table) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'table-wrap';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    });
+  </script>
+  <script type="module">
+    if (document.querySelector('.mermaid')) {
+      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
+        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
+        module.default.run({ querySelector: '.mermaid' });
+      });
+    }
+  </script>
+</body>
+</html>

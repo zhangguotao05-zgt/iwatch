@@ -30,10 +30,14 @@ if ($LASTEXITCODE -ne 0) {
 
 Push-Location $projectDir
 try {
+    & python (Join-Path $firmwareRoot 'check_layout.py')
+    if ($LASTEXITCODE -ne 0) { throw 'Memory layout validation failed.' }
     & scons '--board=iwatch_sf32lb58_a128_qspi' "--board_search_path=$boardDir" "-j$Jobs"
     if ($LASTEXITCODE -ne 0) {
         throw "Firmware build failed with exit code $LASTEXITCODE"
     }
+    & python (Join-Path $firmwareRoot 'check_layout.py') '--build-dir' (Join-Path $projectDir 'build_iwatch_sf32lb58_a128_qspi_hcpu')
+    if ($LASTEXITCODE -ne 0) { throw 'Built images failed layout validation. Do not flash these artifacts.' }
 }
 finally {
     Pop-Location

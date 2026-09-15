@@ -1,0 +1,369 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch 嵌入式智能手表工程文档">
+  <title>iwatch 视觉与交互规范 v1 · iwatch</title>
+  <link rel="stylesheet" href="../assets/engineering.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../../index.html">iwatch</a>
+    <span class="doc-name">iwatch 视觉与交互规范 v1</span>
+  </header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录">
+<ul>
+<li><a href="#iwatch-视觉与交互规范-v1">iwatch 视觉与交互规范 v1</a><ul>
+<li><a href="#观感目标与取舍">1. 观感目标与取舍</a></li>
+<li><a href="#布局与主题令牌">2. 布局与主题令牌</a></li>
+<li><a href="#组件系统">3. 组件系统</a></li>
+<li><a href="#玻璃效果的实现">4. 玻璃效果的实现</a></li>
+<li><a href="#动效语言">5. 动效语言</a></li>
+<li><a href="#系统输入矩阵">6. 系统输入矩阵</a></li>
+<li><a href="#页面契约与视觉验收">7. 页面契约与视觉验收</a></li>
+</ul></li>
+</ul>
+    </nav>
+    <main>
+<section id="iwatch-视觉与交互规范-v1" class="level1">
+<h1>iwatch 视觉与交互规范 v1</h1>
+<p>日期：2026-09-15。设计对象为实际 390×450 AMOLED；参考 Apple Watch Series 11、watchOS 26 中文界面。这里的像素、颜色和时长是本项目起始设计值，待参考截图与实屏对照调整，不是 Apple 公布的内部参数。</p>
+<section id="观感目标与取舍" class="level2">
+<h2>1. 观感目标与取舍</h2>
+<p>优先还原信息层级、圆角轮廓、字体比例、滚动手感和页面进入/退出关系。保持黑底、清晰大字、克制的强调色，让表盘成为视觉中心。复杂特效服从连续操作的流畅性。</p>
+<p>watchOS 的设计强调快速读取、适合小屏的结构与表冠操作；玻璃材质用于导航和控件层时应突出层级、保证内容可读。<a href="https://developer.apple.com/design/human-interface-guidelines/designing-for-watchos">Apple watchOS 设计指南</a>、<a href="https://developer.apple.com/design/human-interface-guidelines/materials">材质指南</a></p>
+<p>Series 11 46 mm 原屏为 416×496，本项目为 390×450。按新尺寸重排，保持圆形为圆形、字形等比；不能把 416×496 的整个画面压扁。<a href="https://support.apple.com/en-us/125093">设备规格</a></p>
+</section>
+<section id="布局与主题令牌" class="level2">
+<h2>2. 布局与主题令牌</h2>
+<p>以 390×450 为设计坐标。其他屏幕由 profile 提供尺寸、圆角避让、字体尺度；组件只读令牌，禁止在各 App 中复制一套不同的魔法数字。</p>
+<table style="width:17%;">
+<colgroup>
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>类别</th>
+<th>v1 初值</th>
+<th>使用方式</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>基础栅格</td>
+<td>4 px；常用间距 8 / 12 / 16 / 24 px</td>
+<td>用基线对齐内容；允许数字表盘做光学校正</td>
+</tr>
+<tr class="even">
+<td>安全区</td>
+<td>左右 18 px，上下 24 px</td>
+<td>必须通过边缘标尺图确认圆角实际裁切；不是最终机械尺寸</td>
+</tr>
+<tr class="odd">
+<td>正文行</td>
+<td>内容宽度默认 354 px，高度至少 60 px</td>
+<td>多行内容自动增高，不挤压至不可读</td>
+</tr>
+<tr class="even">
+<td>卡片</td>
+<td>圆角 24 px，内边距 16 px</td>
+<td>横向留白统一；层级以色面和间距表达</td>
+</tr>
+<tr class="odd">
+<td>胶囊按钮</td>
+<td>高度 60 px，圆角 30 px</td>
+<td>确认、开始、取消等主要动作</td>
+</tr>
+<tr class="even">
+<td>单独图标按钮</td>
+<td>视觉直径 48 px，命中区至少 56×56 px</td>
+<td>命中区不得互相重叠；屏幕边缘增加避让</td>
+</tr>
+<tr class="odd">
+<td>字体层级</td>
+<td>数字 64–96 px；标题 30 px；正文 26 px；次级 22 px；注释 20 px</td>
+<td>日期和数值留出最大字符串空间；标题不随意缩小</td>
+</tr>
+<tr class="even">
+<td>字重</td>
+<td>Regular / Medium / Semibold 三档</td>
+<td>先保证中文与数字基线、字重一致</td>
+</tr>
+<tr class="odd">
+<td>背景</td>
+<td><code>#000000</code></td>
+<td>AMOLED 系统背景</td>
+</tr>
+<tr class="even">
+<td>内容表面</td>
+<td><code>#17181C</code>，凸起表面 <code>#25262D</code></td>
+<td>静态列表和内容卡片</td>
+</tr>
+<tr class="odd">
+<td>主/次文字</td>
+<td><code>#FFFFFF</code> / <code>#B9BBC6</code></td>
+<td>次文字仍需实屏检查，不用极低透明度灰字</td>
+</tr>
+<tr class="even">
+<td>系统强调色</td>
+<td><code>#0A84FF</code></td>
+<td>可交互高亮；业务 App 可设受控的独立强调色</td>
+</tr>
+<tr class="odd">
+<td>状态色</td>
+<td>成功 <code>#30D158</code>，提醒 <code>#FFD60A</code>，危险 <code>#FF453A</code></td>
+<td>还需图标和文字，不只靠颜色传达</td>
+</tr>
+</tbody>
+</table>
+<p>按实际屏幕测可操作尺寸，像素不能直接当作 Apple 的 point 或实际毫米。长中文、最大日期、负数、三位数、不同计量单位必须有排版用例。</p>
+<p>中文用可随项目分发且许可明确的字体，子集覆盖界面文案并保留缺字回退；数字采用等宽数字表现，秒数变化不使整个布局抖动。图标统一轮廓与视觉重量，记录来源。字体和图标的版本/许可进入资源清单。</p>
+</section>
+<section id="组件系统" class="level2">
+<h2>3. 组件系统</h2>
+<table>
+<thead>
+<tr class="header">
+<th>公共组件</th>
+<th>必须提供的状态</th>
+<th>共用行为</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ScreenFrame</code></td>
+<td>普通、滚动、全屏表盘</td>
+<td>安全区、标题、系统遮罩、页面作用域</td>
+</tr>
+<tr class="even">
+<td><code>ListRow</code></td>
+<td>默认、按下、禁用、多行、带开关/右值</td>
+<td>固定基线、分组间距、可见行复用</td>
+</tr>
+<tr class="odd">
+<td><code>PillButton</code></td>
+<td>正常、按下、等待、禁用、危险</td>
+<td>防重复提交、结果回执、触感请求</td>
+</tr>
+<tr class="even">
+<td><code>GlassControl</code></td>
+<td>三档渲染质量、增加对比度</td>
+<td>共用轮廓、描边、前景与点击反馈</td>
+</tr>
+<tr class="odd">
+<td><code>MetricCard</code></td>
+<td>有效、采集中、陈旧、无硬件、演示</td>
+<td>数字/单位对齐，数据来源可见</td>
+</tr>
+<tr class="even">
+<td><code>RingGauge</code></td>
+<td>0、正常、达标、超目标、未知</td>
+<td>有上限的插值更新和色阶处理</td>
+</tr>
+<tr class="odd">
+<td><code>NumberPicker</code></td>
+<td>滚动、吸附、编辑、确认</td>
+<td>Crown/触摸一致，边界/循环明确</td>
+</tr>
+<tr class="even">
+<td><code>Sheet / Alert</code></td>
+<td>进入、确认、取消、错误</td>
+<td>一次只一个交互弹层，返回行为明确</td>
+</tr>
+<tr class="odd">
+<td><code>AppIcon / Grid</code></td>
+<td>按下、缩放、焦点、不可用</td>
+<td>位图缓存、布局复用、点击目标稳定</td>
+</tr>
+<tr class="even">
+<td><code>StatusBanner</code></td>
+<td>通知、离线、短错误</td>
+<td>限频、合并、超时关闭，不遮挡关键操作</td>
+</tr>
+</tbody>
+</table>
+<p>先做组件展示页：同一屏可检查字号、圆角、灰阶、按下态和图标，再使用这些组件完成系统页面。特定 App 只改变内容模型与受控主题变量。</p>
+</section>
+<section id="玻璃效果的实现" class="level2">
+<h2>4. 玻璃效果的实现</h2>
+<p>内容区域以稳定的黑色/深灰色承载文字，玻璃主要用于浮动导航、控制中心、切换器等适合体现层级的区域。禁止每一行都动态模糊背景。</p>
+<table>
+<thead>
+<tr class="header">
+<th>档位</th>
+<th>实现</th>
+<th>使用条件</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>Q0 清晰</td>
+<td>不透明深色面、细描边、少量高光</td>
+<td>低内存、增加对比度、故障回退</td>
+</tr>
+<tr class="even">
+<td>Q1 标准，默认</td>
+<td>半透明面、渐变高光、圆角遮罩；固定背景采用预生成效果或缓存</td>
+<td>首版全部页面可用的目标</td>
+</tr>
+<tr class="odd">
+<td>Q2 增强</td>
+<td>背景变化时低分辨率抓取并更新局部模糊/光泽层</td>
+<td>通过板上时间和内存测量后逐场景开启</td>
+</tr>
+</tbody>
+</table>
+<p>Q2 不要求逐帧实时折射；如背景缓存过期，先用 Q1 显示。降档只降低渲染复杂度，不能改变按钮位置、文字和交互路径。切档在转场边界完成，避免滚动过程中材质闪烁。减弱动态效果时保留反馈，关闭大幅缩放与持续背景运动。</p>
+<p>照片背景上的控件采用足够深的遮罩保证文字可读；不要仅增加文字阴影应付所有背景。绘制层的临时内存计入 UI 工作集，释放必须等待显示使用结束。</p>
+</section>
+<section id="动效语言" class="level2">
+<h2>5. 动效语言</h2>
+<table>
+<thead>
+<tr class="header">
+<th>场景</th>
+<th style="text-align: right;">初始时长</th>
+<th>运动规则</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>按下反馈</td>
+<td style="text-align: right;">60–90 ms</td>
+<td>轻微缩放至 0.96–0.98，松开恢复；命中区域不跟着缩小</td>
+</tr>
+<tr class="even">
+<td>普通页面进入/返回</td>
+<td style="text-align: right;">220–280 ms</td>
+<td>进入/退出方向一致，用 ease-out / ease-in-out</td>
+</tr>
+<tr class="odd">
+<td>桌面与 App 转换</td>
+<td style="text-align: right;">260–320 ms</td>
+<td>缩放中心来自所点图标，黑场不能露底</td>
+</tr>
+<tr class="even">
+<td>控制中心/通知</td>
+<td style="text-align: right;">220–280 ms</td>
+<td>从对应层次出现；支持中途反向与关闭</td>
+</tr>
+<tr class="odd">
+<td>卡片吸附</td>
+<td style="text-align: right;">160–220 ms</td>
+<td>以当前位置/速度接续，禁止先跳回起点</td>
+</tr>
+<tr class="even">
+<td>数字/圆环变化</td>
+<td style="text-align: right;">180–400 ms</td>
+<td>只对可见数据插值，后台状态立即更新</td>
+</tr>
+<tr class="odd">
+<td>开关</td>
+<td style="text-align: right;">120–160 ms</td>
+<td>等待状态和最终回执分开；失败回到有效状态</td>
+</tr>
+</tbody>
+</table>
+<p>单个可见场景的并行动画组初始上限 4；每组允许多个属性同步。缓存整组变换优先于对几十个子控件同时做复杂透明混合。长时间后台动画暂停，秒表以服务提供的经过时间重绘，不依赖动画跑了多少帧。</p>
+<p>绘制前完成资源预热；切页回调不临时解码大图。动画必须可中断，取消后释放回调并落到确定的页面状态。屏幕录制测到的动画流畅性与代码中设置的时长分开验收。</p>
+</section>
+<section id="系统输入矩阵" class="level2">
+<h2>6. 系统输入矩阵</h2>
+<p>硬件表冠/侧键尚需确认和接入；下表先确定语义。实际物理输入和测试注入复用同一入口。</p>
+<table>
+<thead>
+<tr class="header">
+<th>上下文 / 操作</th>
+<th>结果</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>表盘，表冠单击</td>
+<td>应用桌面</td>
+</tr>
+<tr class="even">
+<td>App，表冠单击</td>
+<td>应用桌面；在桌面再次单击回表盘</td>
+</tr>
+<tr class="odd">
+<td>表冠双击</td>
+<td>App 切换器</td>
+</tr>
+<tr class="even">
+<td>表冠转动</td>
+<td>当前焦点列表滚动、数值编辑或缩放；表盘上按目标版本进入智能叠放</td>
+</tr>
+<tr class="odd">
+<td>侧键单击</td>
+<td>控制中心</td>
+</tr>
+<tr class="even">
+<td>侧键双击</td>
+<td>钱包入口；离线页面说明能力，不显示可用支付凭据</td>
+</tr>
+<tr class="odd">
+<td>表冠长按</td>
+<td>Siri 离线占位状态；水锁时改为退出水锁，优先级更高</td>
+</tr>
+<tr class="even">
+<td>侧键长按</td>
+<td>电源/紧急相关菜单的离线界面；真实呼叫不在此阶段</td>
+</tr>
+<tr class="odd">
+<td>表盘上滑 / 下滑</td>
+<td>智能叠放 / 通知中心</td>
+</tr>
+<tr class="even">
+<td>表盘长按</td>
+<td>表盘选择与编辑</td>
+</tr>
+<tr class="odd">
+<td>页面内返回</td>
+<td>对应标题/手势规则返回；不强行给所有页面添加右滑返回</td>
+</tr>
+</tbody>
+</table>
+<p>以官方按钮与手势说明核对最终细节；锁屏、水锁、弹层是高于普通页面的输入上下文。<a href="https://support.apple.com/en-asia/guide/watch/apd1d9d7efca/26/watchos/26">Apple Watch 操作说明</a></p>
+<p>起始阈值：物理消抖沿用 SDK 20 ms；双击窗 280 ms；触摸长按 500 ms；开始拖动距离 12 px。表冠长按、水锁退出长按分别配置；这些值均需要板上调优。单击识别等双击窗口，但按下反馈立即显示。UI 响应目标区分“输入到按下反馈”和“语义确认到导航首帧”，不把双击识别等待隐藏进测量结果。</p>
+</section>
+<section id="页面契约与视觉验收" class="level2">
+<h2>7. 页面契约与视觉验收</h2>
+<p>每页建记录：<code>page_id、参考版本、入口/出口、数据来源、所需能力、状态清单、布局、输入、资源包、预算、已知差异</code>。先记录参考系统小版本和地区。截图未观察到的状态标为待核对。</p>
+<p>每页至少验证：正常、空数据、加载、失败、长文本、返回；健康页面另加“未接入”和“演示”，计时器另加“后台到期”和“恢复”。</p>
+<p>验收方法：</p>
+<ol type="1">
+<li>固定时间、语言、数据与资源版本，截取开发板实际输出；与重排至 390×450 的布局目标对照。</li>
+<li>检查字形基线、圆角裁切、间距、文本截断、黑边、触摸反馈和返回方向；用叠图辅助，不以不同字体逐像素相等作为通过标准。</li>
+<li>录制连续“点击→进入→滚动→返回”，检查动画反向、取消、快速连按及触摸边缘。模拟器只能辅助，不替代 AMOLED 实屏检查。</li>
+<li>用灰阶/渐变图检查 RGB565 色带、透明效果和字体边缘；用全屏边缘标尺检查显示方向与触摸坐标。</li>
+<li>普通页面最低目标为稳定 30 fps；轻量场景争取 60 fps。要求提供实际测量结果，不能只写 <code>LV_DEF_REFR_PERIOD=16</code> 就声称达到 60 fps。</li>
+</ol>
+<p>首批视觉交付顺序：组件展示页→数字表盘→桌面列表/蜂窝→设置/亮度→控制中心→通知/智能叠放→切换器→表盘选择。先在这些共性最多的页面上定型风格，再逐个扩展 App。</p>
+</section>
+</section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script>
+    document.querySelectorAll('table').forEach(function (table) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'table-wrap';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    });
+  </script>
+  <script type="module">
+    if (document.querySelector('.mermaid')) {
+      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
+        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
+        module.default.run({ querySelector: '.mermaid' });
+      });
+    }
+  </script>
+</body>
+</html>

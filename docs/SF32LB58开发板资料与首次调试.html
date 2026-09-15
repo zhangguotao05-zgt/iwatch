@@ -1,0 +1,319 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch 嵌入式智能手表工程文档">
+  <title>SF32LB58 开发板资料与首次调试 · iwatch</title>
+  <link rel="stylesheet" href="assets/engineering.css">
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../index.html">iwatch</a>
+    <span class="doc-name">SF32LB58 开发板资料与首次调试</span>
+  </header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录">
+<ul>
+<li><a href="#sf32lb58-开发板资料与首次调试">SF32LB58 开发板资料与首次调试</a><ul>
+<li><a href="#实物验证结论">2026-09-15 实物验证结论</a></li>
+<li><a href="#官方资料入口">官方资料入口</a></li>
+<li><a href="#选对-qspi-板型">选对 QSPI 板型</a></li>
+<li><a href="#屏幕触摸与手表-ui-示例">屏幕、触摸与手表 UI 示例</a></li>
+<li><a href="#首次调试顺序">首次调试顺序</a></li>
+<li><a href="#本地下载记录">本地下载记录</a></li>
+</ul></li>
+</ul>
+    </nav>
+    <main>
+<section id="sf32lb58-开发板资料与首次调试" class="level1">
+<h1>SF32LB58 开发板资料与首次调试</h1>
+<p>核查及实测日期：2026-09-15。开发板已到货，已完成 SDK v2.5.1 环境安装、<code>watch_v9</code> 编译、串口烧录、Flash 回读校验和无屏启动验证。屏幕与触摸的实物验证等待屏幕到货。</p>
+<p>当前按此前确认的 <strong>SF32LB58-DevKit-LCD + 1.85 英寸、390×450 QSPI AMOLED 触摸屏套装</strong>整理。实测开发板为 A128R32N1 存储配置，芯片启动信息为 <code>Chip:2, Package:0, Rev:1</code>，即 SDK 所称的 SF32LB58 A1 修订版。</p>
+<section id="实物验证结论" class="level2">
+<h2>2026-09-15 实物验证结论</h2>
+<table>
+<thead>
+<tr class="header">
+<th>项目</th>
+<th>实测结果</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>下载串口</td>
+<td>CH342 Serial-A，Windows <code>COM9</code>，1,000,000 baud</td>
+</tr>
+<tr class="even">
+<td>HCPU 日志与 MSH</td>
+<td>CH342 Serial-B，Windows <code>COM10</code>，1,000,000 baud</td>
+</tr>
+<tr class="odd">
+<td>NAND</td>
+<td>ID <code>0xC891C8</code>，BBM 初始化成功，应用地址 <code>0x68000000</code> 可读写</td>
+</tr>
+<tr class="even">
+<td>SDK</td>
+<td>v2.5.1，commit <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code></td>
+</tr>
+<tr class="odd">
+<td>示例</td>
+<td><code>example/multimedia/lvgl/watch_v9</code></td>
+</tr>
+<tr class="even">
+<td>启动状态</td>
+<td>RT-Thread shell、LVGL、GPU 和 Main 图形应用均已启动；转场完成 <code>res=0</code></td>
+</tr>
+</tbody>
+</table>
+<p>首次按原始 <code>sf32lb58-lcd_a128r32n1_qspi</code> 配置构建时，固件在 <code>rt_hw_board_init()</code> 主动停止并打印：</p>
+<pre class="text"><code>Wrong board is used!! It&#39;s SF32LB58 A1 chip revision, please use board with A1 chip revision!
+Please enable LCPU_CONFIG_AUTO and ensure LCPU_CONFIG_V2 is not enabled in BOTH HCPU and LCPU config!</code></pre>
+<p>本板的修正方式是在以下两个官方板级配置文件中加入 <code>CONFIG_LCPU_CONFIG_AUTO=y</code>，然后重新生成配置并完整重编译：</p>
+<pre class="text"><code>customer/boards/sf32lb58-lcd_a128r32n1_qspi/hcpu/board.conf
+customer/boards/sf32lb58-lcd_a128r32n1_qspi/lcpu/board.conf</code></pre>
+<p>修正后的 HCPU 和 Bootloader <code>.config</code> 均为 <code>CONFIG_LCPU_CONFIG_AUTO=y</code>、<code>CONFIG_LCPU_CONFIG_V2</code> 未启用；构建系统针对本芯片生成 <code>LCPU_CONFIG_V1</code> 编译定义。不要再使用未修正的 V2 固件。</p>
+<p>本次修正版烧录内容如下，三段均由 <code>sftool</code> 开启写后校验：</p>
+<table style="width:25%;">
+<colgroup>
+<col style="width: 5%" />
+<col style="width: 6%" />
+<col style="width: 6%" />
+<col style="width: 5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>内容</th>
+<th style="text-align: right;">地址</th>
+<th style="text-align: right;">字节数</th>
+<th>SHA256</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><code>ftab.bin</code></td>
+<td style="text-align: right;"><code>0x1C000000</code></td>
+<td style="text-align: right;">11,288</td>
+<td><code>806582A790C58582DDEF2CF5E721F7602A1AD4844704712C107E555E0C9DE221</code></td>
+</tr>
+<tr class="even">
+<td><code>bootloader.bin</code></td>
+<td style="text-align: right;"><code>0x1C020000</code></td>
+<td style="text-align: right;">46,144</td>
+<td><code>803504F7A4BEEB2C62ED4CCEFD101D496F376E8F78B4099F928ADF66FCF68D45</code></td>
+</tr>
+<tr class="odd">
+<td><code>main.bin</code></td>
+<td style="text-align: right;"><code>0x68000000</code></td>
+<td style="text-align: right;">5,709,092</td>
+<td><code>BD7C93A2B1FCC38CFEE4B94079A8140E0A894CA3D3801F336BFC25FF81983A90</code></td>
+</tr>
+</tbody>
+</table>
+<p>无屏启动时出现以下现象，符合当前没有连接显示触摸模组的硬件状态：</p>
+<ul>
+<li>CO5300 读 ID 为 <code>0xFFFFFF</code>，驱动进入 <code>NOT_FIND</code> 并关闭 LCD 供电；</li>
+<li>FT6146 驱动已注册，但 I2C4 无器件应答并报告总线错误；</li>
+<li>图形应用仍完成初始化并进入 Main 页面，串口 shell 可正常执行命令。</li>
+</ul>
+<p>另有三个 <code>flash1 is not found</code> 的 FAL 报错，目前未阻止 NAND 挂载或应用启动，后续启用资源文件系统时需要单独核对分区设备名。运行态 <code>free</code> 显示 RT-Thread 管理堆总量 1,809,900 字节、已用 58,928 字节；<code>tpread</code> 线程栈峰值达到 91%，接入真实触摸屏后需复测并决定是否增加栈空间。</p>
+</section>
+<section id="官方资料入口" class="level2">
+<h2>官方资料入口</h2>
+<table>
+<thead>
+<tr class="header">
+<th>资料</th>
+<th>能解决的问题</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td><a href="https://wiki.sifli.com/board/sf32lb58x/SF32LB58-DevKit-LCD.html">开发板中文使用指南</a></td>
+<td>板卡版本、供电、接口、Mode 跳线、下载和调试接线</td>
+</tr>
+<tr class="even">
+<td><a href="https://github.com/OpenSiFli/SiFli-Wiki/blob/main/source/zh_CN/board/sf32lb58x/SF32LB58-DevKit-LCD.md">指南的官方 GitHub 源文件</a></td>
+<td>Wiki 访问较慢时可查看同源说明和连接图</td>
+</tr>
+<tr class="odd">
+<td><a href="https://downloads.sifli.com/hardware/files/documentation/SF32LB58-DevKit-LCD-V1.0.1.zip">开发板设计图纸 V1.0.1 ZIP</a></td>
+<td>原理图 PDF/源文件、PCB、BOM、Gerber、贴片及钢网资料</td>
+</tr>
+<tr class="even">
+<td><a href="https://downloads.sifli.com/hardware/files/documentation/ProPrj_SF32LB58-DevKit-LCD_2025-09-24.epro">开发板立创 EDA 专业版工程</a></td>
+<td>可导入的官方开发板电路及 PCB；已确认压缩包内有 5 个原理图页和 1 个 PCB 文件</td>
+</tr>
+<tr class="odd">
+<td><a href="https://downloads.sifli.com/hardware/files/documentation/SF32LB58-MOD-V1.0.1.zip">模组设计图纸 V1.0.1 ZIP</a></td>
+<td>模组内部主控、电源、存储器、时钟及布板参考，包含两种存储版本的 BOM</td>
+</tr>
+<tr class="even">
+<td><a href="https://wiki.sifli.com/silicon/index.html">芯片资料总入口</a></td>
+<td>SF32LB58x 数据手册、用户手册与模组规格书</td>
+</tr>
+<tr class="odd">
+<td><a href="https://github.com/OpenSiFli/SiFli-SDK/releases/tag/v2.5.1">SDK v2.5.1 发布页</a></td>
+<td>本次核查的 SDK 版本，2026-08-27 发布</td>
+</tr>
+<tr class="even">
+<td><a href="https://docs.sifli.com/projects/sdk/latest/sf32lb58x/quickstart/get-started.html">SDK 上手指南</a></td>
+<td>工具链、SDK 和基本使用流程</td>
+</tr>
+<tr class="odd">
+<td><a href="https://docs.sifli.com/projects/codekit/get-started/">CodeKit 安装指南</a></td>
+<td>在 VS Code 中安装、管理开发环境；SDK 上手文档推荐的安装方式</td>
+</tr>
+<tr class="even">
+<td><a href="https://github.com/OpenSiFli/SiFli-SDK/blob/v2.5.1/docs/source/zh_CN/quickstart/install/script/windows.md">Windows 安装说明，固定 v2.5.1</a></td>
+<td>手动安装、子模块、工具链和终端环境激活</td>
+</tr>
+<tr class="odd">
+<td><a href="https://wiki.sifli.com/tools/index.html">官方调试工具汇总</a></td>
+<td>Impeller 烧录工具、Sifli_Trace 日志工具等</td>
+</tr>
+</tbody>
+</table>
+<p>官方开发板图纸与本仓库的自研手表原理图是两个工程。上面官方包里的 PCB/Gerber 属于开发板，不表示自研手表 PCB 已完成。</p>
+</section>
+<section id="选对-qspi-板型" class="level2">
+<h2>选对 QSPI 板型</h2>
+<p>SDK v2.5.1 已提供专门的 QSPI 配置；本套装应按实际存储型号选择以下目标。不要因为开发板名称带 LCD，就套用 DSI/DPI 屏的配置。</p>
+<table style="width:22%;">
+<colgroup>
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+<col style="width: 5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>板上模组标识</th>
+<th>外部资源 Flash</th>
+<th>合封 PSRAM 总量</th>
+<th>SDK 板型</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>SF32LB58-MOD-A128R32N1</td>
+<td>128 MB QSPI NAND</td>
+<td>16 MB + 16 MB</td>
+<td><code>sf32lb58-lcd_a128r32n1_qspi</code></td>
+</tr>
+<tr class="even">
+<td>SF32LB58-MOD-N16R32N1</td>
+<td>16 MB QSPI NOR</td>
+<td>16 MB + 16 MB</td>
+<td><code>sf32lb58-lcd_n16r32n1_qspi</code></td>
+</tr>
+</tbody>
+</table>
+<p>两种模组还有 1 MB 合封 NOR。V1.0.1 官方配置采用 <strong>SF32LB586VDD36</strong>，外部晶体为 <strong>48 MHz 和 32.768 kHz</strong>；晶体频率不等于应用运行主频。首次调试保持对应 BSP 的默认时钟和存储配置。</p>
+<p>依据：<a href="https://wiki.sifli.com/board/devkit_guide.html">官方板型指南</a>、<a href="https://github.com/OpenSiFli/SiFli-SDK/blob/v2.5.1/customer/boards/sf32lb58-lcd_a128r32n1_qspi/doc/index.md">A128 板型说明</a>、<a href="https://github.com/OpenSiFli/SiFli-SDK/blob/v2.5.1/customer/boards/sf32lb58-lcd_a128r32n1_qspi/hcpu/board.conf">A128 配置</a>、<a href="https://github.com/OpenSiFli/SiFli-SDK/blob/v2.5.1/customer/boards/sf32lb58-lcd_n16r32n1_qspi/hcpu/board.conf">N16 配置</a>。</p>
+</section>
+<section id="屏幕触摸与手表-ui-示例" class="level2">
+<h2>屏幕、触摸与手表 UI 示例</h2>
+<p>A128 QSPI 板型的官方说明明确写出默认转接屏为 <code>LCD_1P85_390*450_DevKit_Adapter_V1.0.0</code>。两种 QSPI 板型配置均启用 CO5300 显示驱动，并将触摸设备总线设为 <code>i2c4</code>。</p>
+<table>
+<thead>
+<tr class="header">
+<th>内容</th>
+<th>固定 v2.5.1 的源码入口</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>CO5300 显示驱动</td>
+<td><a href="https://github.com/OpenSiFli/SiFli-SDK/blob/v2.5.1/customer/peripherals/display/co5300/co5300.c">customer/peripherals/display/co5300/co5300.c</a></td>
+</tr>
+<tr class="even">
+<td>原套装标注的 FT6146 触摸驱动</td>
+<td><a href="https://github.com/OpenSiFli/SiFli-SDK/tree/v2.5.1/customer/peripherals/touch_panel/ft6146">customer/peripherals/touch_panel/ft6146</a></td>
+</tr>
+<tr class="odd">
+<td>后续 CWS05 对应的 CST820 驱动</td>
+<td><a href="https://github.com/OpenSiFli/SiFli-SDK/tree/v2.5.1/customer/peripherals/touch_panel/cst820">customer/peripherals/touch_panel/cst820</a></td>
+</tr>
+<tr class="even">
+<td>LVGL 9 手表界面</td>
+<td><a href="https://github.com/OpenSiFli/SiFli-SDK/tree/v2.5.1/example/multimedia/lvgl/watch_v9">example/multimedia/lvgl/watch_v9</a></td>
+</tr>
+</tbody>
+</table>
+<p><code>watch_v9</code> 自带蜂窝菜单、表盘和立方体旋转演示，是本项目验证界面效果的起点。官方 <a href="https://github.com/OpenSiFli/SiFli-SDK/blob/v2.5.1/build_config_gcc.yaml">GCC 构建配置</a> 明确列出了该示例与上述两种 QSPI 板型的组合；本项目已完成 A128 QSPI 板型的无屏启动实测。</p>
+<p>SDK 中存在驱动不等于任意同主控屏都能直接替换。原开发套装与拟选 CWS05 的触摸芯片、供电、连接器和初始化参数需要分别核对。CWS05 接口问题继续以 <a href="../hardware/CWS05屏幕与佩戴版修订评估/评估与修订方向.html">已有评估</a> 为准。</p>
+<p>首次界面内存预算可以从 RGB565 开始：390×450 单帧为 <strong>351,000 字节，约 343 KiB</strong>，双帧约 <strong>686 KiB</strong>；这只是像素缓冲，不包含字体、图片、渲染临时内存和任务栈。模组标称 32 MB PSRAM 也不代表这些容量都已分配给 HCPU 的同一个可用堆。</p>
+<p>另外，<a href="https://docs.sifli.com/projects/solution/open-source-community/board_introduction.html">SiFli Solution 板级介绍</a> 还提供更完整的手表应用方案，明确包含 SF32LB58 + 390×450 QSPI 配置。Solution 是独立工程体系，工程路径和依赖版本应按其自身文档选择；首次点亮可先用上述 SDK 示例。</p>
+</section>
+<section id="首次调试顺序" class="level2">
+<h2>首次调试顺序</h2>
+<ol type="1">
+<li>记录板上模组型号、PCB 版本和屏幕转接板标识，核对套装连接方式。保留出厂程序运行画面及日志，作为硬件工作的基准。</li>
+<li>使用数据线连接板上的 <strong>USB-to-UART</strong> 口，在 Windows 设备管理器确认串口。板上另一个 USB 功能口也能供电，但首次串口下载应使用 USB-to-UART。</li>
+<li>按 CodeKit 或固定版本 Windows 文档准备 SDK v2.5.1 环境。通过 Git 取得 SDK 时要初始化子模块；GitHub 的普通源码 ZIP 不包含全部子模块内容。</li>
+<li>先验证串口日志和最小示例，再编译 <code>watch_v9</code>。验证下载流程时，按实物板版本的指南设置 Mode 跳线；官方指南规定插上为下载模式，取下为正常运行模式，模式切换后重新复位/上电。</li>
+<li>在官方界面上检查整屏颜色、刷新、四角触摸坐标和滑动方向，然后开始自定义表盘、菜单与转场。</li>
+</ol>
+<p>当 SDK 和工具链安装完成、终端已执行该 SDK 根目录下的 <code>export.ps1</code> 后，可在 SDK 的 <code>example/multimedia/lvgl/watch_v9/project</code> 目录编译。例如实际为 A128R32N1 时：</p>
+<pre class="powershell"><code>scons --board=sf32lb58-lcd_a128r32n1_qspi -j8</code></pre>
+<p>实际为 N16R32N1 时，改用 <code>--board=sf32lb58-lcd_n16r32n1_qspi</code>。本次实物的 A1 修正必须先应用到 HCPU、LCPU 两份板级配置，再执行上述构建命令。</p>
+</section>
+<section id="本地下载记录" class="level2">
+<h2>本地下载记录</h2>
+<p>以下官方原件已下载到项目本地的 <code>references/vendor/sifli-sf32lb58/</code>，并通过压缩包完整性检查。该目录由 <code>.gitignore</code> 排除；仓库保存索引和原厂链接。<code>downloads.json</code> 记录了原始下载地址、大小、SHA256 和包内文件列表。</p>
+<table style="width:18%;">
+<colgroup>
+<col style="width: 5%" />
+<col style="width: 6%" />
+<col style="width: 5%" />
+</colgroup>
+<thead>
+<tr class="header">
+<th>文件</th>
+<th style="text-align: right;">字节数</th>
+<th>SHA256</th>
+</tr>
+</thead>
+<tbody>
+<tr class="odd">
+<td>SF32LB58-DevKit-LCD-V1.0.1.zip</td>
+<td style="text-align: right;">3,578,531</td>
+<td><code>6524cf82bc13801054ccc3e0028a738f3fec859a6c1bb5aa580d1ec856e7fb3a</code></td>
+</tr>
+<tr class="even">
+<td>ProPrj_SF32LB58-DevKit-LCD_2025-09-24.epro</td>
+<td style="text-align: right;">837,483</td>
+<td><code>562c49859dd3e17eb18e27b2021f467faa8523de4888cb3688752a07dc55d995</code></td>
+</tr>
+<tr class="odd">
+<td>SF32LB58-MOD-V1.0.1.zip</td>
+<td style="text-align: right;">2,828,734</td>
+<td><code>dc97992b2d78225a0a5c2ef98e4c68c09ac6a03211f4b7f557d8e6db62d12ba7</code></td>
+</tr>
+</tbody>
+</table>
+<p>压缩包检查证明本次下载未发现归档校验错误；SDK 板级配置和开发板串口已用于本次实物验证，官方 EDA 工程仍未导入核查。</p>
+</section>
+</section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script>
+    document.querySelectorAll('table').forEach(function (table) {
+      var wrapper = document.createElement('div');
+      wrapper.className = 'table-wrap';
+      table.parentNode.insertBefore(wrapper, table);
+      wrapper.appendChild(table);
+    });
+  </script>
+  <script type="module">
+    if (document.querySelector('.mermaid')) {
+      import('https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.esm.min.mjs').then(function (module) {
+        module.default.initialize({ startOnLoad: false, theme: 'neutral', securityLevel: 'strict' });
+        module.default.run({ querySelector: '.mermaid' });
+      });
+    }
+  </script>
+</body>
+</html>
