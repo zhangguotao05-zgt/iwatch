@@ -4,6 +4,7 @@
 /outputs/
 /当前版本.md
 /references/vendor/
+/logs/
 **/references/
 **/node_modules/
 **/__pycache__/
