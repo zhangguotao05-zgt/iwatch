@@ -1,0 +1,33 @@
+from building import *
+import rtconfig
+import os
+
+inc = []
+cwd = GetCurrentDir() # get current dir path
+
+src = Glob('*.c')
+objs = list(src)
+inc+= [cwd]
+
+
+#Add resources.
+# Ensure directory is created before any builder is executed
+# If the path is not present, it would not be added in "include path" and 'lang_pack.h' dependency would not work
+Execute(Mkdir('resource/strings'))
+objs.extend(SConscript(os.path.join(cwd, 'resource/images/SConscript'), variant_dir="resource/images", duplicate=0))
+objs.extend(SConscript(os.path.join(cwd, 'resource/fonts/SConscript'), variant_dir="resource/fonts", duplicate=0))
+objs.extend(SConscript(os.path.join(cwd, 'resource/strings/SConscript'), variant_dir="resource/strings", duplicate=0))
+
+#Add GUI applications
+app_objs = SConscript(os.path.join(cwd, 'gui_apps/SConscript'), variant_dir="gui_apps", duplicate=0)
+
+objs.extend(app_objs)
+
+# #Add applications utils
+objs.extend(SConscript(os.path.join(cwd, 'app_utils/SConscript'), variant_dir="app_utils", duplicate=0))
+
+# Register only this directory's own sources.  Sub-SConscript files register
+# their groups separately; adding their objects again here makes MDK emit each
+# application/resource source twice.
+DefineGroup('app', src, depend = ['PKG_USING_LITTLEVGL2RTT'], CPPPATH = inc)
+Return('objs')

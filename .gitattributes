@@ -12,6 +12,9 @@
 *.xlsx binary
 *.pdf binary
 *.png binary
+*.jpg binary
+*.jpeg binary
+*.ttf binary
 *.zip binary
 # Preserve archived engineering bytes and their SHA256 manifests exactly.
 hardware/** -text

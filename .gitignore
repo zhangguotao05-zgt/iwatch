@@ -25,3 +25,13 @@ Thumbs.db
 .idea/
 .vscode/
 ~$*
+
+# SiFli firmware build products and per-user Keil settings.
+/firmware/iwatch/project/build_*/
+/firmware/iwatch/project/build/
+/firmware/iwatch/project/src/
+/firmware/iwatch/project/resource/
+/firmware/iwatch/project/.sconsign.dblite
+/firmware/iwatch/project/project.uvoptx
+/firmware/iwatch/project/*.uvguix.*
+/firmware/iwatch/project/JLinkLog.txt
