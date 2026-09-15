@@ -29,7 +29,7 @@
     <main>
 <section id="iwatch-sf32lb58-固件" class="level1">
 <h1>iwatch SF32LB58 固件</h1>
-<p>这里保存本项目可修改、可提交的固件源码。基线来自 SiFli-SDK v2.5.1 的 <code>example/multimedia/lvgl/watch_v9</code>。当前验证平台为 <strong>SF32LB58-DevKit-LCD、A128R32N1、QSPI 屏接口、A1 修订</strong>，CO5300 + FT6146 模组已点亮。开发板仍运行先前固件，仓库中的新布局和输入队列尚未上板。</p>
+<p>这里保存本项目可修改、可提交的固件源码。基线来自 SiFli-SDK v2.5.1 的 <code>example/multimedia/lvgl/watch_v9</code>。当前验证平台为 <strong>SF32LB58-DevKit-LCD、A128R32N1、QSPI 屏接口、A1 修订</strong>，CO5300 + FT6146 模组已点亮。开发板仍运行先前固件，仓库中的新布局和 D01–D03 固件尚未上板。构建来源、存储 profile、空间门槛和验证结果见 <a href="../docs/ui/D01-D03_实施记录.html">D01–D03 实施记录</a>。</p>
 <section id="目录" class="level2">
 <h2>目录</h2>
 <pre class="text"><code>firmware/
@@ -50,7 +50,7 @@
 <section id="依赖" class="level2">
 <h2>依赖</h2>
 <ul>
-<li>SiFli-SDK v2.5.1，默认本机路径：<code>C:\OpenSiFli\SiFli-SDK-v2.5.1</code></li>
+<li>SiFli-SDK v2.5.1，构建脚本默认本机路径：<code>C:\OpenSiFli\SiFli-SDK-v2.5.1-iwatch-locked</code>；也可显式传入干净 SDK 的 <code>-SdkPath</code>，入口严格检查固定提交及子模块</li>
 <li>GCC 构建环境由 SDK 的 <code>export.ps1</code> 提供</li>
 <li>Keil MDK5/Arm Compiler 6；本机已检测到 <code>D:\keil\MDK5.36</code></li>
 </ul>
@@ -65,7 +65,7 @@
 <pre class="powershell"><code>.\firmware\build-gcc.ps1 -SdkPath D:\path\to\SiFli-SDK-v2.5.1</code></pre>
 <p>输出位于 <code>firmware/iwatch/project/build_iwatch_sf32lb58_a128_qspi_hcpu/</code>。其中包含主程序、Bootloader、Flash Table 和 <code>sftool_param.json</code>；烧录前应按开发板串口下载流程使用 SiFli 工具，不要把 Keil 的 Download 按钮当成 CH342 串口下载。</p>
 <p>GCC 构建与 Keil 生成共用这个输出目录，必须顺序执行。保存当前产物、工具链版本和哈希后再切换工具链，不能并行生成并将不同版本的 main、bootloader 和 ftab 混合下载。</p>
-<p>构建脚本现在在编译前校验内存布局，编译后核对镜像长度和下载地址。2026-09-15 的架构 v1 修改了 <strong>main 的 NAND 装载地址为 <code>0x69000000</code></strong>，装载槽 6 MiB；PSRAM1 划分为 6 MiB 代码窗口 + 10 MiB 数据窗口。当前开发板尚未切换到这份新布局。第一次使用前需备份旧固件、启动表和数据区，并验证 NAND 地址转换与新槽引导；不能把新镜像套进旧版下载脚本。详见 <a href="../docs/ui/系统架构_v1.html">系统架构的布局说明</a>。</p>
+<p>构建脚本现在在编译前校验内存布局，编译后核对镜像长度和下载地址。2026-09-15 的架构 v1 修改了 <strong>main 的 NAND 装载地址为 <code>0x69000000</code></strong>，装载槽 6 MiB；PSRAM1 划分为 6 MiB 代码窗口 + 10 MiB 数据窗口。当前开发板尚未切换到这份新布局。第一次使用前需备份旧固件、启动表和数据区，并验证 NAND 地址转换与新槽引导；不能把新镜像套进旧版下载脚本。详见 <a href="../docs/ui/系统架构_v1.1.html">系统架构的布局说明</a>。</p>
 </section>
 <section id="keil" class="level2">
 <h2>Keil</h2>
@@ -73,8 +73,8 @@
 <pre class="powershell"><code>.\firmware\generate-keil.ps1</code></pre>
 <p>随后使用 Keil 打开：</p>
 <pre class="text"><code>firmware/iwatch/project/project.uvprojx</code></pre>
-<p>生成脚本会把当前 <code>-SdkPath</code> 写入 Keil 工程，补充 SF32LB58 的 CDE 编译参数，并检查全部源文件引用。2026-09-15 生成结果包含 925 个有效的源码引用，并已加入 <code>Iwatch_core</code> 组；换电脑或改变 SDK 位置后重新运行脚本即可。</p>
-<p><code>generate-keil.ps1</code> 当前会执行编译/链接，已有构建前布局检查，但没有接入脚本末尾的实际镜像检查；完成后仍需手动执行下面的 <code>check_layout.py --build-dir</code>。D02 将补齐该检查。布局检查只覆盖配置容量、区间重叠和产物地址，不证明实际 NAND 几何、坏块处理或已有数据完整。</p>
+<p>生成脚本会把当前 <code>-SdkPath</code> 写入 Keil 工程，补充 SF32LB58 的 CDE 编译参数，并检查全部源文件引用。2026-09-15 生成结果包含 928 个有效的源码引用，包含 <code>Iwatch_core</code>、<code>Iwatch_gui_core</code> 与 <code>Iwatch_platform</code> 组；换电脑或改变 SDK 位置后重新运行脚本即可。</p>
+<p><code>generate-keil.ps1</code> 先生成工程，再执行真正的 Arm Compiler 编译。SDK 的 <code>--target=mdk5</code> 自身启用 no_exec，日志不能作为已编译证据。脚本已加入互斥锁、构建后布局/地址/有效配置/编译器标记/哈希检查及工具链独立归档。该检查不证明实际 NAND 几何、坏块处理或已有数据完整。</p>
 <p>Keil 工程用于编辑和编译 HCPU 应用。当前开发板的 CH342 USB 串口下载仍使用 SiFli 的串口烧录脚本；Keil 的 Download 按钮需要另接 J-Link/CMSIS-DAP 并配置对应 Flash 算法。</p>
 </section>
 <section id="当前板级修正" class="level2">
@@ -84,8 +84,8 @@
 </section>
 <section id="架构与基础测试" class="level2">
 <h2>架构与基础测试</h2>
-<p><a href="../docs/ui/系统架构_v1.html">系统架构</a>、<a href="../docs/ui/视觉与交互规范_v1.html">视觉规范</a> 和 <a href="../docs/ui/实施与验收_v1.html">实施记录</a> 定义后续开发边界。当前只开始 M0 基础代码，界面仍是原演示基线。</p>
-<p>开发前先读 <a href="../docs/ui/架构复审与开发基线_v1.1.html">复审问题</a>、<a href="../docs/ui/功能逻辑与页面契约_v1.html">功能契约</a> 和 <a href="../docs/ui/模块接口与开发任务_v1.html">模块接口与任务</a>。下一批 D01–D03 处理既有生命周期和构建问题，随后按依赖推进服务与界面；新增测试尚未执行。</p>
+<p><a href="../docs/ui/系统架构_v1.1.html">系统架构</a>、<a href="../docs/ui/视觉与交互规范_v1.html">视觉规范</a> 和 <a href="../docs/ui/实施与验收_v1.html">实施记录</a> 定义后续开发边界。当前只开始 M0 基础代码，界面仍是原演示基线。</p>
+<p>开发前先读 <a href="../docs/ui/架构复审与开发基线_v1.1.html">复审问题</a>、<a href="../docs/ui/功能逻辑与页面契约_v1.html">功能契约</a> 和 <a href="../docs/ui/模块接口与开发任务_v1.html">模块接口与任务</a>。D01–D03 已完成本地实现与测试，当前未上板。下一批先补齐 D04/D05 的启动和接口契约，再推进服务与界面。</p>
 <p>Windows 主机测试需要 Visual Studio C/C++ 工具和 Python 3：</p>
 <pre class="powershell"><code>.\firmware\tests\run-core-tests.ps1</code></pre>
 <p>也可以单独运行只读布局检查；第二条必须指向与本次镜像匹配的完整输出目录：</p>

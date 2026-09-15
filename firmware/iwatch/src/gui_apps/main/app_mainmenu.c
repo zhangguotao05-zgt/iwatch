@@ -1,3 +1,5 @@
+#include "iw_recovery.h"
+#include "iw_gui_port.h"
 /*
  * SPDX-FileCopyrightText: 2019-2026 SiFli Technologies(Nanjing) Co., Ltd
  *
@@ -473,6 +475,10 @@ uint16_t mainmenu_app_sort_cnt()
 typedef struct
 {
     lv_obj_t *pg_obj;
+    lv_display_t *display;
+    bool closing;
+    bool active;
+    bool build_failed;
     lv_obj_t *encoder;
     lv_obj_t **list;
 #ifdef DEBUG_APP_MAINMENU_DISPLAY_ICON_COORDINATE
@@ -517,11 +523,13 @@ typedef struct
 } mainmenu_cell_t;
 
 static mainmenu_cell_t *p_menu_cell = NULL;
+static void on_stop(void);
 static void mainmenu_cell_icons_event_cb(lv_event_t *e);
 static int32_t keypad_handler(lv_key_t key, lv_indev_state_t event);
 
 static lv_obj_t **mainmenu_cell_get_icon_obj(uint32_t row_idx, uint32_t col_idx)
 {
+    if (!p_menu_cell || !p_menu_cell->list || !p_menu_cell->icon_pivot) return NULL;
     if ((row_idx  >= MAX_APP_ROW_NUM) || (col_idx >= MAX_APP_COL_NUM))
     {
         LOG_E("Array index out of bounds: row=%d, col=%d", row_idx, col_idx);
@@ -533,6 +541,7 @@ static lv_obj_t **mainmenu_cell_get_icon_obj(uint32_t row_idx, uint32_t col_idx)
 
 static lv_point_t *mainmenu_cell_get_icon_pivot(uint32_t row_idx, uint32_t col_idx)
 {
+    if (!p_menu_cell || !p_menu_cell->list || !p_menu_cell->icon_pivot) return NULL;
     if ((row_idx  >= MAX_APP_ROW_NUM) || (col_idx >= MAX_APP_COL_NUM))
     {
         return NULL;
@@ -636,17 +645,25 @@ static void mainmenu_cell_img_set_zoom(lv_obj_t *obj, uint16_t zoom)
 static lv_obj_t *mainmenu_cell_add_icons(lv_obj_t *parent, const char *cmd, const void *img, uint8_t row_idx, uint8_t col_idx)
 {
     lv_obj_t *icon;
-    uint16_t s_len;
+    size_t s_len;
     char *cmd_str;
     if ((row_idx  >= MAX_APP_ROW_NUM) || (col_idx >= MAX_APP_COL_NUM))
     {
         return NULL;
     }
 
+    if (!p_menu_cell || p_menu_cell->build_failed || !cmd || !img) return NULL;
     icon = lv_img_create(parent);
+    if (!icon) { p_menu_cell->build_failed = true; return NULL; }
 
     s_len = strlen(cmd) + 1;
     cmd_str = lv_malloc(s_len);
+    if (!cmd_str)
+    {
+        lv_obj_delete(icon);
+        p_menu_cell->build_failed = true;
+        return NULL;
+    }
     memcpy(cmd_str, cmd, s_len - 1);
     cmd_str[s_len - 1] = 0;
 
@@ -660,6 +677,7 @@ static lv_obj_t *mainmenu_cell_add_icons(lv_obj_t *parent, const char *cmd, cons
 
 #ifdef DEBUG_APP_MAINMENU_DISPLAY_ICON_COORDINATE
     lv_obj_t *label = lv_label_create(parent);
+    if (!label) { p_menu_cell->build_failed = true; return NULL; }
     lv_obj_set_style_text_font(label, LV_FONT_DEFAULT, LV_PART_MAIN);
     lv_obj_set_style_text_color(label, LV_COLOR_WHITE, LV_PART_MAIN);
 
@@ -676,6 +694,7 @@ static int32_t mainmenu_cell_draw_icons(lv_obj_t *obj, float pi_x, float pi_y, f
     {
         lv_coord_t img_w = lv_obj_get_self_width(obj);
         lv_coord_t img_h = lv_obj_get_self_height(obj);
+        if (img_w <= 0 || img_h <= 0) return -1;
 
         // lv_obj_clear_flag(obj, LV_OBJ_FLAG_HIDDEN);
         obj->flags &= (~LV_OBJ_FLAG_HIDDEN);
@@ -733,6 +752,11 @@ static void mainmenu_cell_icons_coord_init(void)
             {
                 lv_coord_t img_w = lv_obj_get_self_width(icon);
                 lv_coord_t img_h = lv_obj_get_self_height(icon);
+                if (img_w <= 0 || img_h <= 0)
+                {
+                    p_menu_cell->build_failed = true;
+                    return;
+                }
                 uint16_t zoom = (uint16_t)(ICON_IMG_WIDTH * 256 / img_w);
 
 
@@ -1098,6 +1122,7 @@ static lv_obj_t *mainmenu_cell_predict_focus_icon(void)
 
 static void refr_start_cb(lv_event_t *e)
 {
+    if (!p_menu_cell || lv_event_get_user_data(e) != p_menu_cell || p_menu_cell->closing || !p_menu_cell->active) return;
     if (p_menu_cell->scroll_actived)
     {
         _lv_obj_scroll_by_raw(p_menu_cell->pg_obj,
@@ -1116,6 +1141,7 @@ static void refr_start_cb(lv_event_t *e)
 
 static void mainmenu_cell_page_event_cb(lv_event_t *e)
 {
+    if (!p_menu_cell || p_menu_cell->closing || !p_menu_cell->active) return;
     lv_obj_t *obj = lv_event_get_current_target(e);
     lv_event_code_t event = lv_event_get_code(e);
 
@@ -1220,6 +1246,15 @@ static void mainmenu_cell_icons_event_cb(lv_event_t *e)
 {
     lv_obj_t *obj = lv_event_get_current_target(e);
     lv_event_code_t event = lv_event_get_code(e);
+    /* 删除回调只持有对象自身的命令，不依赖页面管理器仍然存在。 */
+    if (event == LV_EVENT_DELETE)
+    {
+        void *cmd = lv_obj_get_user_data(obj);
+        lv_obj_set_user_data(obj, NULL);
+        if (cmd) lv_free(cmd);
+        return;
+    }
+    if (!p_menu_cell || p_menu_cell->closing || !p_menu_cell->active) return;
     bool monkey = false;
 #if defined (BSP_USING_LVGL_INPUT_AGENT)
     monkey = (0 != monkey_mode()) ? true : false;
@@ -1255,12 +1290,7 @@ static void mainmenu_cell_icons_event_cb(lv_event_t *e)
 
         }
     }
-    else if (LV_EVENT_DELETE == event)
-    {
-        char *cmd = (char *)lv_obj_get_user_data(obj);
-        if (cmd)
-            lv_free(cmd);
-    }
+
 }
 
 
@@ -1373,6 +1403,7 @@ static void mainmenu_cell_read_app_icons(lv_obj_t *page)
 
             lv_obj_t *p_obj = mainmenu_cell_add_icons(page, "none", dummy_icons[i], row, col);
 
+            if (!p_obj) break;
             lv_obj_set_style_img_opa(p_obj, LV_OPA_50, LV_PART_MAIN | LV_STATE_DEFAULT);
         }
     }
@@ -1384,7 +1415,13 @@ static void mainmenu_cell_redraw_app(lv_obj_t *parent)
 {
 
     mainmenu_cell_read_app_icons(parent);
+    if (p_menu_cell->build_failed || !lv_obj_get_child(parent, 0))
+    {
+        p_menu_cell->build_failed = true;
+        return;
+    }
     mainmenu_cell_icons_coord_init();
+    if (p_menu_cell->build_failed) return;
     lv_obj_scroll_to_view(lv_obj_get_child(p_menu_cell->pg_obj, 0), LV_ANIM_OFF);
     uint16_t col, row;
     if (0 == p_menu_cell->row_idx && 0 == p_menu_cell->col_idx)
@@ -1404,12 +1441,23 @@ static void mainmenu_cell_redraw_app(lv_obj_t *parent)
 
 static void mainmenu_cell_clean_app(lv_obj_t *parent)
 {
+    if (!p_menu_cell || !parent) return;
+    lv_anim_delete(parent, NULL);
+    p_menu_cell->anim_obj = NULL;
+    p_menu_cell->cicon = NULL;
     lv_obj_clean(parent);
+    if (p_menu_cell->list)
+        memset(p_menu_cell->list, 0, MAX_APP_COL_NUM * MAX_APP_ROW_NUM * sizeof(lv_obj_t *));
+#ifdef DEBUG_APP_MAINMENU_DISPLAY_ICON_COORDINATE
+    if (p_menu_cell->label_list)
+        memset(p_menu_cell->label_list, 0, MAX_APP_COL_NUM * MAX_APP_ROW_NUM * sizeof(lv_obj_t *));
+#endif
 }
 static void mainmenu_cell_ui_init(void *param)
 {
 
     lv_obj_t *page = lv_obj_create(lv_scr_act());
+    if (!page) { p_menu_cell->build_failed = true; return; }
 
     lv_obj_set_size(page, LV_HOR_RES_MAX, LV_VER_RES_MAX);
 
@@ -1429,16 +1477,21 @@ static void mainmenu_cell_ui_init(void *param)
 
     lv_obj_add_event_cb(page, mainmenu_cell_page_event_cb, LV_EVENT_ALL, NULL);
 
-    lv_display_add_event_cb(lv_display_get_default(), refr_start_cb, LV_EVENT_REFR_START, NULL);
+    p_menu_cell->display = lv_display_get_default();
+    uint32_t callbacks = lv_display_get_event_count(p_menu_cell->display);
+    lv_display_add_event_cb(p_menu_cell->display, refr_start_cb, LV_EVENT_REFR_START, p_menu_cell);
+    if (lv_display_get_event_count(p_menu_cell->display) != callbacks + 1)
+        p_menu_cell->build_failed = true;
 }
 
 static void on_start(void)
 {
+    if (p_menu_cell) return;
 
 
     uint16_t max_icons;
     p_menu_cell = (mainmenu_cell_t *)rt_calloc(1, sizeof(mainmenu_cell_t));
-    RT_ASSERT(p_menu_cell);
+    if (!p_menu_cell) { iw_recovery_show(APP_ID); return; }
 
     p_menu_cell->zoom = 1;
     p_menu_cell->target_zoom = 1;
@@ -1446,33 +1499,48 @@ static void on_start(void)
 
     max_icons = MAX_APP_COL_NUM * MAX_APP_ROW_NUM;
     p_menu_cell->list = rt_calloc(1, max_icons * sizeof(lv_obj_t *));
-    RT_ASSERT(p_menu_cell->list);
+    if (!p_menu_cell->list) goto failed;
 
 
 #ifdef DEBUG_APP_MAINMENU_DISPLAY_ICON_COORDINATE
     p_menu_cell->label_list = rt_calloc(1, max_icons * sizeof(lv_obj_t *));
-    RT_ASSERT(p_menu_cell->label_list);
+    if (!p_menu_cell->label_list) goto failed;
 #endif
 
     p_menu_cell->icon_pivot = rt_calloc(1, max_icons * sizeof(lv_point_t));
-    RT_ASSERT(p_menu_cell->icon_pivot);
+    if (!p_menu_cell->icon_pivot) goto failed;
 
     mainmenu_cell_ui_init(NULL);
+    if (p_menu_cell->build_failed) goto failed;
     rt_kprintf("mainmenu_cell_ui_init\n");
 
 
 #if (LV_FB_LINE_NUM != LV_VER_RES_MAX)
     mainmenu_cell_redraw_app(p_menu_cell->pg_obj);
 #endif
+    if (!p_menu_cell->build_failed) return;
+failed:
+    on_stop();
+    iw_recovery_show(APP_ID);
 }
 
 static void on_resume(void)
 {
+    if (!p_menu_cell) { iw_recovery_show(APP_ID); return; }
+    if (p_menu_cell->closing) return;
+    p_menu_cell->active = true;
+    iw_recovery_hide(APP_ID);
 #if (LV_FB_LINE_NUM == LV_VER_RES_MAX)
 
     mainmenu_cell_redraw_app(p_menu_cell->pg_obj);
 #endif
 
+    if (p_menu_cell->build_failed)
+    {
+        on_stop();
+        iw_recovery_show(APP_ID);
+        return;
+    }
     mainmainmenu_cell_transform(true);
     lv_obj_send_event(p_menu_cell->pg_obj, LV_EVENT_SCROLL, NULL);
 
@@ -1490,6 +1558,14 @@ static void on_resume(void)
 
 static void on_pause(void)
 {
+    iw_gui_cancel_input();
+    iw_recovery_hide(APP_ID);
+    if (!p_menu_cell || p_menu_cell->closing) return;
+    p_menu_cell->active = false;
+    p_menu_cell->scroll_actived = false;
+    p_menu_cell->scroll_sum.x = p_menu_cell->scroll_sum.y = 0;
+    p_menu_cell->indev = NULL;
+    if (p_menu_cell->pg_obj) lv_anim_delete(p_menu_cell->pg_obj, NULL);
     if (p_menu_cell->anim_obj)
     {
         lv_anim_delete(p_menu_cell->anim_obj, NULL);
@@ -1503,18 +1579,28 @@ static void on_pause(void)
 
 static void on_stop(void)
 {
-    if (p_menu_cell->list)
-        rt_free(p_menu_cell->list);
-    if (p_menu_cell->icon_pivot)
-        rt_free(p_menu_cell->icon_pivot);
+    mainmenu_cell_t *page = p_menu_cell;
+    iw_recovery_hide(APP_ID);
+    if (!page || page->closing) return;
+    page->closing = true;
+    page->active = false;
+    iw_gui_cancel_input();
+    /* 先断开长寿命显示对象的回调，再释放短寿命页面状态。 */
+    if (page->display)
+        lv_display_remove_event_cb_with_user_data(page->display, refr_start_cb, page);
+    if (page->pg_obj)
+    {
+        lv_obj_remove_event_cb(page->pg_obj, mainmenu_cell_page_event_cb);
+        mainmenu_cell_clean_app(page->pg_obj);
+        lv_obj_delete(page->pg_obj);
+    }
+    if (page->list) rt_free(page->list);
+    if (page->icon_pivot) rt_free(page->icon_pivot);
 #ifdef DEBUG_APP_MAINMENU_DISPLAY_ICON_COORDINATE
-    if (p_menu_cell->label_list)
-        rt_free(p_menu_cell->label_list);
+    if (page->label_list) rt_free(page->label_list);
 #endif
-    if (p_menu_cell->anim_obj)
-        lv_anim_delete(p_menu_cell->anim_obj, NULL);
-    rt_free(p_menu_cell);
     p_menu_cell = NULL;
+    rt_free(page);
 }
 #if 1
 static int32_t keypad_handler(lv_key_t key, lv_indev_state_t event)

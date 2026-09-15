@@ -12,7 +12,7 @@
 <h1>架构复审与开发基线 v1.1</h1>
 <p class="doc-meta">2026-09-15 · 复审基线 <code>761d355</code> · 适用：SF32LB58-DevKit-LCD A128R32N1、390×450 CO5300/FT6146</p>
 <p>现有分层方向可继续使用，但当前代码仍是经过少量加固的 SDK 演示工程。进入产品页面开发前，需要收敛生命周期、启动时间、板级来源、输入语义和构建交付。本文中的源码问题是静态检查结论；没有将其描述为已在开发板上触发的故障。</p>
-<p>配套阅读：<a href="系统架构_v1.html">系统架构</a>、<a href="功能逻辑与页面契约_v1.html">功能逻辑与页面契约</a>、<a href="模块接口与开发任务_v1.html">模块接口与开发任务</a>。文档 v1.1 是架构细化版本，不是新固件版本。</p>
+<p>配套阅读：<a href="系统架构_v1.1.html">系统架构</a>、<a href="功能逻辑与页面契约_v1.html">功能逻辑与页面契约</a>、<a href="模块接口与开发任务_v1.html">模块接口与开发任务</a>。文档 v1.1 是架构细化版本，不是新固件版本。</p>
 
 <section id="decision"><h2>1. 复审结论与开发边界</h2>
 <p>继续采用 C、RT-Thread、SiFli GUI 框架和 LVGL 9.4。GUI、后台业务、平台驱动分别有唯一的状态所有者。先完成“数字表盘 → 应用列表 → 设置 → 亮度 → 返回”的纵向流程，再加入计时器与全局提醒，最后扩展蜂窝桌面和其他 App。</p>
@@ -29,17 +29,17 @@
 <section id="findings"><h2>2. 源码与文档问题清单</h2>
 <p>优先级：P0 为首烧/退出崩溃相关阻断项，P1 为首个产品闭环必须处理，P2 为后续模块接入前处理。状态“待修复”意味着本次文档复审没有修改相应固件代码。</p>
 <table><thead><tr><th>编号 / 状态</th><th>证据与触发条件</th><th>处理要求与验收</th></tr></thead><tbody>
-<tr><td>A01 · P0 · 待修复</td><td><a href="../../firmware/iwatch/src/gui_apps/clock/app_clock_main.c">app_clock_main.c</a> 的 <code>on_stop()</code> 使用 <code>rt_list_for_each</code> 遍历并 <code>rt_free(clk_desc)</code>。宏的下一步仍访问已释放节点的 <code>next</code>。</td><td>保存下一节点、摘链后释放；检查嵌套 deinit 的所有权。强制启动/退出至少三个表盘，内存检测器不报告释放后访问，链表最终为空。</td></tr>
-<tr><td>A02 · P0 · 待修复</td><td><a href="../../firmware/iwatch/src/gui_apps/main/app_mainmenu.c">app_mainmenu.c</a> 注册 display 级 <code>refr_start_cb</code>，退出未注销；回调直接解引用 <code>p_menu_cell</code>，而 <code>on_stop()</code> 将其释放并置空。</td><td>保存事件描述符并在释放页面状态前注销；仅加判空不能解决反复注册。强制销毁桌面后刷新屏幕，再反复创建 100 次，回调数量回到基线。</td></tr>
-<tr><td>A03 · P1 · 待修复</td><td>表盘 <code>on_start()</code> 分配后直接 <code>memset</code>；<code>app_clock_register()</code> 分配后直接写字段。桌面多处用断言处理分配失败。</td><td>逐次失败注入；构造失败按逆序清理，恢复到预先建立的轻量错误层。禁止在内存不足路径上再次分配整屏兜底资源。</td></tr>
+<tr><td>A01 · P0 · 本地修复，板测待执行</td><td><a href="../../firmware/iwatch/src/gui_apps/clock/app_clock_main.c">app_clock_main.c</a> 的 <code>on_stop()</code> 使用 <code>rt_list_for_each</code> 遍历并 <code>rt_free(clk_desc)</code>。宏的下一步仍访问已释放节点的 <code>next</code>。</td><td>保存下一节点、摘链后释放；检查嵌套 deinit 的所有权。强制启动/退出至少三个表盘，内存检测器不报告释放后访问，链表最终为空。</td></tr>
+<tr><td>A02 · P0 · 本地修复，板测待执行</td><td><a href="../../firmware/iwatch/src/gui_apps/main/app_mainmenu.c">app_mainmenu.c</a> 注册 display 级 <code>refr_start_cb</code>，退出未注销；回调直接解引用 <code>p_menu_cell</code>，而 <code>on_stop()</code> 将其释放并置空。</td><td>保存事件描述符并在释放页面状态前注销；仅加判空不能解决反复注册。强制销毁桌面后刷新屏幕，再反复创建 100 次，回调数量回到基线。</td></tr>
+<tr><td>A03 · P1 · 本地回滚路径已补，覆盖边界见实施记录</td><td>表盘 <code>on_start()</code> 分配后直接 <code>memset</code>；<code>app_clock_register()</code> 分配后直接写字段。桌面多处用断言处理分配失败。</td><td>逐次失败注入；构造失败按逆序清理，恢复到预先建立的轻量错误层。禁止在内存不足路径上再次分配整屏兜底资源。</td></tr>
 <tr><td>A04 · P1 · 待修复</td><td><a href="../../firmware/iwatch/src/gui_apps/watch_demo.c">watch_demo.c</a> 的 <code>app_watch_entry()</code> 每次启动执行 <code>set_date(2022, 7, 1)</code> 与 <code>set_time(9, 0, 0)</code>。</td><td>改为读取 RTC 状态和校时记录；保留有效时间，无效时显示待校时。重启不能重设已确认时间；没有备份供电时明确失效。</td></tr>
-<tr><td>A05 · P1 · 待修复</td><td>GUI 主循环直接按 <code>lv_timer_handler()</code> 的返回值休眠；架构写了活跃等待上限 20 ms，代码尚未落实。</td><td>新增统一等待适配，正确处理无定时器哨兵和 tick 换算。服务唤醒位可合并，GUI 每次醒来都重新拉状态；不得使用无上限等待阻塞已入队输入。</td></tr>
+<tr><td>A05 · P1 · 本地修复，P95 板测待执行</td><td>GUI 主循环直接按 <code>lv_timer_handler()</code> 的返回值休眠；架构写了活跃等待上限 20 ms，代码尚未落实。</td><td>新增统一等待适配，正确处理无定时器哨兵和 tick 换算。服务唤醒位可合并，GUI 每次醒来都重新拉状态；不得使用无上限等待阻塞已入队输入。</td></tr>
 <tr><td>A06 · P1 · 待实现</td><td>应用只对 <code>BSP_KEY1_PIN</code> 调用 <code>button_init()</code>；KEY2 虽在 board.conf 声明，未接应用回调。当前队列门控只有单键，M0 点击直接映射 Home。</td><td>KEY1 暂映射表冠按压，KEY2 经实物检查后映射侧键；每键独立门控、独立序号。M1 引入双击识别时必须关闭旧的即时 Home 分支，防止重复导航。旋转表冠状态仍为 absent。</td></tr>
-<tr><td>A07 · P1 · 来源已记录，构建约束待实现</td><td><a href="../../firmware/iwatch/project/project.uvprojx">Keil 工程</a>的四个基础板 <code>bsp_*.c</code> 指向 SDK 的 <code>customer/boards/sf32lb58-lcd_base</code>，不是仓库内同名副本。</td><td>开发板阶段明确以锁定 SDK 的基础板驱动为准；自研 PCB 建新的项目 BSP 并验实际编译路径。禁止只修改未参与编译的副本后宣称硬件行为已变化。</td></tr>
+<tr><td>A07 · P1 · 来源与构建约束已实现</td><td><a href="../../firmware/iwatch/project/project.uvprojx">Keil 工程</a>的四个基础板 <code>bsp_*.c</code> 指向 SDK 的 <code>customer/boards/sf32lb58-lcd_base</code>，不是仓库内同名副本。</td><td>开发板阶段明确以锁定 SDK 的基础板驱动为准；自研 PCB 建新的项目 BSP 并验实际编译路径。禁止只修改未参与编译的副本后宣称硬件行为已变化。</td></tr>
 <tr><td>A08 · P0 · 待上板验证</td><td><a href="../../firmware/iwatch/project/iwatch_sf32lb58_a128_qspi_hcpu/ptab.json">ptab.json</a> 已将 main 移到 0x69000000；当前板仍是旧演示固件。静态检查只覆盖已声明区域、镜像大小和下载地址。</td><td>核对 NAND 几何与 SDK 地址转换、备份、写入回读、新 ftab 切换、冷启动和串口恢复。旧 main 大于旧槽，不能承诺回写旧固件时不会覆盖旧数据区。</td></tr>
-<tr><td>A09 · P1 · 待实现</td><td>GCC 与 Keil 使用同一个 <code>build_iwatch_sf32lb58_a128_qspi_hcpu</code> 目录；<a href="../../firmware/generate-keil.ps1">generate-keil.ps1</a> 只在生成前调用布局检查。生成 Keil 工程本身还会编译/链接镜像。</td><td>首个发布包加入工具链、源码/配置哈希与镜像清单；每次构建后检查。分离输出目录前禁止并行构建；不能凭文件名识别镜像来源。</td></tr>
+<tr><td>A09 · P1 · 已加文件锁、归档及身份校验</td><td>GCC 与 Keil 使用同一个 <code>build_iwatch_sf32lb58_a128_qspi_hcpu</code> 目录；<a href="../../firmware/generate-keil.ps1">generate-keil.ps1</a> 只在生成前调用布局检查。本版 SDK 的 --target=mdk5 启用 no_exec，只生成工程；原来把模拟构建输出当成真实编译的说法有误。现在包装脚本单独执行实际 Keil 构建。</td><td>首个发布包加入工具链、源码/配置哈希与镜像清单；每次构建后检查。分离输出目录前禁止并行构建；不能凭文件名识别镜像来源。</td></tr>
 <tr><td>A10 · P1 · 文档已修正</td><td>M1 依赖设置/命令服务，旧分期却把消息与时钟基础放到 M2；8 个待提醒槽无法覆盖 8 个计时器与 16 个闹钟同时触发。</td><td>依赖提前到 M1.0；提醒按源预留 24 槽并可合并重复发生，普通通知另算。详见接口文档。</td></tr>
-<tr><td>A11 · P1 · 文档已修正</td><td>状态页仍写屏幕待到货；文档校验清单仍引用删除的 .md；部分 HTML 表格残留百分比窄列样式。</td><td>统一实际板屏基线、更新 HTML 哈希与入口、检查相互链接和浏览器呈现。历史工程 ZIP 保留归档内容与原校验值。</td></tr>
+<tr><td>A11 · P1 · 历史标记已修正，板上身份待补</td><td>状态页仍写屏幕待到货；文档校验清单仍引用删除的 .md；部分 HTML 表格残留百分比窄列样式。</td><td>统一实际板屏基线、更新 HTML 哈希与入口、检查相互链接和浏览器呈现。历史工程 ZIP 保留归档内容与原校验值。</td></tr>
 <tr><td>A12 · P2 · 接入前处理</td><td>未启用的 PM/DFU 分支仍包含旧 LVGL 调用方式；当前配置不代表这些路径编译或运行通过。</td><td>开启功能前迁移相关 API、明确上下文，新增该配置的构建及唤醒测试；默认关闭不会被误写成已经支持休眠/升级。</td></tr>
 </tbody></table>
 <p>上述清单是有边界的代码审查结果，不是全仓库无缺陷结论。修改时继续核对新路径的错误处理、页内资源释放以及 SDK 的真实生命周期顺序。</p>
@@ -106,7 +106,7 @@
 <tr><td>G3 首个闭环可扩展</td><td>计时器/提醒和系统壳层。</td><td>表盘→设置→亮度完整路径及错误路径通过；快速导航无残留；缺失硬件状态正确。</td></tr>
 <tr><td>G4 可以长测</td><td>低功耗、持久化、8 小时混合测试。</td><td>监督/故障注入、计时恢复、存储提交语义和设备超时已独立验证。</td></tr>
 </tbody></table>
-<p>当前 G0 文档已细化；G1–G4 未通过。下一份代码提交应聚焦生命周期和启动基础，不能直接开始批量复制几十个 App 页面。</p>
+<p>当前 G0 文档已细化；G1–G4 未通过。D01–D03 实现与主机、构建、板上三栏状态见 <a href="D01-D03_实施记录.html">实施记录</a>。D04/D05 尚未完成，因此不能把基础修复提交宣称为 G1 通过。</p>
 </section>
 
 <section id="sources"><h2>7. 依据与适用版本</h2>

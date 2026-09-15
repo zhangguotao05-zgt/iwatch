@@ -140,7 +140,7 @@ static lv_font_t *app_clock_status_bar_get_font(uint8_t size)
 static void app_clock_main_press_to_show_status_bar(lv_event_t *event)
 {
 
-    if (LV_EVENT_PRESSED == event->code)
+    if (app_clock_main_status_bar && LV_EVENT_PRESSED == event->code)
     {
         //rt_kprintf("app_clock_main_press_to_show_status_bar\n");
 
@@ -156,25 +156,17 @@ static void app_clock_main_press_to_show_status_bar(lv_event_t *event)
  */
 rt_uint16_t get_active_tile_row(lv_obj_t *tileview)
 {
-    lv_tileview_t *tv = (lv_tileview_t *)tileview;
-    lv_obj_t *active_tile = tv->tile_act; // 获取当前活跃的 tile 对象
-
-    if (!active_tile)
-    {
-        return 0; // 默认返回第一行
-    }
-
-    int32_t h = lv_obj_get_content_height(tileview); // 获取 Tileview 单个 tile 的高度
-    int32_t y = lv_obj_get_y(active_tile); // 获取当前活跃 tile 的 Y 坐标
-
-    // 计算当前 tile 所在行
-    rt_uint16_t row_id = (y + h / 2) / h;
-
-    return row_id;
+    if (!tileview) return 0;
+    lv_obj_t *active_tile = lv_tileview_get_tile_active(tileview);
+    int32_t h = lv_obj_get_content_height(tileview);
+    if (!active_tile || h <= 0) return 0;
+    int32_t y = lv_obj_get_y(active_tile);
+    return y < 0 ? 0 : (rt_uint16_t)((y + h / 2) / h);
 }
 
 static void app_clock_main_status_bar_event_cb(lv_event_t *event)
 {
+    if (!app_clock_main_status_bar) return;
     lv_obj_t *obj = lv_event_get_target(event);
 
 
@@ -301,7 +293,7 @@ static lv_obj_t *gradient_label(lv_obj_t *parent, const char *text)
 }
 #endif /* ENABLE_GRADIENT_LABEL */
 
-static void control_panel_content_init(lv_obj_t *par)
+static bool control_panel_content_init(lv_obj_t *par)
 {
     lv_obj_t *redraw_interval_slider, *clock_step_ms_slider;
     lv_obj_t *label1, *label2;
@@ -310,13 +302,16 @@ static void control_panel_content_init(lv_obj_t *par)
 
 #ifdef ENABLE_GRADIENT_LABEL
     label1 = gradient_label(par, "Functioooooooooooooooons");
+        if (!label1) return false;
 #else
     label1 = lv_label_create(par);
+        if (!label1) return false;
     lv_label_set_text(label1, "Functions");
 #endif
     lv_obj_align(label1, LV_ALIGN_TOP_MID, 0, PX_5mm);
 
     lv_obj_t *btnm1 = lv_btnmatrix_create(par);
+        if (!btnm1) return false;
     lv_btnmatrix_set_map(btnm1, btnm_map);
     lv_obj_set_width(btnm1, LV_PCT(75));
     //lv_btnm_set_btn_width(btnm1, 10, 2);        /*Make "Action1" twice as wide as "Action2"*/
@@ -327,10 +322,12 @@ static void control_panel_content_init(lv_obj_t *par)
 
 
     label2 = lv_label_create(par);
+        if (!label2) return false;
     lv_label_set_text(label2, "clock redraw time & steps");
     lv_obj_align_to(label2, btnm1, LV_ALIGN_OUT_BOTTOM_MID, 0, PX_1cm);
 
     redraw_interval_slider = lv_slider_create(par);
+        if (!redraw_interval_slider) return false;
     lv_bar_set_range(redraw_interval_slider, 1, 3000);
     //lv_bar_set_value(redraw_interval_slider, CLOCK_MIN_REDRAW_INTERVAL_MS, LV_ANIM_ON);
     lv_obj_set_width(redraw_interval_slider, LV_PCT(75));
@@ -340,12 +337,14 @@ static void control_panel_content_init(lv_obj_t *par)
 
 
     clock_step_ms_slider = lv_slider_create(par);
+        if (!clock_step_ms_slider) return false;
     lv_bar_set_range(clock_step_ms_slider, 1, 6000);
     //lv_bar_set_value(clock_step_ms_slider, CLOCK_MIN_REDRAW_INTERVAL_MS, LV_ANIM_ON);
     lv_obj_set_width(clock_step_ms_slider, LV_PCT(75));
     lv_obj_align_to(clock_step_ms_slider, redraw_interval_slider, LV_ALIGN_OUT_BOTTOM_MID, 0, PX_1cm);
 
     //lv_obj_set_event_cb(clock_step_ms_slider, clock_step_ms_event_handler);
+    return true;
 }
 
 /*
@@ -363,13 +362,15 @@ void app_clock_status_bar_init_font(void)
     }
 }
 
-static void msg_list_content_init(lv_obj_t *par)
+static bool msg_list_content_init(lv_obj_t *par)
 {
     app_clock_status_bar_init_font();
+    if (!chinese_font) return false;
     lv_obj_t *label_header;
     lv_obj_t *align_base;
 
     label_header = lv_label_create(par);
+        if (!label_header) return false;
     lv_label_set_text(label_header, "Notifications");
     lv_obj_set_style_text_font(label_header, chinese_font, LV_PART_MAIN);
     lv_obj_set_style_text_color(label_header, LV_COLOR_WHITE, LV_PART_MAIN);
@@ -381,7 +382,9 @@ static void msg_list_content_init(lv_obj_t *par)
     {
         lv_font_t *title_font = app_clock_status_bar_get_font(notify_msgs[i].dynamic_title_font_size);
 
+        if (!title_font) return false;
         lv_obj_t *title_label = lv_label_create(par);
+        if (!title_label) return false;
         lv_obj_set_width(title_label, LV_PCT(80));
         lv_label_set_long_mode(title_label, LV_LABEL_LONG_SCROLL_CIRCULAR);
         lv_obj_set_style_text_font(title_label, title_font, LV_PART_MAIN);
@@ -391,12 +394,15 @@ static void msg_list_content_init(lv_obj_t *par)
 
         lv_font_t *content_font = app_clock_status_bar_get_font(notify_msgs[i].dynamic_content_font_size);
 
+        if (!content_font) return false;
         lv_obj_t *content_label_container = lv_obj_create(par);
+        if (!content_label_container) return false;
         lv_obj_set_size(content_label_container, LV_PCT(100), notify_msgs[i].content_height);
         lv_ext_set_local_bg(content_label_container, LV_COLOR_GRAY, LV_OPA_80);
 
 
         lv_obj_t *content_label = lv_label_create(content_label_container);
+        if (!content_label) return false;
         lv_obj_set_width(content_label, LV_PCT(100));
         lv_label_set_long_mode(content_label, LV_LABEL_LONG_WRAP);
         lv_obj_set_style_text_font(content_label, content_font, LV_PART_MAIN);
@@ -407,9 +413,10 @@ static void msg_list_content_init(lv_obj_t *par)
         align_base = content_label_container;
 
     }
+    return true;
 }
 
-void app_clock_main_status_bar_init(lv_obj_t *par, lv_obj_t *clock_tileview)
+bool app_clock_main_status_bar_init(lv_obj_t *par, lv_obj_t *clock_tileview)
 {
     rt_uint16_t i;
     lv_obj_t *tileview;
@@ -420,6 +427,7 @@ void app_clock_main_status_bar_init(lv_obj_t *par, lv_obj_t *clock_tileview)
     for (i = 0; i < 2; i++)
     {
         status_bar_area = lv_obj_create(par);
+        if (!status_bar_area) return false;
         lv_obj_set_size(status_bar_area, LV_HOR_RES_MAX, (LV_VER_RES_MAX >> 4));
         lv_obj_set_style_border_opa(status_bar_area, LV_OPA_TRANSP, LV_PART_MAIN | LV_STATE_DEFAULT);
         lv_obj_set_scrollbar_mode(status_bar_area, LV_SCROLLBAR_MODE_OFF);
@@ -443,6 +451,7 @@ void app_clock_main_status_bar_init(lv_obj_t *par, lv_obj_t *clock_tileview)
 
     //create tile view , page 0  for content, page 1 is transparent
     tileview = lv_tileview_create(par);
+        if (!tileview) return false;
     app_clock_main_status_bar = tileview;
     lv_obj_add_flag(tileview, LV_OBJ_FLAG_SCROLL_ONE);
     lv_obj_clear_flag(tileview, LV_OBJ_FLAG_SCROLL_ELASTIC);
@@ -453,6 +462,7 @@ void app_clock_main_status_bar_init(lv_obj_t *par, lv_obj_t *clock_tileview)
     for (i = 0; i < 3; i++)
     {
         pages[i] = lv_tileview_add_tile(tileview, 0, i, LV_DIR_VER);
+        if (!pages[i]) return false;
 
         if (i == 1)
         {
@@ -469,8 +479,7 @@ void app_clock_main_status_bar_init(lv_obj_t *par, lv_obj_t *clock_tileview)
         lv_obj_set_scrollbar_mode(pages[i], LV_SCROLLBAR_MODE_OFF);
     }
 
-    msg_list_content_init(pages[0]);
-    control_panel_content_init(pages[2]);
+    if (!msg_list_content_init(pages[0]) || !control_panel_content_init(pages[2])) return false;
 
     //scroll to page[1]
     lv_obj_set_tile_id(tileview, 0, 1, false);
@@ -478,30 +487,25 @@ void app_clock_main_status_bar_init(lv_obj_t *par, lv_obj_t *clock_tileview)
     lv_obj_add_flag(tileview, LV_OBJ_FLAG_HIDDEN);
 
     app_clock_tileview = clock_tileview;
+    return true;
 }
 
 void app_clock_main_status_bar_deinit(void)
 {
-
-    for (int i = 0; i < font_count; i++)
-    {
-        if (font_cache[i].font)
-        {
-            lv_tiny_ttf_destroy(font_cache[i].font);
-            font_cache[i].font = NULL;
-        }
-    }
-    font_count = 0;
-
-    chinese_font = NULL;
-
-
-    lv_obj_del(app_clock_main_status_bar);
-    lv_obj_del(status_bar_area_up);
-    lv_obj_del(status_bar_area_down);
-
+    /* 控件的删除事件仍可能访问字体，必须先删除对象树。 */
+    if (app_clock_main_status_bar) lv_obj_delete(app_clock_main_status_bar);
+    if (status_bar_area_up) lv_obj_delete(status_bar_area_up);
+    if (status_bar_area_down) lv_obj_delete(status_bar_area_down);
     app_clock_main_status_bar = NULL;
     status_bar_area_up = NULL;
     status_bar_area_down = NULL;
-
+    app_clock_tileview = NULL;
+    for (unsigned i = 0; i < font_count; i++)
+    {
+        if (font_cache[i].font) lv_tiny_ttf_destroy(font_cache[i].font);
+        font_cache[i].font = NULL;
+        font_cache[i].font_size = 0;
+    }
+    font_count = 0;
+    chinese_font = NULL;
 }

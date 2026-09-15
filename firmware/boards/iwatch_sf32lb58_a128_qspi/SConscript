@@ -10,6 +10,10 @@ path =  [cwd,
 group = DefineGroup('Drivers', src, depend = ['BSP_USING_BOARD_IWATCH_SF32LB58_A128_QSPI'], CPPPATH = path)
 
 if GetDepend('BSP_USING_BOARD_IWATCH_SF32LB58_A128_QSPI'):
-    group = group + SConscript('../sf32lb58-lcd_base/script/SConscript')
+    # 明确使用锁定 SDK 的公共板级实现，避免相对路径误选本地参考副本。
+    # 映射整个公共目录，使脚本里的 ../*.c 也进入本镜像的独立输出目录。
+    from SCons.Script import VariantDir
+    VariantDir('sdk_base', os.path.join(os.environ['SIFLI_SDK'], 'customer/boards/sf32lb58-lcd_base'), duplicate=0)
+    group = group + SConscript('sdk_base/script/SConscript')
 
 Return('group')

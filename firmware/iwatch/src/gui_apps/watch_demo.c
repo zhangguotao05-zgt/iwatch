@@ -19,6 +19,8 @@
 #include "lv_freetype.h"
 #include "lvsf.h"
 #include "iw_input_queue.h"
+#include "iw_gui_port.h"
+#include "iw_recovery.h"
 #ifdef BSP_USING_PM
     #include "bf0_pm.h"
     #include "gui_app_pm.h"
@@ -114,15 +116,89 @@ static int32_t key1_button_handle = -1;
 static iw_input_queue_t input_queue;
 static iw_input_gate_t input_gate;
 static bool keypad_release_next;
+static unsigned home_pending;
+
+/* 取消只在 GUI 循环执行，避免在页面事件中重入输入分发。 */
+static void input_cancel_lvgl(void)
+{
+    home_pending = 0;
+    keypad_release_next = false;
+    for (lv_indev_t *indev = lv_indev_get_next(NULL); indev; indev = lv_indev_get_next(indev))
+    {
+        lv_indev_reset(indev, NULL);
+        if (lv_indev_get_type(indev) == LV_INDEV_TYPE_POINTER)
+            lv_indev_wait_release(indev);
+        lv_timer_t *timer = lv_indev_get_read_timer(indev);
+        if (timer) lv_timer_ready(timer);
+    }
+}
+
+static void input_service(void)
+{
+    uint32_t started = (uint32_t)rt_tick_get();
+    bool activity = false;
+    if (iw_gui_take_cancel())
+    {
+        rt_base_t level = rt_hw_interrupt_disable();
+        iw_input_queue_cancel(&input_queue);
+        rt_hw_interrupt_enable(level);
+    }
+    /* 单轮最多八条或两毫秒，避免输入风暴挤占绘制时间。 */
+    for (unsigned count = 0; count < 8; count++)
+    {
+        iw_input_event_t event;
+        rt_base_t level = rt_hw_interrupt_disable();
+        bool received = iw_input_queue_pop(&input_queue, &event);
+        rt_hw_interrupt_enable(level);
+        if (!received) break;
+        if (event.action == IW_INPUT_CANCEL)
+        {
+            iw_input_gate_accept(&input_gate, IW_INPUT_CANCEL);
+            input_cancel_lvgl();
+        }
+        else if (event.pin == SLEEP_CTRL_PIN && iw_input_gate_accept(&input_gate, event.action))
+        {
+            activity = true;
+            /* 暂时保留现有短按 Home 行为，表冠完整语义由 D09 接管。 */
+            if (event.action == IW_INPUT_CLICK)
+            {
+                if (home_pending < IW_INPUT_CAPACITY) home_pending++;
+                else
+                {
+                    /* 语义缓冲也必须取消，禁止把积压单击带到下一个页面。 */
+                    iw_input_gate_accept(&input_gate, IW_INPUT_CANCEL);
+                    input_cancel_lvgl();
+                    level = rt_hw_interrupt_disable();
+                    iw_input_queue_cancel(&input_queue);
+                    rt_hw_interrupt_enable(level);
+                    break;
+                }
+            }
+        }
+        if ((uint32_t)(rt_tick_get() - started) >= (uint32_t)rt_tick_from_millisecond(2)) break;
+    }
+    rt_base_t level = rt_hw_interrupt_disable();
+    bool pending = input_queue.count || input_queue.cancel_pending;
+    /* 物理释放稳定二十毫秒可补偿被溢出丢弃的 RELEASE，期间不会产生单击。 */
+    if (!pending && key1_button_handle >= 0)
+        (void)iw_input_gate_recover(&input_gate, button_is_pressed(key1_button_handle),
+                                   (uint32_t)rt_tick_get(), (uint32_t)rt_tick_from_millisecond(20));
+    rt_hw_interrupt_enable(level);
+    if (pending) iw_gui_wake(IW_GUI_WAKE_INPUT);
+    if (activity)
+    {
+        lv_disp_trig_activity(NULL);
+        for (lv_indev_t *indev = lv_indev_get_next(NULL); indev; indev = lv_indev_get_next(indev))
+        {
+            lv_timer_t *timer = lv_indev_get_read_timer(indev);
+            if (timer && lv_indev_get_type(indev) == LV_INDEV_TYPE_KEYPAD) lv_timer_ready(timer);
+        }
+    }
+}
 
 void button_key_read(uint32_t *last_key, lv_indev_state_t *state)
 {
-    unsigned count;
-    if (!last_key || !state)
-        return;
-
-    /* LVGL calls this input reader from app_watch. Only this thread may
-     * change the keypad state or signal activity to LVGL. */
+    if (!last_key || !state) return;
     RT_ASSERT(rt_thread_self() == &watch_thread);
     *last_key = KEYPAD_KEY_HOME;
     *state = LV_INDEV_STATE_REL;
@@ -131,23 +207,11 @@ void button_key_read(uint32_t *last_key, lv_indev_state_t *state)
         keypad_release_next = false;
         return;
     }
-    for (count = 0; count < 8; count++)
+    if (home_pending)
     {
-        iw_input_event_t event;
-        rt_base_t level = rt_hw_interrupt_disable();
-        bool received = iw_input_queue_pop(&input_queue, &event);
-        rt_hw_interrupt_enable(level);
-        if (!received)
-            break;
-        if (!iw_input_gate_accept(&input_gate, event.action))
-            continue;
-        lv_disp_trig_activity(NULL);
-        if (event.action == IW_INPUT_CLICK)
-        {
-            *state = LV_INDEV_STATE_PR;
-            keypad_release_next = true;
-            break;
-        }
+        home_pending--;
+        *state = LV_INDEV_STATE_PR;
+        keypad_release_next = true;
     }
 }
 
@@ -237,6 +301,7 @@ static void button_event_handler(int32_t pin, button_action_t action)
         rt_base_t level = rt_hw_interrupt_disable();
         (void)iw_input_queue_push(&input_queue, event);
         rt_hw_interrupt_enable(level);
+        iw_gui_wake(IW_GUI_WAKE_INPUT);
     }
 }
 
@@ -247,6 +312,7 @@ static void init_pin(void)
     iw_input_queue_init(&input_queue);
     rt_memset(&input_gate, 0, sizeof(input_gate));
     keypad_release_next = false;
+    home_pending = 0;
     rt_memset(&cfg, 0, sizeof(cfg));
     cfg.pin = SLEEP_CTRL_PIN;
     cfg.active_state = BUTTON_ACTIVE_POL;
@@ -260,6 +326,7 @@ static void init_pin(void)
 
 #else
 #define init_pin()
+#define input_service()
 #endif /* USING_BUTTON_LIB */
 
 #ifdef BSP_USING_PM
@@ -506,6 +573,11 @@ void app_watch_entry(void *parameter)
         RT_ASSERT(RT_EOK == r);
     }
 
+    if (!iw_recovery_init())
+    {
+        LOG_E("recovery layer allocation failed; GUI startup stopped");
+        return;
+    }
     lv_ex_data_pool_init();
     resource_init();
     gui_app_init(1);
@@ -527,7 +599,8 @@ void app_watch_entry(void *parameter)
 
     while (1)
     {
-        int ms;
+        uint32_t ms;
+        input_service();
 
         rt_pm_request(PM_SLEEP_MODE_IDLE);
         ms = lv_timer_handler();
@@ -550,15 +623,14 @@ void app_watch_entry(void *parameter)
             }
             else if (ms > 0)
             {
-                rt_thread_mdelay(ms);       /* Just to let the system breathe */
+                iw_gui_wait(ms);       /* 统一处理有界等待和锁存唤醒。 */
             }
         }
         else
 #endif  /* BSP_USING_PM */
         {
             //EventStartB(0);
-            if (ms > 0)
-                rt_thread_mdelay(ms);       /* Just to let the system breathe */
+            iw_gui_wait(ms);       /* 统一处理有界等待和锁存唤醒。 */
             //EventStopB(0);
         }
 
@@ -582,7 +654,7 @@ void app_register(void)
 int app_watch_init(void)
 {
     rt_err_t ret = RT_EOK;
-    rt_thread_t thread = RT_NULL;
+    if (iw_gui_port_init() != RT_EOK) return -RT_ERROR;
 
 
     ret = rt_thread_init(&watch_thread, "app_watch", app_watch_entry, RT_NULL, watch_thread_stack, APP_WATCH_GUI_TASK_STACK_SIZE,
@@ -590,10 +662,16 @@ int app_watch_init(void)
 
     if (RT_EOK != ret)
     {
-        return RT_ERROR;
+        iw_gui_port_deinit();
+        return ret;
     }
-    rt_thread_startup(&watch_thread);
-    return RT_EOK;
+    ret = rt_thread_startup(&watch_thread);
+    if (ret != RT_EOK)
+    {
+        rt_thread_detach(&watch_thread);
+        iw_gui_port_deinit();
+    }
+    return ret;
 }
 
 #if !defined (_MSC_VER)

@@ -36,3 +36,6 @@ Thumbs.db
 /firmware/iwatch/project/*.uvguix.*
 /firmware/iwatch/project/JLinkLog.txt
 /firmware/tests/build/
+/firmware/iwatch/project/artifacts/
+/firmware/iwatch/project/.iwatch-build.lock
+/firmware/iwatch/project/.iwatch-build-state.json

@@ -158,13 +158,13 @@ static void app_clock_simple_redraw(lv_timer_t *task)
     memcpy(&p_clk_simple->last_redraw_time, &current_time, sizeof(app_clock_time_t));
 }
 
-static void init_clock_hands_img(void)
+static bool init_clock_hands_img(void)
 {
 #if CACHE_CLOCK_HANDS
     if (NULL == p_clk_simple->hor_cache)
     {
         p_clk_simple->hor_cache = app_cache_copy_alloc(LV_EXT_IMG_GET(clock_simple_hour_hand), ROTATE_MEM);
-        RT_ASSERT(p_clk_simple->hor_cache != NULL);
+        if (!p_clk_simple->hor_cache) return false;
         lv_image_set_src(p_clk_simple->hour_hand, p_clk_simple->hor_cache);
     }
 
@@ -172,7 +172,7 @@ static void init_clock_hands_img(void)
     if (NULL == p_clk_simple->min_cache)
     {
         p_clk_simple->min_cache = app_cache_copy_alloc(LV_EXT_IMG_GET(clock_simple_minute_hand), ROTATE_MEM);
-        RT_ASSERT(p_clk_simple->min_cache != NULL);
+        if (!p_clk_simple->min_cache) return false;
         lv_image_set_src(p_clk_simple->minute_hand, p_clk_simple->min_cache);
     }
 
@@ -180,7 +180,7 @@ static void init_clock_hands_img(void)
     if (NULL == p_clk_simple->sec_cache)
     {
         p_clk_simple->sec_cache = app_cache_copy_alloc(LV_EXT_IMG_GET(clock_simple_second_hand), ROTATE_MEM);
-        RT_ASSERT(p_clk_simple->sec_cache != NULL);
+        if (!p_clk_simple->sec_cache) return false;
         lv_image_set_src(p_clk_simple->second_hand, p_clk_simple->sec_cache);
     }
 
@@ -194,19 +194,20 @@ static void init_clock_hands_img(void)
     lv_image_set_pivot(p_clk_simple->minute_hand, 7, 186);
     lv_image_set_pivot(p_clk_simple->second_hand, 6, 230);
 
+    return true;
 }
 
 static void deinit_clock_hands_img(void)
 {
 #if CACHE_CLOCK_HANDS
 
-    lv_image_set_src(p_clk_simple->hour_hand, LV_EXT_IMG_GET(clock_simple_hour_hand));
-    lv_image_set_src(p_clk_simple->minute_hand, LV_EXT_IMG_GET(clock_simple_minute_hand));
-    lv_image_set_src(p_clk_simple->second_hand, LV_EXT_IMG_GET(clock_simple_second_hand));
+    if (p_clk_simple->hour_hand) lv_image_set_src(p_clk_simple->hour_hand, LV_EXT_IMG_GET(clock_simple_hour_hand));
+    if (p_clk_simple->minute_hand) lv_image_set_src(p_clk_simple->minute_hand, LV_EXT_IMG_GET(clock_simple_minute_hand));
+    if (p_clk_simple->second_hand) lv_image_set_src(p_clk_simple->second_hand, LV_EXT_IMG_GET(clock_simple_second_hand));
     //Not to rotate image while it's src on flash
-    lv_img_set_angle(p_clk_simple->hour_hand, 0);
-    lv_img_set_angle(p_clk_simple->minute_hand, 0);
-    lv_img_set_angle(p_clk_simple->second_hand, 0);
+    if (p_clk_simple->hour_hand) lv_img_set_angle(p_clk_simple->hour_hand, 0);
+    if (p_clk_simple->minute_hand) lv_img_set_angle(p_clk_simple->minute_hand, 0);
+    if (p_clk_simple->second_hand) lv_img_set_angle(p_clk_simple->second_hand, 0);
 
 
     if (p_clk_simple->hor_cache != NULL)
@@ -235,11 +236,14 @@ static void deinit_clock_hands_img(void)
 
 static rt_int32_t resume_callback(void)
 {
-    init_clock_hands_img();
+    if (!p_clk_simple) return -RT_EINVAL;
+    if (p_clk_simple->redraw_task) return RT_EOK;
+    if (!init_clock_hands_img()) return -RT_ENOMEM;
 
     if (NULL == p_clk_simple->redraw_task)
     {
         p_clk_simple->redraw_task = lv_timer_create(app_clock_simple_redraw, 30, (void *)0);
+        if (!p_clk_simple->redraw_task) return -RT_ENOMEM;
     }
 
 
@@ -249,7 +253,8 @@ static rt_int32_t resume_callback(void)
 
 static rt_int32_t pause_callback(void)
 {
-    lv_timer_del(p_clk_simple->redraw_task);
+    if (!p_clk_simple) return RT_EOK;
+    if (p_clk_simple->redraw_task) lv_timer_del(p_clk_simple->redraw_task);
     p_clk_simple->redraw_task = NULL;
 
     deinit_clock_hands_img();
@@ -306,9 +311,11 @@ static rt_int32_t init(lv_obj_t *parent)
 {
 
     p_clk_simple = (app_clock_simple_t *) rt_malloc(sizeof(app_clock_simple_t));
+    if (!p_clk_simple) return -RT_ENOMEM;
     memset(p_clk_simple, 0, sizeof(app_clock_simple_t));
 
     p_clk_simple->bg     = lv_image_create(parent);
+    if (!p_clk_simple->bg) return -RT_ENOMEM;
     // lv_obj_set_size(p_clk_simple->bg, lv_pct(100), lv_pct(100));
 #ifdef LV_USE_SIFLI_JPEGD
     lv_image_set_src(p_clk_simple->bg, LV_EXT_IMG_GET(clock_simple_bg_jpeg));
@@ -320,6 +327,7 @@ static rt_int32_t init(lv_obj_t *parent)
 
 #ifdef ENABLE_MASKED_IMAGE
     p_clk_simple->masked_img_obj = lv_image_create(parent);
+    if (!p_clk_simple->masked_img_obj) return -RT_ENOMEM;
     lv_image_set_src(p_clk_simple->masked_img_obj, LV_EXT_IMG_GET(clock_simple_bg));
     // lv_img_set_size_mode(p_clk_simple->masked_img_obj, 1);
     //Set same size as mask
@@ -344,8 +352,11 @@ static rt_int32_t init(lv_obj_t *parent)
 
     // 创建指针等其他内容
     p_clk_simple->hour_hand   = lv_image_create(parent);
+    if (!p_clk_simple->hour_hand) return -RT_ENOMEM;
     p_clk_simple->minute_hand = lv_image_create(parent);
+    if (!p_clk_simple->minute_hand) return -RT_ENOMEM;
     p_clk_simple->second_hand = lv_image_create(parent);
+    if (!p_clk_simple->second_hand) return -RT_ENOMEM;
 
     lv_image_set_src(p_clk_simple->hour_hand, LV_EXT_IMG_GET(clock_simple_hour_hand));
     lv_image_set_src(p_clk_simple->minute_hand, LV_EXT_IMG_GET(clock_simple_minute_hand));
@@ -361,16 +372,11 @@ static rt_int32_t init(lv_obj_t *parent)
 
 static rt_int32_t deinit(void)
 {
-    if (p_clk_simple)
-    {
-        if (p_clk_simple->redraw_task)
-        {
-            lv_timer_del(p_clk_simple->redraw_task);
-        }
-        rt_free(p_clk_simple);
-        p_clk_simple = NULL;
-    }
-
+    if (!p_clk_simple) return RT_EOK;
+    /* 停止回调并解除缓存引用后才释放状态，允许失败回滚和重复退出。 */
+    pause_callback();
+    rt_free(p_clk_simple);
+    p_clk_simple = NULL;
     return RT_EOK;
 }
 

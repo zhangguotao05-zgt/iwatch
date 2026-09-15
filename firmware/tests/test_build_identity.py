@@ -1,0 +1,77 @@
+from pathlib import Path
+import copy
+import json
+import sys
+import struct
+import tempfile
+import unittest
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+import build_identity as identity
+
+
+class BuildIdentityTests(unittest.TestCase):
+    def setUp(self):
+        self.config, self.profile = identity.load_profile('DEV_A128_NAND')
+
+    def test_product_cannot_build_with_dev_layout(self):
+        with self.assertRaisesRegex(ValueError, 'design only'):
+            identity.load_profile('PRODUCT_N16_NOR')
+
+    def test_early_warning_and_hard_reserve(self):
+        p = self.profile
+        self.assertFalse(identity.image_budget(p['main_slot_bytes'] * 80 // 100, p)['warning'])
+        self.assertTrue(identity.image_budget(p['main_slot_bytes'] * 90 // 100, p)['warning'])
+        for size in [0, p['main_slot_bytes'], p['main_slot_bytes'] + 1]:
+            with self.assertRaises(ValueError):
+                identity.image_budget(size, p)
+
+    def test_effective_config_rejects_wrong_board_and_unvalidated_pm(self):
+        text = '\n'.join(f'#define {name} {value or ""}' for name, value in self.profile['required_defines'].items())
+        self.assertEqual([], identity.validate_config(text, self.profile))
+        self.assertTrue(identity.validate_config(text.replace('BSP_QSPI4_MEM_SIZE 128', 'BSP_QSPI4_MEM_SIZE 16'), self.profile))
+        self.assertTrue(identity.validate_config(text+'\n#define BSP_USING_PM', self.profile))
+
+    def test_changed_artifact_changes_digest(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/'main.bin'
+            path.write_bytes(b'first')
+            digest = identity.sha(path)
+            path.write_bytes(b'other')
+            self.assertNotEqual(digest, identity.sha(path))
+
+    def test_actual_verifier_rejects_tampered_or_incomplete_package(self):
+        with tempfile.TemporaryDirectory() as directory:
+            build = Path(directory)
+            artifacts = {}
+            for rel in ['rtconfig.h', 'sftool_param.json', 'main.map', 'main.bin', 'bootloader/bootloader.bin', 'ftab/ftab.bin']:
+                path = build/rel
+                path.parent.mkdir(exist_ok=True)
+                path.write_bytes(b'original')
+                artifacts[rel] = identity.sha(path)
+            record = {'artifacts': artifacts}
+            identity.verify_artifacts(record, build)
+            with self.assertRaisesRegex(ValueError, 'incomplete'):
+                identity.verify_artifacts({'artifacts': {}}, build)
+            (build/'main.bin').write_bytes(b'changed')
+            with self.assertRaisesRegex(ValueError, 'artifact changed'):
+                identity.verify_artifacts(record, build)
+
+    def test_gcc_object_cannot_be_labelled_keil(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/'source.o'
+            names = b'\0.shstrtab\0.comment\0'
+            comment = b'\0GCC: 14.2.1 20241119\0'
+            header = bytearray(52)
+            header[:6] = b'\x7fELF\x01\x01'
+            struct.pack_into('<I', header, 32, 52)
+            struct.pack_into('<HHH', header, 46, 40, 3, 1)
+            sections = b'\0'*40 + struct.pack('<10I', 1, 3, 0, 0, 172, len(names), 0, 0, 1, 0)
+            sections += struct.pack('<10I', 11, 1, 0, 0, 172+len(names), len(comment), 0, 0, 1, 0)
+            path.write_bytes(header+sections+names+comment)
+            identity.require_object_compiler(path, self.config['toolchains']['gcc'])
+            with self.assertRaisesRegex(ValueError, 'compiler differs'):
+                identity.require_object_compiler(path, self.config['toolchains']['keil'])
+
+
+if __name__ == '__main__':
+    unittest.main()

@@ -12,9 +12,7 @@ function Get-IwatchBuildRoot {
         return $RepositoryRoot
     }
 
-    # SiFli SDK v2.5.1 writes Kconfig include paths using the Windows ANSI
-    # code page and reads them back as UTF-8. Use a stable ASCII junction so
-    # projects stored below a Chinese path can still be built and opened by Keil.
+    # SDK 混用 ANSI 与 UTF-8 路径，中文工作区通过固定的 ASCII 联接构建。
     $sdkParent = Split-Path -Parent $SdkPath
     $aliasParent = Join-Path $sdkParent '_workspaces'
     $aliasRoot = Join-Path $aliasParent 'iwatch'
@@ -32,4 +30,15 @@ function Get-IwatchBuildRoot {
     }
 
     return $aliasRoot
+}
+
+function Enter-IwatchBuildLock {
+    param([string]$ProjectDir)
+    $lockPath = Join-Path $ProjectDir '.iwatch-build.lock'
+    try {
+        # GCC 和 Keil 使用同一 SCons 输出，进程退出或异常都会释放句柄锁。
+        return [System.IO.File]::Open($lockPath, [System.IO.FileMode]::OpenOrCreate,
+            [System.IO.FileAccess]::ReadWrite, [System.IO.FileShare]::None)
+    }
+    catch { throw '另一个 iwatch 构建正在使用输出目录，请待其结束再构建。' }
 }

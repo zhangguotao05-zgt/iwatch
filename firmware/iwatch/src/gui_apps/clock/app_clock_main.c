@@ -8,6 +8,8 @@
 #include <time.h>
 #include "app_clock_main.h"
 #include "app_clock_status_bar.h"
+#include "iw_recovery.h"
+#include "iw_gui_port.h"
 // #include "lvsf.h"
 #ifdef RT_USING_XIP_MODULE
     #include "dlmodule.h"
@@ -19,6 +21,7 @@ LV_IMG_DECLARE(img_clock);
 
 #define APP_ID  "clock"
 #define APP_CLOCK_ID_MAX_LEN 8
+#define APP_CLOCK_MAX_COUNT 16
 #define CLOCK_UPDATE_INTERVAL_IN_MS 100
 
 typedef enum
@@ -48,11 +51,12 @@ typedef struct
  */
 typedef struct
 {
-    lv_point_t *p_tileview_valid_pos;  //!< tileview for app clock framework
-    rt_uint32_t app_clock_list_len;    //!< clock list length
-    rt_list_t list;                    //!< head of all cocks list
-
-    rt_timer_t soft_timer;             //!<  template vaiable for simulator
+    rt_uint32_t app_clock_list_len;
+    rt_list_t list;
+    lv_obj_t *tileview; /* 仅持有本页创建的对象，不持有框架屏幕。 */
+    bool ready;
+    bool stopping;
+    bool registration_failed;
 } app_clock_main_t;
 
 #ifndef BSP_USING_LVGL_INPUT_AGENT
@@ -65,21 +69,12 @@ static uint16_t last_active_clock = 0;
 
 static rt_uint16_t get_active_tile_col(lv_obj_t *tileview)
 {
-    lv_tileview_t *tv = (lv_tileview_t *)tileview;
-    lv_obj_t *active_tile = tv->tile_act; // 获取当前活跃的 tile 对象
-
-    if (!active_tile)
-    {
-        return 0; // 默认返回第一页
-    }
-
-    int32_t w = lv_obj_get_content_width(tileview); // 获取 Tileview 单个 tile 的宽度
-    int32_t x = lv_obj_get_x(active_tile); // 获取当前活跃 tile 的 X 坐标
-
-    // 计算当前 tile 所在列
-    rt_uint16_t col_id = (x + w / 2) / w;
-
-    return col_id;
+    if (!tileview) return 0;
+    lv_obj_t *active_tile = lv_tileview_get_tile_active(tileview);
+    int32_t w = lv_obj_get_content_width(tileview);
+    if (!active_tile || w <= 0) return 0;
+    int32_t x = lv_obj_get_x(active_tile);
+    return x < 0 ? 0 : (rt_uint16_t)((x + w / 2) / w);
 }
 
 void app_clock_main_get_current_time(app_clock_time_t *t)
@@ -211,87 +206,51 @@ lv_obj_t *gui_app_get_clock_parent(void)
 
 static void app_clock_change_state(app_clock_desc_t *p_clock, uint8_t new_state)
 {
-    if (p_clock->state == new_state) return;
-
-
-    rt_kprintf("app_clock_change_state[%s] %s -> %s\n", p_clock->id,
-               app_clock_state_to_name(p_clock->state),
-               app_clock_state_to_name(new_state));
-
-
+    rt_int32_t result = RT_EOK;
+    if (!p_clock || p_clock->state == new_state) return;
+    if (!p_clock->parent || !p_clock->ops) return;
     change_context = p_clock->id;
     clk_parent = p_clock->parent;
 
-    switch (new_state)
+    if (new_state == STATE_DEINIT)
     {
-    case STATE_DEINIT:
-    {
-        if (STATE_ACTIVE == p_clock->state)
-        {
-            if (p_clock->ops->pause)
-            {
-                rt_kprintf("STATE_DEINIT: clock[%s] pause\n", p_clock->id);
-                p_clock->ops->pause();
-            }
-        }
-        if (p_clock->ops->deinit)
-        {
-            rt_kprintf("STATE_DEINIT: clock[%s] deinit\n", p_clock->id);
-            p_clock->ops->deinit();
-        }
-
+        if (p_clock->ops->pause) p_clock->ops->pause();
+        if (p_clock->ops->deinit) p_clock->ops->deinit();
         lv_obj_clean(p_clock->parent);
     }
-    break;
-
-    case STATE_PAUSED:
+    else
     {
-        if (STATE_ACTIVE == p_clock->state)
-        {
-            if (p_clock->ops->pause)
-            {
-                rt_kprintf("STATE_PAUSED: clock[%s] pause\n", p_clock->id);
-                p_clock->ops->pause();
-            }
-        }
-        else if (p_clock->ops->init)
-        {
-            rt_kprintf("STATE_PAUSED: clock[%s] init\n", p_clock->id);
-            p_clock->ops->init(p_clock->parent);
-        }
+        if (p_clock->state == STATE_DEINIT && p_clock->ops->init)
+            result = p_clock->ops->init(p_clock->parent);
+        if (result == RT_EOK && new_state == STATE_ACTIVE && p_clock->ops->resume)
+            result = p_clock->ops->resume();
+        if (result == RT_EOK && new_state == STATE_PAUSED && p_clock->state == STATE_ACTIVE && p_clock->ops->pause)
+            result = p_clock->ops->pause();
     }
-    break;
-
-    case STATE_ACTIVE:
+    if (result != RT_EOK)
     {
-        if (STATE_DEINIT == p_clock->state)
-        {
-            if (p_clock->ops->init)
-            {
-                rt_kprintf("STATE_ACTIVE: clock[%s] init\n", p_clock->id);
-                p_clock->ops->init(p_clock->parent);
-            }
-        }
-
-        if (p_clock->ops->resume)
-        {
-            rt_kprintf("STATE_ACTIVE: clock[%s] resume\n", p_clock->id);
-            p_clock->ops->resume();
-        }
+        /* 部分创建也走同一回收路径，失败状态不能发布为活动表盘。 */
+        if (p_clock->ops->pause) p_clock->ops->pause();
+        if (p_clock->ops->deinit) p_clock->ops->deinit();
+        lv_obj_clean(p_clock->parent);
+        p_clock->state = STATE_DEINIT;
+        rt_kprintf("[clock] %s create/resume failed: %d\n", p_clock->id, result);
+        if (new_state == STATE_ACTIVE) iw_recovery_show(APP_ID);
     }
-    break;
-
-
-    default:
-        break;
+    else
+    {
+        p_clock->state = new_state;
+        if (new_state == STATE_ACTIVE) iw_recovery_hide(APP_ID);
     }
-
-    p_clock->state = new_state;
+    /* 插件退出后不向外暴露描述符内存及即将删除的父对象。 */
+    change_context = NULL;
+    clk_parent = NULL;
 }
 
 
 static void app_clock_change_state_by_id(uint16_t idx, uint8_t new_state)
 {
+    if (!p_app_clock_main || !p_app_clock_main->ready || p_app_clock_main->stopping || !p_app_clock_main->app_clock_list_len) return;
     rt_kprintf("Change state for clock at index %d to %s\n", idx, app_clock_state_to_name(new_state));
     uint16_t i = 0;
     rt_list_t *pos;
@@ -310,6 +269,7 @@ static void app_clock_change_state_by_id(uint16_t idx, uint8_t new_state)
 
 static void app_clock_main_select(uint16_t clock_idx)
 {
+    if (!p_app_clock_main || !p_app_clock_main->ready || p_app_clock_main->stopping || !p_app_clock_main->app_clock_list_len) return;
     rt_uint16_t left_clock_idx, right_clock_idx, i;
     rt_list_t *pos;
     app_clock_desc_t *clk_desc;
@@ -372,6 +332,7 @@ static void app_clock_main_select(uint16_t clock_idx)
 
 static void app_clock_main_drag_begin(uint16_t clock_idx)
 {
+    if (!p_app_clock_main || !p_app_clock_main->ready || p_app_clock_main->stopping || !p_app_clock_main->app_clock_list_len) return;
     rt_uint16_t left_clock_idx, right_clock_idx, i;
     rt_list_t *pos;
     app_clock_desc_t *clk_desc;
@@ -408,6 +369,7 @@ static void app_clock_main_drag_begin(uint16_t clock_idx)
 
 static void tileview_event_cb_t(lv_event_t *event)
 {
+    if (!p_app_clock_main || !p_app_clock_main->ready || p_app_clock_main->stopping) return;
     //if (event->code != LV_EVENT_PRESSING)
     //    rt_kprintf("tileview_event_cb_t %s\n", lv_event_to_name(event->code));
 
@@ -441,61 +403,26 @@ static void tileview_event_cb_t(lv_event_t *event)
 
 static void app_clock_main_init(void)
 {
-    rt_uint16_t i;
-    lv_coord_t scr_hor_res, scr_ver_res;
-    rt_uint16_t last_active_clock_bak; /*when tileview created, LV_EVENT_VALUE_CHANGED (idx is 0) will be send */
-
-    scr_hor_res = lv_disp_get_hor_res(lv_disp_get_default());
-    scr_ver_res = lv_disp_get_ver_res(lv_disp_get_default());
-
-    last_active_clock_bak = last_active_clock;
-
-    lv_obj_t *tileview;
-
-    //1. create title view
-    tileview = lv_tileview_create(lv_scr_act());
+    uint16_t i = 0;
+    rt_list_t *pos;
+    lv_obj_t *tileview = lv_tileview_create(lv_scr_act());
+    if (!tileview) return;
+    p_app_clock_main->tileview = tileview;
     lv_obj_set_scrollbar_mode(tileview, LV_SCROLLBAR_MODE_OFF);
-    p_app_clock_main->p_tileview_valid_pos = (lv_point_t *) rt_malloc(sizeof(lv_point_t) * p_app_clock_main->app_clock_list_len);
-    rt_kprintf("app_clock_main_init: app_clock_list_len=%d\n", p_app_clock_main->app_clock_list_len);
-
     lv_obj_set_style_bg_color(tileview, lv_color_black(), LV_PART_MAIN);
     lv_obj_set_style_bg_opa(tileview, LV_OPA_COVER, LV_PART_MAIN);
-
-    for (i = 0; i < p_app_clock_main->app_clock_list_len; i++)
+    rt_list_for_each(pos, &p_app_clock_main->list)
     {
-        p_app_clock_main->p_tileview_valid_pos[i].x = i;
-        p_app_clock_main->p_tileview_valid_pos[i].y = 0;
+        app_clock_desc_t *desc = rt_list_entry(pos, app_clock_desc_t, node);
+        desc->parent = lv_tileview_add_tile(tileview, i++, 0, LV_DIR_HOR);
+        if (!desc->parent) return;
+        lv_obj_set_scrollbar_mode(desc->parent, LV_SCROLLBAR_MODE_OFF);
     }
-
-    //2. load clocks into tileview
-    rt_list_t *pos;
-    i = 0;
-    //rt_list_for_each_entry(clk_desc,&p_app_clock_main->list,node)
-    rt_list_for_each(pos, (&p_app_clock_main->list))
-    {
-        app_clock_desc_t *clk_desc = rt_list_entry(pos, app_clock_desc_t, node);
-        rt_kprintf("Page[%u]: %s, state=%s\n", i, clk_desc->id, app_clock_state_to_name(clk_desc->state));
-        lv_obj_t *page;
-
-        page = lv_tileview_add_tile(tileview, i, 0, LV_DIR_HOR);
-        lv_obj_set_size(page, scr_hor_res, scr_ver_res);
-        lv_obj_set_pos(page, scr_hor_res * i, 0);
-        lv_obj_set_scrollbar_mode(page, LV_SCROLLBAR_MODE_OFF);
-
-        clk_desc->parent = page;
-        i++;
-        rt_kprintf("app_clock_main_init: add clock[%s] to tileview, idx=%d\n", clk_desc->id, i - 1);
-    }
-
+    if (last_active_clock >= i) last_active_clock = 0;
+    lv_obj_set_tile_id(tileview, last_active_clock, 0, false);
     lv_obj_add_event_cb(tileview, tileview_event_cb_t, LV_EVENT_ALL, NULL);
-
-    if (last_active_clock_bak < p_app_clock_main->app_clock_list_len)
-        lv_obj_set_tile_id(tileview, last_active_clock_bak, 0, false);
-    else
-        last_active_clock_bak = 0;
-
-    //3.create status bar at top
-    app_clock_main_status_bar_init(lv_scr_act(), tileview);
+    if (!app_clock_main_status_bar_init(lv_scr_act(), tileview)) return;
+    p_app_clock_main->ready = true;
 }
 
 #ifdef RT_USING_XIP_MODULE
@@ -609,10 +536,14 @@ void app_clock_reset_time(void)
 }
 
 
+static void on_stop(void);
+
 static void on_start(void)
 {
-    /* init list*/
+    if (p_app_clock_main) return;
+    /* 先建立管理器，再逐个注册；任何一步失败都统一回滚。 */
     p_app_clock_main = (app_clock_main_t *) rt_malloc(sizeof(app_clock_main_t));
+    if (!p_app_clock_main) { iw_recovery_show(APP_ID); return; }
     memset(p_app_clock_main, 0, sizeof(app_clock_main_t));
     rt_list_init(&p_app_clock_main->list);
 #if (LV_HOR_RES_MAX < 512)&&(LV_VER_RES_MAX < 512)
@@ -633,18 +564,27 @@ static void on_start(void)
 
     app_clock_reset_time();
 
-    /* first resume after launched*/
-    app_clock_main_init();
+    if (!p_app_clock_main->registration_failed && p_app_clock_main->app_clock_list_len)
+        app_clock_main_init();
+    if (!p_app_clock_main->ready)
+    {
+        on_stop();
+        iw_recovery_show(APP_ID);
+    }
 }
 
 static void on_resume(void)
 {
+    if (!p_app_clock_main) { iw_recovery_show(APP_ID); return; }
 
     app_clock_main_select(last_active_clock);
 }
 
 static void on_pause(void)
 {
+    iw_gui_cancel_input();
+    iw_recovery_hide(APP_ID);
+    if (!p_app_clock_main || p_app_clock_main->stopping) return;
     rt_list_t *pos;
     uint16_t i = 0;
 
@@ -658,32 +598,30 @@ static void on_pause(void)
 
 static void on_stop(void)
 {
-    if (p_app_clock_main)
+    app_clock_main_t *manager = p_app_clock_main;
+    iw_recovery_hide(APP_ID);
+    if (!manager || manager->stopping) return;
+    manager->stopping = true;
+    iw_gui_cancel_input();
+    if (manager->tileview)
+        lv_obj_remove_event_cb(manager->tileview, tileview_event_cb_t);
+    /* 先摘链再释放，禁止让遍历宏读取已经释放的 node->next。 */
+    while (!rt_list_isempty(&manager->list))
     {
-
-        rt_list_t *pos;
-
-        rt_list_for_each(pos, (&p_app_clock_main->list))
-        {
-            app_clock_desc_t *clk_desc;
-            clk_desc = rt_list_entry(pos, app_clock_desc_t, node);
-
-            app_clock_change_state(clk_desc, STATE_DEINIT);
-
+        app_clock_desc_t *desc = rt_list_entry(manager->list.next, app_clock_desc_t, node);
+        rt_list_remove(&desc->node);
+        app_clock_change_state(desc, STATE_DEINIT);
 #ifdef RT_USING_XIP_MODULE
-            if (clk_desc->mod)
-            {
-                dlclose(clk_desc->mod);
-            }
-#endif  /* RT_USING_XIP_MODULE */
-            rt_free(clk_desc);
-        }
-        rt_free(p_app_clock_main->p_tileview_valid_pos);
-        rt_free(p_app_clock_main);
-        p_app_clock_main = NULL;
-
-        app_clock_main_status_bar_deinit();
+        if (desc->mod) dlclose(desc->mod);
+#endif
+        rt_free(desc);
     }
+    app_clock_main_status_bar_deinit();
+    if (manager->tileview) lv_obj_delete(manager->tileview);
+    change_context = NULL;
+    clk_parent = NULL;
+    p_app_clock_main = NULL;
+    rt_free(manager);
 }
 
 
@@ -731,30 +669,26 @@ BUILTIN_APP_EXPORT(LV_EXT_STR_ID(clock), LV_EXT_IMG_GET(img_clock), APP_ID, app_
 /**********************app clocks manager**************************/
 int32_t app_clock_register(const char *id, const app_clock_ops_t *operations)
 {
-    app_clock_desc_t *new_clock;
-    uint16_t id_len;
-
-    if ((!id) || (!operations)) return RT_EINVAL;
-
-    new_clock = (app_clock_desc_t *) rt_malloc(sizeof(app_clock_desc_t));
-
-    id_len = strlen(id);
-    if (id_len > APP_CLOCK_ID_MAX_LEN)
-        id_len = APP_CLOCK_ID_MAX_LEN;
-
-    memcpy(new_clock->id, id, id_len);
-    new_clock->id[id_len] = '\0';
-
+    if (!p_app_clock_main || p_app_clock_main->ready || p_app_clock_main->stopping || !id || !*id || !operations)
+        return -RT_EINVAL;
+    if (p_app_clock_main->app_clock_list_len >= APP_CLOCK_MAX_COUNT)
+    {
+        p_app_clock_main->registration_failed = true;
+        return -RT_ENOMEM;
+    }
+    app_clock_desc_t *new_clock = rt_calloc(1, sizeof(*new_clock));
+    if (!new_clock)
+    {
+        p_app_clock_main->registration_failed = true;
+        return -RT_ENOMEM;
+    }
+    /* 保持 SDK 的八字节表盘标识兼容性。 */
+    rt_strncpy(new_clock->id, id, APP_CLOCK_ID_MAX_LEN);
     new_clock->ops = operations;
-    new_clock->state = STATE_DEINIT;
-    new_clock->mod = NULL;
-
     rt_list_init(&new_clock->node);
     rt_list_insert_before(&p_app_clock_main->list, &new_clock->node);
-
     p_app_clock_main->app_clock_list_len++;
-
-    return 0;
+    return RT_EOK;
 }
 
 #if 0

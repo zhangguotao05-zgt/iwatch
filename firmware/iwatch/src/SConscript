@@ -10,6 +10,8 @@ objs = list(src)
 inc+= [cwd]
 
 objs.extend(SConscript(os.path.join(cwd, 'core/SConscript'), variant_dir="core", duplicate=0))
+objs.extend(SConscript(os.path.join(cwd, 'gui_core/SConscript'), variant_dir="gui_core", duplicate=0))
+objs.extend(SConscript(os.path.join(cwd, 'platform/SConscript'), variant_dir="platform", duplicate=0))
 
 
 #Add resources.

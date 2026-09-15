@@ -1,0 +1,4 @@
+from building import *
+cwd = GetCurrentDir()
+group = DefineGroup('Iwatch_platform', Glob('*.c'), depend=[], CPPPATH=[cwd])
+Return('group')

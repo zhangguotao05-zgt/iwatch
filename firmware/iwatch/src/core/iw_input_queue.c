@@ -53,12 +53,18 @@ bool iw_input_queue_pop(iw_input_queue_t *queue, iw_input_event_t *event)
     return true;
 }
 
+void iw_input_queue_cancel(iw_input_queue_t *queue)
+{
+    queue->cancel_pending = true;
+}
+
 bool iw_input_gate_accept(iw_input_gate_t *gate, iw_input_action_t action)
 {
     if (action == IW_INPUT_CANCEL)
     {
         gate->armed = false;
         gate->wait_release = true;
+        gate->release_observed = false;
         return false;
     }
     if (gate->wait_release)
@@ -86,4 +92,25 @@ bool iw_input_gate_accept(iw_input_gate_t *gate, iw_input_action_t action)
     default:
         return false;
     }
+}
+
+bool iw_input_gate_recover(iw_input_gate_t *gate, bool pressed, uint32_t now, uint32_t stable_ticks)
+{
+    if (!gate->wait_release || pressed)
+    {
+        gate->release_observed = false;
+        return false;
+    }
+    if (!gate->release_observed)
+    {
+        gate->release_since = now;
+        gate->release_observed = true;
+        return false;
+    }
+    /* 无符号差值允许系统节拍回绕，稳定窗口必须小于半个计数周期。 */
+    if ((uint32_t)(now - gate->release_since) < stable_ticks) return false;
+    gate->wait_release = false;
+    gate->armed = false;
+    gate->release_observed = false;
+    return true;
 }

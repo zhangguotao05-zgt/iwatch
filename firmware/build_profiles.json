@@ -1,0 +1,33 @@
+{
+  "schema": 1,
+  "sdk_commit": "421126d9f476ed8e2a6f0b0ca28a9f241c182e65",
+  "toolchains": {
+    "gcc": "14.2.1 20241119",
+    "keil": "ARM Compiler 6.16"
+  },
+  "common_resource_contract": {
+    "status": "设计预算，D07/D15 前验证；不修改现有分区",
+    "minimal_builtin_font_max_bytes": 131072,
+    "essential_external_assets_max_bytes": 4194304,
+    "boot_error_ui_requires_external_assets": false
+  },
+  "profiles": {
+    "DEV_A128_NAND": {
+      "build_enabled": true,
+      "board": "iwatch_sf32lb58_a128_qspi",
+      "sdk_bsp": "customer/boards/sf32lb58-lcd_base",
+      "storage": {"external_nand_bytes": 134217728, "psram1_bytes": 16777216, "psram2_bytes": 16777216},
+      "main_slot_bytes": 6291456,
+      "image_warning_percent": 85,
+      "image_min_headroom_bytes": 131072,
+      "required_defines": {"SOC_SF32LB58X": "1", "BF0_HCPU": "1", "LVGL_V9": null, "BSP_KEY1_PIN": "150", "BSP_KEY2_PIN": "152", "BSP_QSPI1_MEM_SIZE": "16", "BSP_QSPI2_MEM_SIZE": "16", "BSP_QSPI4_MEM_SIZE": "128", "RT_TICK_PER_SECOND": "1000", "LV_FB_LINE_NUM": "50", "LCD_USING_TFT_CO5300": null, "BSP_USING_TOUCHD": null},
+      "forbidden_defines": ["BSP_USING_PM", "BSP_USING_DFU"]
+    },
+    "PRODUCT_N16_NOR": {
+      "build_enabled": false,
+      "status": "设计目标，待原理图、存储映射、引导与 BSP 验证，不生成镜像",
+      "storage": {"sip_nor_bytes": 1048576, "external_nor_bytes": 16777216},
+      "main_slot_bytes": null
+    }
+  }
+}

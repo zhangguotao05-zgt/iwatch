@@ -8,7 +8,7 @@
 - [架构复审与开发基线 v1.1](docs/ui/架构复审与开发基线_v1.1.html)
 - [功能逻辑与页面契约](docs/ui/功能逻辑与页面契约_v1.html)
 - [模块接口、开发任务与测试矩阵](docs/ui/模块接口与开发任务_v1.html)
-- [系统架构 v1.1](docs/ui/系统架构_v1.html)
+- [系统架构 v1.1](docs/ui/系统架构_v1.1.html)
 - [视觉与交互规范 v1](docs/ui/视觉与交互规范_v1.html)
 - [实施与验收记录](docs/ui/实施与验收_v1.html)
 - [Series 11 界面覆盖计划](docs/UI复刻计划_watchOS26.html)

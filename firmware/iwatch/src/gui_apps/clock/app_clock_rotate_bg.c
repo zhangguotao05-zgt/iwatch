@@ -116,9 +116,12 @@ static void app_clock_rotate_bg_redraw(lv_timer_t *task)
 
 static rt_int32_t resume_callback(void)
 {
+    if (!p_clk_rotate_bg) return -RT_EINVAL;
+    if (p_clk_rotate_bg->redraw_task) return RT_EOK;
     if (NULL == p_clk_rotate_bg->redraw_task)
     {
         p_clk_rotate_bg->redraw_task = lv_timer_create(app_clock_rotate_bg_redraw, 30, (void *)0);
+        if (!p_clk_rotate_bg->redraw_task) return -RT_ENOMEM;
     }
 
 #if CACHE_ROTATE_BG
@@ -127,6 +130,7 @@ static rt_int32_t resume_callback(void)
         //cache rotate_bg
         p_clk_rotate_bg->bg_cache = app_cache_copy_alloc(LV_EXT_IMG_GET(ROTATE_BG_IMG_VARIABLE), ROTATE_MEM);
 
+        if (!p_clk_rotate_bg->bg_cache) return -RT_ENOMEM;
         lv_image_set_src(p_clk_rotate_bg->bg, p_clk_rotate_bg->bg_cache);
         lv_obj_align(p_clk_rotate_bg->bg, LV_ALIGN_CENTER, 0, 0);
     }
@@ -138,9 +142,10 @@ static rt_int32_t resume_callback(void)
 
 static rt_int32_t pause_callback(void)
 {
+    if (!p_clk_rotate_bg) return RT_EOK;
     if (p_clk_rotate_bg->redraw_task)
     {
-        lv_timer_del(p_clk_rotate_bg->redraw_task);
+        if (p_clk_rotate_bg->redraw_task) lv_timer_del(p_clk_rotate_bg->redraw_task);
         p_clk_rotate_bg->redraw_task = NULL;
     }
 
@@ -161,9 +166,11 @@ static rt_int32_t pause_callback(void)
 static rt_int32_t init(lv_obj_t *parent)
 {
     p_clk_rotate_bg = (app_clock_rotate_bg_t *) rt_malloc(sizeof(app_clock_rotate_bg_t));
+    if (!p_clk_rotate_bg) return -RT_ENOMEM;
     memset(p_clk_rotate_bg, 0, sizeof(app_clock_rotate_bg_t));
 
     p_clk_rotate_bg->bg     = lv_image_create(parent);
+    if (!p_clk_rotate_bg->bg) return -RT_ENOMEM;
 
 
     lv_image_set_src(p_clk_rotate_bg->bg, LV_EXT_IMG_GET(ROTATE_BG_IMG_VARIABLE));
@@ -174,10 +181,12 @@ static rt_int32_t init(lv_obj_t *parent)
     rt_kprintf("app_clock_rotate_bg img_size:h:%d,w:%d \n", img_h, img_w);
 
     p_clk_rotate_bg->hour_hand   = lv_image_create(parent);
+    if (!p_clk_rotate_bg->hour_hand) return -RT_ENOMEM;
     lv_image_set_src(p_clk_rotate_bg->hour_hand, LV_EXT_IMG_GET(clock_rotate_bg_hour_hand));
     lv_obj_align(p_clk_rotate_bg->hour_hand, LV_ALIGN_TOP_MID, 0, 0);
 
     p_clk_rotate_bg->minute_hand   = lv_image_create(parent);
+    if (!p_clk_rotate_bg->minute_hand) return -RT_ENOMEM;
     lv_image_set_src(p_clk_rotate_bg->minute_hand, LV_EXT_IMG_GET(clock_rotate_bg_minute_hand));
     lv_obj_align(p_clk_rotate_bg->minute_hand, LV_ALIGN_TOP_MID, 0, 0);
 
@@ -193,25 +202,11 @@ static rt_int32_t init(lv_obj_t *parent)
 
 static rt_int32_t deinit(void)
 {
-    if (p_clk_rotate_bg)
-    {
-        if (p_clk_rotate_bg->redraw_task)
-        {
-            lv_timer_del(p_clk_rotate_bg->redraw_task);
-            p_clk_rotate_bg->redraw_task = NULL;
-        }
-#if CACHE_ROTATE_BG
-
-        if (p_clk_rotate_bg->bg_cache != NULL)
-        {
-            app_cache_copy_free(p_clk_rotate_bg->bg_cache);
-            p_clk_rotate_bg->bg_cache = NULL;
-        }
-#endif
-        rt_free(p_clk_rotate_bg);
-        p_clk_rotate_bg = NULL;
-    }
-
+    if (!p_clk_rotate_bg) return RT_EOK;
+    /* 停止回调并解除缓存引用后才释放状态，允许失败回滚和重复退出。 */
+    pause_callback();
+    rt_free(p_clk_rotate_bg);
+    p_clk_rotate_bg = NULL;
     return RT_EOK;
 }
 
