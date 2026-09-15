@@ -8,6 +8,13 @@ config SOLUTION_ALLOC_MEM
     bool
     default y
 
+config IW_TOUCH_THREAD_STACK_SIZE
+    int "iwatch touch thread stack size"
+    range 1024 4096
+    default 2048
+    help
+        本项目替换版 SiFli 触摸驱动所使用的 tpread 线程栈大小，单位为字节。
+
 menu "app cache Memory configuration"
 
 choice

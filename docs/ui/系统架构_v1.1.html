@@ -15,7 +15,7 @@
   <div class="page-shell">
     <nav class="toc" aria-label="文档目录">
 <ul>
-<li><a href="#iwatch-系统架构-v1">iwatch 系统架构 v1</a><ul>
+<li><a href="#iwatch-系统架构-v1-1">iwatch 系统架构 v1.1</a><ul>
 <li><a href="#架构决定">1. 架构决定</a></li>
 <li><a href="#分层与依赖">2. 分层与依赖</a></li>
 <li><a href="#已读到的硬件与软件基线">3. 已读到的硬件与软件基线</a><ul>
@@ -42,7 +42,7 @@
 </ul>
     </nav>
     <main>
-<section id="iwatch-系统架构-v1" class="level1">
+<section id="iwatch-系统架构-v1-1" class="level1">
 <h1>iwatch 系统架构 v1.1</h1>
 <p>日期：2026-09-15。基准：SF32LB58 开发板、390×450 CO5300/FT6146 模组、SiFli-SDK v2.5.1、LVGL 9.4.0。</p>
 <p>本文确定后续实现的边界和约束；除明确列入实施记录的部分，其余均为设计。界面覆盖范围见 <a href="../UI复刻计划_watchOS26.html">UI 复刻计划</a>，像素与动效规范见 <a href="视觉与交互规范_v1.html">视觉与交互规范</a>，落地次序见 <a href="实施与验收_v1.html">实施与验收</a>。</p>
@@ -168,18 +168,18 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 </tr>
 <tr class="even">
 <td>GUI</td>
-<td><code>app_watch</code> 优先级 19，16 KiB 栈，当前栈使用峰值 36%</td>
+<td><code>app_watch</code> 优先级 19，16 KiB 栈，D01–D03 压力峰值 36%</td>
 <td>先保留，不因一次快照缩栈</td>
 </tr>
 <tr class="odd">
 <td>驱动</td>
-<td><code>tpread</code> 优先级 10、1 KiB 栈；<code>lcd_task</code> 优先级 12、2 KiB 栈</td>
-<td>保留 SDK 分工</td>
+<td><code>tpread</code> 优先级 10、2 KiB 栈，压力峰值 27%；<code>lcd_task</code> 优先级 12、2 KiB 栈，峰值 43%</td>
+<td>保留 SDK 分工；触摸线程由项目本地实现固定栈预算</td>
 </tr>
 <tr class="even">
 <td>主堆</td>
-<td>总量 1,809,900 B，当前使用 153,264 B，历史峰值 202,368 B</td>
-<td>空闲约 1.58 MiB；这不是全部 PSRAM 可用量</td>
+<td>D01–D03 固件总量 1,808,164 B，压力结束使用 59,616 B，测试峰值 203,444 B</td>
+<td>结束空闲约 1.67 MiB；这不是全部 PSRAM 可用量</td>
 </tr>
 <tr class="odd">
 <td>图像/字体池</td>
@@ -188,8 +188,8 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 </tr>
 <tr class="even">
 <td>触摸</td>
-<td>FT6146 已读出 ID；实物显示已经点亮</td>
-<td>坐标、边缘、连续拖动仍待板测</td>
+<td>FT6146 已读出 ID；实物显示点亮，连续点击与拖动压力测试通过</td>
+<td>四角、方向和边缘误差仍需按产品校准流程单列验收</td>
 </tr>
 <tr class="odd">
 <td>低功耗</td>
@@ -204,12 +204,12 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 <p>当前项目分区来源为 <code>firmware/iwatch/project/iwatch_sf32lb58_a128_qspi_hcpu/ptab.json</code>，不能只看通用板级 <code>ptab.yaml</code>。</p>
 <ul>
 <li>PSRAM1 原配置为代码 6 MiB + 数据 12 MiB，总计 18 MiB，超过板级配置的 16 MiB。第一批修改将数据区收敛至 <strong>10 MiB</strong>，并在构建前检查边界。</li>
-<li>修改前 PSRAM 中代码运行窗口为 6 MiB，NAND 中 <code>main</code> 镜像装载槽只有 <strong>4 MiB</strong>。进一步读取发现本地 <code>main.bin</code> 为 5,709,092 B，约 5.45 MiB，按旧下载地址会越过 KV 区并进入文件系统范围。尚未读出板上 NAND 内容，不能由此断定实际保存了哪些数据或哪些数据已经损坏。</li>
+<li>修改前 PSRAM 中代码运行窗口为 6 MiB，NAND 中 <code>main</code> 镜像装载槽只有 <strong>4 MiB</strong>。当时的 <code>main.bin</code> 已超过旧槽，按旧下载地址会越过 KV 区并进入文件系统范围。迁移前已保存 22 MiB NAND、1 MiB NOR 和 FTab 备份；这些原始备份不等同于已证明所有旧数据都具备应用级恢复语义。</li>
 <li>主文件系统分区是 6 MiB；32 MiB 的资源空间只能作为未来重新分区目标。扩容必须同步启动表、烧录脚本、文件系统、坏块处理与迁移方案。</li>
 <li>历史 <code>flash1</code> FAL 缺失提示仍待解决。在挂载和掉电恢复验证通过前，设置只能报告为本次会话有效，不宣称已永久保存。</li>
 </ul>
 <p>本地 v1 配置将 <code>main</code> 装载槽移到 NAND 偏移 <strong>0x01000000（16 MiB）</strong>，地址 <strong>0x69000000</strong>，大小 <strong>6 MiB</strong>；现有 KV、FS、FS_EX、ACPU 和启动 NOR 的地址保持原值。该区域在当前完整表中没有其他分区，且位于配置的 128 MiB NAND 内。第一批同时增加布局/镜像/下载地址检查。</p>
-<p>这是待上板验证的新布局；当前板上没有执行迁移。首次烧录前必须导出旧 flash table、数据区与现有固件，并确认实际 NAND 型号/容量及 SDK 的地址转换。随后验证新槽写入、校验、启动表切换和回滚路径。不能只替换 <code>main.bin</code> 后沿用旧烧录地址；源码检查通过不能替代新地址的实机引导验证。</p>
+<p>DEV_A128_NAND 新布局已完成旧区备份、GCC main 写入与独立回读、匹配 FTab 切换、冷启动和串口恢复。已验收 main 为 5,734,412 B，占槽 91.146%。调试中也实际复现了新 main 配旧 FTab 时无法启动，因此后续必须使用 <code>flash-serial.ps1</code> 校验并烧录同一归档的三件套。底层 NAND 几何、ECC/BBM 和持久化掉电恢复仍归 D15。</p>
 </section>
 </section>
 <section id="线程与调度" class="level2">

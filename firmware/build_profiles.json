@@ -20,7 +20,7 @@
       "main_slot_bytes": 6291456,
       "image_warning_percent": 85,
       "image_min_headroom_bytes": 131072,
-      "required_defines": {"SOC_SF32LB58X": "1", "BF0_HCPU": "1", "LVGL_V9": null, "BSP_KEY1_PIN": "150", "BSP_KEY2_PIN": "152", "BSP_QSPI1_MEM_SIZE": "16", "BSP_QSPI2_MEM_SIZE": "16", "BSP_QSPI4_MEM_SIZE": "128", "RT_TICK_PER_SECOND": "1000", "LV_FB_LINE_NUM": "50", "LCD_USING_TFT_CO5300": null, "BSP_USING_TOUCHD": null},
+      "required_defines": {"SOC_SF32LB58X": "1", "BF0_HCPU": "1", "LVGL_V9": null, "BSP_KEY1_PIN": "150", "BSP_KEY2_PIN": "152", "BSP_QSPI1_MEM_SIZE": "16", "BSP_QSPI2_MEM_SIZE": "16", "BSP_QSPI4_MEM_SIZE": "128", "RT_TICK_PER_SECOND": "1000", "LV_FB_LINE_NUM": "50", "LCD_USING_TFT_CO5300": null, "BSP_USING_TOUCHD": null, "IW_TOUCH_THREAD_STACK_SIZE": "2048"},
       "forbidden_defines": ["BSP_USING_PM", "BSP_USING_DFU"]
     },
     "PRODUCT_N16_NOR": {

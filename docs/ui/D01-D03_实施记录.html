@@ -1,59 +1,114 @@
-<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>D01–D03 实施与验证 · iwatch</title><link rel="stylesheet" href="../assets/engineering.css"></head><body><header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D01–D03 实施与验证</span></header><div class="page-shell"><nav class="toc" aria-label="文档目录"><ul><li><a href="#scope">范围与状态</a></li><li><a href="#lifecycle">生命周期</a></li><li><a href="#build">构建来源与存储</a></li><li><a href="#input">等待与输入</a></li><li><a href="#reproduce">复现与后续</a></li></ul></nav><main>
-<section id="scope"><h1>D01–D03 实施与验证记录</h1>
-<p>日期：2026-09-15。范围：既有演示页面生命周期、构建来源及 GUI 输入基础。硬件基线为 SF32LB58-DevKit-LCD A128R32N1 / A1，390×450 CO5300 QSPI AMOLED + FT6146。沿用 HCPU 240 MHz、LCPU 48 MHz 配置、16 KiB GUI 栈与 50 行双绘制缓冲；这些是现有基线，本轮没有新的板上测量。</p>
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch D01-D03 实施、构建及 SF32LB58 板上验收记录">
+  <title>D01–D03 实施与验证 · iwatch</title>
+  <link rel="stylesheet" href="../assets/engineering.css">
+</head>
+<body>
+<header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D01–D03 实施与验证</span></header>
+<div class="page-shell">
+<nav class="toc" aria-label="文档目录"><ul>
+  <li><a href="#scope">范围与结论</a></li>
+  <li><a href="#lifecycle">生命周期</a></li>
+  <li><a href="#build">构建来源与镜像</a></li>
+  <li><a href="#input">等待、输入与触摸栈</a></li>
+  <li><a href="#board">板上验收</a></li>
+  <li><a href="#reproduce">复现与后续</a></li>
+</ul></nav>
+<main>
+<section id="scope">
+<h1>D01–D03 实施与验证记录</h1>
+<p>日期：2026-09-15。目标板：SF32LB58-DevKit-LCD A128R32N1 / A1，390×450 CO5300 QSPI AMOLED + FT6146。下载通道为 CH342-A（COM9），运行日志为 CH342-B（COM10，1,000,000 baud，8N1）。本次没有使用 J-Link。</p>
 <table><thead><tr><th>任务</th><th>主机验证</th><th>目标构建</th><th>板上验证</th></tr></thead><tbody>
-<tr><td>D01 生命周期</td><td>通过；回收函数循环、分配失败与字体所有权</td><td>GCC / Arm Compiler 通过</td><td>未执行；未烧录</td></tr>
-<tr><td>D02 构建来源</td><td>通过；布局、有效配置、空间、哈希、工具链误标和互斥锁</td><td>固定提交的干净 SDK，两个工具链分别生成产物</td><td>新分区引导与回读未执行</td></tr>
-<tr><td>D03 等待与取消</td><td>通过；有界等待、锁存事件、取消、稳定释放和节拍回绕</td><td>GCC / Arm Compiler 通过</td><td>输入 P95、触摸跨页、压力栈峰值待测</td></tr>
+<tr><td>D01 生命周期</td><td>通过；退出、重复销毁、部分构造和分配失败路径已覆盖</td><td>GCC 14.2.1 与 Arm Compiler 6.16 均通过</td><td>通过；自动循环与实物压力操作后无泄漏、异常或遗留页面</td></tr>
+<tr><td>D02 构建来源</td><td>通过；SDK、BSP、配置、布局、工具链、哈希和构建锁已固定</td><td>两套产物独立归档；镜像地址与槽大小检查通过</td><td>DEV_A128_NAND 包通过备份、写入校验、回读、冷启动和串口恢复</td></tr>
+<tr><td>D03 等待与取消</td><td>通过；20 ms 有界等待、锁存唤醒、取消恢复和节拍回绕已覆盖</td><td>两工具链均使用 2 KiB 本地触摸线程栈实现</td><td>通过；输入 P95 为 25 ms，计数守恒，压力后最高已测线程栈 43%</td></tr>
 </tbody></table>
-<p>G1 允许基础集成，G2 才允许烧录；D04/D05 尚未实现，所以当前不宣布 G1 或 G2 通过。没有新增批量 UI，没有写入开发板、改变板上分区或定版自研 PCB。</p></section>
+<p>结论只适用于下文列出的 GCC 固件包和本次 D01–D03 范围。该包已满足 G2 的备份、镜像身份、写后校验、引导和恢复要求；D04/D05 的时间、启动协调和服务契约尚未完成，因此完整 G1/M1 流程仍未闭环。当前界面仍以 SDK 演示页面为基线。</p>
+</section>
 
-<section id="lifecycle"><h2>1. 页面生命周期与失败回滚</h2>
-<p>表盘管理器先从链表摘除描述符，再调用暂停/反初始化并释放。管理器增加就绪与停止标志，空列表、重复退出、部分注册和对象创建失败均走受控路径；插件失败不会被标记为活动状态。暂停、定时器回收及反初始化可重复调用，图片缓存先解除控件引用再释放。退出后清除上下文指针，只删除本页创建的对象，框架持有的根屏幕仍由框架删除。</p>
-<p>桌面把自身作为 display 回调的用户数据，退出先按“回调函数 + 用户数据”注销，再停止动画、删除图标及页面、释放数组和管理器。图标删除回调只释放自己的命令字符串。状态栏先删除控件树，再释放字体缓存；各阶段允许部分构造回滚。</p>
-<p><code>gui_core/iw_recovery.c</code> 在启动演示页面前创建常驻错误层，使用已有 Montserrat 20 点内置字库。错误路径只显示现有对象，不临时申请整屏图片或大字库。当前提示使用短英文，D07 负责中文最小字库与产品视觉。错误层本身若建立失败，停止 GUI 启动并记录日志；不谎称此时仍能显示错误页。</p>
-<p>测试直接抽取当前生产文件的完整被测函数并编入 C 测试，使用 AddressSanitizer 与所有权替身：三个描述符退出循环 1,000 次、桌面循环 1,000 次、字体销毁循环 100 次；桌面管理器/数组/页面对象四个分配点及绘制失败回滚；三个表盘插件分别 10、10、6 个分配点逐一失败。测试不复制退出实现。替身覆盖项目拥有的状态、控件返回值、缓存和定时器；不模拟 LVGL 内部所有 style/event 分配，不能据此承诺整个 SDK 在任意堆耗尽下都可恢复。</p></section>
+<section id="lifecycle">
+<h2>1. 页面生命周期与失败回滚</h2>
+<p>表盘管理器先从链表摘除描述符，再执行暂停、反初始化和释放。就绪与停止标志使空列表、重复退出、部分注册和对象创建失败都能回到稳定状态；插件构造失败不会被记录为活动表盘。图片缓存先解除控件引用再释放，退出后清除上下文指针，只删除本页拥有的对象。</p>
+<p>桌面退出时按“回调函数 + 用户数据”注销 display 回调，再停止动画、删除图标与页面并释放数组和管理器。状态栏先删除控件树，再释放字体缓存。<code>gui_core/iw_recovery.c</code> 在页面启动前建立常驻最小错误层，错误路径不临时申请整屏图片或大字库；D07 再补产品化中文错误页。</p>
+<p>主机测试从生产文件抽取完整被测函数并用 AddressSanitizer 执行：三个描述符退出 1,000 轮、桌面构造与销毁 1,000 轮、字体销毁 100 轮；管理器、数组、页面、绘制和三个表盘插件的逐点失败路径全部通过。它覆盖本项目持有的对象、缓存和定时器，不把 LVGL 内部任意内存耗尽等同于已经验证。</p>
+</section>
 
-<section id="build"><h2>2. 固定构建来源与存储配置</h2>
-<p>机器配置以 <a href="../../firmware/build_profiles.json">build_profiles.json</a> 为准。SDK 固定为 <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code>，要求工作区及子模块干净；Bluetooth 子模块为 <code>4d081f8fc4bfc0199bdccc1bb36b9fdc40e7240c</code>，SiliconSchema 为 <code>304658c6edd5497211b7d152932327ce6e4450ff</code>。本机隔离检出目录为 <code>C:\OpenSiFli\SiFli-SDK-v2.5.1-iwatch-locked</code>。</p>
+<section id="build">
+<h2>2. 固定构建来源与镜像</h2>
+<p><a href="../../firmware/build_profiles.json">build_profiles.json</a> 固定 SDK 提交 <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code>、Bluetooth 子模块 <code>4d081f8fc4bfc0199bdccc1bb36b9fdc40e7240c</code> 和 SiliconSchema <code>304658c6edd5497211b7d152932327ce6e4450ff</code>。实际公共 BSP 来自锁定 SDK 的 <code>customer/boards/sf32lb58-lcd_base</code>，构建入口记录逐文件哈希并拒绝脏 SDK、配置漂移、工具链误标和并发共用输出目录。</p>
 <table><thead><tr><th>Profile</th><th>存储目标</th><th>状态</th></tr></thead><tbody>
-<tr><td>DEV_A128_NAND</td><td>128 MiB 外部 NAND，PSRAM1/2 各 16 MiB；main 装载槽及运行窗均 6 MiB。</td><td>本轮唯一可构建目标；分区文件未新增修改。</td></tr>
-<tr><td>PRODUCT_N16_NOR</td><td>1 MiB SiP NOR + 16 MiB 外部 NOR 的设计目标。</td><td>禁止构建；BSP、引导、PSRAM 和最终分区未验证，不能套用开发板镜像。</td></tr>
+<tr><td>DEV_A128_NAND</td><td>128 MiB 外部 NAND；main 装载地址 <code>0x69000000</code>，装载槽与 PSRAM1 运行窗均为 6 MiB</td><td>本次构建、烧录和板上验收目标</td></tr>
+<tr><td>PRODUCT_N16_NOR</td><td>1 MiB SiP NOR + 16 MiB 外部 NOR 的自研板目标</td><td>继续禁止构建；BSP、引导、PSRAM 和分区尚未验证</td></tr>
 </tbody></table>
-<p>两个目标的共同资源设计上限先定义为：启动/错误页内置字库 ≤128 KiB，首个可运行批的必要外置字体与图片合计 ≤4 MiB；扩展资源单独分包。它们是 D07/D15 的设计门槛，尚未完成字体裁剪或资源迁移，不代表 PRODUCT 已预留可用分区。原开发板 32 MiB 资源包设想不能作为共同下限。</p>
-<p>实际公共 BSP 来自锁定 SDK 的 <code>customer/boards/sf32lb58-lcd_base</code>，四个源文件为 <code>bsp_init.c</code>、<code>bsp_pinmux.c</code>、<code>bsp_lcd_tp.c</code>、<code>bsp_power.c</code>。仓库同名基础板目录仍为参考副本。构建脚本明确映射整个 SDK 基础目录，主镜像、引导镜像各自生成对象文件；来源清单记录实际 SDK 路径与逐文件哈希。</p>
-<p>GCC 固定 14.2.1 20241119；Keil 固定 Arm Compiler 6.16。构建前后核对项目输入哈希、SDK 身份和配置，构建后检查真实镜像大小及下载地址，并读取项目对象文件的 ELF <code>.comment</code> 核实实际编译器。Keil 的 <code>--target=mdk5</code> 在本版 SDK 设置 <code>no_exec</code>，只生成工程；脚本现在另行执行真实编译。工程包含 928 个有效源码引用。过去把生成日志当成真实 Keil 构建的表述已更正。</p>
-<p>两个工具链共享 SCons 工作目录，由操作系统文件句柄锁互斥；并发启动会明确失败，异常退出后可重新获取。成功产物分别保存在 <code>project/artifacts/DEV_A128_NAND/gcc</code> 和 <code>keil</code>；包括三个 bin、对应 ELF/AXF、map、有效配置、下载清单、项目对象和 <code>build_identity.json</code>。这些本机构建文件不纳入 Git。手动 uVision 构建后原身份不再自动有效，须重新执行受检查入口。</p>
-<p>镜像达到 6 MiB 槽的 85% 时预警；剩余不足 128 KiB、超槽、错地址、缺镜像、错工具链或配置变动均拒绝发布。现有完整中文字体约 3,939,852 B，尚未裁剪，D07 前必须验证内置最小字体和外置资源方案。此次不扩大镜像槽规避容量问题。</p>
-<table><thead><tr><th>工具链 / 产物</th><th>下载地址</th><th>大小</th><th>SHA-256</th></tr></thead><tbody><tr><td>gcc / main.bin</td><td>0x69000000</td><td>5,733,952 B</td><td><code>00e94adca7607f88dc928ad168fae0e60b19d5225638a98d52259e91f6217195</code></td></tr>
-<tr><td>gcc / bootloader/bootloader.bin</td><td>0x1C020000</td><td>46,144 B</td><td><code>803504f7a4beeb2c62ed4ccefd101d496f376e8f78b4099f928adf66fcf68d45</code></td></tr>
-<tr><td>gcc / ftab/ftab.bin</td><td>0x1C000000</td><td>11,288 B</td><td><code>a4487473ec23517dc68b713d256d6c74a54648310765e111d37ab0099e338565</code></td></tr>
-<tr><td colspan="4">gcc：2026-09-15T09:31:20.999786+00:00；main 占 91.139% ，余 557,504 B。对象文件标记：GCC: (Arm GNU Toolchain 14.2.Rel1 (Build arm-14.52)) 14.2.1 20241119。</td></tr>
-<tr><td>keil / main.bin</td><td>0x69000000</td><td>5,660,120 B</td><td><code>22c9a39d1a66095ad5735fbc67d9be0f09c2fb72f1acade4e7f71ad396c1aa9a</code></td></tr>
-<tr><td>keil / bootloader/bootloader.bin</td><td>0x1C020000</td><td>43,072 B</td><td><code>746899a11d60b070e4458b5d0788ce6e39032b8c253d2cd529d0a265c3d81c38</code></td></tr>
-<tr><td>keil / ftab/ftab.bin</td><td>0x1C000000</td><td>11,280 B</td><td><code>f323efe97310bc39988d48f83275c0d76d89680a7b5624cef0de6f7386852146</code></td></tr>
-<tr><td colspan="4">keil：2026-09-15T09:30:06.934608+00:00；main 占 89.965% ，余 631,336 B。对象文件标记：Component: ARM Compiler 6.16 Tool: armclang [5dfeb700]。</td></tr></tbody></table>
-<p>这些哈希只标识本轮本地构建产物，不是板上固件回读证据。每份身份记录保留构建开始的 Git 父提交与实际未提交源文件哈希；提交编号变化不替代源码内容核对。</p></section>
+<p>GCC 固定为 14.2.1 20241119，Keil 固定为 Arm Compiler 6.16。两个入口均执行源码与 SDK 身份检查、真实编译、镜像大小与下载地址检查，并从目标对象的 ELF/AXF 编译器标记确认实际工具链。生成的 Keil 工程有 928 个有效源码引用。</p>
+<table><thead><tr><th>工具链 / 产物</th><th>下载地址</th><th>大小</th><th>SHA-256</th></tr></thead><tbody>
+<tr><td>GCC / main.bin</td><td>0x69000000</td><td>5,734,412 B</td><td><code>c757045e5e480178069186d28407535c0d994185b9db04ddb339a1defe419753</code></td></tr>
+<tr><td>GCC / bootloader.bin</td><td>0x1C020000</td><td>46,144 B</td><td><code>803504f7a4beeb2c62ed4ccefd101d496f376e8f78b4099f928adf66fcf68d45</code></td></tr>
+<tr><td>GCC / ftab.bin</td><td>0x1C000000</td><td>11,288 B</td><td><code>cf2916bdabfc7b6204f6e81ffe17ad53df69dac8d2c1954e5ad0530a237e8872</code></td></tr>
+<tr><td colspan="4">构建时间 18:16:56–18:18:06（Asia/Shanghai）；main 占 6 MiB 槽 91.146%，剩余 557,044 B，已触发 85% 预警。</td></tr>
+<tr><td>Keil / main.bin</td><td>0x69000000</td><td>5,660,576 B</td><td><code>eac397b5c6aff0a5cae695b1b7adf9165930cbeb9230ba9b2a422f5cac9eca18</code></td></tr>
+<tr><td>Keil / bootloader.bin</td><td>0x1C020000</td><td>43,072 B</td><td><code>746899a11d60b070e4458b5d0788ce6e39032b8c253d2cd529d0a265c3d81c38</code></td></tr>
+<tr><td>Keil / ftab.bin</td><td>0x1C000000</td><td>11,280 B</td><td><code>fa8fa7edb0ccba514d58967e0bd40ee7bb57fa1d50a96b44a9fea3b00f8ce10d</code></td></tr>
+<tr><td colspan="4">构建时间 18:18:15–18:19:23（Asia/Shanghai）；main 占 89.972%，剩余 630,880 B。</td></tr>
+</tbody></table>
+<p>板上使用上表 GCC 包。完整中文字体仍占约 3,939,852 B，已成为主要容量风险；D07 前必须完成最小内置字库和外置字体、图片方案，不能继续按当前方式增加页面资源。</p>
+</section>
 
-<section id="input"><h2>3. GUI 等待与输入取消</h2>
-<p>新增 <code>core/iw_gui_wait</code> 和 <code>platform/iw_gui_port</code>。KEY1 回调只写有界队列并发送唤醒事件；事件对象在 GUI 线程和输入注册之前建立。GUI 每轮先消费取消与输入，再运行 LVGL，再通过 OR+CLEAR 接收等待。禁止在等待前清空事件；因此消息在进入等待前到达仍会被锁存。无定时器哨兵和较长超时都限制到 20 ms，零超时至少让出一个 RTOS 节拍；当前 RT_TICK_PER_SECOND 固定为 1,000。触摸仍由 SDK 的缓冲和 LVGL 读定时器服务，取消时统一重置；本轮没有改写触摸驱动。</p>
-<p>每轮输入最多消费八条或两毫秒，剩余队列继续触发唤醒。原始或语义缓冲溢出时取消整个未完成按压，清空待派发 Home，GUI 线程重置 LVGL 输入并让触摸等待释放。若队列溢出丢掉 RELEASE，则只有排空队列、物理电平持续释放 20 ms 后才重新武装，期间不合成旧单击。无符号节拍差值支持回绕。每键门控相互独立的核心用例已测；本轮实物注册仍只有 KEY1，KEY2/双击/旋转表冠属于 D09。</p>
-<p>PM/DFU 仍关闭，构建身份检查会拒绝未经验证地启用这两个配置。这里的唤醒是活动 GUI 线程的事件唤醒，不代表芯片深睡、屏幕关断或升级路径已经完成。</p></section>
+<section id="input">
+<h2>3. GUI 等待、输入取消与触摸栈</h2>
+<p><code>core/iw_gui_wait</code> 和 <code>platform/iw_gui_port</code> 统一 GUI 唤醒。KEY1 回调只写有界队列并发送事件；GUI 每轮先消费取消与输入，再运行 LVGL，最后通过 OR+CLEAR 接收等待。等待前不清事件，因此提前到达的输入仍被锁存。无定时器哨兵和长超时限制为 20 ms，零超时至少让出一个 RTOS 节拍；本配置为 1,000 tick/s。</p>
+<p>每轮最多消费八条或两毫秒。队列溢出会取消未完成按压、清空待派发 Home，并在物理释放稳定 20 ms 后重新武装；不会因丢失 RELEASE 合成旧单击。触摸取消同时重置 LVGL 输入。KEY2、双击和旋转表冠仍属于 D09。</p>
+<p>首轮压力测试发现 SDK <code>tpread</code> 的 1 KiB 栈峰值达到 78%，超过 75% 门槛，因此没有按首轮结果验收。项目随后引入 <a href="../../firmware/iwatch/src/platform/iw_drv_touch.c">本地触摸线程实现</a>，以 <code>IW_TOUCH_THREAD_STACK_SIZE=2048</code> 固定栈大小并在编译期限制最小值。SCons 和 Keil 都移除且只移除一个 SDK 原实现，再编译本地文件，避免重复符号或工具链分叉。最终压力峰值降到 27%。</p>
+<p><code>iw_input_stat</code> 记录接收、消费、拒绝、丢弃、取消、队列高水位和入队至 GUI 消费延迟；<code>iw_input_stat_reset</code> 清空统计计数与延迟直方图，便于划定一次板测窗口。执行清零前应先停止操作并确认 <code>pending=0</code>，该命令不会丢弃仍在队列中的输入。</p>
+</section>
 
-<section id="reproduce"><h2>4. 本地复现与下一步</h2>
+<section id="board">
+<h2>4. DEV_A128_NAND 板上验收</h2>
+<h3>4.1 备份、烧录与身份</h3>
+<table><thead><tr><th>证据</th><th>长度</th><th>SHA-256</th></tr></thead><tbody>
+<tr><td>烧录前 FTab 备份</td><td>20,480 B</td><td><code>3d1593a9f7011125c06cef316ca0a17f670b05d958a5f79f751ca97fc91c240b</code></td></tr>
+<tr><td>烧录前 1 MiB NOR 备份</td><td>1,048,576 B</td><td><code>8289eb37081cd9700d63b919ba01ffd8110c53d421e7b6778e29958fac3b6d4d</code></td></tr>
+<tr><td>烧录前 22 MiB NAND 备份</td><td>23,068,672 B</td><td><code>e7569d23c59c9f89105b9e6a33a5359c1a0922ad8f827c0a086176d1395eed0a</code></td></tr>
+<tr><td>最终 main 独立回读</td><td>5,734,412 B</td><td><code>c757045e5e480178069186d28407535c0d994185b9db04ddb339a1defe419753</code></td></tr>
+<tr><td>最终 FTab 独立回读</td><td>11,288 B</td><td><code>cf2916bdabfc7b6204f6e81ffe17ad53df69dac8d2c1954e5ad0530a237e8872</code></td></tr>
+<tr><td>冷启动与压力串口原始日志</td><td>232,645 B</td><td><code>aaec2677553e141f7330febee351bcb64932d10e0f784a4b69723db927e1f0a8</code></td></tr>
+</tbody></table>
+<p>main 与 FTab 的独立回读逐字节匹配归档。Bootloader 与前一轮完整烧录包相同，哈希未变化，当时已由 sftool 写后校验；本轮没有另存一份 Bootloader 独立回读文件。所有本地原始证据保存在忽略 Git 的 <code>logs/board-validation-20260915-173809</code>，仓库文档只保存可审查的摘要和哈希。</p>
+<p>调试中曾单独更新 main，旧 FTab 与新 main 元数据不配套，表现为串口无应用输出、屏幕不亮。写入同一 GCC 归档的 FTab 后立即恢复正常启动，硬件没有损坏。后续统一使用 <a href="../../firmware/flash-serial.ps1">flash-serial.ps1</a>；脚本先检查三个镜像的地址和 SHA-256，再通过 CH342 串口成套写入并启用写后校验，拒绝混用 main、Bootloader 和 FTab。</p>
+
+<h3>4.2 冷启动、生命周期与压力结果</h3>
+<p>一次冷启动中两次读得 CO5300 ID <code>0x331100</code>，显示自动开启并设置亮度；FT6146 被驱动探测到，ID_H=<code>0x64</code>、ID_L=<code>0x56</code>。主界面建立成功，转场返回 <code>res=0</code>。日志中的三个 <code>flash1 is not found</code> 仍存在，但没有阻止 NAND 主镜像、LCD、触摸或当前 UI；偏好与资源持久化仍须在 D15 修复并完成掉电恢复测试。</p>
+<p>自动板测执行 6 轮 Main↔clock，得到 12 次 <code>Trans-anim finish, res=0</code>；结束后堆已用值回到 59,616 B，只有 Main 运行，<code>memcheck</code> 无输出。实物压力窗口快速点击、转场中按键及触摸滑动后，共记录 52 次成功转场、39 次受控动画中止、26 次 clock 销毁和 6 条触摸惯性记录。统计复位后没有再次出现启动头，也没有 HardFault、assert、stack overflow、watchdog 或 fatal。</p>
+<table><thead><tr><th>检查项</th><th>实测</th><th>判定</th></tr></thead><tbody>
+<tr><td>输入计数</td><td>accepted=382，consumed=272，discarded=110，pending=0，rejected=0；382=272+110+0</td><td>守恒，通过</td></tr>
+<tr><td>取消与队列</td><td>cancel=78，队列高水位=6</td><td>压力路径被触发，未出现拒绝或挂死</td></tr>
+<tr><td>消费延迟</td><td>lat_count=272，P95=25 ms</td><td>低于 100 ms 目标，通过</td></tr>
+<tr><td>RT-Thread 堆</td><td>总计 1,808,164 B；结束已用 59,616 B；测试期间最大 203,444 B</td><td>回到基线，通过</td></tr>
+<tr><td>线程栈峰值</td><td>tpread 27%，lcd_task 43%，app_watch 36%，tshell 29%，tidle 22%，timer 28%</td><td>全部低于 75%，错误码均为 000</td></tr>
+<tr><td>对象与内存检查</td><td>仅 Main 运行；<code>memcheck</code> 无输出</td><td>通过</td></tr>
+</tbody></table>
+<p>串口宽度使统计行在 <code>lat_p95_ge_100=</code> 后截断，因此本记录不填写最大延迟或超 100 ms 的精确个数；完整可读的 272 样本与 P95=25 ms 足以判断当前 P95 门槛。帧率、P95/P99 帧间隔和最长卡顿尚未测量，留给 T22。</p>
+</section>
+
+<section id="reproduce">
+<h2>5. 复现与下一步</h2>
 <pre><code>git -C C:/OpenSiFli/SiFli-SDK-v2.5.1 worktree add --detach C:/OpenSiFli/SiFli-SDK-v2.5.1-iwatch-locked 421126d9f476ed8e2a6f0b0ca28a9f241c182e65
 git -C C:/OpenSiFli/SiFli-SDK-v2.5.1-iwatch-locked submodule update --init --recursive
 .\firmware\tests\run-core-tests.ps1
 .\firmware\build-gcc.ps1 -SdkPath C:/OpenSiFli/SiFli-SDK-v2.5.1-iwatch-locked
 .\firmware\generate-keil.ps1 -SdkPath C:/OpenSiFli/SiFli-SDK-v2.5.1-iwatch-locked
+.\firmware\flash-serial.ps1 -Port COM9 -Toolchain gcc -DryRun
+# 安装 Mode 跳帽并复位后，去掉 -DryRun 执行完整三件套烧录
 py -3 tools/docs/check_html.py</code></pre>
-<p>已存在固定检出时跳过 worktree add。主机测试需要带 AddressSanitizer 的 Visual Studio C/C++ 工具与 Python 3。验证脚本覆盖原输入队列、GUI 等待/事件适配、六组生命周期测试、14 项 Python 检查和构建锁；只有成功退出才算通过。</p>
-<table><thead><tr><th>时点</th><th>必须闭合的内容</th></tr></thead><tbody>
-<tr><td>D04 开始前</td><td>补齐 iw_boot 启动任务及依赖次序、失败状态和故障注入用例；定义有效 RTC 与单调时间。保留的启动固定日期逻辑由 D04 替换。</td></tr>
-<tr><td>D05 开始前</td><td>冻结 result 的字段、版本、大小；snapshot header/topic 与 capability 状态结构；session 重建、旧结果丢弃及 ID 耗尽规则。SET_CLOCK 必须具备 expected_revision 或带 generation 的 edit handle，不能只在文字上声明独占。</td></tr>
-<tr><td>D07 开始前</td><td>落实最小内置中文与外置字体/图片方案，实际校验 128 KiB / 4 MiB 设计预算和缺失资源降级；不把当前完整字体带入持续扩展。</td></tr>
-<tr><td>G2 后首次上板</td><td>先完成备份与地址/引导恢复检查；采集烧录包和回读哈希、串口精确时间、冷启动日志，随后测三表盘退出、桌面销毁后刷新、触摸跨页、按键洪泛/取消恢复、P95 输入延迟和栈峰值。</td></tr>
-</tbody></table>
-<p><a href="板上基线_2026-09-15.html">旧固件有屏快照</a>缺少完整回读身份与精确采集时间，47% 栈峰值不能替代新固件测量；<a href="../SF32LB58开发板资料与首次调试.html">首次无屏记录</a>的 91% 已明确标为历史。后续数据只按实际测量填写。</p>
+<p>下一步进入 D04/D05：先冻结启动协调者、有效 RTC 与单调时间，再实现命令回执、快照、capability、session 重建和时钟编辑并发契约。D07 前处理字体与图片容量；D15 解决 FAL 设备映射、坏块/ECC、设置持久化和掉电恢复。每次固件变化都会产生新的构建身份，当前板测结果不能自动继承给未来镜像。</p>
 </section>
-</main></div><footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer><script src="../assets/engineering.js"></script></body></html>
+</main>
+</div>
+<footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+<script src="../assets/engineering.js"></script>
+</body>
+</html>

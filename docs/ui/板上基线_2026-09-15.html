@@ -21,7 +21,7 @@
     <main>
 <section id="sf32lb58-板上基线2026-09-15" class="level1">
 <h1>SF32LB58 板上基线（2026-09-15）</h1>
-<p>固件：修改前的 <code>watch_v9</code> 基线。通道：COM10，1,000,000 baud，8N1。以下结果来自只读 MSH 命令，不代表 M0 固件验证结果。</p><p><strong>证据边界：</strong>这是有屏旧演示固件的历史快照，保留 tpread 峰值 47%、GUI 栈峰值 36% 和 HCLK 240 MHz 等原始数据。记录未绑定板上回读的完整镜像 SHA-256，也缺少可核验的精确采集时间，不能用本地 main.bin 哈希代替板上身份。D01–D03 仅本地构建，本轮没有产生新的实屏栈数据。G2 后首次实测需同时归档串口时间、三个镜像及回读哈希、冷启动日志和压力测试后的栈峰值；见 <a href="D01-D03_实施记录.html">实施记录</a>。</p>
+<p>固件：修改前的 <code>watch_v9</code> 基线。通道：COM10，1,000,000 baud，8N1。以下结果来自只读 MSH 命令，不代表 D01–D03 固件验证结果。</p><p><strong>证据边界：</strong>这是有屏旧演示固件的历史快照，保留 tpread 峰值 47%、GUI 栈峰值 36% 和 HCLK 240 MHz 等原始数据。记录未绑定板上回读的完整镜像 SHA-256，也缺少可核验的精确采集时间，不能用本地 main.bin 哈希代替板上身份。D01–D03 新固件已经另行完成镜像回读、冷启动、实屏生命周期和输入压力测量；最终 <code>tpread</code> 峰值为 27%，输入 P95 为 25 ms，详见 <a href="D01-D03_实施记录.html#board">正式板上验收记录</a>。</p>
 <pre class="text"><code>free
 total memory: 1809900 used memory : 153264 maximum allocated memory: 202368
 

@@ -118,6 +118,47 @@ static iw_input_gate_t input_gate;
 static bool keypad_release_next;
 static unsigned home_pending;
 
+#define IW_INPUT_LATENCY_LIMIT_MS 100u
+#define IW_INPUT_LATENCY_BUCKETS  (IW_INPUT_LATENCY_LIMIT_MS + 1u)
+
+static uint32_t input_latency_histogram[IW_INPUT_LATENCY_BUCKETS];
+static uint32_t input_latency_count;
+static uint32_t input_latency_max_ms;
+
+/* 末桶表示 100 ms 及以上，足以直接判断当前验收门槛是否通过。 */
+static void input_latency_record(uint32_t queued_tick)
+{
+    uint32_t elapsed_ticks = (uint32_t)((uint32_t)rt_tick_get() - queued_tick);
+    uint32_t elapsed_ms = (uint32_t)(((uint64_t)elapsed_ticks * 1000u + RT_TICK_PER_SECOND - 1u) /
+                                     RT_TICK_PER_SECOND);
+    uint32_t bucket = elapsed_ms < IW_INPUT_LATENCY_LIMIT_MS ? elapsed_ms : IW_INPUT_LATENCY_LIMIT_MS;
+
+    if (input_latency_count == UINT32_MAX) return;
+    input_latency_count++;
+    input_latency_histogram[bucket]++;
+    if (elapsed_ms > input_latency_max_ms) input_latency_max_ms = elapsed_ms;
+}
+
+static uint32_t input_latency_p95(bool *at_or_above_limit)
+{
+    uint64_t target = ((uint64_t)input_latency_count * 95u + 99u) / 100u;
+    uint32_t accumulated = 0;
+
+    *at_or_above_limit = false;
+    if (!target) return 0;
+    for (uint32_t i = 0; i < IW_INPUT_LATENCY_BUCKETS; i++)
+    {
+        accumulated += input_latency_histogram[i];
+        if (accumulated >= target)
+        {
+            *at_or_above_limit = (i == IW_INPUT_LATENCY_LIMIT_MS);
+            return i;
+        }
+    }
+    *at_or_above_limit = true;
+    return IW_INPUT_LATENCY_LIMIT_MS;
+}
+
 /* 取消只在 GUI 循环执行，避免在页面事件中重入输入分发。 */
 static void input_cancel_lvgl(void)
 {
@@ -156,22 +197,26 @@ static void input_service(void)
             iw_input_gate_accept(&input_gate, IW_INPUT_CANCEL);
             input_cancel_lvgl();
         }
-        else if (event.pin == SLEEP_CTRL_PIN && iw_input_gate_accept(&input_gate, event.action))
+        else
         {
-            activity = true;
-            /* 暂时保留现有短按 Home 行为，表冠完整语义由 D09 接管。 */
-            if (event.action == IW_INPUT_CLICK)
+            input_latency_record(event.tick);
+            if (event.pin == SLEEP_CTRL_PIN && iw_input_gate_accept(&input_gate, event.action))
             {
-                if (home_pending < IW_INPUT_CAPACITY) home_pending++;
-                else
+                activity = true;
+                /* 暂时保留现有短按 Home 行为，表冠完整语义由 D09 接管。 */
+                if (event.action == IW_INPUT_CLICK)
                 {
-                    /* 语义缓冲也必须取消，禁止把积压单击带到下一个页面。 */
-                    iw_input_gate_accept(&input_gate, IW_INPUT_CANCEL);
-                    input_cancel_lvgl();
-                    level = rt_hw_interrupt_disable();
-                    iw_input_queue_cancel(&input_queue);
-                    rt_hw_interrupt_enable(level);
-                    break;
+                    if (home_pending < IW_INPUT_CAPACITY) home_pending++;
+                    else
+                    {
+                        /* 语义缓冲也必须取消，禁止把积压单击带到下一个页面。 */
+                        iw_input_gate_accept(&input_gate, IW_INPUT_CANCEL);
+                        input_cancel_lvgl();
+                        level = rt_hw_interrupt_disable();
+                        iw_input_queue_cancel(&input_queue);
+                        rt_hw_interrupt_enable(level);
+                        break;
+                    }
                 }
             }
         }
@@ -219,18 +264,40 @@ static void iw_input_stat(void)
 {
     iw_input_stats_t stats;
     uint32_t pending;
+    uint32_t latency_count;
+    uint32_t latency_p95_ms;
+    uint32_t latency_max_ms;
+    bool latency_p95_at_or_above_limit;
     rt_base_t level = rt_hw_interrupt_disable();
     stats = input_queue.stats;
     pending = input_queue.count;
+    latency_count = input_latency_count;
+    latency_p95_ms = input_latency_p95(&latency_p95_at_or_above_limit);
+    latency_max_ms = input_latency_max_ms;
     rt_hw_interrupt_enable(level);
     rt_kprintf("input accepted=%u consumed=%u rejected=%u discarded=%u "
-               "cancel=%u high=%u pending=%u\n",
+               "cancel=%u high=%u pending=%u lat_count=%u lat_p95_ms=%u "
+               "lat_p95_ge_100=%u lat_max_ms=%u\n",
                (unsigned)stats.accepted, (unsigned)stats.consumed,
                (unsigned)stats.rejected, (unsigned)stats.discarded,
                (unsigned)stats.cancellations, (unsigned)stats.high_water,
-               (unsigned)pending);
+               (unsigned)pending, (unsigned)latency_count,
+               (unsigned)latency_p95_ms, latency_p95_at_or_above_limit ? 1u : 0u,
+               (unsigned)latency_max_ms);
 }
 MSH_CMD_EXPORT(iw_input_stat, Show bounded input queue statistics);
+
+static void iw_input_stat_reset(void)
+{
+    rt_base_t level = rt_hw_interrupt_disable();
+    rt_memset(&input_queue.stats, 0, sizeof(input_queue.stats));
+    rt_memset(input_latency_histogram, 0, sizeof(input_latency_histogram));
+    input_latency_count = 0;
+    input_latency_max_ms = 0;
+    rt_hw_interrupt_enable(level);
+    rt_kprintf("input statistics reset\n");
+}
+MSH_CMD_EXPORT(iw_input_stat_reset, Reset bounded input queue statistics);
 
 /* button event handler in UI inactive state */
 static void button_event_handler(int32_t pin, button_action_t action)
@@ -313,6 +380,9 @@ static void init_pin(void)
     rt_memset(&input_gate, 0, sizeof(input_gate));
     keypad_release_next = false;
     home_pending = 0;
+    rt_memset(input_latency_histogram, 0, sizeof(input_latency_histogram));
+    input_latency_count = 0;
+    input_latency_max_ms = 0;
     rt_memset(&cfg, 0, sizeof(cfg));
     cfg.pin = SLEEP_CTRL_PIN;
     cfg.active_state = BUTTON_ACTIVE_POL;

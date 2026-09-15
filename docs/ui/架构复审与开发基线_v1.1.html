@@ -11,7 +11,7 @@
 <li><a href="#sources">7. 依据与适用版本</a></li></ul></nav><main>
 <h1>架构复审与开发基线 v1.1</h1>
 <p class="doc-meta">2026-09-15 · 复审基线 <code>761d355</code> · 适用：SF32LB58-DevKit-LCD A128R32N1、390×450 CO5300/FT6146</p>
-<p>现有分层方向可继续使用，但当前代码仍是经过少量加固的 SDK 演示工程。进入产品页面开发前，需要收敛生命周期、启动时间、板级来源、输入语义和构建交付。本文中的源码问题是静态检查结论；没有将其描述为已在开发板上触发的故障。</p>
+<p>现有分层方向继续使用，当前代码仍以 SDK 演示工程为界面基线。D01–D03 已收敛生命周期、板级来源、GUI 等待和输入取消，并完成目标板验收；启动时间、服务契约和产品页面仍按后续任务推进。本文的问题状态同时区分静态检查、主机测试和开发板实测。</p>
 <p>配套阅读：<a href="系统架构_v1.1.html">系统架构</a>、<a href="功能逻辑与页面契约_v1.html">功能逻辑与页面契约</a>、<a href="模块接口与开发任务_v1.html">模块接口与开发任务</a>。文档 v1.1 是架构细化版本，不是新固件版本。</p>
 
 <section id="decision"><h2>1. 复审结论与开发边界</h2>
@@ -23,23 +23,23 @@
 <tr><td>离线范围可执行</td><td>本地工具做真实业务；缺少传感器/电池硬件时返回能力状态；在线 App 使用独立演示数据。</td><td>界面、状态栏和历史记录都能区分真实、样例与未知。</td></tr>
 <tr><td>首期资源有硬上限</td><td>8 个计时器、16 个闹钟、24 个提醒槽；GUI 栈 16 KiB，新增服务栈 4 KiB。</td><td>容量测试和内存账本；数字是项目预算，不是 Apple 产品限制。</td></tr>
 </tbody></table>
-<p>可以开始 M0.1 修复和 M1.0 基础开发。新分区尚未完成实机引导验证，因此不能把构建成功作为允许刷入任意镜像组合的依据。参考 watchOS 26 的具体小版本、表冠实物和手表结构尺寸未冻结，不影响核心状态机与组件开发。</p>
+<p>M0.1 的 D01–D03 已完成，可以开始 D04/D05 的 M1.0 基础开发。DEV_A128_NAND 的确定 GCC 包已经通过新分区引导、回读与恢复验证；该结果不授权刷入不同来源或任意组合的镜像。参考 watchOS 26 的具体小版本、表冠实物和手表结构尺寸未冻结，不影响核心状态机与组件开发。</p>
 </section>
 
 <section id="findings"><h2>2. 源码与文档问题清单</h2>
 <p>优先级：P0 为首烧/退出崩溃相关阻断项，P1 为首个产品闭环必须处理，P2 为后续模块接入前处理。状态“待修复”意味着本次文档复审没有修改相应固件代码。</p>
 <table><thead><tr><th>编号 / 状态</th><th>证据与触发条件</th><th>处理要求与验收</th></tr></thead><tbody>
-<tr><td>A01 · P0 · 本地修复，板测待执行</td><td><a href="../../firmware/iwatch/src/gui_apps/clock/app_clock_main.c">app_clock_main.c</a> 的 <code>on_stop()</code> 使用 <code>rt_list_for_each</code> 遍历并 <code>rt_free(clk_desc)</code>。宏的下一步仍访问已释放节点的 <code>next</code>。</td><td>保存下一节点、摘链后释放；检查嵌套 deinit 的所有权。强制启动/退出至少三个表盘，内存检测器不报告释放后访问，链表最终为空。</td></tr>
-<tr><td>A02 · P0 · 本地修复，板测待执行</td><td><a href="../../firmware/iwatch/src/gui_apps/main/app_mainmenu.c">app_mainmenu.c</a> 注册 display 级 <code>refr_start_cb</code>，退出未注销；回调直接解引用 <code>p_menu_cell</code>，而 <code>on_stop()</code> 将其释放并置空。</td><td>保存事件描述符并在释放页面状态前注销；仅加判空不能解决反复注册。强制销毁桌面后刷新屏幕，再反复创建 100 次，回调数量回到基线。</td></tr>
+<tr><td>A01 · P0 · 已修复并完成板测</td><td><a href="../../firmware/iwatch/src/gui_apps/clock/app_clock_main.c">app_clock_main.c</a> 原 <code>on_stop()</code> 在遍历中释放当前节点，下一步会访问已释放的 <code>next</code>。</td><td>现已先摘链再反初始化和释放；主机 1,000 轮与板上 26 次 clock 销毁通过，<code>memcheck</code> 无输出。</td></tr>
+<tr><td>A02 · P0 · 已修复并完成板测</td><td><a href="../../firmware/iwatch/src/gui_apps/main/app_mainmenu.c">app_mainmenu.c</a> 原 display 回调在页面释放后仍可能引用 <code>p_menu_cell</code>。</td><td>退出按回调函数与用户数据注销，再释放页面状态；主机 1,000 轮和板上 Main↔clock 循环后堆回到基线。</td></tr>
 <tr><td>A03 · P1 · 本地回滚路径已补，覆盖边界见实施记录</td><td>表盘 <code>on_start()</code> 分配后直接 <code>memset</code>；<code>app_clock_register()</code> 分配后直接写字段。桌面多处用断言处理分配失败。</td><td>逐次失败注入；构造失败按逆序清理，恢复到预先建立的轻量错误层。禁止在内存不足路径上再次分配整屏兜底资源。</td></tr>
 <tr><td>A04 · P1 · 待修复</td><td><a href="../../firmware/iwatch/src/gui_apps/watch_demo.c">watch_demo.c</a> 的 <code>app_watch_entry()</code> 每次启动执行 <code>set_date(2022, 7, 1)</code> 与 <code>set_time(9, 0, 0)</code>。</td><td>改为读取 RTC 状态和校时记录；保留有效时间，无效时显示待校时。重启不能重设已确认时间；没有备份供电时明确失效。</td></tr>
-<tr><td>A05 · P1 · 本地修复，P95 板测待执行</td><td>GUI 主循环直接按 <code>lv_timer_handler()</code> 的返回值休眠；架构写了活跃等待上限 20 ms，代码尚未落实。</td><td>新增统一等待适配，正确处理无定时器哨兵和 tick 换算。服务唤醒位可合并，GUI 每次醒来都重新拉状态；不得使用无上限等待阻塞已入队输入。</td></tr>
+<tr><td>A05 · P1 · 已修复并完成 P95 板测</td><td>原 GUI 主循环直接按 <code>lv_timer_handler()</code> 返回值休眠，可能超过活动等待预算。</td><td>统一等待适配已处理无定时器哨兵、tick 换算和锁存事件；等待上限 20 ms。实物压力窗口 272 个消费样本的 P95 为 25 ms。</td></tr>
 <tr><td>A06 · P1 · 待实现</td><td>应用只对 <code>BSP_KEY1_PIN</code> 调用 <code>button_init()</code>；KEY2 虽在 board.conf 声明，未接应用回调。当前队列门控只有单键，M0 点击直接映射 Home。</td><td>KEY1 暂映射表冠按压，KEY2 经实物检查后映射侧键；每键独立门控、独立序号。M1 引入双击识别时必须关闭旧的即时 Home 分支，防止重复导航。旋转表冠状态仍为 absent。</td></tr>
 <tr><td>A07 · P1 · 来源与构建约束已实现</td><td><a href="../../firmware/iwatch/project/project.uvprojx">Keil 工程</a>的四个基础板 <code>bsp_*.c</code> 指向 SDK 的 <code>customer/boards/sf32lb58-lcd_base</code>，不是仓库内同名副本。</td><td>开发板阶段明确以锁定 SDK 的基础板驱动为准；自研 PCB 建新的项目 BSP 并验实际编译路径。禁止只修改未参与编译的副本后宣称硬件行为已变化。</td></tr>
-<tr><td>A08 · P0 · 待上板验证</td><td><a href="../../firmware/iwatch/project/iwatch_sf32lb58_a128_qspi_hcpu/ptab.json">ptab.json</a> 已将 main 移到 0x69000000；当前板仍是旧演示固件。静态检查只覆盖已声明区域、镜像大小和下载地址。</td><td>核对 NAND 几何与 SDK 地址转换、备份、写入回读、新 ftab 切换、冷启动和串口恢复。旧 main 大于旧槽，不能承诺回写旧固件时不会覆盖旧数据区。</td></tr>
+<tr><td>A08 · P0 · DEV 包板测通过</td><td><a href="../../firmware/iwatch/project/iwatch_sf32lb58_a128_qspi_hcpu/ptab.json">ptab.json</a> 将 main 移到 0x69000000；GCC main 与 FTab 已独立回读匹配归档。</td><td>已完成旧区备份、新 FTab 引导、冷启动及串口恢复。底层 NAND 页/擦除块、ECC/BBM 和持久化掉电语义仍在 D15 验证，不从本次 UI 启动结果外推。</td></tr>
 <tr><td>A09 · P1 · 已加文件锁、归档及身份校验</td><td>GCC 与 Keil 使用同一个 <code>build_iwatch_sf32lb58_a128_qspi_hcpu</code> 目录；<a href="../../firmware/generate-keil.ps1">generate-keil.ps1</a> 只在生成前调用布局检查。本版 SDK 的 --target=mdk5 启用 no_exec，只生成工程；原来把模拟构建输出当成真实编译的说法有误。现在包装脚本单独执行实际 Keil 构建。</td><td>首个发布包加入工具链、源码/配置哈希与镜像清单；每次构建后检查。分离输出目录前禁止并行构建；不能凭文件名识别镜像来源。</td></tr>
 <tr><td>A10 · P1 · 文档已修正</td><td>M1 依赖设置/命令服务，旧分期却把消息与时钟基础放到 M2；8 个待提醒槽无法覆盖 8 个计时器与 16 个闹钟同时触发。</td><td>依赖提前到 M1.0；提醒按源预留 24 槽并可合并重复发生，普通通知另算。详见接口文档。</td></tr>
-<tr><td>A11 · P1 · 历史标记已修正，板上身份待补</td><td>状态页仍写屏幕待到货；文档校验清单仍引用删除的 .md；部分 HTML 表格残留百分比窄列样式。</td><td>统一实际板屏基线、更新 HTML 哈希与入口、检查相互链接和浏览器呈现。历史工程 ZIP 保留归档内容与原校验值。</td></tr>
+<tr><td>A11 · P1 · 已修正</td><td>无屏和旧演示固件数据已明确标为历史；新固件记录绑定构建包、回读哈希、串口窗口和压力栈数据。</td><td>继续由 HTML 校验脚本检查入口、相互链接和锚点；每个新镜像单独记录板上身份，不能继承本次结果。</td></tr>
 <tr><td>A12 · P2 · 接入前处理</td><td>未启用的 PM/DFU 分支仍包含旧 LVGL 调用方式；当前配置不代表这些路径编译或运行通过。</td><td>开启功能前迁移相关 API、明确上下文，新增该配置的构建及唤醒测试；默认关闭不会被误写成已经支持休眠/升级。</td></tr>
 </tbody></table>
 <p>上述清单是有边界的代码审查结果，不是全仓库无缺陷结论。修改时继续核对新路径的错误处理、页内资源释放以及 SDK 的真实生命周期顺序。</p>
@@ -47,9 +47,9 @@
 
 <section id="baseline"><h2>3. 唯一开发基线与能力表</h2>
 <table><thead><tr><th>项目</th><th>当前基线</th><th>开发约束</th></tr></thead><tbody>
-<tr><td>应用 / SDK</td><td>iwatch 提交 761d355；SiFli-SDK v2.5.1，commit <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code>。</td><td>本地 SDK 存在原开发板 A1 配置修改；项目已有对应 AUTO 配置，但仍需在干净 SDK 上验证，不宣称已独立复现。</td></tr>
+<tr><td>应用 / SDK</td><td>D01–D03 板测包的 Git 起点为 <code>9abe267</code>，并绑定未提交源码哈希；SiFli-SDK v2.5.1，commit <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code>。</td><td>构建在隔离、干净 SDK 检出中完成；后续提交或源码变化必须重新生成身份和板测证据。</td></tr>
 <tr><td>板型 / 芯片标识</td><td>A128R32N1 开发板，A1 修订；HCPU 240 MHz、LCPU 48 MHz 为旧固件日志实测。自研板原理图选型为 SF32LB586VDD36。</td><td>board rtconfig.py 中 <code>PACKAGE='SF32LB587'</code> 是 SDK 构建选择，不能当作开发板封装丝印证据，也不能自动替代自研板 BOM。</td></tr>
-<tr><td>显示 / 触摸</td><td>390×450，CO5300 + FT6146，QSPI + I²C；已点亮并读到触摸 ID。</td><td>仍需四角、方向、边缘和连续拖动测试；CWS05/CST820 是未来佩戴板候选，不属于当前运行配置。</td></tr>
+<tr><td>显示 / 触摸</td><td>390×450，CO5300 + FT6146，QSPI + I²C；已点亮、读到触摸 ID，并完成连续点击与滑动压力测试。</td><td>产品校准仍需单列四角、方向和边缘误差；CWS05/CST820 是未来佩戴板候选，不属于当前运行配置。</td></tr>
 <tr><td>内存 / tick</td><td>PSRAM 16+16 MiB；NAND 128 MiB 为配置值；RT tick 1000 Hz。</td><td>以有效 rtconfig、链接 map、板上容量为三项核对；设备型号和擦除几何仍需记录。</td></tr>
 <tr><td>KEY1 / KEY2 / 表冠</td><td>KEY1 已接软件；KEY2 未注册；实体旋钮未接入。</td><td>逻辑注入可测旋转语义，但不能把它写成实物表冠验证。</td></tr>
 <tr><td>RTC</td><td>驱动已启用；时钟代码仍有示例覆盖。</td><td>先验证校时、重启与断主电后的保持条件；能力状态与时间可信度分别存储。</td></tr>
@@ -88,7 +88,7 @@
 <section id="delivery"><h2>5. 构建、分区与可恢复交付</h2>
 <p>规范配置链为：项目 board.conf / Kconfig、项目 ptab.json、SCons 生成的 rtconfig/链接脚本、编译器产物、下载清单。不要编辑 build 目录中的生成头文件作为长期配置。发布清单应同时保存以上输入的 SHA-256、SDK commit 与补丁列表、编译器版本、board_id、partition_version、resource_version。</p>
 <table><thead><tr><th>对象</th><th>当前值</th><th>发布前要求</th></tr></thead><tbody>
-<tr><td>main 装载</td><td>0x69000000，6 MiB；旧构建记录 5,709,824 B。</td><td>新构建按实际大小计算，不复用旧数字；同时核对 PSRAM 运行窗口。</td></tr>
+<tr><td>main 装载</td><td>0x69000000，6 MiB；已验收 GCC 镜像为 5,734,412 B，占 91.146%。</td><td>每次构建按实际大小计算并核对 PSRAM 运行窗口；D07 前处理字体资源，避免继续逼近槽上限。</td></tr>
 <tr><td>ftab / bootloader</td><td>0x1C000000 / 0x1C020000。</td><td>和 main 打包并回读验证；更换引导表前，新的 main 必须已验证可读。</td></tr>
 <tr><td>NAND 数据</td><td>现有 KV 槽各 16 KiB，FS 6 MiB；均属于既有表。</td><td>核对页、擦除块、ECC/BBM 和虚拟地址规则。16 KiB 逻辑槽不证明有独立可擦除物理块；应用禁止绕过驱动直接擦除。</td></tr>
 <tr><td>源码基线</td><td>应用在仓库，SDK 外部依赖；部分基础 BSP 直接来自 SDK。</td><td>记录 dirty 差异并制作可复现补丁；先做干净 SDK 构建，不直接重置现有 SDK 工作区。</td></tr>
@@ -106,11 +106,11 @@
 <tr><td>G3 首个闭环可扩展</td><td>计时器/提醒和系统壳层。</td><td>表盘→设置→亮度完整路径及错误路径通过；快速导航无残留；缺失硬件状态正确。</td></tr>
 <tr><td>G4 可以长测</td><td>低功耗、持久化、8 小时混合测试。</td><td>监督/故障注入、计时恢复、存储提交语义和设备超时已独立验证。</td></tr>
 </tbody></table>
-<p>当前 G0 文档已细化；G1–G4 未通过。D01–D03 实现与主机、构建、板上三栏状态见 <a href="D01-D03_实施记录.html">实施记录</a>。D04/D05 尚未完成，因此不能把基础修复提交宣称为 G1 通过。</p>
+<p>当前 G0 已通过；D01–D03 的主机、构建和开发板三栏已通过。指定 DEV_A128_NAND GCC 包满足 G2 的镜像上板门槛，该结论不自动覆盖未来固件。D04/D05 尚未完成，因此 G1 和 G3–G4 仍未通过。完整证据见 <a href="D01-D03_实施记录.html">实施记录</a>。</p>
 </section>
 
 <section id="sources"><h2>7. 依据与适用版本</h2>
-<p>源码依据为本仓库 761d355 与本地 SDK 421126d9：<code>rtos/rtthread/include/rtservice.h</code> 的链表宏、<code>middleware/include/gui_app_fwk.h</code> 的公开页面/动画 API、生成的 Keil FilePath 和下载清单。后续修改源码时需同步更新本页状态。</p>
+<p>源码依据为本仓库 D01–D03 实施记录与锁定 SDK 421126d9：<code>rtos/rtthread/include/rtservice.h</code> 的链表宏、<code>middleware/include/gui_app_fwk.h</code> 的公开页面/动画 API、生成的 Keil FilePath、下载清单及板上回读。后续修改源码时需同步更新本页状态。</p>
 <p>单一 GUI 入口与队列传递快照遵循 <a href="https://lvgl.io/docs/open/9.4/details/integration/overview/threading">LVGL 9.4 线程说明</a>。按键基础语义参考固定版本的 <a href="https://support.apple.com/zh-cn/guide/watch/apd1d9d7efca/26/watchos/26">watchOS 26 按钮与手势</a>及 <a href="https://support.apple.com/zh-cn/guide/watch/apda1bf1a95b/26/watchos/26">打开 App</a>；本项目的数值阈值、离线降级和容量限制属于自己的实现规范。</p>
 </section></main></div>
 <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
