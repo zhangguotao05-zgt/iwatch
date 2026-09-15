@@ -1,0 +1,7 @@
+# Python authoring/review scripts; vendor design inputs are separately required.
+pypdf>=5,<7
+pypdfium2>=4,<6
+Pillow>=10,<13
+reportlab>=4,<5
+matplotlib>=3.8,<4
+openpyxl>=3.1,<4

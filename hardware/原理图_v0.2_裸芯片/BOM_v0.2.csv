@@ -1,0 +1,138 @@
+ref,part,device,value,sheet,package,footprint,source,note
+U1,A_PMU,SF32LB586VDD36,SF32LB586VDD36,1,BGA256 8.5x6.5mm P0.4mm,,https://wiki.sifli.com/en/hardware/SF32LB58x-HW-Application.html,"Bare SF32LB586VDD36, not SF32LB58-MOD. All units share this physical IC."
+L101,L,L 4.7uH DCR<=0.4R Isat>=0.5A,4.7uH DCR<=0.4R Isat>=0.5A,1,2016 metric; reference WPN201610U4R7MT,,,Internal PMU buck loop; follow SiFli placement and return-current guidance
+C101,C,C 4.7uF/10V,4.7uF/10V,1,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C102,C,C 100nF/10V,100nF/10V,1,0402,c229098197984ccd99912a2643d8918a,,
+L102,L,L 4.7uH DCR<=0.4R Isat>=0.5A,4.7uH DCR<=0.4R Isat>=0.5A,1,2016 metric; reference WPN201610U4R7MT,,,Internal PMU buck loop; follow SiFli placement and return-current guidance
+C103,C,C 4.7uF/10V,4.7uF/10V,1,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C104,C,C 100nF/10V,100nF/10V,1,0402,c229098197984ccd99912a2643d8918a,,
+C105,C,C 4.7uF/10V,4.7uF/10V,1,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C106,C,C 470nF/10V,470nF/10V,1,0402,c229098197984ccd99912a2643d8918a,,
+C107,C,C 100nF/10V,100nF/10V,1,0402,c229098197984ccd99912a2643d8918a,,
+C108,C,C 10uF/10V,10uF/10V,1,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Place at U1.B2 PVDD input
+C109,C,C 100nF/10V,100nF/10V,1,0402,c229098197984ccd99912a2643d8918a,,Place at U1.B2 PVDD input
+C110,C,C 10uF/10V,10uF/10V,1,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Place at U1.B3 PVDD input
+C111,C,C 100nF/10V,100nF/10V,1,0402,c229098197984ccd99912a2643d8918a,,Place at U1.B3 PVDD input
+C120,C,C 1uF/10V,1uF/10V,2,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Local bypass for U1.E20
+C121,C,C 1uF/10V,1uF/10V,2,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Local bypass for U1.K18
+C122,C,C 4.7uF/10V,4.7uF/10V,2,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Local bypass for U1.J18
+C123,C,C 1uF/10V,1uF/10V,2,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Local bypass for U1.P5
+C124,C,C 4.7uF/10V,4.7uF/10V,2,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Local bypass for U1.P3
+C125,C,C 1uF/10V,1uF/10V,2,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Local bypass for U1.H6
+C126,C,C 1uF/10V,1uF/10V,2,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Local bypass for U1.P12
+C127,C,C 1uF/10V,1uF/10V,2,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Local bypass for U1.E17
+C128,C,C 1uF/10V,1uF/10V,2,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Local bypass for U1.M2
+C129,C,C 1uF/10V,1uF/10V,2,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Local bypass for U1.G1
+C130,C,C 1uF/10V,1uF/10V,2,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Local bypass for U1.L14
+C131,C,C 1uF/10V,1uF/10V,2,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Local bypass for U1.F20
+C132,C,C 1uF/10V,1uF/10V,2,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Local bypass for U1.F21
+C133,C,C 4.7uF/10V,4.7uF/10V,2,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Local bypass for U1.L21
+C134,C,C 4.7uF/10V,4.7uF/10V,2,0603,51dbad8f50a9484aa62d5f6da682dfcd,,Local bypass for U1.K19
+R103,R,R 0R VIOA=3V3,0R VIOA=3V3,2,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+Y101,A,E1SB48E001G00E,48MHz CL8.8pF E1SB48E001G00E,3,Crystal 2016 metric 4pad,,https://wiki.sifli.com/en/hardware/SF32LB58x-HW-Application.html,
+Y102,Y,Y 32.768kHz CL7pF ETST00327000LE,32.768kHz CL7pF ETST00327000LE,3,Crystal 3215 metric 2pad,,,
+C140,C,C DNP load trim,DNP load trim,3,0402,c229098197984ccd99912a2643d8918a,,Reserve tuning pads; do not fit arbitrary 12pF/22pF values
+C141,C,C DNP load trim,DNP load trim,3,0402,c229098197984ccd99912a2643d8918a,,Reserve tuning pads; do not fit arbitrary 12pF/22pF values
+C142,C,C DNP load trim,DNP load trim,3,0402,c229098197984ccd99912a2643d8918a,,Reserve tuning pads; do not fit arbitrary 12pF/22pF values
+C143,C,C DNP load trim,DNP load trim,3,0402,c229098197984ccd99912a2643d8918a,,Reserve tuning pads; do not fit arbitrary 12pF/22pF values
+R101,R,R 10k 1%,10k 1%,3,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+C144,C,C 100nF/10V,100nF/10V,3,0402,c229098197984ccd99912a2643d8918a,,
+SW101,SW,SW RESET,RESET,3,TBD,,,
+R102,R,R 10k 1%,10k 1%,3,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+SW102,SW,SW BOOT / HOLD TO DOWNLOAD,BOOT / HOLD TO DOWNLOAD,3,TBD,,,
+J101,A,DEBUG_1x07,DEBUG_1x07,3,Connector TBD,,,
+U104,A,PY25Q128HA-WXH-IR,PY25Q128HA-WXH-IR,4,WSON8+EP 6x5mm; verify selected suffix,,https://www.puyasemi.com/en/h_series653/3187.html,
+Q101,A,CJ3139K,CJ3139K,4,SOT723 P-MOS; official reference pinout,,https://downloads.sifli.com/hardware/files/documentation/SF32LB58-MOD-V1.0.1.zip,
+Q102,A,CJ3134K,CJ3134K,4,SOT723 N-MOS; official reference pinout,,https://downloads.sifli.com/hardware/files/documentation/SF32LB58-MOD-V1.0.1.zip,
+R110,R,R 1M,1M,4,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R111,R,R 1M,1M,4,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R112,R,R 0R DNP BYPASS,0R DNP BYPASS,4,0402,e3f3bece9e6c4c37a159570def6f46e2,,Bring-up bypass option only; normally DNP to retain the reference power switch
+C150,C,C 1uF/10V,1uF/10V,4,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+Q103,A,CJ3139K,CJ3139K,4,SOT723 P-MOS; official reference pinout,,https://downloads.sifli.com/hardware/files/documentation/SF32LB58-MOD-V1.0.1.zip,
+Q104,A,CJ3134K,CJ3134K,4,SOT723 N-MOS; official reference pinout,,https://downloads.sifli.com/hardware/files/documentation/SF32LB58-MOD-V1.0.1.zip,
+R113,R,R 1M,1M,4,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R114,R,R 1M,1M,4,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R115,R,R 0R DNP BYPASS,0R DNP BYPASS,4,0402,e3f3bece9e6c4c37a159570def6f46e2,,Bring-up bypass option only; normally DNP to retain the reference power switch
+C151,C,C 1uF/10V,1uF/10V,4,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C152,C,C 100nF/10V,100nF/10V,4,0402,c229098197984ccd99912a2643d8918a,,
+R116,R,R 10k,10k,4,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R117,R,R 10k,10k,4,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+J201,A,USB-C_POWER_ONLY,USB-C_POWER_ONLY,5,Charge-only receptacle; footprint/pin nomenclature TBD,,,
+R201,R,R 5.1k 1%,5.1k 1%,5,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R202,R,R 5.1k 1%,5.1k 1%,5,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+F201,F,F PTC 0.5A / >=12V,PTC 0.5A / >=12V,5,Fuse footprint TBD,,,Select a real resettable fuse and audit its hold/trip ratings and footprint before PCB
+U201,A,BQ24074RGTR,BQ24074RGTR,5,RGT VQFN16+EP 3x3mm,,https://www.ti.com/lit/ds/symlink/bq24074.pdf,
+R203,R,R 6.98k 1%,6.98k 1%,5,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R204,R,R 3.09k 1%,3.09k 1%,5,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R205,R,R 47k 1%,47k 1%,5,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R206,R,R 47k 1%,47k 1%,5,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+C201,C,C 4.7uF/16V,4.7uF/16V,5,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C202,C,C 10uF/10V,10uF/10V,5,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C203,C,C 4.7uF/10V,4.7uF/10V,5,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+J202,A,BATTERY_1x03,BATTERY_1x03,5,Keyed battery connector TBD,,,
+U301,A,TPS62840DLCR,TPS62840DLCR,6,DLC VSON8 2x1.5mm,,https://www.ti.com/lit/ds/symlink/tps62840.pdf,
+L301,L,L 2.2uH Isat>=1.2A,2.2uH Isat>=1.2A,6,TBD,,,
+C301,C,C 4.7uF/10V,4.7uF/10V,6,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C302,C,C 10uF/10V,10uF/10V,6,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+U302,A,TPS63031DSKR,TPS63031DSKR,6,DSK VSON10+EP 2.5x2.5mm,,https://www.ti.com/lit/ds/symlink/tps63031.pdf,
+L302,L,L 1.5uH Isat>=1.5A,1.5uH Isat>=1.5A,6,TBD,,,
+C303,C,C 10uF/10V,10uF/10V,6,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C304,C,C 100nF/10V,100nF/10V,6,0402,c229098197984ccd99912a2643d8918a,,
+C305,C,C 10uF/10V,10uF/10V,6,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C306,C,C 10uF/10V,10uF/10V,6,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+U303,A,TPS610997DRVR,TPS610997DRVR,6,DRV WSON6+EP 2x2mm,,https://www.ti.com/lit/ds/symlink/tps61099.pdf,
+L303,L,L 2.2uH Isat>=1.5A,2.2uH Isat>=1.5A,6,TBD,,,
+C307,C,C 10uF/10V,10uF/10V,6,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C308,C,C 10uF/10V,10uF/10V,6,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C309,C,C 10uF/10V,10uF/10V,6,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+R301,R,R 100k 1%,100k 1%,6,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+J401,A,LCD_ADAPTER_2x20,LCD_ADAPTER_2x20,7,2x20 2.54mm,947ab661c95042fb8fb976dacd78ba85,https://wiki.sifli.com/board/sf32lb58x/SF32LB58-DevKit-LCD.html,
+R401,R,R 4.7k DNP,4.7k DNP,7,0402,e3f3bece9e6c4c37a159570def6f46e2,,Fit only if the adapter has no pull-up; verify pull-up voltage
+R402,R,R 4.7k DNP,4.7k DNP,7,0402,e3f3bece9e6c4c37a159570def6f46e2,,Fit only if the adapter has no pull-up; verify pull-up voltage
+C401,C,C 10uF/10V,10uF/10V,7,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C402,C,C 100nF/10V,100nF/10V,7,0402,c229098197984ccd99912a2643d8918a,,
+J402,A,CROWN_AB_SWITCH,CROWN_AB_SWITCH,7,Logical connector; encoder mechanics TBD,,,
+R403,R,R 47k 1%,47k 1%,7,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R404,R,R 47k 1%,47k 1%,7,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R405,R,R 47k 1%,47k 1%,7,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R406,R,R 47k 1%,47k 1%,7,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R407,R,R 47k 1%,47k 1%,7,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+SW401,SW,SW SIDE,SIDE,7,TBD,,,
+SW402,SW,SW HOME / WAKE,HOME / WAKE,7,TBD,,,
+U501,A,LSM6DSOTR,LSM6DSOTR,8,LGA14 2.5x3mm,,https://www.st.com/resource/en/datasheet/lsm6dso.pdf,
+R501,R,R 4.7k 1%,4.7k 1%,8,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R502,R,R 4.7k 1%,4.7k 1%,8,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+C501,C,C 100nF/10V,100nF/10V,8,0402,c229098197984ccd99912a2643d8918a,,
+C502,C,C 100nF/10V,100nF/10V,8,0402,c229098197984ccd99912a2643d8918a,,
+U502,A,DRV2605LDGSR,DRV2605LDGSR,8,DGS VSSOP10,,https://www.ti.com/lit/ds/symlink/drv2605l.pdf,
+C503,C,C 1uF/10V,1uF/10V,8,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C504,C,C 1uF/10V,1uF/10V,8,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+R503,R,R 100k 1%,100k 1%,8,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+J501,A,LRA_2PIN,LRA_2PIN,8,LRA resonance / voltage / model TBD,,,
+R504,R,R 1M 1%,1M 1%,8,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R505,R,R 220k 1%,220k 1%,8,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+C505,C,C 100nF/10V,100nF/10V,8,0402,c229098197984ccd99912a2643d8918a,,
+U601,A,MAXM86146CFU+,MAXM86146CFU+,9,OLGA38 4.5x4.1mm,,https://www.analog.com/media/en/technical-documentation/data-sheets/maxm86146.pdf,
+C601,C,C 1uF/10V,1uF/10V,9,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C602,C,C 10uF/10V,10uF/10V,9,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C603,C,C 100nF/10V,100nF/10V,9,0402,c229098197984ccd99912a2643d8918a,,
+C604,C,C 1uF/10V,1uF/10V,9,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C605,C,C 1uF/10V,1uF/10V,9,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C606,C,C 10uF/10V,10uF/10V,9,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C607,C,C 100nF/10V,100nF/10V,9,0402,c229098197984ccd99912a2643d8918a,,
+R601,R,R 4.7k 1%,4.7k 1%,9,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R602,R,R 4.7k 1%,4.7k 1%,9,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R603,R,R 10R 1%,10R 1%,9,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+C608,C,C 100nF/10V,100nF/10V,9,0402,c229098197984ccd99912a2643d8918a,,
+Y601,Y,Y 32.768kHz CL6pF,32.768kHz CL6pF,9,Crystal 2pin / footprint TBD,,,"ESR <90k, C0<2pF; confirm load network against selected crystal and reference design"
+U701,A,MAX14689EWL+T,MAX14689EWL+T,10,WLP9 1.2x1.2mm,,https://www.analog.com/media/en/technical-documentation/data-sheets/MAX14689.pdf,
+D701,A,SFH7015,SFH7015,10,Optical LED 2x0.8mm,,https://look.ams-osram.com/m/17a2f1b05b6528bd/original/SFH-7015.pdf,
+R701,R,R 0R,0R,10,0402,e3f3bece9e6c4c37a159570def6f46e2,,"LED1 directly drives GREEN1, shared with mux NO1; verified visually against ADI p18"
+D702,A,CT DBLP31.12-6C5D-56-J6U6,CT DBLP31.12-6C5D-56-J6U6,10,Optical LED; A/K mapping to selected footprint requires verification,,https://look.ams-osram.com/m/7a84e13abf7bd695/original/CT-DBLP31-12.pdf,
+D703,A,CT DBLP31.12-6C5D-56-J6U6,CT DBLP31.12-6C5D-56-J6U6,10,Optical LED; A/K mapping to selected footprint requires verification,,https://look.ams-osram.com/m/7a84e13abf7bd695/original/CT-DBLP31-12.pdf,
+R702,R,R 100k 1%,100k 1%,10,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+C701,C,C 100nF/10V,100nF/10V,10,0402,c229098197984ccd99912a2643d8918a,,
+C702,C,C 22uF/10V,22uF/10V,10,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+C703,C,C 22uF/10V,22uF/10V,10,0603,51dbad8f50a9484aa62d5f6da682dfcd,,
+R118,R,R 10k 1%,10k 1%,12,0402,e3f3bece9e6c4c37a159570def6f46e2,,
+R119,R,R 200R 1%,200R 1%,12,0402,e3f3bece9e6c4c37a159570def6f46e2,,

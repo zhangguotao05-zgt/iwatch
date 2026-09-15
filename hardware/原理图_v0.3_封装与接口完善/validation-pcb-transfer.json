@@ -1,0 +1,16 @@
+{
+  "project_url": "https://pro.lceda.cn/editor",
+  "pcb_uuid": "46f0b7bbc17cfdb8",
+  "U1": 1,
+  "U1_pads": 256,
+  "canonical_pin_net_fnv1a32": "8be8e2ee",
+  "components": 153,
+  "intentional_open_pads": 179,
+  "named_nets": 100,
+  "pad_net_count": 726,
+  "source_length": 428581,
+  "trace_count": 0,
+  "source": "Read-only parse of the complete PCB File Source textarea in the live EDA UI, 2026-09-11. Hash input: sorted ref<TAB>pin<TAB>net lines, LF joined, no final LF. Null/open net encoded empty. FNV-1a32 is an accidental-difference check, not a cryptographic signature.",
+  "model_comparison": "PASS: entire canonical pin/net fingerprint and component count match local model",
+  "pcb_release": "Unrouted PCB preparation only. Default two-layer document/rules are placeholders; no board outline, stackup/fanout approval, routing or Gerber release."
+}

@@ -1,0 +1,30 @@
+{
+  "footprint": "CON-MAGNETIC-SJ056-N-D4-H2-SMD_DRAFT_R01",
+  "units": "mm",
+  "logical_pin_count": 2,
+  "native_pad_primitive_count": 3,
+  "numbers": [
+    "1",
+    "2",
+    "2"
+  ],
+  "pcb_holes": 0,
+  "minimum_copper_clearance_mm": 0.3500000000000001,
+  "minimum_solder_mask_web_mm": 0.2500000000000001,
+  "silkscreen_to_mask_minimum_mm": 0.19,
+  "paste_aperture_count": 8,
+  "serialized_annulus_point_containment_checks": 5040,
+  "annulus_center_is_copper_free": true,
+  "annulus_electrical_continuity_sampled_720_angles": "pass",
+  "paste_within_copper_and_part_center_hole_clear": "pass",
+  "file_structure_and_zip_integrity": "pass",
+  "native_editor_import_and_DRC": "not performed",
+  "physical_fit_and_reflow": "not verified",
+  "source_sha256": "9b4c4878ad7f3bce59b0e238670e63a0da70819c5231708001719ef23ad81e50",
+  "routing_note": "Full annulus: center positive requires a layer transition. No via or PCB hole is pre-placed.",
+  "design_note": "DRAFT - PCB copper and stencil sizes are proposed design values, not a supplier recommended land pattern",
+  "positive_paste_area_mm2": 0.8124507668033605,
+  "positive_paste_minimum_web_mm": 0.1041889066001582,
+  "negative_paste_area_mm2": 5.152211951887262,
+  "negative_paste_minimum_web_mm": 0.16741553698590073
+}

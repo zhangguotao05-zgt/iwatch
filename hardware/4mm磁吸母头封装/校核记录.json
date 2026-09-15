@@ -1,0 +1,25 @@
+{
+  "footprint": "CON-MAGNETIC-F-4MM-TH_DRAFT_R01",
+  "format": "EasyEDA Pro legacy 1.8, based on native reference records",
+  "pad_count": 3,
+  "pad_numbers": [
+    "1",
+    "2",
+    "3"
+  ],
+  "minimum_annular_ring_mm": 0.29999999999999993,
+  "minimum_copper_clearance_mm": 0.25,
+  "minimum_solder_mask_web_mm": 0.15,
+  "silkscreen_to_mask_minimum_mm": 0.1529954853330649,
+  "nominal_inferred_tab_to_slot_minimum_mm": 0.09111652130556164,
+  "project_zip_integrity": "pass",
+  "serialized_pad_rotation_and_mm_roundtrip": "pass",
+  "native_editor_import_and_DRC": "not performed",
+  "physical_fit": "not verified",
+  "source_sha256": "4bf3f0f56e46c96646add1367f162c42b2688400143ae8b69d0bf79ed8f7cae9",
+  "limitations": [
+    "No mechanical tolerances or electrical pinout in source drawing.",
+    "Side tab inner radius/thickness and flange diameter are estimates.",
+    "Slot pitch is a proposed design value, not a dimension quoted from the supplier."
+  ]
+}

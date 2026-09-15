@@ -1,0 +1,42 @@
+{
+  "date": "2026-09-11",
+  "workbookPath": "hardware/自研智能手表_完整方案与选型BOM_v0.3.xlsx",
+  "reportPath": "hardware/自研智能手表_方案重新评估_v0.3.md",
+  "sheets": [
+    {
+      "name": "方案比较",
+      "range": "A1:H8",
+      "preview": "A1:H8"
+    },
+    {
+      "name": "功能验收",
+      "range": "A1:G21",
+      "preview": "A1:G11"
+    },
+    {
+      "name": "整机BOM",
+      "range": "A1:J37",
+      "preview": "A1:J11"
+    },
+    {
+      "name": "开发采购",
+      "range": "A1:H20",
+      "preview": "A1:H20"
+    },
+    {
+      "name": "资源预算",
+      "range": "A1:D41",
+      "preview": "A1:D35"
+    },
+    {
+      "name": "推进计划",
+      "range": "A1:G12",
+      "preview": "A1:G11"
+    },
+    {
+      "name": "资料来源",
+      "range": "A1:E35",
+      "preview": "A1:E11"
+    }
+  ]
+}

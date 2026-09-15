@@ -1,0 +1,4537 @@
+{
+  "U1": {
+    "title": "BGA_256_P040_8500X6500_H094_B025",
+    "pads": [
+      {
+        "number": "A1",
+        "x": -4.0,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A2",
+        "x": -3.6,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A3",
+        "x": -3.2,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A4",
+        "x": -2.8,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A6",
+        "x": -2.0,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A8",
+        "x": -1.2,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A9",
+        "x": -0.8,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A11",
+        "x": 0.0,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A12",
+        "x": 0.4,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A14",
+        "x": 1.2,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A15",
+        "x": 1.6,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A17",
+        "x": 2.4,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A18",
+        "x": 2.8,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A19",
+        "x": 3.2,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A20",
+        "x": 3.6,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A21",
+        "x": 4.0,
+        "y": 3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B1",
+        "x": -4.0,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B2",
+        "x": -3.6,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B3",
+        "x": -3.2,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B4",
+        "x": -2.8,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B5",
+        "x": -2.4,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B6",
+        "x": -2.0,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B7",
+        "x": -1.6,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B8",
+        "x": -1.2,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B9",
+        "x": -0.8,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B10",
+        "x": -0.4,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B11",
+        "x": 0.0,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B12",
+        "x": 0.4,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B13",
+        "x": 0.8,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B14",
+        "x": 1.2,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B15",
+        "x": 1.6,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B16",
+        "x": 2.0,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B17",
+        "x": 2.4,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B18",
+        "x": 2.8,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B19",
+        "x": 3.2,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B20",
+        "x": 3.6,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B21",
+        "x": 4.0,
+        "y": 2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C1",
+        "x": -4.0,
+        "y": 2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C2",
+        "x": -3.6,
+        "y": 2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C3",
+        "x": -3.2,
+        "y": 2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C4",
+        "x": -2.8,
+        "y": 2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C5",
+        "x": -2.4,
+        "y": 2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C7",
+        "x": -1.6,
+        "y": 2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C10",
+        "x": -0.4,
+        "y": 2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C11",
+        "x": 0.0,
+        "y": 2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C14",
+        "x": 1.2,
+        "y": 2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C15",
+        "x": 1.6,
+        "y": 2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C17",
+        "x": 2.4,
+        "y": 2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C19",
+        "x": 3.2,
+        "y": 2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C20",
+        "x": 3.6,
+        "y": 2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C21",
+        "x": 4.0,
+        "y": 2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D1",
+        "x": -4.0,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D2",
+        "x": -3.6,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D4",
+        "x": -2.8,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D5",
+        "x": -2.4,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D6",
+        "x": -2.0,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D7",
+        "x": -1.6,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D9",
+        "x": -0.8,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D10",
+        "x": -0.4,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D12",
+        "x": 0.4,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D14",
+        "x": 1.2,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D15",
+        "x": 1.6,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D16",
+        "x": 2.0,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D17",
+        "x": 2.4,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D18",
+        "x": 2.8,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D19",
+        "x": 3.2,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D20",
+        "x": 3.6,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "D21",
+        "x": 4.0,
+        "y": 1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E2",
+        "x": -3.6,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E3",
+        "x": -3.2,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E4",
+        "x": -2.8,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E5",
+        "x": -2.4,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E6",
+        "x": -2.0,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E7",
+        "x": -1.6,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E8",
+        "x": -1.2,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E9",
+        "x": -0.8,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E10",
+        "x": -0.4,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E11",
+        "x": 0.0,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E12",
+        "x": 0.4,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E13",
+        "x": 0.8,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E14",
+        "x": 1.2,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E15",
+        "x": 1.6,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E17",
+        "x": 2.4,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E19",
+        "x": 3.2,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E20",
+        "x": 3.6,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "E21",
+        "x": 4.0,
+        "y": 1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "F1",
+        "x": -4.0,
+        "y": 1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "F2",
+        "x": -3.6,
+        "y": 1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "F4",
+        "x": -2.8,
+        "y": 1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "F6",
+        "x": -2.0,
+        "y": 1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "F9",
+        "x": -0.8,
+        "y": 1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "F10",
+        "x": -0.4,
+        "y": 1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "F12",
+        "x": 0.4,
+        "y": 1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "F13",
+        "x": 0.8,
+        "y": 1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "F15",
+        "x": 1.6,
+        "y": 1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "F16",
+        "x": 2.0,
+        "y": 1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "F18",
+        "x": 2.8,
+        "y": 1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "F19",
+        "x": 3.2,
+        "y": 1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "F20",
+        "x": 3.6,
+        "y": 1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "F21",
+        "x": 4.0,
+        "y": 1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "G1",
+        "x": -4.0,
+        "y": 0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "G2",
+        "x": -3.6,
+        "y": 0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "G3",
+        "x": -3.2,
+        "y": 0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "G4",
+        "x": -2.8,
+        "y": 0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "G5",
+        "x": -2.4,
+        "y": 0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "G6",
+        "x": -2.0,
+        "y": 0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "G8",
+        "x": -1.2,
+        "y": 0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "G14",
+        "x": 1.2,
+        "y": 0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "G16",
+        "x": 2.0,
+        "y": 0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "G17",
+        "x": 2.4,
+        "y": 0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "G18",
+        "x": 2.8,
+        "y": 0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "G19",
+        "x": 3.2,
+        "y": 0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "G20",
+        "x": 3.6,
+        "y": 0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "H2",
+        "x": -3.6,
+        "y": 0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "H6",
+        "x": -2.0,
+        "y": 0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "H8",
+        "x": -1.2,
+        "y": 0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "H9",
+        "x": -0.8,
+        "y": 0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "H10",
+        "x": -0.4,
+        "y": 0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "H11",
+        "x": 0.0,
+        "y": 0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "H12",
+        "x": 0.4,
+        "y": 0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "H13",
+        "x": 0.8,
+        "y": 0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "H14",
+        "x": 1.2,
+        "y": 0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "H16",
+        "x": 2.0,
+        "y": 0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "H17",
+        "x": 2.4,
+        "y": 0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "H19",
+        "x": 3.2,
+        "y": 0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "H20",
+        "x": 3.6,
+        "y": 0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "H21",
+        "x": 4.0,
+        "y": 0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J1",
+        "x": -4.0,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J2",
+        "x": -3.6,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J4",
+        "x": -2.8,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J5",
+        "x": -2.4,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J6",
+        "x": -2.0,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J8",
+        "x": -1.2,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J9",
+        "x": -0.8,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J10",
+        "x": -0.4,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J11",
+        "x": 0.0,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J12",
+        "x": 0.4,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J13",
+        "x": 0.8,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J14",
+        "x": 1.2,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J16",
+        "x": 2.0,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J17",
+        "x": 2.4,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J18",
+        "x": 2.8,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J20",
+        "x": 3.6,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "J21",
+        "x": 4.0,
+        "y": -0.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "K1",
+        "x": -4.0,
+        "y": -0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "K2",
+        "x": -3.6,
+        "y": -0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "K3",
+        "x": -3.2,
+        "y": -0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "K4",
+        "x": -2.8,
+        "y": -0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "K5",
+        "x": -2.4,
+        "y": -0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "K6",
+        "x": -2.0,
+        "y": -0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "K16",
+        "x": 2.0,
+        "y": -0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "K17",
+        "x": 2.4,
+        "y": -0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "K18",
+        "x": 2.8,
+        "y": -0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "K19",
+        "x": 3.2,
+        "y": -0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "K20",
+        "x": 3.6,
+        "y": -0.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L2",
+        "x": -3.6,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L5",
+        "x": -2.4,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L6",
+        "x": -2.0,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L7",
+        "x": -1.6,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L8",
+        "x": -1.2,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L9",
+        "x": -0.8,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L10",
+        "x": -0.4,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L11",
+        "x": 0.0,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L12",
+        "x": 0.4,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L13",
+        "x": 0.8,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L14",
+        "x": 1.2,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L15",
+        "x": 1.6,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L16",
+        "x": 2.0,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L17",
+        "x": 2.4,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L18",
+        "x": 2.8,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L19",
+        "x": 3.2,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L20",
+        "x": 3.6,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "L21",
+        "x": 4.0,
+        "y": -1.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M1",
+        "x": -4.0,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M2",
+        "x": -3.6,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M4",
+        "x": -2.8,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M5",
+        "x": -2.4,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M6",
+        "x": -2.0,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M7",
+        "x": -1.6,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M8",
+        "x": -1.2,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M9",
+        "x": -0.8,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M10",
+        "x": -0.4,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M11",
+        "x": 0.0,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M12",
+        "x": 0.4,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M13",
+        "x": 0.8,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M14",
+        "x": 1.2,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M15",
+        "x": 1.6,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M16",
+        "x": 2.0,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M18",
+        "x": 2.8,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M20",
+        "x": 3.6,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "M21",
+        "x": 4.0,
+        "y": -1.4,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N1",
+        "x": -4.0,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N2",
+        "x": -3.6,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N3",
+        "x": -3.2,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N4",
+        "x": -2.8,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N5",
+        "x": -2.4,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N6",
+        "x": -2.0,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N8",
+        "x": -1.2,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N9",
+        "x": -0.8,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N10",
+        "x": -0.4,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N12",
+        "x": 0.4,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N13",
+        "x": 0.8,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N15",
+        "x": 1.6,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N16",
+        "x": 2.0,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N17",
+        "x": 2.4,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N18",
+        "x": 2.8,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N19",
+        "x": 3.2,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "N20",
+        "x": 3.6,
+        "y": -1.8,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "P2",
+        "x": -3.6,
+        "y": -2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "P3",
+        "x": -3.2,
+        "y": -2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "P4",
+        "x": -2.8,
+        "y": -2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "P5",
+        "x": -2.4,
+        "y": -2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "P9",
+        "x": -0.8,
+        "y": -2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "P12",
+        "x": 0.4,
+        "y": -2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "P15",
+        "x": 1.6,
+        "y": -2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "P17",
+        "x": 2.4,
+        "y": -2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "P18",
+        "x": 2.8,
+        "y": -2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "P19",
+        "x": 3.2,
+        "y": -2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "P20",
+        "x": 3.6,
+        "y": -2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "P21",
+        "x": 4.0,
+        "y": -2.2,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R1",
+        "x": -4.0,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R2",
+        "x": -3.6,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R3",
+        "x": -3.2,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R4",
+        "x": -2.8,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R5",
+        "x": -2.4,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R6",
+        "x": -2.0,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R7",
+        "x": -1.6,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R8",
+        "x": -1.2,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R9",
+        "x": -0.8,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R10",
+        "x": -0.4,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R11",
+        "x": 0.0,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R12",
+        "x": 0.4,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R13",
+        "x": 0.8,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R14",
+        "x": 1.2,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R15",
+        "x": 1.6,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R16",
+        "x": 2.0,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R17",
+        "x": 2.4,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R18",
+        "x": 2.8,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R19",
+        "x": 3.2,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R20",
+        "x": 3.6,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "R21",
+        "x": 4.0,
+        "y": -2.6,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "T1",
+        "x": -4.0,
+        "y": -3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "T2",
+        "x": -3.6,
+        "y": -3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "T3",
+        "x": -3.2,
+        "y": -3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "T5",
+        "x": -2.4,
+        "y": -3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "T6",
+        "x": -2.0,
+        "y": -3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "T8",
+        "x": -1.2,
+        "y": -3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "T9",
+        "x": -0.8,
+        "y": -3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "T11",
+        "x": 0.0,
+        "y": -3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "T12",
+        "x": 0.4,
+        "y": -3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "T14",
+        "x": 1.2,
+        "y": -3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "T15",
+        "x": 1.6,
+        "y": -3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "T17",
+        "x": 2.4,
+        "y": -3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "T19",
+        "x": 3.2,
+        "y": -3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "T20",
+        "x": 3.6,
+        "y": -3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "T21",
+        "x": 4.0,
+        "y": -3.0,
+        "w": 0.25,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      }
+    ],
+    "body": [
+      8.5,
+      6.5
+    ],
+    "source": "https://downloads.sifli.com/hardware/files/documentation/SF32LB58-MOD-V1.0.1.zip",
+    "basis": "Direct SiFli PADS decal conversion; copper pads preserved",
+    "mask": 0.04
+  },
+  "LCORE": {
+    "title": "IND_C_2016_H100",
+    "pads": [
+      {
+        "number": "1",
+        "x": -0.8,
+        "y": 0.0,
+        "w": 1.8,
+        "h": 0.8,
+        "angle": 90.0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": 0.8,
+        "y": 0.0,
+        "w": 1.8,
+        "h": 0.8,
+        "angle": 90.0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      2.0,
+      1.6
+    ],
+    "source": "https://downloads.sifli.com/hardware/files/documentation/SF32LB58-MOD-V1.0.1.zip",
+    "basis": "Direct SiFli PADS decal conversion; copper pads preserved",
+    "mask": 0.05
+  },
+  "Y101": {
+    "title": "XTAL_CC_200X160_H050",
+    "pads": [
+      {
+        "number": "1",
+        "x": -0.7,
+        "y": -0.55,
+        "w": 0.9,
+        "h": 0.8,
+        "angle": 0.0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": 0.7,
+        "y": -0.55,
+        "w": 0.9,
+        "h": 0.8,
+        "angle": 0.0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "3",
+        "x": 0.7,
+        "y": 0.55,
+        "w": 0.9,
+        "h": 0.8,
+        "angle": 0.0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "4",
+        "x": -0.7,
+        "y": 0.55,
+        "w": 0.9,
+        "h": 0.8,
+        "angle": 0.0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      2,
+      1.6
+    ],
+    "source": "https://downloads.sifli.com/hardware/files/documentation/SF32LB58-MOD-V1.0.1.zip",
+    "basis": "Direct SiFli PADS decal conversion; copper pads preserved",
+    "mask": 0.05
+  },
+  "Y102": {
+    "title": "XTAL_2SM_320X150_H080",
+    "pads": [
+      {
+        "number": "1",
+        "x": -1.25,
+        "y": 0.0,
+        "w": 1.6,
+        "h": 1.0,
+        "angle": 90.0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": 1.25,
+        "y": 0.0,
+        "w": 1.6,
+        "h": 1.0,
+        "angle": 90.0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      3.2,
+      1.5
+    ],
+    "source": "https://downloads.sifli.com/hardware/files/documentation/SF32LB58-MOD-V1.0.1.zip",
+    "basis": "Direct SiFli PADS decal conversion; copper pads preserved",
+    "mask": 0.05
+  },
+  "MOS": {
+    "title": "SOT723-1.2X1.2X0.5MM",
+    "pads": [
+      {
+        "number": "1",
+        "x": -0.4,
+        "y": -0.5,
+        "w": 0.5,
+        "h": 0.4,
+        "angle": 90.0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": 0.4,
+        "y": -0.5,
+        "w": 0.5,
+        "h": 0.4,
+        "angle": 90.0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "3",
+        "x": 0.0,
+        "y": 0.5,
+        "w": 0.5,
+        "h": 0.4,
+        "angle": 90.0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      1.2,
+      0.8
+    ],
+    "source": "https://downloads.sifli.com/hardware/files/documentation/SF32LB58-MOD-V1.0.1.zip",
+    "basis": "Direct SiFli PADS decal conversion; copper pads preserved",
+    "mask": 0.05
+  },
+  "U601": {
+    "title": "MAXIM_90-100112",
+    "pads": [
+      {
+        "number": "1",
+        "x": -1.75006,
+        "y": 1.1998959999999999,
+        "w": 0.35000996799999995,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": -1.75006,
+        "y": 0.8000999999999999,
+        "w": 0.35000996799999995,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "3",
+        "x": -1.75006,
+        "y": 0.40004999999999996,
+        "w": 0.35000996799999995,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "4",
+        "x": -1.75006,
+        "y": -0.40004999999999996,
+        "w": 0.35000996799999995,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "5",
+        "x": -1.75006,
+        "y": -0.8000999999999999,
+        "w": 0.35000996799999995,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "6",
+        "x": -1.75006,
+        "y": -1.1998959999999999,
+        "w": 0.35000996799999995,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "7",
+        "x": -1.1998959999999999,
+        "y": -1.949958,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "8",
+        "x": -0.8000999999999999,
+        "y": -1.949958,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "9",
+        "x": -0.40004999999999996,
+        "y": -1.949958,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "10",
+        "x": 0.0,
+        "y": -1.949958,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "11",
+        "x": 0.40004999999999996,
+        "y": -1.949958,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "12",
+        "x": 0.8000999999999999,
+        "y": -1.949958,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "13",
+        "x": 1.1998959999999999,
+        "y": -1.949958,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "14",
+        "x": 1.75006,
+        "y": -1.1998959999999999,
+        "w": 0.35000996799999995,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "15",
+        "x": 1.75006,
+        "y": -0.8000999999999999,
+        "w": 0.35000996799999995,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "16",
+        "x": 1.75006,
+        "y": -0.40004999999999996,
+        "w": 0.35000996799999995,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "17",
+        "x": 1.75006,
+        "y": 0.40004999999999996,
+        "w": 0.35000996799999995,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "18",
+        "x": 1.75006,
+        "y": 0.8000999999999999,
+        "w": 0.35000996799999995,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "19",
+        "x": 1.75006,
+        "y": 1.1998959999999999,
+        "w": 0.35000996799999995,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "20",
+        "x": 1.1998959999999999,
+        "y": 1.949958,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "21",
+        "x": 0.8000999999999999,
+        "y": 1.949958,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "22",
+        "x": 0.40004999999999996,
+        "y": 1.949958,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "23",
+        "x": 0.0,
+        "y": 1.949958,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "24",
+        "x": -0.40004999999999996,
+        "y": 1.949958,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "25",
+        "x": -0.8000999999999999,
+        "y": 1.949958,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "26",
+        "x": -1.1998959999999999,
+        "y": 1.949958,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "27",
+        "x": 0.999998,
+        "y": 1.3949679999999998,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "28",
+        "x": 0.5999479999999999,
+        "y": 1.3949679999999998,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "29",
+        "x": 0.199898,
+        "y": 1.3949679999999998,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "30",
+        "x": -0.199898,
+        "y": 1.3949679999999998,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "31",
+        "x": -0.5999479999999999,
+        "y": 1.3949679999999998,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "32",
+        "x": -0.999998,
+        "y": 1.3949679999999998,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "33",
+        "x": -0.999998,
+        "y": -1.3949679999999998,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "34",
+        "x": -0.5999479999999999,
+        "y": -1.3949679999999998,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "35",
+        "x": -0.199898,
+        "y": -1.3949679999999998,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "36",
+        "x": 0.199898,
+        "y": -1.3949679999999998,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "37",
+        "x": 0.5999479999999999,
+        "y": -1.3949679999999998,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "38",
+        "x": 0.999998,
+        "y": -1.3949679999999998,
+        "w": 0.249934984,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      4.1,
+      4.5
+    ],
+    "source": "https://www.analog.com/media/en/evaluation-documentation/evaluation-design-files/maxm86146_gerbers.zip",
+    "basis": "Direct ADI ODB++ package copper-pad geometry; no placement mirroring applied",
+    "mask": 0.04
+  },
+  "U701": {
+    "title": "MAXIM_21-0459_W91B1-7",
+    "pads": [
+      {
+        "number": "A1",
+        "x": -0.40004999999999996,
+        "y": 0.40004999999999996,
+        "w": 0.249934984,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A2",
+        "x": 0.0,
+        "y": 0.40004999999999996,
+        "w": 0.249934984,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "A3",
+        "x": 0.40004999999999996,
+        "y": 0.40004999999999996,
+        "w": 0.249934984,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B1",
+        "x": -0.40004999999999996,
+        "y": 0.0,
+        "w": 0.249934984,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B2",
+        "x": 0.0,
+        "y": 0.0,
+        "w": 0.249934984,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "B3",
+        "x": 0.40004999999999996,
+        "y": 0.0,
+        "w": 0.249934984,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C1",
+        "x": -0.40004999999999996,
+        "y": -0.40004999999999996,
+        "w": 0.249934984,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C2",
+        "x": 0.0,
+        "y": -0.40004999999999996,
+        "w": 0.249934984,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      },
+      {
+        "number": "C3",
+        "x": 0.40004999999999996,
+        "y": -0.40004999999999996,
+        "w": 0.249934984,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      }
+    ],
+    "body": [
+      1.2,
+      1.2
+    ],
+    "source": "https://www.analog.com/media/en/evaluation-documentation/evaluation-design-files/maxm86146_gerbers.zip",
+    "basis": "Direct ADI ODB++ package copper-pad geometry; no placement mirroring applied",
+    "mask": 0.035
+  },
+  "D701": {
+    "title": "LED_SFH7015",
+    "pads": [
+      {
+        "number": "1",
+        "x": 0.674878,
+        "y": -0.225044,
+        "w": 0.5001249839999999,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": 0.674878,
+        "y": 0.22504146,
+        "w": 0.5001249839999999,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "3",
+        "x": -0.674878,
+        "y": -0.225044,
+        "w": 0.5001249839999999,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "4",
+        "x": -0.674878,
+        "y": 0.22504146,
+        "w": 0.5001249839999999,
+        "h": 0.249934984,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      2,
+      0.8
+    ],
+    "source": "https://www.analog.com/media/en/evaluation-documentation/evaluation-design-files/maxm86146_gerbers.zip",
+    "basis": "Direct ADI ODB++ package copper-pad geometry; no placement mirroring applied",
+    "mask": 0.04
+  },
+  "GREEN": {
+    "title": "OSRM_CT-DBLP31_12-1",
+    "pads": [
+      {
+        "number": "1",
+        "x": -0.447548,
+        "y": 0.750062,
+        "w": 0.54990492,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": 0.44246800000000003,
+        "y": 0.750062,
+        "w": 0.54990492,
+        "h": 0.35000996799999995,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "3",
+        "x": -0.00254,
+        "y": -0.29997145999999997,
+        "w": 1.450084984,
+        "h": 1.2499350159999998,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      1.8,
+      2.2
+    ],
+    "source": "https://www.analog.com/media/en/evaluation-documentation/evaluation-design-files/maxm86146_gerbers.zip",
+    "basis": "Direct ADI ODB++ package copper-pad geometry; no placement mirroring applied",
+    "mask": 0.04
+  },
+  "Y601": {
+    "title": "XTALDFN160X100X50-2M",
+    "pads": [
+      {
+        "number": "1",
+        "x": -0.5499099999999999,
+        "y": 0.0,
+        "w": 0.510029968,
+        "h": 1.1099749199999998,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": 0.5499099999999999,
+        "y": 0.0,
+        "w": 0.510029968,
+        "h": 1.1099749199999998,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      1.6,
+      1.0
+    ],
+    "source": "https://www.analog.com/media/en/evaluation-documentation/evaluation-design-files/maxm86146_gerbers.zip",
+    "basis": "Direct ADI ODB++ package copper-pad geometry; no placement mirroring applied",
+    "mask": 0.04
+  },
+  "U301": {
+    "title": "TI_DLC0008B",
+    "pads": [
+      {
+        "number": "1",
+        "x": -0.65,
+        "y": 0.75,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "8",
+        "x": 0.65,
+        "y": 0.75,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": -0.65,
+        "y": 0.25,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "7",
+        "x": 0.65,
+        "y": 0.25,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "3",
+        "x": -0.65,
+        "y": -0.25,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "6",
+        "x": 0.65,
+        "y": -0.25,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "4",
+        "x": -0.65,
+        "y": -0.75,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "5",
+        "x": 0.65,
+        "y": -0.75,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      1.5,
+      2
+    ],
+    "source": "https://www.ti.com/lit/ds/symlink/tps62840.pdf",
+    "basis": "Manufacturer dimensioned land pattern",
+    "mask": 0.05
+  },
+  "U302": {
+    "title": "TI_DSK0010A",
+    "pads": [
+      {
+        "number": "1",
+        "x": -1.15,
+        "y": 1.0,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "10",
+        "x": 1.15,
+        "y": 1.0,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": -1.15,
+        "y": 0.5,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "9",
+        "x": 1.15,
+        "y": 0.5,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "3",
+        "x": -1.15,
+        "y": 0.0,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "8",
+        "x": 1.15,
+        "y": 0.0,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "4",
+        "x": -1.15,
+        "y": -0.5,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "7",
+        "x": 1.15,
+        "y": -0.5,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "5",
+        "x": -1.15,
+        "y": -1.0,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "6",
+        "x": 1.15,
+        "y": -1.0,
+        "w": 0.6,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "11",
+        "x": 0,
+        "y": 0,
+        "w": 1.2,
+        "h": 2.0,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      2.5,
+      2.5
+    ],
+    "source": "https://www.ti.com/lit/ds/symlink/tps63031.pdf",
+    "basis": "Manufacturer dimensioned land pattern",
+    "mask": 0.05
+  },
+  "U303": {
+    "title": "TI_DRV0006A",
+    "pads": [
+      {
+        "number": "1",
+        "x": -0.975,
+        "y": 0.65,
+        "w": 0.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "6",
+        "x": 0.975,
+        "y": 0.65,
+        "w": 0.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": -0.975,
+        "y": 0.0,
+        "w": 0.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "5",
+        "x": 0.975,
+        "y": 0.0,
+        "w": 0.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "3",
+        "x": -0.975,
+        "y": -0.65,
+        "w": 0.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "4",
+        "x": 0.975,
+        "y": -0.65,
+        "w": 0.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "7",
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 1.6,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      2,
+      2
+    ],
+    "source": "https://www.ti.com/lit/ds/symlink/tps61099.pdf",
+    "basis": "Manufacturer dimensioned land pattern",
+    "mask": 0.05
+  },
+  "U502": {
+    "title": "TI_DGS0010A",
+    "pads": [
+      {
+        "number": "1",
+        "x": -2.2,
+        "y": 1.0,
+        "w": 1.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "10",
+        "x": 2.2,
+        "y": 1.0,
+        "w": 1.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": -2.2,
+        "y": 0.5,
+        "w": 1.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "9",
+        "x": 2.2,
+        "y": 0.5,
+        "w": 1.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "3",
+        "x": -2.2,
+        "y": 0.0,
+        "w": 1.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "8",
+        "x": 2.2,
+        "y": 0.0,
+        "w": 1.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "4",
+        "x": -2.2,
+        "y": -0.5,
+        "w": 1.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "7",
+        "x": 2.2,
+        "y": -0.5,
+        "w": 1.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "5",
+        "x": -2.2,
+        "y": -1.0,
+        "w": 1.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "6",
+        "x": 2.2,
+        "y": -1.0,
+        "w": 1.45,
+        "h": 0.3,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      3,
+      3
+    ],
+    "source": "https://www.ti.com/lit/ds/symlink/drv2605l.pdf",
+    "basis": "Manufacturer dimensioned land pattern",
+    "mask": 0.05
+  },
+  "U201": {
+    "title": "TI_RGT0016C",
+    "pads": [
+      {
+        "number": "1",
+        "x": -1.4,
+        "y": 0.75,
+        "w": 0.6,
+        "h": 0.24,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "5",
+        "x": -0.75,
+        "y": -1.4,
+        "w": 0.24,
+        "h": 0.6,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "9",
+        "x": 1.4,
+        "y": -0.75,
+        "w": 0.6,
+        "h": 0.24,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "13",
+        "x": 0.75,
+        "y": 1.4,
+        "w": 0.24,
+        "h": 0.6,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": -1.4,
+        "y": 0.25,
+        "w": 0.6,
+        "h": 0.24,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "6",
+        "x": -0.25,
+        "y": -1.4,
+        "w": 0.24,
+        "h": 0.6,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "10",
+        "x": 1.4,
+        "y": -0.25,
+        "w": 0.6,
+        "h": 0.24,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "14",
+        "x": 0.25,
+        "y": 1.4,
+        "w": 0.24,
+        "h": 0.6,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "3",
+        "x": -1.4,
+        "y": -0.25,
+        "w": 0.6,
+        "h": 0.24,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "7",
+        "x": 0.25,
+        "y": -1.4,
+        "w": 0.24,
+        "h": 0.6,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "11",
+        "x": 1.4,
+        "y": 0.25,
+        "w": 0.6,
+        "h": 0.24,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "15",
+        "x": -0.25,
+        "y": 1.4,
+        "w": 0.24,
+        "h": 0.6,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "4",
+        "x": -1.4,
+        "y": -0.75,
+        "w": 0.6,
+        "h": 0.24,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "8",
+        "x": 0.75,
+        "y": -1.4,
+        "w": 0.24,
+        "h": 0.6,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "12",
+        "x": 1.4,
+        "y": 0.75,
+        "w": 0.6,
+        "h": 0.24,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "16",
+        "x": -0.75,
+        "y": 1.4,
+        "w": 0.24,
+        "h": 0.6,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "17",
+        "x": 0,
+        "y": 0,
+        "w": 1.68,
+        "h": 1.68,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      3,
+      3
+    ],
+    "source": "https://www.ti.com/lit/ds/symlink/bq24074.pdf",
+    "basis": "TI land pattern 422419/E 07/2025, p51",
+    "mask": 0.05
+  },
+  "U104": {
+    "title": "PUYA_WSON8_6x5_P1.27_EP4x3.4",
+    "pads": [
+      {
+        "number": "1",
+        "x": -1.905,
+        "y": -2.8,
+        "w": 0.5,
+        "h": 0.9,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "8",
+        "x": -1.905,
+        "y": 2.8,
+        "w": 0.5,
+        "h": 0.9,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": -0.635,
+        "y": -2.8,
+        "w": 0.5,
+        "h": 0.9,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "7",
+        "x": -0.635,
+        "y": 2.8,
+        "w": 0.5,
+        "h": 0.9,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "3",
+        "x": 0.635,
+        "y": -2.8,
+        "w": 0.5,
+        "h": 0.9,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "6",
+        "x": 0.635,
+        "y": 2.8,
+        "w": 0.5,
+        "h": 0.9,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "4",
+        "x": 1.905,
+        "y": -2.8,
+        "w": 0.5,
+        "h": 0.9,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "5",
+        "x": 1.905,
+        "y": 2.8,
+        "w": 0.5,
+        "h": 0.9,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "9",
+        "x": 0,
+        "y": 0,
+        "w": 4.0,
+        "h": 3.4,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      5,
+      6
+    ],
+    "source": "https://www.puyasemi.com/en/h_series653/3187.html",
+    "basis": "Puya V2.3 p101 top-view package geometry; pads extended for solder fillet, engineering land pattern",
+    "mask": 0.05
+  },
+  "U501": {
+    "title": "ST_LSM6DSO_LGA14_3x2.5_P0.5",
+    "pads": [
+      {
+        "number": "1",
+        "x": -1.2125,
+        "y": 0.75,
+        "w": 0.575,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "8",
+        "x": 1.2125,
+        "y": -0.75,
+        "w": 0.575,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": -1.2125,
+        "y": 0.25,
+        "w": 0.575,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "9",
+        "x": 1.2125,
+        "y": -0.25,
+        "w": 0.575,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "3",
+        "x": -1.2125,
+        "y": -0.25,
+        "w": 0.575,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "10",
+        "x": 1.2125,
+        "y": 0.25,
+        "w": 0.575,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "4",
+        "x": -1.2125,
+        "y": -0.75,
+        "w": 0.575,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "11",
+        "x": 1.2125,
+        "y": 0.75,
+        "w": 0.575,
+        "h": 0.25,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "5",
+        "x": -0.5,
+        "y": -0.9625,
+        "w": 0.25,
+        "h": 0.575,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "12",
+        "x": 0.5,
+        "y": 0.9625,
+        "w": 0.25,
+        "h": 0.575,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "6",
+        "x": 0.0,
+        "y": -0.9625,
+        "w": 0.25,
+        "h": 0.575,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "13",
+        "x": 0.0,
+        "y": 0.9625,
+        "w": 0.25,
+        "h": 0.575,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "7",
+        "x": 0.5,
+        "y": -0.9625,
+        "w": 0.25,
+        "h": 0.575,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "14",
+        "x": -0.5,
+        "y": 0.9625,
+        "w": 0.25,
+        "h": 0.575,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      3,
+      2.5
+    ],
+    "source": "https://www.st.com/resource/en/datasheet/lsm6dso.pdf",
+    "basis": "ST DS12140 Rev3 p142 top-view pin geometry; lands add 0.05mm on each terminal end",
+    "mask": 0.035
+  },
+  "LPOWER": {
+    "title": "Coilcraft_XFL3012",
+    "pads": [
+      {
+        "number": "1",
+        "x": -1.015,
+        "y": 0,
+        "w": 1,
+        "h": 2.9,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": 1.015,
+        "y": 0,
+        "w": 1,
+        "h": 2.9,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      3,
+      3
+    ],
+    "source": "https://www.coilcraft.com/en-us/products/power/shielded-inductors/molded-inductor/xfl/xfl3012/xfl3012-222/",
+    "basis": "Coilcraft dimensioned recommended land pattern: 2.03mm centers, 1.0x2.90 pads",
+    "mask": 0.05
+  },
+  "F201": {
+    "title": "PTC_1206_Littelfuse",
+    "pads": [
+      {
+        "number": "1",
+        "x": -1.4,
+        "y": 0,
+        "w": 1,
+        "h": 1.8,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": 1.4,
+        "y": 0,
+        "w": 1,
+        "h": 1.8,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      3.4,
+      1.8
+    ],
+    "source": "https://www.littelfuse.com/assetdocs/littelfuse-ptc-1206l-datasheet?assetguid=2b6a1515-d4ee-4c83-8bd4-152b4901b8f5",
+    "basis": "1206L datasheet pad layout p4: 1.0x1.8mm pads, 1.8mm gap",
+    "mask": 0.05
+  },
+  "C0805": {
+    "title": "C_0805_2012",
+    "pads": [
+      {
+        "number": "1",
+        "x": -0.95,
+        "y": 0,
+        "w": 1,
+        "h": 1.45,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": 0.95,
+        "y": 0,
+        "w": 1,
+        "h": 1.45,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      2,
+      1.25
+    ],
+    "source": "",
+    "basis": "Engineering MLCC 0805 land pattern; confirm selected MLCC DC-bias capacitance",
+    "mask": 0.05
+  },
+  "J101": {
+    "title": "J101_WIRE_OR_POGO_7P",
+    "pads": [
+      {
+        "number": "1",
+        "x": -3.81,
+        "y": 0,
+        "w": 0.8,
+        "h": 1.4,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": -2.54,
+        "y": 0,
+        "w": 0.8,
+        "h": 1.4,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "3",
+        "x": -1.27,
+        "y": 0,
+        "w": 0.8,
+        "h": 1.4,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "4",
+        "x": 0.0,
+        "y": 0,
+        "w": 0.8,
+        "h": 1.4,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "5",
+        "x": 1.27,
+        "y": 0,
+        "w": 0.8,
+        "h": 1.4,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "6",
+        "x": 2.54,
+        "y": 0,
+        "w": 0.8,
+        "h": 1.4,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "7",
+        "x": 3.81,
+        "y": 0,
+        "w": 0.8,
+        "h": 1.4,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      8.82,
+      1.7999999999999998
+    ],
+    "source": "",
+    "basis": "Defined solder-wire / pogo interface on the custom PCB; no purchased connector footprint implied",
+    "mask": 0.05,
+    "nopaste": true
+  },
+  "J202": {
+    "title": "J202_WIRE_OR_POGO_3P",
+    "pads": [
+      {
+        "number": "1",
+        "x": -2.0,
+        "y": 0,
+        "w": 1.2,
+        "h": 2,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": 0.0,
+        "y": 0,
+        "w": 1.2,
+        "h": 2,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "3",
+        "x": 2.0,
+        "y": 0,
+        "w": 1.2,
+        "h": 2,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      5.6000000000000005,
+      2.4
+    ],
+    "source": "",
+    "basis": "Defined solder-wire / pogo interface on the custom PCB; no purchased connector footprint implied",
+    "mask": 0.05,
+    "nopaste": true
+  },
+  "J402": {
+    "title": "J402_WIRE_OR_POGO_5P",
+    "pads": [
+      {
+        "number": "1",
+        "x": -2.54,
+        "y": 0,
+        "w": 0.8,
+        "h": 1.4,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": -1.27,
+        "y": 0,
+        "w": 0.8,
+        "h": 1.4,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "3",
+        "x": 0.0,
+        "y": 0,
+        "w": 0.8,
+        "h": 1.4,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "4",
+        "x": 1.27,
+        "y": 0,
+        "w": 0.8,
+        "h": 1.4,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "5",
+        "x": 2.54,
+        "y": 0,
+        "w": 0.8,
+        "h": 1.4,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      6.28,
+      1.7999999999999998
+    ],
+    "source": "",
+    "basis": "Defined solder-wire / pogo interface on the custom PCB; no purchased connector footprint implied",
+    "mask": 0.05,
+    "nopaste": true
+  },
+  "J501": {
+    "title": "J501_WIRE_OR_POGO_2P",
+    "pads": [
+      {
+        "number": "1",
+        "x": -1.0,
+        "y": 0,
+        "w": 1.2,
+        "h": 2,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      },
+      {
+        "number": "2",
+        "x": 1.0,
+        "y": 0,
+        "w": 1.2,
+        "h": 2,
+        "angle": 0,
+        "shape": "RECT",
+        "hole": null
+      }
+    ],
+    "body": [
+      3.6,
+      2.4
+    ],
+    "source": "",
+    "basis": "Defined solder-wire / pogo interface on the custom PCB; no purchased connector footprint implied",
+    "mask": 0.05,
+    "nopaste": true
+  },
+  "TEST": {
+    "title": "TEST_PAD_D1.0",
+    "pads": [
+      {
+        "number": "1",
+        "x": 0,
+        "y": 0,
+        "w": 1,
+        "h": 1,
+        "angle": 0,
+        "shape": "ELLIPSE",
+        "hole": null
+      }
+    ],
+    "body": [
+      1.4,
+      1.4
+    ],
+    "source": "",
+    "basis": "Defined 1.0mm exposed top copper test point; no purchased component",
+    "mask": 0.05,
+    "nopaste": true
+  }
+}

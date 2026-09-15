@@ -1,0 +1,32 @@
+{
+  "date": "2026-09-11",
+  "status": "用户计划选用；接口待确认；尚未实现到 EDA",
+  "display": "YTL CWS05 / C50396528",
+  "source_pdf": "references/vendor\\C50396528_OLED显示屏_CWS05_规格书_WJ1760329.PDF",
+  "source_sha256": "4790663d61e683134a251bcb5a4eb9625fe48a4460c74b1709ad657c59f73ee4",
+  "resolution": [
+    390,
+    450
+  ],
+  "interface": "QSPI",
+  "connector_pin_count": 24,
+  "display_ic": "CO5300AF",
+  "touch_ic": "CST820",
+  "power_ic_drawing_label": "BV6802",
+  "digital_interface_voltage_v": 1.8,
+  "outline_with_coverglass_mm": [
+    35.22,
+    42.5,
+    2.46
+  ],
+  "dimension_caveat": "P4 总体尺寸与 P5 CG/叠层图对照；不含展开 FPC，名称存在混用；最终按供应商受控图与实物。",
+  "passive_policy": "普通低功耗电阻与小电容优先评估英制0201；电源与储能位置按电气要求例外。",
+  "button_proposal": {
+    "SW101": "表内不装直插键，保留RESET测试接点",
+    "SW102": "表内不装直插键，保留BOOT测试接点",
+    "SW401": "实际侧键按结构选型",
+    "SW402": "Home/唤醒并入表冠按压；复核唤醒GPIO和固件后移除单独键"
+  },
+  "schematic_changed": false,
+  "layout_fit_verified": false
+}

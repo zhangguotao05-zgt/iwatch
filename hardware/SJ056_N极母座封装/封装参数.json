@@ -1,0 +1,48 @@
+{
+  "name": "CON-MAGNETIC-SJ056-N-D4-H2-SMD_DRAFT_R01",
+  "title": "SJ-056 N极母座2.0",
+  "revision": "R01",
+  "source_pdf": "references/vendor/N极母座2.0.PDF",
+  "units": "mm",
+  "documented_mm": {
+    "body_diameter": 4.0,
+    "body_height": 2.0,
+    "positive_solder_face_outer_diameter": 1.3,
+    "positive_solder_face_hole_diameter": 0.5,
+    "negative_solder_face_outer_diameter": 3.7,
+    "negative_solder_face_inner_diameter": 2.3,
+    "front_boss_diameter": 2.2,
+    "front_socket_diameter": 1.0
+  },
+  "design_mm": {
+    "positive_copper_diameter": 1.4,
+    "negative_copper_outer_diameter": 3.9,
+    "negative_copper_inner_diameter": 2.1,
+    "solder_mask_expansion_each_side": 0.05,
+    "positive_paste_outer_diameter": 1.3,
+    "positive_paste_inner_diameter": 0.6,
+    "negative_paste_outer_diameter": 3.6,
+    "negative_paste_inner_diameter": 2.4,
+    "silkscreen_diameter": 4.5,
+    "silkscreen_stroke": 0.12,
+    "courtyard_width": 5.0,
+    "courtyard_height": 5.0
+  },
+  "paste_sectors": {
+    "positive": {
+      "count": 4,
+      "half_gap_degrees": 10.0
+    },
+    "negative": {
+      "count": 4,
+      "half_gap_degrees": 4.0
+    }
+  },
+  "pad_numbering": {
+    "1": "positive center contact",
+    "2": "negative outer ring"
+  },
+  "status": "DRAFT - PCB copper and stencil sizes are proposed design values, not a supplier recommended land pattern",
+  "routing": "Full annulus: center positive requires a layer transition. No via or PCB hole is pre-placed.",
+  "output_directory": "hardware/SJ056_N极母座封装"
+}

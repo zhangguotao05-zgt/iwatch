@@ -1,0 +1,17 @@
+* text=auto
+*.py text eol=lf
+*.mjs text eol=lf
+*.md text eol=lf
+*.json text eol=lf
+*.csv text eol=lf
+*.esch text eol=lf
+*.efoo text eol=lf
+*.esym text eol=lf
+*.txt text eol=lf
+*.epro binary
+*.xlsx binary
+*.pdf binary
+*.png binary
+*.zip binary
+# Preserve archived engineering bytes and their SHA256 manifests exactly.
+hardware/** -text

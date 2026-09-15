@@ -1,0 +1,43 @@
+{
+  "name": "CON-MAGNETIC-F-4MM-TH_DRAFT_R01",
+  "revision": "R01",
+  "status": "DRAFT - inferred mounting geometry, verify against the physical part",
+  "source_pdf": "references/vendor/4mm磁吸母头(插件） (1).PDF",
+  "units": "mm",
+  "documented_mm": {
+    "mating_boss_diameter": 4.0,
+    "mating_socket_diameter": 1.1,
+    "body_height": 3.5,
+    "boss_height": 1.3,
+    "tail_length": 2.0,
+    "center_pin_diameter": 0.5,
+    "side_tab_width_y": 1.25,
+    "side_tab_outer_radius": 2.0
+  },
+  "inferred_mm": {
+    "flange_diameter": 5.0,
+    "side_tab_inner_radius": 1.5,
+    "side_tab_radial_thickness": 0.5
+  },
+  "design_mm": {
+    "center_hole_diameter": 0.8,
+    "center_pad_diameter": 1.4,
+    "side_slot_center_x": 1.7,
+    "side_slot_width_x": 0.9,
+    "side_slot_length_y": 1.9,
+    "side_pad_width_x": 1.5,
+    "side_pad_length_y": 2.5,
+    "solder_mask_expansion_each_side": 0.05,
+    "silkscreen_diameter": 5.6,
+    "silkscreen_stroke": 0.15,
+    "reference_courtyard_width": 6.2,
+    "reference_courtyard_height": 6.2
+  },
+  "pad_numbering": {
+    "1": "center contact",
+    "2": "left side tab",
+    "3": "right side tab"
+  },
+  "electrical_mapping": "Physical pad numbers only. No polarity or common-net assumption.",
+  "output_directory": "hardware/4mm磁吸母头封装"
+}

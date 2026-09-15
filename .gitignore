@@ -1,0 +1,26 @@
+# Original workspace archives, vendor downloads and local authoring caches.
+# Public project copies are maintained under hardware/, tools/ and docs/.
+/work/
+/outputs/
+/当前版本.md
+/references/vendor/
+**/references/
+**/node_modules/
+**/__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+*.pem
+*.key
+*.p12
+*.pfx
+*.log
+*.tmp
+.DS_Store
+Thumbs.db
+.idea/
+.vscode/
+~$*

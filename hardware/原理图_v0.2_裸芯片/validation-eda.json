@@ -1,0 +1,21 @@
+{
+  "project": "HealthWatch-SF58-BareChip-v0.2",
+  "project_url": "https://pro.lceda.cn/editor",
+  "visibility": "private",
+  "imported_sheets": 12,
+  "drc_run_local_time": "2026-09-11 16:11:32 Asia/Shanghai",
+  "drc_passed": false,
+  "fatal_items": 44,
+  "errors": 1,
+  "warning_groups": 6,
+  "information_items": 2,
+  "unbound_symbol_instances_in_model": 44,
+  "unbound_unique_physical_components_in_model": 35,
+  "open_pins": 171,
+  "findings": [
+    "Missing footprint attributes; BGA and other IC/mechanical footprints remain unbound.",
+    "SF32LB586VDD36 pin/pad mapping is unresolved because the BGA footprint has not been bound.",
+    "Open-pin warnings correspond to the schematic's explicitly documented unused pins; NC text is not an EDA no-connect flag."
+  ],
+  "scope": "Observed through the EDA user interface; this JSON is a local verification record, not an EDA-generated report export."
+}

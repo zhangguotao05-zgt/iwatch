@@ -1,0 +1,8 @@
+{
+  "source": "hardware\\原理图_v0.3_封装与接口完善\\HealthWatch-SF58-BareChip-v0.3.epro",
+  "source_sha256": "9bbf5ab6887f68276c3977005211487018e277dcf79472d9ac5e55862fb005a9",
+  "reviewed_positions": 153,
+  "simple_envelope_sum_mm2": 830.37,
+  "large_header_usb_four_switches_sum_mm2": 411.44,
+  "caveat": "Sum of per-footprint body-plus-pad rectangles, not PCB area, not a packing/routing/3D validation. Includes DNP and PCB pad features. No board outline is frozen."
+}

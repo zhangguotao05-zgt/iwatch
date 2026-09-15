@@ -1,0 +1,11 @@
+{
+  "revision": "0.3",
+  "project_title": "HealthWatch-SF58-BareChip-v0.3",
+  "source_builder": "../schematic-v0.2/build_schematic.py",
+  "reference_dir": "../schematic-v0.1/references",
+  "output_dir": "../../hardware/原理图_v0.3_封装与接口完善",
+  "mcu": "SF32LB586VDD36",
+  "display": "User confirmed SF32LB58 DevKit with 1.85 inch 390x450 QSPI AMOLED touch adapter kit",
+  "networking": false,
+  "scope": "Complete schematic footprints and no-connect markers, review electrical interfaces, and prepare PCB implementation documentation. Exact bare-panel FPC and wearable mechanics are not yet supplied."
+}

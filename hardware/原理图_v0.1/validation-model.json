@@ -1,0 +1,20 @@
+{
+  "sheets": 8,
+  "unique_components": 91,
+  "physical_pins": 474,
+  "electrical_nets": 71,
+  "intentionally_open_pins": 120,
+  "checks": [
+    "All component pins are explicitly connected or intentionally open",
+    "No duplicated physical pin across module units",
+    "All 138 SF58 module pads represented",
+    "No singleton named nets",
+    "All symbol/device references resolve within the epro archive"
+  ],
+  "limitations": [
+    "These checks are model-level, not a substitute for EDA ERC or circuit review",
+    "IC footprints except U1 are not yet bound; no PCB release",
+    "NC text denotes open pins; EDA no-connect markers still require ERC review",
+    "Battery, panel adapter, optics and LRA mechanical definitions are pending"
+  ]
+}

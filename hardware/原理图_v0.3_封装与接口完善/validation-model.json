@@ -1,0 +1,20 @@
+{
+  "sheets": 13,
+  "unique_components": 153,
+  "physical_pins": 726,
+  "electrical_nets": 100,
+  "intentionally_open_pins": 179,
+  "checks": [
+    "All component pins are explicitly connected or intentionally open",
+    "No duplicated physical pin across BGA units",
+    "All 256 SF32LB586VDD36 BGA balls represented",
+    "No singleton named nets",
+    "All symbol/device references resolve within the epro archive"
+  ],
+  "limitations": [
+    "These checks are model-level, not a substitute for EDA ERC or circuit review",
+    "Footprints and pin sets are bound; PCB placement/routing, power integrity and manufacturing review are not complete",
+    "EDA native NO_CONNECT attributes are applied; UI DRC validation recorded separately",
+    "Battery, panel adapter, optics and LRA mechanical definitions are pending"
+  ]
+}

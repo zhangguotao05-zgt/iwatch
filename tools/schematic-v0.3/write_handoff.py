@@ -1,0 +1,81 @@
+"""Write the engineering handoff from the checked v0.3 model; no PCB claim inferred."""
+from pathlib import Path
+import csv,json,collections
+BASE=Path(__file__).resolve().parent
+CFG=json.loads((BASE/'config.json').read_text(encoding='utf8'))
+OUT=(BASE/CFG['output_dir']).resolve()
+PROJECT='https://pro.lceda.cn/editor'
+bom=list(csv.DictReader((OUT/'BOM_v0.3.csv').open(encoding='utf-8-sig',newline='')))
+audit=json.loads((OUT/'validation-reference.json').read_text(encoding='utf8'))
+counts=collections.Counter(x['assembly'] for x in bom)
+drc={'tool':'嘉立创EDA 专业版 V3.2.186','project_url':PROJECT,'observed_at':'2026-09-11 17:03:09 +08:00','fatal_errors':0,'errors':0,'warnings':0,'design_information':0,'log_information_entries':2,'log':['开始设计规则检查。','完成设计规则检查。 致命错误： 0, 错误：0，警告：0，信息：0。'],'scope':'Schematic DRC using current project rules. This is not PCB DRC or hardware validation.'}
+(OUT/'validation-eda-drc.json').write_text(json.dumps(drc,ensure_ascii=False,indent=2),encoding='utf8')
+(OUT/'立创EDA_DRC记录.txt').write_text('工程：'+PROJECT+'\n版本：嘉立创EDA 专业版 V3.2.186\n时间：2026-09-11 17:03:09 +08:00\n'+ '\n'.join(drc['log'])+'\n界面中的 2 条信息仅为开始、完成日志。没有设计问题信息。\n检查范围：原理图现有规则；不等于 PCB DRC、可制造性或实物验证。\n',encoding='utf8')
+readme=f'''# HealthWatch SF58 v0.3：封装、接口和调试完善版
+
+本版继续使用 **SF32LB586VDD36 封装芯片直接上板**，不采购主控核心模块。屏幕锁定为用户确认购买的 **SF32LB58 DevKit + 1.85 英寸 390×450 QSPI AMOLED 触摸屏套装**。当前目标是离线 UI、表冠/按键、触摸、运动传感、振动和 PPG 采集。
+
+在线私人工程：[HealthWatch-SF58-BareChip-v0.3]({PROJECT})。v0.2 保留。主控分布在多个图页的 U1 单元，合计仍是 **1 颗 IC、256 个球位**。
+
+## 本版实际完成
+
+- 13 页原理图，{len(bom)} 个物理位号：{counts['FIT']} 个默认装配位置、{counts['DNP']} 个预留不装位置、{counts['PCB feature']} 个板上焊盘结构（含 16 个测试点）。
+- 所有物理位号绑定封装；本地逐件检查结果为 0 缺失封装、0 符号引脚与封装焊盘集合不匹配。主控球位来自思澈官方芯片封装数据。
+- USB-C 改为实际 18 焊盘编号；4 个按键补齐金属外壳接地；两颗绿光 LED 按实际 3 焊盘连接，两个阴极焊盘均连接。
+- 芯片封装、PMU 电感、晶体、MOS、PPG/LED 和电源器件封装按官方设计数据或器件手册建立，并记录来源。
+- 179 个明确不用的引脚改成 EDA 原生非连接标识。
+- 增加 VSYS、1.8 V、3.3 V、5 V、SiP/Flash 电源、复位、下载模式、I2C 和控制信号测试点。
+- 立创 EDA 原理图 DRC：**0 致命错误、0 错误、0 警告**。两条信息只是检查开始和完成日志，见 `validation-eda-drc.json`。
+- 13 页本地矢量审阅 PDF 已逐页渲染检查。PDF 来自同一电路模型的本地绘图，并非冒充 EDA 导出的检查报告。
+- 在线工程已增加 `PCB1` 未布线准备稿：153 个位置、726 个焊盘网络、1 颗 U1/256 球位。完整引脚网络指纹与本地模型一致，见 `validation-pcb-transfer.json`。当前默认双层文档/规则只是编辑器初始值，并非板层方案。
+
+## 文件怎么用
+
+| 文件 | 用途 |
+|---|---|
+| `HealthWatch-SF58-BareChip-v0.3.epro` | 原生专业版原理图与封装库工程，导入时关闭自动关联封装/3D 模型 |
+| `BOM_v0.3.csv` | 每个位号的值、封装、装配状态和已选器件型号 |
+| `采购合并表.csv` | 按型号/规格合并数量；通用阻容明确标为尚未锁定采购料号 |
+| `pin-net-map_v0.3.csv` | 全部引脚的网络映射，含有意悬空引脚 |
+| `chip-ball-audit.csv` | U1 全部球位核对记录 |
+| `footprint-catalog.json` / `footprint-binding.json` | 封装几何、依据和位号绑定 |
+| `validation-reference.json` | 独立本地模型及几何检查结果 |
+| `validation-pcb-transfer.json` | 在线 PCB 转换后完整引脚网络指纹核对；本地 epro 仍是原理图/封装版，PCB1 保存在在线工程 |
+| `上电与固件调试.md` | 供电限制、测试点、内存预算和分步调试流程 |
+| `PCB实施约束.md` | 转 PCB 前后需要落实的几何、电源、制造和结构事项 |
+
+## 仍需落实的边界
+
+**本版是通过原理图检查的工程设计稿，尚不能直接下单整表 PCB。** DRC 不检查电感饱和、MLCC 偏压降容、实际面板电流、锂电包能力、光学结构或 BGA 扇出工艺。尚无硬件测试结果。
+
+1. **首版使用套装转接板。** J401 是官方 CONN2 信号对应的 2×20、2.54 mm 接口；这便于调试，但体积不适合最终 46 mm 表壳。裸 AMOLED 的 FPC 型号、脚位、电源时序和尺寸图仍未取得，不能把转接板接口当作裸屏 FPC。
+2. **外壳重新设计已确认，尺寸尚未冻结。** 最终板框、孔位、屏幕贴合、旋转表冠、LRA、电池和光学隔光结构需要实际几何数据。当前的 TC1109 按键是调试样机用选件，不能直接视作最终表冠结构。
+3. **电池包待选。** 按受保护单节 4.2 V 充电锂电包规划，400 mAh 只是容量假设；必须确认最大充放电电流、NTC 阻值/B 值和温度贴合。充电电流名义约 128 mA，仍须匹配实际电芯。
+4. **阻容不是已下单采购 BOM。** 通用 R/C 目前固定数值和封装，厂家订货号仍待锁定；尤其电源输出及 5 V 上的 MLCC 要按实际直流偏压有效电容选择。BOM 中类似 `C 10uF/10V` 的字符串是规格，不是制造商型号。
+5. **PCB 制造审查待做。** 0.4 mm BGA 扇出、板层/孔型、阻焊桥、钢网开窗和热焊盘处理需要结合板厂工艺。封装焊盘已建好不等于贴装工艺已放行。
+6. **接触接口的 ESD/EMI 方案待定。** USB、电池焊线和外部控制接口的放电路径要结合机壳与 PCB 落点设计；本版没有把未选定的防护器件当作已经完成。
+7. PPG 已有真实发射/接收电路基础；算法固件、IMU 数据输入、LED 电流、光路、校准与运动下效果仍需开发和测试。
+
+## 主要原始依据
+
+- [思澈 SF32LB58 硬件应用](https://wiki.sifli.com/en/hardware/SF32LB58x-HW-Application.html)、[DevKit-LCD](https://wiki.sifli.com/board/sf32lb58x/SF32LB58-DevKit-LCD.html)。采用官方芯片电路/封装数据，最终物料不包含核心模块。
+- [ADI MAXM86146 官方评估板资料](https://www.analog.com/en/resources/evaluation-hardware-and-software/evaluation-boards-kits/maxm86146evsys.html)：参考其原理图、物料表及公开 ODB++ 封装数据。
+- [TI BQ24074](https://www.ti.com/lit/ds/symlink/bq24074.pdf)、[TPS62840](https://www.ti.com/lit/ds/symlink/tps62840.pdf)、[TPS63031](https://www.ti.com/lit/ds/symlink/tps63031.pdf)、[TPS61099](https://www.ti.com/lit/ds/symlink/tps61099.pdf)、[DRV2605L](https://www.ti.com/lit/ds/symlink/drv2605l.pdf)。
+- [ST LSM6DSO](https://www.st.com/resource/en/datasheet/lsm6dso.pdf)、[普冉 PY25Q128HA](https://www.puyasemi.com/en/h_series653/3187.html)。
+- [OSRAM SFH7015](https://look.ams-osram.com/m/e1bd35e2ed36dce/original/SFH-7015.pdf)、[CT DBLP31.12](https://look.ams-osram.com/m/7a84e13abf7bd695/original/CT-DBLP31-12.pdf)。
+
+资料读取与核对日期：2026-09-11。没有核实实时库存、成交价格或交期，也没有代购。
+'''
+(OUT/'阅读说明.md').write_text(readme,encoding='utf8')
+groups={}
+for c in bom:
+    if c['assembly']=='PCB feature':continue
+    generic=c['ref'].startswith(('R','C')) and not c['ref'].startswith('SW')
+    status='待锁定厂家料号及降额' if generic else '型号已选，库存未核实'
+    mpn='' if generic else c['mpn']
+    key=(mpn,c['value'],c['package'],c['assembly'],status)
+    groups.setdefault(key,[]).append(c['ref'])
+with (OUT/'采购合并表.csv').open('w',encoding='utf-8-sig',newline='') as f:
+    w=csv.writer(f);w.writerow(['厂家型号','规格','封装','装配','采购状态','数量','位号'])
+    for key,refs in groups.items():w.writerow([*key,len(refs),' '.join(refs)])
+print('Wrote handoff',len(bom),dict(counts))
