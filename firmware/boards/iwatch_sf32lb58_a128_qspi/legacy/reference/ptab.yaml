@@ -1,3 +1,5 @@
+# 仅用于追溯旧 4 MiB main / 12 MiB PSRAM 数据布局，禁止作为构建输入。
+# 当前唯一分区源：firmware/iwatch/project/iwatch_sf32lb58_a128_qspi_hcpu/ptab.json
 # ptab v3 - Partition Table
 # Migrated from: ptab.json
 # Chip: SF32LB58X

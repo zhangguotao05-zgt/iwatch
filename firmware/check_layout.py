@@ -12,9 +12,20 @@ from pathlib import Path
 FIRMWARE = Path(__file__).resolve().parent
 TABLE = FIRMWARE / "iwatch/project/iwatch_sf32lb58_a128_qspi_hcpu/ptab.json"
 BOARD = FIRMWARE / "boards/iwatch_sf32lb58_a128_qspi/hcpu/board.conf"
+STALE_BOARD_TABLE = FIRMWARE / "boards/iwatch_sf32lb58_a128_qspi/ptab.yaml"
+LEGACY_BOARD_TABLE = FIRMWARE / "boards/iwatch_sf32lb58_a128_qspi/legacy/reference/ptab.yaml"
 MIB = 1024 * 1024
 BASES = {"psram1": 0x60000000, "psram2": 0x62000000,
          "flash4": 0x68000000, "flash5": 0x1C000000}
+
+
+def validate_layout_sources():
+    errors = []
+    if STALE_BOARD_TABLE.exists():
+        errors.append(f"stale board partition table must not be a build candidate: {STALE_BOARD_TABLE}")
+    if not LEGACY_BOARD_TABLE.is_file():
+        errors.append(f"missing archived legacy partition reference: {LEGACY_BOARD_TABLE}")
+    return errors
 
 
 def number(value):
@@ -124,13 +135,14 @@ def main():
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument("--build-dir", type=Path)
     args = parser.parse_args()
+    errors = validate_layout_sources()
     try:
         table = json.loads(TABLE.read_text(encoding="utf-8"))
-        errors = validate_layout(table, board_capacities(BOARD))
+        errors.extend(validate_layout(table, board_capacities(BOARD)))
         if args.build_dir:
             errors.extend(validate_images(table, args.build_dir))
     except (OSError, ValueError, KeyError, TypeError) as exc:
-        errors = [f"invalid or missing layout/build metadata: {exc}"]
+        errors.append(f"invalid or missing layout/build metadata: {exc}")
     for error in errors:
         print(f"LAYOUT ERROR: {error}")
     if errors:

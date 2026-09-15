@@ -201,7 +201,7 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 <section id="已发现的布局问题" class="level3">
 <h3>3.1 已发现的布局问题</h3>
 <p>自研原理图选型为 SF32LB586VDD36；当前板型 <code>rtconfig.py</code> 的 <code>PACKAGE='SF32LB587'</code> 是 SDK 编译选择，不能替代实物料号核验。当前生成的 Keil 工程仍从外部 SDK 引用四个 <code>bsp_*</code> 源文件，仓库内存在同名副本并不代表它们参与构建。版本、路径和 SDK 工作区差异见 <a href="架构复审与开发基线_v1.1.html#baseline">复审基线</a>。</p>
-<p>当前项目分区来源为 <code>firmware/iwatch/project/iwatch_sf32lb58_a128_qspi_hcpu/ptab.json</code>，不能只看通用板级 <code>ptab.yaml</code>。</p>
+<p>当前唯一构建分区源为 <code>firmware/iwatch/project/iwatch_sf32lb58_a128_qspi_hcpu/ptab.json</code>。旧 4 MiB main / 12 MiB PSRAM 数据布局已移到板目录的 <code>legacy/reference/ptab.yaml</code>，只供追溯；布局检查会拒绝板目录根部再次出现可被构建系统选择的 <code>ptab.yaml</code>。</p>
 <ul>
 <li>PSRAM1 原配置为代码 6 MiB + 数据 12 MiB，总计 18 MiB，超过板级配置的 16 MiB。第一批修改将数据区收敛至 <strong>10 MiB</strong>，并在构建前检查边界。</li>
 <li>修改前 PSRAM 中代码运行窗口为 6 MiB，NAND 中 <code>main</code> 镜像装载槽只有 <strong>4 MiB</strong>。当时的 <code>main.bin</code> 已超过旧槽，按旧下载地址会越过 KV 区并进入文件系统范围。迁移前已保存 22 MiB NAND、1 MiB NOR 和 FTab 备份；这些原始备份不等同于已证明所有旧数据都具备应用级恢复语义。</li>

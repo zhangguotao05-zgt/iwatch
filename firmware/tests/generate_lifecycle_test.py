@@ -171,27 +171,66 @@ int main(void) {
 status_head=r'''
 typedef struct { int marker; } lv_font_t;
 typedef struct { uint8_t font_size;lv_font_t *font; } font_cache_t;
+typedef uint8_t lv_opa_t;
+typedef int lv_color_t;
+typedef struct { lv_color_t color;int align; } lv_draw_label_dsc_t;
+#define MASK_WIDTH 200
+#define MASK_HEIGHT 45
+#define IMAGE_CACHE_PSRAM 1
+#define LV_IMG_CF_ALPHA_8BIT 1
+#define LV_OPA_TRANSP 0
+#define LV_TEXT_ALIGN_CENTER 0
+#define LV_GRAD_DIR_HOR 0
+#define lv_obj_del lv_obj_delete
+#define lv_canvas_set_buffer(...) ((void)0)
+#define lv_canvas_fill_bg(...) ((void)0)
+#define lv_canvas_draw_text(...) ((void)0)
+#define lv_obj_center(...) ((void)0)
+#define lv_obj_set_style_bg_grad_color(...) ((void)0)
+#define lv_obj_set_style_bg_grad_dir(...) ((void)0)
+#define lv_obj_set_style_radius(...) ((void)0)
 static font_cache_t font_cache[10];
 static unsigned font_count;
 static lv_font_t *chinese_font;
 static lv_obj_t *app_clock_main_status_bar,*status_bar_area_up,*status_bar_area_down,*app_clock_tileview;
+static lv_opa_t *last_mask;
+static lv_opa_t *app_cache_alloc(size_t size,int pool) { (void)pool;last_mask=test_calloc(1,size);return last_mask; }
+static void app_cache_free(void *memory) { assert(memory && memory==last_mask);last_mask=NULL;test_free(memory); }
+static lv_obj_t *lv_canvas_create(lv_obj_t *parent) { return lv_obj_create(parent); }
+static lv_color_t lv_color_black(void) { return 0; }
+static lv_color_t lv_color_white(void) { return 1; }
+static lv_color_t lv_color_hex(unsigned value) { return (lv_color_t)value; }
+static void lv_draw_label_dsc_init(lv_draw_label_dsc_t *dsc) { memset(dsc,0,sizeof(*dsc)); }
+static void add_mask_event_cb(lv_event_t *event) { (void)event; }
 static void lv_tiny_ttf_destroy(lv_font_t *font) { assert(!app_clock_main_status_bar && !status_bar_area_up && !status_bar_area_down);test_free(font); }
 '''
 status_test=r'''
 int main(void) {
+    /* 遮罩、临时 canvas、渐变对象三个分配点逐一失败时必须无残留。 */
+    for(int point=1;point<=3;point++) {
+        alloc_at=0;fail_at=point;
+        assert(!gradient_label(&screen,"gradient"));
+        assert(live==0 && !last_mask && !screen.child);
+    }
+    alloc_at=0;fail_at=0;
+    lv_obj_t *gradient=gradient_label(&screen,"gradient");
+    assert(gradient && last_mask && live==2);
+    app_cache_free(last_mask);lv_obj_delete(gradient);
+    assert(live==0 && !screen.child);
     lv_obj_t roots[3]={0};
     for(int i=0;i<100;i++) {
         app_clock_main_status_bar=lv_obj_create(&roots[0]);status_bar_area_up=lv_obj_create(&roots[1]);status_bar_area_down=lv_obj_create(&roots[2]);
         font_count=10;for(int f=0;f<10;f++)font_cache[f].font=test_calloc(1,sizeof(lv_font_t));
         app_clock_main_status_bar_deinit();app_clock_main_status_bar_deinit();assert(live==0 && !font_count);
     }
-    puts("Status font ownership tests passed");return 0;
+    puts("Status font ownership and gradient OOM tests passed");return 0;
 }
 '''
 
 OUT.mkdir(exist_ok=True)
 for name, body in [('clock',clock_head+clock_functions+clock_test),('menu',menu_head+menu_functions+menu_test),
-                   ('status',status_head+function(bar,'void app_clock_main_status_bar_deinit(void)')+status_test)]:
+                   ('status',status_head+function(bar,'static lv_obj_t *gradient_label(lv_obj_t *parent, const char *text)')+
+                    function(bar,'void app_clock_main_status_bar_deinit(void)')+status_test)]:
     (OUT/f'test_{name}_lifecycle.c').write_text(prefix+body,encoding='utf-8')
 print('Generated lifecycle tests from current production functions')
 

@@ -224,11 +224,22 @@ static void input_service(void)
     }
     rt_base_t level = rt_hw_interrupt_disable();
     bool pending = input_queue.count || input_queue.cancel_pending;
-    /* 物理释放稳定二十毫秒可补偿被溢出丢弃的 RELEASE，期间不会产生单击。 */
-    if (!pending && key1_button_handle >= 0)
-        (void)iw_input_gate_recover(&input_gate, button_is_pressed(key1_button_handle),
-                                   (uint32_t)rt_tick_get(), (uint32_t)rt_tick_from_millisecond(20));
+    bool sample_key1 = !pending && key1_button_handle >= 0;
     rt_hw_interrupt_enable(level);
+    if (sample_key1)
+    {
+        /* GPIO 访问可能进入驱动层，必须放在 IRQ 临界区之外。 */
+        bool key1_pressed = button_is_pressed(key1_button_handle);
+        uint32_t sample_tick = (uint32_t)rt_tick_get();
+        uint32_t stable_ticks = (uint32_t)rt_tick_from_millisecond(20);
+
+        level = rt_hw_interrupt_disable();
+        pending = input_queue.count || input_queue.cancel_pending;
+        /* 再次确认队列为空，避免采样期间到达的新事件被恢复逻辑跨过。 */
+        if (!pending)
+            (void)iw_input_gate_recover(&input_gate, key1_pressed, sample_tick, stable_ticks);
+        rt_hw_interrupt_enable(level);
+    }
     if (pending) iw_gui_wake(IW_GUI_WAKE_INPUT);
     if (activity)
     {

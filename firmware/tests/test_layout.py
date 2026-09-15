@@ -18,6 +18,7 @@ class LayoutTests(unittest.TestCase):
         return next(bank for bank in self.table if bank["mem"] == name)
 
     def test_checked_in_layout(self):
+        self.assertEqual([], layout.validate_layout_sources())
         self.assertEqual([], layout.validate_layout(self.table, self.capacities))
 
     def test_original_psram_overflow_is_rejected(self):

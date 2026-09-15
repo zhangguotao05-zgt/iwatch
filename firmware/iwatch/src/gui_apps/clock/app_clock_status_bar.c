@@ -258,29 +258,43 @@ static void add_mask_event_cb(lv_event_t *e)
 
 static lv_obj_t *gradient_label(lv_obj_t *parent, const char *text)
 {
-    /* Create the mask of a text by drawing it to a canvas*/
+    /* 先建立文字遮罩；任一构造步骤失败都由本函数释放已取得的资源。 */
     lv_opa_t *mask_map = app_cache_alloc(MASK_WIDTH * MASK_HEIGHT, IMAGE_CACHE_PSRAM);
+    if (!mask_map)
+    {
+        rt_kprintf("[clock_status] gradient mask alloc failed\n");
+        return NULL;
+    }
 
-    LV_ASSERT(mask_map);
-
-    /*Create a "8 bit alpha" canvas and clear it*/
+    /* 用临时 8 位 alpha canvas 把文字绘制到遮罩。 */
     lv_obj_t *canvas = lv_canvas_create(parent);
+    if (!canvas)
+    {
+        app_cache_free(mask_map);
+        rt_kprintf("[clock_status] gradient canvas create failed\n");
+        return NULL;
+    }
     lv_canvas_set_buffer(canvas, mask_map, MASK_WIDTH, MASK_HEIGHT, LV_IMG_CF_ALPHA_8BIT);
     lv_canvas_fill_bg(canvas, lv_color_black(), LV_OPA_TRANSP);
 
-    /*Draw a label to the canvas. The result "image" will be used as mask*/
+    /* canvas 中的文字 alpha 作为最终渐变对象的遮罩。 */
     lv_draw_label_dsc_t label_dsc;
     lv_draw_label_dsc_init(&label_dsc);
     label_dsc.color = lv_color_white();
     label_dsc.align = LV_TEXT_ALIGN_CENTER;
     lv_canvas_draw_text(canvas, 5, 5, MASK_WIDTH, &label_dsc, text);
 
-    /*The mask is reads the canvas is not required anymore*/
+    /* 遮罩数据已生成，临时 canvas 可以删除。 */
     lv_obj_del(canvas);
 
-    /* Create an object from where the text will be masked out.
-     * Now it's a rectangle with a gradient but it could be an image too*/
+    /* 创建承载渐变的对象；失败时遮罩还未转交给删除事件。 */
     lv_obj_t *grad = lv_obj_create(parent);
+    if (!grad)
+    {
+        app_cache_free(mask_map);
+        rt_kprintf("[clock_status] gradient object create failed\n");
+        return NULL;
+    }
     lv_obj_set_size(grad, MASK_WIDTH, MASK_HEIGHT);
     lv_obj_center(grad);
     lv_obj_set_style_bg_color(grad, lv_color_hex(0xff0000), 0);
