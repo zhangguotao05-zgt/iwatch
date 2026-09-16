@@ -176,6 +176,27 @@ static void test_device_failure_has_no_clock_side_effect(void)
     assert(after.offset_minutes == before.offset_minutes);
 }
 
+static void test_revision_exhaustion_has_no_device_work(void)
+{
+    iw_time_state_t time_state;
+    iw_service_t service;
+    iw_command_t command;
+    iw_result_t result;
+    iw_service_work_t work;
+
+    assert(iw_time_init(&time_state, 0u, 1000u, 1704067200, 0,
+                        IW_TIME_SOURCE_RTC) == IW_TIME_OK);
+    time_state.revision = UINT32_MAX;
+    assert(iw_service_init(&service, &time_state, 11u));
+    command = clock_command(11u, 1u, UINT32_MAX, 2u, 1u, 1704153600u);
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_QUEUED);
+    assert(iw_service_take_next(&service, &work) == IW_TAKE_COMPLETED);
+    assert(iw_service_result_get(&service, 11u, 1u, &result) == IW_RESULT_LOOKUP_FOUND);
+    assert(result.state == IW_RESULT_STATE_TERMINAL);
+    assert(result.code == IW_RESULT_CAPACITY);
+    assert(time_state.revision == UINT32_MAX);
+}
+
 static void test_snapshots_and_client_exhaustion(void)
 {
     iw_time_state_t time_state;
@@ -215,6 +236,7 @@ int main(void)
     test_duplicate_expiry_and_session();
     test_queue_and_ledger_capacity();
     test_device_failure_has_no_clock_side_effect();
+    test_revision_exhaustion_has_no_device_work();
     test_snapshots_and_client_exhaustion();
     puts("service tests passed");
     return 0;

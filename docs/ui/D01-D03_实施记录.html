@@ -27,7 +27,7 @@
 <tr><td>D02 构建来源</td><td>通过；SDK、BSP、配置、布局、工具链、哈希和构建锁已固定</td><td>两套产物独立归档；镜像地址与槽大小检查通过</td><td>DEV_A128_NAND 包通过备份、写入校验、回读、冷启动和串口恢复</td></tr>
 <tr><td>D03 等待与取消</td><td>通过；20 ms 有界等待、锁存唤醒、取消恢复和节拍回绕已覆盖</td><td>两工具链均使用 2 KiB 本地触摸线程栈实现</td><td>通过；最终固件输入 P95 为 21 ms、最大 62 ms，计数守恒，压力后最高已测线程栈 45%</td></tr>
 </tbody></table>
-<p>结论只适用于下文列出的 GCC 固件包和本次 D01–D03 范围。该包已满足 G2 的备份、镜像身份、写后校验、引导和恢复要求；D04/D05 的时间、启动协调和服务契约尚未完成，因此完整 G1/M1 流程仍未闭环。当前界面仍以 SDK 演示页面为基线。</p>
+<p>结论只适用于下文列出的 GCC 固件包和本次 D01–D03 范围。该包已满足 G2 的备份、镜像身份、写后校验、引导和恢复要求。记录形成时 D04/D05 尚未完成；其后续实现状态见 <a href="D04-D05_实施记录.html">D04–D05 实施记录</a>。界面仍以 SDK 演示页面为基线。</p>
 </section>
 
 <section id="lifecycle">
@@ -107,7 +107,7 @@ git -C C:/OpenSiFli/SiFli-SDK-v2.5.1-iwatch-locked submodule update --init --rec
 .\firmware\flash-serial.ps1 -Port COM9 -Toolchain gcc -DryRun
 # 安装 Mode 跳帽并复位后，去掉 -DryRun 执行完整三件套烧录
 py -3 tools/docs/check_html.py</code></pre>
-<p>下一步进入 D04/D05：先冻结启动协调者、有效 RTC 与单调时间，再实现命令回执、快照、capability、session 重建和时钟编辑并发契约。D07 前处理字体与图片容量；D15 解决 FAL 设备映射、坏块/ECC、设置持久化和掉电恢复。每次固件变化都会产生新的构建身份，当前板测结果不能自动继承给未来镜像。</p>
+<p>本记录关闭后的下一步是 D04/D05；该批已经实现启动协调者、有效 RTC、单调时间、命令回执、快照、capability、session 重建和时钟 revision 契约，目标板结果另记。D07 前处理字体与图片容量；D15 解决 FAL 设备映射、坏块/ECC、设置持久化和掉电恢复。每次固件变化都会产生新的构建身份，本次板测结果不能自动继承给未来镜像。</p>
 </section>
 </main>
 </div>

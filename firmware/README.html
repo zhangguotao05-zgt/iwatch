@@ -29,13 +29,16 @@
     <main>
 <section id="iwatch-sf32lb58-固件" class="level1">
 <h1>iwatch SF32LB58 固件</h1>
-<p>这里保存本项目可修改、可提交的固件源码。基线来自 SiFli-SDK v2.5.1 的 <code>example/multimedia/lvgl/watch_v9</code>。当前验证平台为 <strong>SF32LB58-DevKit-LCD、A128R32N1、QSPI 屏接口、A1 修订</strong>，CO5300 + FT6146 模组已点亮。DEV_A128_NAND 的 D01–D03 GCC 固件已完成备份、烧录、回读、冷启动、生命周期和输入压力验收。构建来源、镜像身份、空间门槛和板上数据见 <a href="../docs/ui/D01-D03_实施记录.html">D01–D03 实施记录</a>。</p>
+<p>这里保存本项目可修改、可提交的固件源码。基线来自 SiFli-SDK v2.5.1 的 <code>example/multimedia/lvgl/watch_v9</code>。当前验证平台为 <strong>SF32LB58-DevKit-LCD、A128R32N1、QSPI 屏接口、A1 修订</strong>，CO5300 + FT6146 模组已点亮。DEV_A128_NAND 的 D01–D03 GCC 固件已完成备份、烧录、回读、冷启动、生命周期和输入压力验收。D04/D05 的时间与最小服务已通过主机和双工具链构建，开发板验收待执行。证据见 <a href="../docs/ui/D01-D03_实施记录.html">D01–D03</a> 与 <a href="../docs/ui/D04-D05_实施记录.html">D04–D05 实施记录</a>。</p>
 <section id="目录" class="level2">
 <h2>目录</h2>
 <pre class="text"><code>firmware/
 ├─ iwatch/
 │  ├─ src/                    手表 UI 与资源源码
 │  │  ├─ app_utils/           程序入口
+│  │  ├─ core/                输入、等待、显示保护和纯 C 时间模型
+│  │  ├─ services/            固定容量命令、结果、快照及服务运行时
+│  │  ├─ platform/            GUI/RTC 适配与启动协调
 │  │  ├─ gui_apps/clock/      表盘
 │  │  ├─ gui_apps/main/       蜂窝菜单
 │  │  └─ resource/            图片、字体和语言资源
@@ -78,7 +81,7 @@
 <pre class="powershell"><code>.\firmware\generate-keil.ps1</code></pre>
 <p>随后使用 Keil 打开：</p>
 <pre class="text"><code>firmware/iwatch/project/project.uvprojx</code></pre>
-<p>生成脚本会把当前 <code>-SdkPath</code> 写入 Keil 工程，补充 SF32LB58 的 CDE 编译参数，并检查全部源文件引用。2026-09-15 生成结果包含 928 个有效的源码引用，包含 <code>Iwatch_core</code>、<code>Iwatch_gui_core</code> 与 <code>Iwatch_platform</code> 组；换电脑或改变 SDK 位置后重新运行脚本即可。</p>
+<p>生成脚本会把当前 <code>-SdkPath</code> 写入 Keil 工程，补充 SF32LB58 的 CDE 编译参数，并检查全部源文件引用。当前工程已包含 <code>iw_time</code>、<code>iw_service</code>、<code>iw_service_runtime</code>、<code>iw_boot</code> 和 <code>iw_time_rtc</code>，并保留 <code>Iwatch_core</code>、<code>Iwatch_gui_core</code> 与 <code>Iwatch_platform</code> 分组；换电脑或改变 SDK 位置后重新运行脚本即可。</p>
 <p><code>generate-keil.ps1</code> 先生成工程，再执行真正的 Arm Compiler 编译。SDK 的 <code>--target=mdk5</code> 自身启用 no_exec，日志不能作为已编译证据。脚本已加入互斥锁、构建后布局/地址/有效配置/编译器标记/哈希检查及工具链独立归档。该检查不证明实际 NAND 几何、坏块处理或已有数据完整。</p>
 <p>Keil 工程用于编辑和编译 HCPU 应用。当前开发板的 CH342 USB 串口下载仍使用 SiFli 的串口烧录脚本；Keil 的 Download 按钮需要另接 J-Link/CMSIS-DAP 并配置对应 Flash 算法。</p>
 </section>
@@ -90,13 +93,13 @@
 </section>
 <section id="架构与基础测试" class="level2">
 <h2>架构与基础测试</h2>
-<p><a href="../docs/ui/系统架构_v1.1.html">系统架构</a>、<a href="../docs/ui/视觉与交互规范_v1.html">视觉规范</a> 和 <a href="../docs/ui/实施与验收_v1.html">实施记录</a> 定义后续开发边界。当前只开始 M0 基础代码，界面仍是原演示基线。</p>
-<p>开发前先读 <a href="../docs/ui/架构复审与开发基线_v1.1.html">复审问题</a>、<a href="../docs/ui/功能逻辑与页面契约_v1.html">功能契约</a> 和 <a href="../docs/ui/模块接口与开发任务_v1.html">模块接口与任务</a>。D01–D03 已完成主机、两工具链和开发板验收。下一批先完成 D04/D05 的启动、时间和服务契约，再推进组件与产品界面。</p>
-<p>Windows 主机测试需要 Visual Studio C/C++ 工具和 Python 3：</p>
+<p><a href="../docs/ui/系统架构_v1.1.html">系统架构</a>、<a href="../docs/ui/视觉与交互规范_v1.html">视觉规范</a> 和 <a href="../docs/ui/实施与验收_v1.html">实施记录</a> 定义后续开发边界。M0 已闭环；M1.0 的 D04/D05 已进入板上验收，界面仍以原演示基线为主。</p>
+<p>开发前先读 <a href="../docs/ui/架构复审与开发基线_v1.1.html">复审问题</a>、<a href="../docs/ui/功能逻辑与页面契约_v1.html">功能契约</a> 和 <a href="../docs/ui/模块接口与开发任务_v1.html">模块接口与任务</a>。D04/D05 实现了单调时钟、RTC 有效性、启动协调、固定容量命令/结果账本和版本化快照；目标板通过后进入 D06 显示目标与会话设置。</p>
+<p>Windows 主机测试需要 Visual Studio C/C++ 工具和 Python 3.13：</p>
 <pre class="powershell"><code>.\firmware\tests\run-core-tests.ps1</code></pre>
 <p>也可以单独运行只读布局检查；第二条必须指向与本次镜像匹配的完整输出目录：</p>
-<pre class="powershell"><code>py -3 firmware/check_layout.py
-py -3 firmware/check_layout.py --build-dir firmware/iwatch/project/build_iwatch_sf32lb58_a128_qspi_hcpu</code></pre>
+<pre class="powershell"><code>py -3.13 firmware/check_layout.py
+py -3.13 firmware/check_layout.py --build-dir firmware/iwatch/project/build_iwatch_sf32lb58_a128_qspi_hcpu</code></pre>
 <p>手动直接运行 SCons 或从 uVision 编译时仍需执行相应的布局和实际镜像检查；包装脚本的通过结果不覆盖之后手动修改的分区或产物。板上可用 <code>iw_input_stat_reset</code> 清零本轮输入统计，再用 <code>iw_input_stat</code> 查看计数、队列高水位和 P95 消费延迟。</p>
 </section>
 <section id="上游许可" class="level2">

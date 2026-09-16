@@ -353,6 +353,11 @@ iw_take_status_t iw_service_take_next(iw_service_t *service, iw_service_work_t *
         finish_slot(service, slot, IW_RESULT_STATE_CONFLICT, &clock);
         return IW_TAKE_COMPLETED;
     }
+    if (clock.revision == UINT32_MAX)
+    {
+        finish_slot(service, slot, IW_RESULT_CAPACITY, &clock);
+        return IW_TAKE_COMPLETED;
+    }
 
     work->command = slot->command;
     work->token.session_id = service->session_id;

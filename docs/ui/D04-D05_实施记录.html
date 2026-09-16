@@ -1,0 +1,94 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch D04-D05 时间与最小服务实施记录">
+  <title>D04–D05 时间与最小服务实施记录 · iwatch</title>
+  <link rel="stylesheet" href="../assets/engineering.css">
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D04–D05 时间与最小服务实施记录</span></header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录"><ul>
+      <li><a href="#scope">1. 范围与结论</a></li>
+      <li><a href="#time">2. D04 时间基础</a></li>
+      <li><a href="#service">3. D05 命令与快照服务</a></li>
+      <li><a href="#startup">4. 启动、线程与资源</a></li>
+      <li><a href="#host">5. 主机与构建证据</a></li>
+      <li><a href="#board">6. 开发板验收</a></li>
+      <li><a href="#follow">7. 后续约束</a></li>
+    </ul></nav>
+    <main>
+      <h1>D04–D05 时间与最小服务实施记录</h1>
+      <p class="doc-meta">2026-09-16 · DEV_A128_NAND · 实现提交 <code>c90061b</code> 后补充边界修正 · 板上验收待执行</p>
+
+      <section id="scope"><h2>1. 范围与结论</h2>
+        <p>D04/D05 已落成可编译代码：启动不再把 RTC 强制改为 2022-07-01 09:00:00；系统建立单调时间、可信 RTC 标记、版本化时钟、固定容量命令队列、结果账本、能力表和只读快照。主机测试及 GCC/Keil 首轮构建已经通过。当前状态是“实现与构建通过、开发板待验收”，尚未把本轮镜像写入开发板，也未推送远端。</p>
+        <table><thead><tr><th>任务</th><th>已完成</th><th>仍需实物确认</th></tr></thead><tbody>
+          <tr><td>D04</td><td>32 位 tick 回绕扩展、分数 tick 换算、日期范围、RTC 可信标记、时区、revision、期限一次触发、移除固定日期。</td><td>首次无可信标记、手动校时、软复位保持、表盘本地时间显示。</td></tr>
+          <tr><td>D05</td><td>32 B 命令、16 条队列、32 槽账本、48 B 结果、24 B 快照头、幂等 token、全局 ACK、能力状态、服务线程。</td><td>线程启动、FinSH 诊断、命令执行与 ACK、会话号跨软复位递增。</td></tr>
+        </tbody></table>
+      </section>
+
+      <section id="time"><h2>2. D04 时间基础</h2>
+        <p><code>core/iw_time.[ch]</code> 不直接依赖 RT-Thread、RTC 或 LVGL。唯一 owner 传入 32 位原始 tick；模块用无符号差扩展为 64 位毫秒，并保留除法余数，避免 32.768 kHz 等时基持续截断。相邻采样必须短于一整轮 tick，运行时每秒至少采样一次。</p>
+        <p><code>ClockSnapshot</code> 同时给出 <code>mono_ms</code>、<code>utc_ms</code>、<code>offset_minutes</code>、<code>revision</code>、<code>valid</code> 与 <code>source</code>。UTC 与时区偏移分别保存，计时期限只使用单调时间。可接受日期为 2000-01-01 00:00:00 至 2099-12-31 23:59:59 UTC，时区偏移范围为 −840 至 +840 分钟；非法日期、revision 耗尽和加法溢出均显式返回错误。</p>
+        <p><code>platform/iw_time_rtc.[ch]</code> 使用 SF32LB58 RTC 备份寄存器 29、30 保存“状态字及其按位反码”，寄存器 31 保存服务会话计数。固定 SDK 的公共 <code>RTC_BACKUP</code> 枚举目前只占 0–11。写时间时先撤销可信标记，RTC 写成功后再写入并回读状态字；任一步失败都不会把时间声明为可信。备份域丢失后时钟为 invalid，不用一个看似合理的 RTC 数值冒充已校准时间。</p>
+        <p>旧演示代码的 <code>set_date(2022, 7, 1)</code> 和 <code>set_time(9, 0, 0)</code> 已删除。表盘读取服务时钟；有效时按 UTC 加显式时区偏移显示，无效时只展示本次会话的单调时间，等待 D10 的正式“待校时”页面。</p>
+      </section>
+
+      <section id="service"><h2>3. D05 命令与快照服务</h2>
+        <p><code>services/iw_service.[ch]</code> 是纯 C 模型。命令按值复制且固定为 32 B；当前只开放 <code>SET_CLOCK</code>，其 12 B 载荷为 <code>utc_seconds:u32</code>、<code>offset_minutes:i16</code>、<code>flags:u16</code> 和 <code>expected_revision:u32</code>。载荷使用小端具名编解码函数，不依赖未对齐结构强转。</p>
+        <p>服务按 <code>(session_id, request_id)</code> 识别请求。同 token、同内容重投返回原状态；同 token、不同内容返回冲突；已 ACK 并回收的旧 token 返回过期；旧 session 返回会话变化。命令只有在队列、账本和活动容量全部可保留时才受理，拒绝不产生 RTC 或模型副作用。revision 冲突与 revision 耗尽都在写 RTC 前终结。</p>
+        <p>结果固定为 48 B，带独立 <code>ledger_generation</code>。页面 generation 只决定 Presenter 是否消费结果，不能阻止全局消息泵 ACK。结果账本共 32 槽，命令队列和同时活动命令上限均为 16；账本无可回收槽时拒绝新请求，不覆盖未确认终态。</p>
+        <p>快照统一使用 24 B 头，包含版本、topic、头/载荷长度、session、revision 与 flags。当前 topic 为 CLOCK、CAPABILITIES 和 SERVICE。调用方容量不足时只得到 required 字节数，输出缓冲区保持不变。能力项固定为 12 B，当前登记 CLOCK、RTC_BACKUP、DISPLAY 和 STORAGE，状态为 UNKNOWN、AVAILABLE、DEGRADED、ABSENT 或 FAULT。</p>
+      </section>
+
+      <section id="startup"><h2>4. 启动、线程与资源</h2>
+        <p><code>platform/iw_boot.[ch]</code> 是本阶段唯一启动协调入口。<code>app_watch_init()</code> 先完成 GUI 唤醒对象初始化，再建立服务运行时，避免两个自动入口重复创建状态。</p>
+        <table><thead><tr><th>对象</th><th>配置</th><th>所有权</th></tr></thead><tbody>
+          <tr><td><code>iw_service</code> 线程</td><td>优先级 17，静态栈 4096 B，时间片 10</td><td>唯一命令执行者；每批最多 8 条，每秒至少采样一次 tick。</td></tr>
+          <tr><td>模型互斥锁</td><td>RT-Thread priority mutex</td><td>仅保护有界模型复制和状态转换；RTC 设备访问在锁外执行。</td></tr>
+          <tr><td>服务事件</td><td>命令到达锁存；批次后若仍有工作则重新发送</td><td>避免因一次批次上限留下命令而永久休眠。</td></tr>
+          <tr><td>固定数据</td><td>32 个账本槽、16 个队列索引、8 个能力项</td><td>本阶段不为命令或结果动态分配堆内存。</td></tr>
+        </tbody></table>
+        <p>诊断入口为 <code>iw_clock_stat</code>、<code>iw_service_stat</code>、<code>iw_clock_set &lt;utc_seconds&gt; &lt;offset_minutes&gt;</code> 和 <code>iw_clock_result</code>。校时命令经过正式提交、执行、结果查询和 ACK 路径，不直接绕过服务修改模型。</p>
+      </section>
+
+      <section id="host"><h2>5. 主机与构建证据</h2>
+        <p><code>firmware/tests/run-core-tests.ps1</code> 已通过。新增覆盖包括 tick 跨 <code>0xffffffff</code>、32.768 kHz 分数换算、一次性期限、闰日和非法日期、时钟有效性与 revision、重复/冲突/过期 token、session 重建、16 条队列与 32 槽账本、设备失败无模型副作用、revision 耗尽无设备写、旧页面 generation 与全局 ACK、快照容量及 request_id 耗尽。原有输入、GUI 等待/取消、生命周期 OOM、1000 次循环、14 项布局/身份和构建锁测试同时通过。</p>
+        <table><thead><tr><th>工具链</th><th>首轮实现提交</th><th>main</th><th>6 MiB 占用 / 剩余</th><th>状态</th></tr></thead><tbody>
+          <tr><td>GCC 14.2.1</td><td><code>c90061bd3d10…</code></td><td>5,739,848 B</td><td>91.230% / 551,608 B</td><td>真实编译、链接、布局检查及归档通过。</td></tr>
+          <tr><td>Arm Compiler 6.16</td><td><code>c90061bd3d10…</code></td><td>5,665,968 B</td><td>90.058% / 625,488 B</td><td>Keil 工程生成、真实编译、链接、布局检查及归档通过。</td></tr>
+        </tbody></table>
+        <p>上述是边界修正前的首轮构建证据，证明新增模块能通过两套工具链。正式烧录前会在收口提交上重新生成两套身份归档；开发板只烧录同一 GCC 归档中的 Bootloader、main 和 FTab。</p>
+      </section>
+
+      <section id="board"><h2>6. 开发板验收</h2>
+        <p>当前 CH342 下载口和日志口未连接，因此本节暂不标记通过。验收只使用 COM9 下载和 COM10 1,000,000 baud 日志，不访问 COM8/J-Link。</p>
+        <table><thead><tr><th>步骤</th><th>预期</th><th>状态</th></tr></thead><tbody>
+          <tr><td>归档 DryRun 与三件套烧录</td><td>地址、尺寸、哈希、工具链身份一致；FTab 最后写入并回读。</td><td>待执行</td></tr>
+          <tr><td>首次启动</td><td>屏幕与触摸正常；旧 RTC 没有本项目可信标记时 <code>valid=0</code>。</td><td>待执行</td></tr>
+          <tr><td>服务诊断</td><td><code>iw_service</code> 线程存在；队列、active、ledger 初值合理。</td><td>待执行</td></tr>
+          <tr><td>手动校时</td><td>提交返回 QUEUED，结果为 OK_APPLIED，revision 增加，ACK 后账本释放。</td><td>待执行</td></tr>
+          <tr><td>软复位</td><td>UTC 继续前进、偏移保持、RTC source 有效、session_id 递增。</td><td>待执行</td></tr>
+          <tr><td>界面回归</td><td>表盘时间与 +480 分钟本地时间一致；触摸和页面切换仍响应。</td><td>待执行</td></tr>
+        </tbody></table>
+      </section>
+
+      <section id="follow"><h2>7. 后续约束</h2>
+        <ul>
+          <li>D06 的显示唤醒和故障恢复必须读取“当前目标亮度”，不能继续固定写入 <code>100</code>。</li>
+          <li>D16 将显示恢复拆成尝试、成功和失败计数，加入恢复确认、有限重试及最终受控重启；D01–D03 只证明一次故障恢复成功。</li>
+          <li>GCC main 已超过 6 MiB 槽的 91%。D07 前必须保留启动/错误页最小内置字库，并明确完整中文字体和图片的裁剪或外置方案。</li>
+          <li>构建使用包装脚本或 Python 3.13；Python 3.7 不支持身份脚本使用的 <code>Path.is_relative_to</code>。</li>
+          <li>D04/D05 通过后再进入 D06；D10 才提供正式手动校时页面，本阶段的 FinSH 命令仅用于验证服务闭环。</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script src="../assets/engineering.js"></script>
+</body>
+</html>
