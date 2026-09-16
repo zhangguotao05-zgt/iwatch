@@ -21,22 +21,22 @@
     </ul></nav>
     <main>
       <h1>D06 显示目标与会话亮度实施记录</h1>
-      <p class="doc-meta">2026-09-16 · DEV_A128_NAND · 开发基线 <code>0288a985170e…</code> · 主机、双工具链与开发板验收通过</p>
+      <p class="doc-meta">2026-09-16 · DEV_A128_NAND · 整改实现 <code>0828250b856f…</code> · 主机、双工具链与开发板复验通过</p>
 
       <section id="scope"><h2>1. 范围与当前结论</h2>
         <p>D06 在 D05 的固定命令队列和结果账本上加入首个真实设备设置闭环。服务维护亮度的目标值、实际值、会话内保存状态及各自版本；平台层只传递有界显示请求；GUI owner 在安全边界调用 LCD 驱动，再把实际结果写回模型。任务由 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/6">Issue #6</a> 跟踪。</p>
         <table><thead><tr><th>范围</th><th>当前结果</th><th>验收状态</th></tr></thead><tbody>
           <tr><td>服务模型</td><td><code>SET_BRIGHTNESS</code>、PREVIEW/FINAL、revision/sequence、目标/实际/持久值、结果和快照已实现。</td><td>主机通过</td></tr>
-          <tr><td>显示平台层</td><td>单 pending、单 in-flight、最新目标替换、精确 token 完成和饱和统计已实现。</td><td>主机通过</td></tr>
-          <tr><td>GUI 驱动边界</td><td>首次显示、触摸 reassert、故障恢复和服务请求都读取当前目标；LCD 控制只在 GUI owner 执行。</td><td>代码、双工具链与开发板通过</td></tr>
+          <tr><td>显示平台层</td><td>单 pending、单 in-flight、最新目标替换、精确 token 完成、饱和统计和可测试的驱动确认适配器已实现。</td><td>主机通过</td></tr>
+          <tr><td>GUI 驱动边界</td><td>首次显示、触摸 reassert、故障恢复和服务请求都读取当前目标；LCD 控制只在 GUI owner 执行，驱动状态与亮度回读均确认后才报告成功。</td><td>代码、双工具链与开发板通过</td></tr>
           <tr><td>持久化</td><td><code>persisted</code> 保持无效，明确标记 <code>SESSION_ONLY</code>。</td><td>符合 D15 前约束</td></tr>
         </tbody></table>
       </section>
 
       <section id="contract"><h2>2. 命令与状态契约</h2>
         <p><code>IW_OPCODE_SET_BRIGHTNESS=0x0002</code>。12 B 小端载荷依次为 <code>level:u8</code>、<code>kind:u8</code>、<code>reserved:u16</code>、<code>expected_revision:u32</code> 和 <code>setting_sequence:u32</code>。亮度范围固定为 5–100；kind 只允许 PREVIEW 或 FINAL；reserved 必须为 0；revision 和 sequence 必须非零。</p>
-        <p>受理前要求 DISPLAY 能力为 AVAILABLE 或 DEGRADED，并同时检查 session、请求高水位、队列、活动命令和账本容量。非法值、容量不足、revision 冲突、revision/sequence 耗尽均不会修改目标模型或调用设备。冲突和耗尽请求进入可查询终态，未受理请求不产生副作用。</p>
-        <p>亮度快照 payload 固定为 32 B，包含主题 <code>revision</code>、<code>desired_revision</code>、<code>applied_revision</code>、<code>persisted_revision</code>、目标和实际 sequence、<code>last_error</code> 以及三个值和 flags。目标受理、实际应用变化和当前目标错误变化都会增加主题 revision；迟到结果不能把 applied 版本倒退。</p>
+        <p>受理前要求 DISPLAY 能力为 AVAILABLE 或 DEGRADED，并同时检查 session、请求高水位、队列、活动命令和账本容量。非法值、容量不足、revision 冲突、revision/sequence 耗尽均不会修改目标模型或调用设备。新命令在主题 revision 达到 <code>UINT32_MAX-1</code> 时拒绝，为 desired 更新和完成结果各保留一次版本增长；所有亮度状态先写入候选快照，确认 revision 仍可增长后再一次性提交，因此失败不会留下部分更新。</p>
+        <p>亮度快照 payload 固定为 32 B，包含主题 <code>revision</code>、<code>desired_revision</code>、<code>applied_revision</code>、<code>persisted_revision</code>、目标和实际 sequence、<code>last_error</code> 以及三个值和 flags。目标受理、实际应用变化和当前目标错误变化都会增加主题 revision；迟到结果不能把 applied 版本倒退，revision 饱和后 note/finish 也不能静默改变快照。</p>
         <table><thead><tr><th>状态</th><th>更新时机</th><th>本阶段保证</th></tr></thead><tbody>
           <tr><td>desired</td><td>命令通过容量、能力、revision 和 sequence 检查后立即更新。</td><td>始终表示当前最新目标。</td></tr>
           <tr><td>applied</td><td>GUI owner 得到驱动成功后更新。</td><td>失败、busy 或 timeout 不伪造成功。</td></tr>
@@ -46,59 +46,58 @@
       </section>
 
       <section id="owner"><h2>3. 显示所有权与 mailbox</h2>
-        <p><code>platform/iw_display.[ch]</code> 是不依赖 RT-Thread 的纯 C mailbox。结构中只有一个 pending 请求和一个 in-flight 请求；运行时使用服务模型的 priority mutex 串行访问，mailbox 自身不另建锁。服务线程不调用 LCD，也不等待 GUI 或 DMA。</p>
+        <p><code>platform/iw_display.[ch]</code> 提供不依赖 RT-Thread 的纯 C mailbox 和驱动确认适配器。结构中只有一个 pending 请求和一个 in-flight 请求；运行时使用服务模型的 priority mutex 串行访问，mailbox 自身不另建锁。服务线程不调用 LCD，也不等待 GUI 或 DMA。</p>
         <ol>
           <li>服务从命令队列取出亮度工作，发布到 mailbox。更大的 sequence 替换尚未取走的 pending；被替换命令以 <code>SUPERSEDED</code> 终结并保留在账本中，直到客户端 ACK。</li>
           <li>GUI 循环在输入处理之后、LVGL timer 之前取出 pending。已有 in-flight 时返回 BUSY，不覆盖执行中的请求。</li>
-          <li>GUI 调用 <code>RTGRAPHIC_CTRL_SET_BRIGHTNESS</code>，把 OK、BUSY、TIMEOUT 或 FAILED 连同设备错误写回。</li>
+          <li>GUI 先读取 LCD 状态并查询 busy，再同步执行 <code>RTGRAPHIC_CTRL_SET_BRIGHTNESS</code>；写入后复检状态，并要求 <code>RTGRAPHIC_CTRL_GET_BRIGHTNESS</code> 与目标一致。只有全部确认才返回 OK，NONE/NOT_FIND/TIMEOUT/BUSY、查询失败或回读不一致分别映射为失败结果。</li>
           <li>完成必须同时匹配 session、request、ledger generation 和 setting sequence。成功后清除 in-flight；旧 token 或错误 sequence 被拒绝。</li>
         </ol>
         <p>诊断统计记录 posted、replaced、taken、completed、stale、最大已接受 sequence、pending/in-flight，以及四类实际执行结果。所有计数饱和于 <code>UINT32_MAX</code>，不会回绕成较小值。</p>
       </section>
 
       <section id="reassert"><h2>4. 首次显示、唤醒与恢复</h2>
-        <p><code>watch_demo.c</code> 中的首次亮屏、触摸唤醒 reassert 和 draw fault 恢复不再写固定局部亮度。三条路径都先读取当前 desired、desired revision 和 setting sequence，再由同一个 GUI owner 设备函数应用；返回结果随后更新 applied 或 last_error。代码中的 <code>100</code> 只保留为模型会话默认值。</p>
+        <p><code>watch_demo.c</code> 中的首次亮屏、触摸唤醒 reassert 和 draw fault 恢复不再写固定局部亮度。三条路径都先读取当前 desired、desired revision 和 setting sequence，再由同一个 GUI owner 设备函数执行完整确认序列；返回结果随后更新 applied 或 last_error。代码中的 <code>100</code> 只保留为模型会话默认值。</p>
         <p>驱动调用超过 250 ms 会记录慢调用告警，但该阈值只用于诊断，不会从另一线程取消正在执行的 LCD 操作。显示应用成功把 DISPLAY 能力置为 AVAILABLE；timeout 或 failed 置为 DEGRADED，允许用户再次提交；busy 不改变能力状态。D16 再加入恢复确认、有限重试、尝试/成功/失败拆分计数和最终受控重启。</p>
-        <p>FinSH 提供 <code>iw_brightness_set &lt;5..100&gt; &lt;preview|final&gt;</code>、<code>iw_brightness_result</code> 和 <code>iw_brightness_stat</code>。命令通过正式服务链路提交；result 查询后执行 ACK；stat 同时显示目标/实际/持久版本、sequence、flags、last_error、mailbox 深度和四类执行计数。</p>
+        <p>FinSH 提供 <code>iw_brightness_set &lt;5..100&gt; &lt;preview|final&gt;</code>、<code>iw_brightness_result</code> 和 <code>iw_brightness_stat</code>。命令通过正式服务链路提交；result 查询后执行 ACK；stat 同时显示目标/实际/持久版本、sequence、flags、last_error、mailbox 深度和四类执行计数。诊断命令 <code>iw_display_fault_once &lt;busy|timeout|failed&gt;</code> 只影响下一条 mailbox 请求，用于验证结果链路，不模拟物理 LCD 故障。</p>
       </section>
 
       <section id="host"><h2>5. 主机与构建证据</h2>
-        <p><code>firmware/tests/run-core-tests.ps1</code> 已通过。D06 新增覆盖最新目标替换、in-flight 隔离、精确完成、过期 sequence、PREVIEW→FINAL 收敛、SUPERSEDED 查询与 ACK、驱动 busy/timeout/failed、迟到结果、revision/sequence 耗尽、非法 4/101、队列满无副作用、快照缓冲区不足不写入和会话默认值。原有输入队列、GUI 等待/取消、时间/RTC、D05 服务、启动失败重试、生命周期 OOM/ASan、1000 次循环和 15 项布局/身份测试同时通过。</p>
-        <p>最终执行 Keil→GCC→Keil 三次干净切换；每次先由包装脚本安全清理共享输出，再检查源、SDK、有效配置、对象编译器标记和 map 来源。两套归档随后直接执行 <code>build_identity verify</code>，结果均为 <code>BUILD IDENTITY OK</code>。GCC 与 Keil 烧录 DryRun 均校验同归档三件套的顺序、地址和 SHA-256，使用占位端口 COM255 且明确未访问任何真实串口。</p>
+        <p><code>firmware/tests/run-core-tests.ps1</code> 已通过。D06 覆盖最新目标替换、in-flight 隔离、精确完成、过期 sequence、PREVIEW→FINAL 收敛、SUPERSEDED 查询与 ACK、驱动状态预检、busy 查询、写入错误、状态复检、亮度回读失败/不一致、迟到结果、revision/sequence 耗尽、非法 4/101、队列满无副作用、快照缓冲区不足不写入和会话默认值。新增边界测试证明主题 revision 为 <code>UINT32_MAX-1</code> 时新命令拒绝且快照不变，达到 <code>UINT32_MAX</code> 后 note/finish 也不改变模型。原有输入队列、GUI 等待/取消、时间/RTC、D05 服务、启动失败重试、生命周期 OOM/ASan、1000 次循环和 15 项布局/身份测试同时通过。</p>
+        <p>整改实现提交后依次执行 GCC 与 Keil 干净构建；包装脚本检查源、SDK、有效配置、对象编译器标记和 map 来源。两套归档随后直接执行 <code>build_identity verify</code>，结果均为 <code>BUILD IDENTITY OK</code>，map 工具链标记分别为 gcc 和 keil。GCC 与 Keil 烧录 DryRun 均校验同归档三件套的顺序、地址和 SHA-256，使用占位端口 COM255 且明确未访问任何真实串口。</p>
         <table><thead><tr><th>工具链</th><th>main</th><th>6 MiB 占用 / 剩余</th><th>main SHA-256</th><th>map SHA-256</th></tr></thead><tbody>
-          <tr><td>GCC 14.2.1</td><td>5,744,572 B</td><td>91.308% / 546,884 B</td><td><code>7cac9190774124cd…1d329ae5</code></td><td><code>f8d315be0314f4b…dfb3545e</code></td></tr>
-          <tr><td>Arm Compiler 6.16</td><td>5,670,472 B</td><td>90.130% / 620,984 B</td><td><code>7975dd49318ff103…5d98fe3</code></td><td><code>47f766b1c67968b9…af080fc</code></td></tr>
+          <tr><td>GCC 14.2.1</td><td>5,745,568 B</td><td>91.323% / 545,888 B</td><td><code>3aac99a03981b29f…ed09095</code></td><td><code>9b683fd82e299763…9b008d</code></td></tr>
+          <tr><td>Arm Compiler 6.16</td><td>5,671,520 B</td><td>90.146% / 619,936 B</td><td><code>0a60d71730b56ae4…e6bce4</code></td><td><code>fbbf58964bb72d1c…6fb5c8</code></td></tr>
         </tbody></table>
-        <p>两套最终归档均绑定 D06 实现提交 <code>1cf417d86427ccfe5c2127383e0b87b5e5c147d3</code> 和 SDK <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code>；D06 的开发起点为 <code>0288a985170e91a01467cab43dafbb2863119e18</code>。重新归档后 GCC 镜像与开发板已验收镜像逐字节一致，三件套哈希为 Bootloader <code>803504f7a4beeb2c62ed4ccefd101d496f376e8f78b4099f928adf66fcf68d45</code>、main <code>7cac9190774124cd67cc5b875e3fd5a7c9c504ce1e0ef22fecc2cf721d329ae5</code>、FTab <code>b84fe94295d487a6652b58d54c2b53df039519a773962f24484e1bfd625bce5f</code>。</p>
+        <p>两套最终归档均绑定整改实现提交 <code>0828250b856f5502c04335a6930bbcf4fc6fdbd7</code> 和 SDK <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code>；D06 的开发起点为 <code>0288a985170e91a01467cab43dafbb2863119e18</code>。实际写入开发板的是该 GCC 归档，三件套哈希为 Bootloader <code>803504f7a4beeb2c62ed4ccefd101d496f376e8f78b4099f928adf66fcf68d45</code>、main <code>3aac99a03981b29f5176b89ea43bba58c5af2051c372be9dc35692191ed09095</code>、FTab <code>35e824479b96c6ba0e52af0c9f7058437747d2db4b912e8909b2de240c7fcf72</code>。后续文档提交不改变固件输入，因此归档仍明确绑定该实现提交。</p>
       </section>
 
       <section id="board"><h2>6. 开发板验收</h2>
-        <p>验收使用 COM9 CH342 下载口与 COM10 1,000,000 baud HCPU 日志口，全程未访问 COM8/J-Link。上述 GCC 归档的 Bootloader、main 和 FTab 按固定地址写入，FTab 最后写入，三件套均完成写后校验。原始串口流中的启动序列记录了 CO5300 ID <code>0x331100</code>、FT6146 驱动初始化和主界面进入；日志没有输出 FT6146 的独立 ID_H/ID_L，因此不据此声明具体触摸 ID。</p>
+        <p>整改复验使用 COM9 CH342 下载口与 COM10 1,000,000 baud HCPU 日志口，全程未访问 COM8/J-Link。上述 GCC 归档的 Bootloader、main 和 FTab 按固定地址写入，FTab 最后写入，三件套均完成写后校验。原始串口流中的两次启动均由主机时间线记录的 shell <code>reboot</code> 触发，启动序列记录了 CO5300 ID <code>0x331100</code>、FT6146 <code>id_H=64 / id_L=56</code> 和主界面进入。</p>
         <table><thead><tr><th>步骤</th><th>通过条件</th><th>状态</th></tr></thead><tbody>
-          <tr><td>冷启动</td><td>默认 desired=100、applied=100，persisted 无效，flags=<code>0x0b</code>，last_error=0。</td><td>通过</td></tr>
-          <tr><td>PREVIEW / FINAL</td><td>20 PREVIEW 得到 OK_APPLIED，实屏明显变暗；80 FINAL 得到 OK_APPLIED 并完成 ACK，desired/applied 均为 80。</td><td>通过</td></tr>
-          <tr><td>非法与连续目标</td><td>4 和 101 被拒绝且模型、邮箱计数不变；35→50→65→80 连续提交最终收敛到 80。最新目标替换与 SUPERSEDED/ACK 的确定性时序由主机测试覆盖。</td><td>通过</td></tr>
-          <tr><td>唤醒与 reassert</td><td>受控压力期间目标保持 80，触摸 reassert 从 9 增至 97；驱动应用统计为 100/0/0/0，未回退到默认 100。</td><td>通过</td></tr>
-          <tr><td>错误与恢复边界</td><td>一次真实 <code>draw_core timeout</code> 使驱动进入 NOT_FIND；GUI owner 执行 PowerOff→PowerOn、重新识别 CO5300 并恢复显示，耗时约 1.27 s。该次目标为默认 100，D16 仍须扩展重试与分项计数。</td><td>一次恢复通过</td></tr>
-          <tr><td>软件复位</td><td>80 为会话值；软件复位后回到默认 100，session 递增，队列与账本清空，实际值重新收敛。</td><td>通过</td></tr>
-          <tr><td>输入与资源冒烟</td><td>受控窗口 accepted=274、consumed=221、discarded=53、cancel=72、rejected=0、pending=0、高水位=3；consumed+discarded=accepted。P95=24 ms、最大 57 ms、无 ≥100 ms。线程栈峰值：触摸 39%、LCD 46%、服务 9%、GUI 31%；堆使用回到 59,660 B。</td><td>通过</td></tr>
+          <tr><td>启动默认值</td><td>两个会话均以 desired=100、applied=100、persisted 无效、flags=<code>0x0b</code>、last_error=0 启动；mailbox 和账本为空。</td><td>通过</td></tr>
+          <tr><td>真实 PREVIEW / FINAL</td><td>20 PREVIEW 与 80 FINAL 均得到 OK_APPLIED 并完成 ACK；用户确认 20% 明显变暗、80% 明显变亮，两个亮度下触摸和按键都正常。</td><td>通过</td></tr>
+          <tr><td>失败不伪造成功</td><td>单次注入 busy、timeout、failed 后，结果分别为 DEVICE_BUSY、UNCONFIRMED_TIMEOUT、DEVICE_FAULT；三次 applied 均保持此前成功的 80/3，只更新当前目标和 last_error，之后真实 80 FINAL 清除错误并收敛。</td><td>通过</td></tr>
+          <tr><td>软件复位</td><td>第一会话 session=<code>1579793119</code>；软件复位后为 <code>1579793120</code>，亮度回到会话默认 100，mailbox 与账本清空。原始证据只声明时间线可对应的两次软件启动，不把未捕获的人工复位计入。</td><td>通过</td></tr>
+          <tr><td>唤醒与 reassert</td><td>第二会话在 20% 压力后恢复到 80%；最终 reassert=87、recovery=0、fault_pending=0，应用统计为 90/0/0/0，未回退到默认 100。</td><td>通过</td></tr>
+          <tr><td>输入与资源冒烟</td><td>accepted=216、consumed=179、discarded=37、cancel=63、rejected=0、pending=0、高水位=3，且 consumed+discarded=accepted。P95=28 ms、最大 64 ms、无 ≥100 ms，压力期间没有新增启动头。线程栈峰值：触摸 39%、LCD 50%、服务 9%、GUI 38%、shell 22%、timer 25%。</td><td>通过</td></tr>
         </tbody></table>
-        <p>一次包含长按实体键的非受控压力动作出现直接复位。复位前没有 assertion、Fault、栈溢出或 LCD 错误，启动 <code>Reason=0</code>，主机时间线也没有 <code>reboot</code>；<a href="https://wiki.sifli.com/board/sf32lb58x/SF32LB58-DevKit-LCD.html">开发板官方管脚表</a>将 PB54 定义为 HOME/长按复位复用键。排除长按和独立 RESET 后重新测试，没有新增启动头或恢复计数，因此该事件按板级复位动作记录，不计为固件崩溃。</p>
-        <p>直接从 shell 执行 <code>lcd_ctrl br 0</code> 或 <code>lcd_ctrl off_on</code> 会绕过 GUI owner，与活动传输并发，实测可造成冻结或半黑半白。这一负向结果不作为 D06 恢复通过证据；后续测试禁止在 GUI 活动时直接调用该命令。正式服务链路和 GUI owner 路径未出现同类破坏。</p>
+        <p>故障结果使用只影响下一条 mailbox 请求的确定性软件注入，验证的是服务结果映射、applied 不变、错误清除和 ACK，不等同于物理总线故障。真实驱动成功路径使用固定 SDK 的状态与亮度回读；该回读属于驱动状态确认，不是光学或电气测量，20%/80% 的实际视觉差异由用户人工观察确认。D16 仍负责真实显示故障的恢复确认、有限重试、尝试/成功/失败计数及最终受控重启。</p>
         <table><thead><tr><th>本地原始证据</th><th>大小</th><th>SHA-256</th></tr></thead><tbody>
-          <tr><td><code>com10-raw.bin</code></td><td>317,567 B</td><td><code>4710d5f3562345900beefa67fc5b1c37568a35be6e8f60c867c68dad238a1e07</code></td></tr>
-          <tr><td><code>com10-raw.txt</code></td><td>317,567 B</td><td><code>4710d5f3562345900beefa67fc5b1c37568a35be6e8f60c867c68dad238a1e07</code></td></tr>
-          <tr><td><code>host-command-timeline.txt</code></td><td>3,675 B</td><td><code>00aebcfb358dd50dca0283e2c34f79816b9c11bf7d328b0990af8d571182a554</code></td></tr>
-          <tr><td><code>sftool-full-output.log</code></td><td>820 B</td><td><code>4f10e5723b624a258b9e312e39f44a0232c7f48b950154b7e106be3318ff5cfd</code></td></tr>
+          <tr><td><code>com10-raw.bin</code></td><td>163,157 B</td><td><code>52c0cf85d9c5393921d69a50a7c7c7044144e7fcaed8c3f2eb2fae50d5971eb7</code></td></tr>
+          <tr><td><code>com10-raw.txt</code></td><td>166,186 B</td><td><code>f4433fe6c4951a9dcf38b23dcc4ae524cf5956d9a48165d5431520d7954251f6</code></td></tr>
+          <tr><td><code>host-command-timeline.txt</code></td><td>2,927 B</td><td><code>197221086b72b21a50fdbe40631a6fcb69daf70358c66f1707e100a5a4c01dc1</code></td></tr>
+          <tr><td><code>manual-observations.txt</code></td><td>232 B</td><td><code>ba5e8580b2ba31f7b5b30f9e23068f00fa338ab91d13cd17b29dec46de25819a</code></td></tr>
+          <tr><td><code>sftool-full-output.log</code></td><td>820 B</td><td><code>6f98b7aabb26f338fa6b3cdcd7842a195fc5d156ded9cfcbb9726ea49232a598</code></td></tr>
         </tbody></table>
-        <p>证据目录为本机 <code>logs/board-validation-20260916-d06/</code>，不纳入源码仓库。原始串口流包含三次启动头：两次是验收步骤中的显式软件复位，一次是上述实体长按复位；受控压力前后启动头总数保持为 3，显示 recovery 保持为 1。</p>
+        <p>证据目录为本机 <code>logs/board-validation-20260916-d06-fix-0828250/</code>，不纳入源码仓库；目录内的 <code>validation-summary.txt</code> 汇总构建身份、烧录哈希、命令结果、人工观察和证据边界。已知启动日志仍有 <code>flash1 is not found</code>，继续作为 D15 持久化门槛，不阻断 D06 会话亮度。</p>
       </section>
 
       <section id="limits"><h2>7. 边界与后续约束</h2>
         <ul>
           <li>D06 没有新增设置页面；D10 才把本接口接入正式亮度页面和导航闭环。</li>
           <li>D06 不写 NAND。<code>flash1 is not found</code> 仍由 D15 处理；完成 FAL、ECC/坏块和掉电矩阵前，不得显示“已保存”。</li>
-          <li>GCC main 已占 6 MiB 槽的 91.308%，只剩 546,884 B。D07 开始前必须处理完整中文字体和图片容量，不能继续直接堆入主镜像。</li>
+          <li>GCC main 已占 6 MiB 槽的 91.323%，只剩 545,888 B。D07 开始前必须处理完整中文字体和图片容量，不能继续直接堆入主镜像。</li>
           <li>当前恢复只提供一次动作路径；D16 必须加入确认、有限重试、分项计数和受控重启，并重新做真实故障矩阵。</li>
           <li>D06 已完成；D07 只在先落实字体和图片容量方案后开始增加共享组件与视觉资源。</li>
         </ul>
