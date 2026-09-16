@@ -79,6 +79,22 @@ try {
     }
     $projectText = $projectText.Replace($defaultCompilerOptions, $sf32lb58CompilerOptions)
 
+    # SDK 生成器内部使用无序集合，跨进程生成时宏定义顺序可能变化。
+    # 统一按序排序，避免语义相同的工程文件产生漂移并破坏构建身份。
+    $projectText = [regex]::Replace($projectText, '<Define>([^<]*)</Define>', {
+        param($match)
+        $items = [System.Collections.Generic.List[string]]::new()
+        foreach ($define in $match.Groups[1].Value.Split(',')) {
+            $trimmed = $define.Trim()
+            if (-not [string]::IsNullOrWhiteSpace($trimmed)) {
+                $items.Add($trimmed)
+            }
+        }
+        [string[]]$defines = $items.ToArray()
+        [Array]::Sort($defines, [StringComparer]::Ordinal)
+        return '<Define>' + [string]::Join(', ', $defines) + '</Define>'
+    })
+
     # 把 SDK 引用改为有效绝对路径，保证从实际工程目录打开时能够解析。
     $relativeSdkPath = [System.IO.Path]::GetRelativePath($projectDir, $SdkPath)
     $escapedSdkPath = [System.Security.SecurityElement]::Escape($SdkPath)
