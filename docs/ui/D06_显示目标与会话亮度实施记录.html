@@ -64,12 +64,12 @@
 
       <section id="host"><h2>5. 主机与构建证据</h2>
         <p><code>firmware/tests/run-core-tests.ps1</code> 已通过。D06 新增覆盖最新目标替换、in-flight 隔离、精确完成、过期 sequence、PREVIEW→FINAL 收敛、SUPERSEDED 查询与 ACK、驱动 busy/timeout/failed、迟到结果、revision/sequence 耗尽、非法 4/101、队列满无副作用、快照缓冲区不足不写入和会话默认值。原有输入队列、GUI 等待/取消、时间/RTC、D05 服务、启动失败重试、生命周期 OOM/ASan、1000 次循环和 15 项布局/身份测试同时通过。</p>
-        <p>最终执行 Keil→GCC→Keil 三次干净切换；每次先由包装脚本安全清理共享输出，再检查源、SDK、有效配置、对象编译器标记和 map 来源。两套归档随后直接执行 <code>build_identity verify</code>，结果均为 <code>BUILD IDENTITY OK</code>。GCC 烧录 DryRun 校验同归档三件套的顺序、地址和 SHA-256，明确未访问 COM9。</p>
+        <p>最终执行 Keil→GCC→Keil 三次干净切换；每次先由包装脚本安全清理共享输出，再检查源、SDK、有效配置、对象编译器标记和 map 来源。两套归档随后直接执行 <code>build_identity verify</code>，结果均为 <code>BUILD IDENTITY OK</code>。GCC 与 Keil 烧录 DryRun 均校验同归档三件套的顺序、地址和 SHA-256，使用占位端口 COM255 且明确未访问任何真实串口。</p>
         <table><thead><tr><th>工具链</th><th>main</th><th>6 MiB 占用 / 剩余</th><th>main SHA-256</th><th>map SHA-256</th></tr></thead><tbody>
           <tr><td>GCC 14.2.1</td><td>5,744,572 B</td><td>91.308% / 546,884 B</td><td><code>7cac9190774124cd…1d329ae5</code></td><td><code>f8d315be0314f4b…dfb3545e</code></td></tr>
           <tr><td>Arm Compiler 6.16</td><td>5,670,472 B</td><td>90.130% / 620,984 B</td><td><code>7975dd49318ff103…5d98fe3</code></td><td><code>47f766b1c67968b9…af080fc</code></td></tr>
         </tbody></table>
-        <p>两套构建均绑定 Git <code>0288a985170e91a01467cab43dafbb2863119e18</code> 和 SDK <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code>。GCC 三件套哈希为 Bootloader <code>803504f7a4beeb2c62ed4ccefd101d496f376e8f78b4099f928adf66fcf68d45</code>、main <code>7cac9190774124cd67cc5b875e3fd5a7c9c504ce1e0ef22fecc2cf721d329ae5</code>、FTab <code>b84fe94295d487a6652b58d54c2b53df039519a773962f24484e1bfd625bce5f</code>。</p>
+        <p>两套最终归档均绑定 D06 实现提交 <code>1cf417d86427ccfe5c2127383e0b87b5e5c147d3</code> 和 SDK <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code>；D06 的开发起点为 <code>0288a985170e91a01467cab43dafbb2863119e18</code>。重新归档后 GCC 镜像与开发板已验收镜像逐字节一致，三件套哈希为 Bootloader <code>803504f7a4beeb2c62ed4ccefd101d496f376e8f78b4099f928adf66fcf68d45</code>、main <code>7cac9190774124cd67cc5b875e3fd5a7c9c504ce1e0ef22fecc2cf721d329ae5</code>、FTab <code>b84fe94295d487a6652b58d54c2b53df039519a773962f24484e1bfd625bce5f</code>。</p>
       </section>
 
       <section id="board"><h2>6. 开发板验收</h2>
