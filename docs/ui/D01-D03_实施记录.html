@@ -21,11 +21,11 @@
 <main>
 <section id="scope">
 <h1>D01–D03 实施与验证记录</h1>
-<p>日期：2026-09-15。目标板：SF32LB58-DevKit-LCD A128R32N1 / A1，390×450 CO5300 QSPI AMOLED + FT6146。下载通道为 CH342-A（COM9），运行日志为 CH342-B（COM10，1,000,000 baud，8N1）。本次没有使用 J-Link。</p>
+<p>日期：2026-09-15 至 2026-09-16。最终板测固件源码提交为 <code>ef9837f9945f8be1ef0c5a6f04567660a4a916e9</code>。目标板：SF32LB58-DevKit-LCD A128R32N1 / A1，390×450 CO5300 QSPI AMOLED + FT6146。下载通道为 CH342-A（COM9），运行日志为 CH342-B（COM10，1,000,000 baud，8N1）。本次没有使用 J-Link。</p>
 <table><thead><tr><th>任务</th><th>主机验证</th><th>目标构建</th><th>板上验证</th></tr></thead><tbody>
 <tr><td>D01 生命周期</td><td>通过；退出、重复销毁、部分构造和分配失败路径已覆盖</td><td>GCC 14.2.1 与 Arm Compiler 6.16 均通过</td><td>通过；自动循环与实物压力操作后无泄漏、异常或遗留页面</td></tr>
 <tr><td>D02 构建来源</td><td>通过；SDK、BSP、配置、布局、工具链、哈希和构建锁已固定</td><td>两套产物独立归档；镜像地址与槽大小检查通过</td><td>DEV_A128_NAND 包通过备份、写入校验、回读、冷启动和串口恢复</td></tr>
-<tr><td>D03 等待与取消</td><td>通过；20 ms 有界等待、锁存唤醒、取消恢复和节拍回绕已覆盖</td><td>两工具链均使用 2 KiB 本地触摸线程栈实现</td><td>通过；输入 P95 为 25 ms，计数守恒，压力后最高已测线程栈 43%</td></tr>
+<tr><td>D03 等待与取消</td><td>通过；20 ms 有界等待、锁存唤醒、取消恢复和节拍回绕已覆盖</td><td>两工具链均使用 2 KiB 本地触摸线程栈实现</td><td>通过；最终固件输入 P95 为 21 ms、最大 62 ms，计数守恒，压力后最高已测线程栈 45%</td></tr>
 </tbody></table>
 <p>结论只适用于下文列出的 GCC 固件包和本次 D01–D03 范围。该包已满足 G2 的备份、镜像身份、写后校验、引导和恢复要求；D04/D05 的时间、启动协调和服务契约尚未完成，因此完整 G1/M1 流程仍未闭环。当前界面仍以 SDK 演示页面为基线。</p>
 </section>
@@ -44,16 +44,16 @@
 <tr><td>DEV_A128_NAND</td><td>128 MiB 外部 NAND；main 装载地址 <code>0x69000000</code>，装载槽与 PSRAM1 运行窗均为 6 MiB</td><td>本次构建、烧录和板上验收目标</td></tr>
 <tr><td>PRODUCT_N16_NOR</td><td>1 MiB SiP NOR + 16 MiB 外部 NOR 的自研板目标</td><td>继续禁止构建；BSP、引导、PSRAM 和分区尚未验证</td></tr>
 </tbody></table>
-<p>GCC 固定为 14.2.1 20241119，Keil 固定为 Arm Compiler 6.16。两个入口均执行源码与 SDK 身份检查、真实编译、镜像大小与下载地址检查，并从目标对象的 ELF/AXF 编译器标记确认实际工具链。生成的 Keil 工程有 928 个有效源码引用。</p>
+<p>GCC 固定为 14.2.1 20241119，Keil 固定为 Arm Compiler 6.16。两个入口均执行源码与 SDK 身份检查、真实编译、镜像大小与下载地址检查，并从目标对象的 ELF/AXF 编译器标记确认实际工具链。生成的 Keil 工程有 929 个有效源码引用。</p>
 <table><thead><tr><th>工具链 / 产物</th><th>下载地址</th><th>大小</th><th>SHA-256</th></tr></thead><tbody>
-<tr><td>GCC / main.bin</td><td>0x69000000</td><td>5,734,412 B</td><td><code>c757045e5e480178069186d28407535c0d994185b9db04ddb339a1defe419753</code></td></tr>
+<tr><td>GCC / main.bin</td><td>0x69000000</td><td>5,734,968 B</td><td><code>37955a8fc2606377a7382fbe73495cd5161a97eae13bdcf1ef6d7f01b7528ed1</code></td></tr>
 <tr><td>GCC / bootloader.bin</td><td>0x1C020000</td><td>46,144 B</td><td><code>803504f7a4beeb2c62ed4ccefd101d496f376e8f78b4099f928adf66fcf68d45</code></td></tr>
-<tr><td>GCC / ftab.bin</td><td>0x1C000000</td><td>11,288 B</td><td><code>cf2916bdabfc7b6204f6e81ffe17ad53df69dac8d2c1954e5ad0530a237e8872</code></td></tr>
-<tr><td colspan="4">构建时间 18:16:56–18:18:06（Asia/Shanghai）；main 占 6 MiB 槽 91.146%，剩余 557,044 B，已触发 85% 预警。</td></tr>
-<tr><td>Keil / main.bin</td><td>0x69000000</td><td>5,660,576 B</td><td><code>eac397b5c6aff0a5cae695b1b7adf9165930cbeb9230ba9b2a422f5cac9eca18</code></td></tr>
+<tr><td>GCC / ftab.bin</td><td>0x1C000000</td><td>11,288 B</td><td><code>30384744daa0ced31663282db7a234633217dc8ffef4ccd047e9156142f4a4cd</code></td></tr>
+<tr><td colspan="4">构建时间 09:28:04–09:29:15（Asia/Shanghai）；main 占 6 MiB 槽 91.155%，剩余 556,488 B，已触发 85% 预警。</td></tr>
+<tr><td>Keil / main.bin</td><td>0x69000000</td><td>5,661,112 B</td><td><code>60f043701e263fc1e1562335dbeffa64458779d10d0ebaa17bb9b77521d60968</code></td></tr>
 <tr><td>Keil / bootloader.bin</td><td>0x1C020000</td><td>43,072 B</td><td><code>746899a11d60b070e4458b5d0788ce6e39032b8c253d2cd529d0a265c3d81c38</code></td></tr>
-<tr><td>Keil / ftab.bin</td><td>0x1C000000</td><td>11,280 B</td><td><code>fa8fa7edb0ccba514d58967e0bd40ee7bb57fa1d50a96b44a9fea3b00f8ce10d</code></td></tr>
-<tr><td colspan="4">构建时间 18:18:15–18:19:23（Asia/Shanghai）；main 占 89.972%，剩余 630,880 B。</td></tr>
+<tr><td>Keil / ftab.bin</td><td>0x1C000000</td><td>11,280 B</td><td><code>16bf29b7dc217c5bac6884a568d5ae8b942f0216fd95f99b18aafc0a5da9b303</code></td></tr>
+<tr><td colspan="4">构建时间 09:30:45–09:31:52（Asia/Shanghai）；main 占 89.981%，剩余 630,344 B。</td></tr>
 </tbody></table>
 <p>板上使用上表 GCC 包。完整中文字体仍占约 3,939,852 B，已成为主要容量风险；D07 前必须完成最小内置字库和外置字体、图片方案，不能继续按当前方式增加页面资源。</p>
 </section>
@@ -62,8 +62,8 @@
 <h2>3. GUI 等待、输入取消与触摸栈</h2>
 <p><code>core/iw_gui_wait</code> 和 <code>platform/iw_gui_port</code> 统一 GUI 唤醒。KEY1 回调只写有界队列并发送事件；GUI 每轮先消费取消与输入，再运行 LVGL，最后通过 OR+CLEAR 接收等待。等待前不清事件，因此提前到达的输入仍被锁存。无定时器哨兵和长超时限制为 20 ms，零超时至少让出一个 RTOS 节拍；本配置为 1,000 tick/s。</p>
 <p>每轮最多消费八条或两毫秒。队列溢出会取消未完成按压、清空待派发 Home，并在物理释放稳定 20 ms 后重新武装；不会因丢失 RELEASE 合成旧单击。触摸取消同时重置 LVGL 输入。KEY2、双击和旋转表冠仍属于 D09。</p>
-<p>首轮压力测试发现 SDK <code>tpread</code> 的 1 KiB 栈峰值达到 78%，超过 75% 门槛，因此没有按首轮结果验收。项目随后引入 <a href="../../firmware/iwatch/src/platform/iw_drv_touch.c">本地触摸线程实现</a>，以 <code>IW_TOUCH_THREAD_STACK_SIZE=2048</code> 固定栈大小并在编译期限制最小值。SCons 和 Keil 都移除且只移除一个 SDK 原实现，再编译本地文件，避免重复符号或工具链分叉。最终压力峰值降到 27%。</p>
-<p><code>iw_input_stat</code> 记录接收、消费、拒绝、丢弃、取消、队列高水位和入队至 GUI 消费延迟；<code>iw_input_stat_reset</code> 清空统计计数与延迟直方图，便于划定一次板测窗口。执行清零前应先停止操作并确认 <code>pending=0</code>，该命令不会丢弃仍在队列中的输入。</p>
+<p>首轮压力测试发现 SDK <code>tpread</code> 的 1 KiB 栈峰值达到 78%，超过 75% 门槛，因此没有按首轮结果验收。项目随后引入 <a href="../../firmware/iwatch/src/platform/iw_drv_touch.c">本地触摸线程实现</a>，以 <code>IW_TOUCH_THREAD_STACK_SIZE=2048</code> 固定栈大小并在编译期限制最小值。SCons 和 Keil 都移除且只移除一个 SDK 原实现，再编译本地文件，避免重复符号或工具链分叉。最终固件压力峰值为 39%。</p>
+<p><code>iw_input_stat</code> 记录接收、消费、拒绝、丢弃、取消、队列高水位和入队至 GUI 消费延迟；<code>iw_input_stat_reset</code> 清空统计计数与延迟直方图，便于划定一次板测窗口。执行清零前应先停止操作并确认 <code>pending=0</code>，该命令不会丢弃仍在队列中的输入。统计输出已拆成计数与延迟两行，避免 RT-Thread 控制台缓冲区截断 <code>ge_100</code> 和 <code>max_ms</code>。</p>
 </section>
 
 <section id="board">
@@ -73,25 +73,28 @@
 <tr><td>烧录前 FTab 备份</td><td>20,480 B</td><td><code>3d1593a9f7011125c06cef316ca0a17f670b05d958a5f79f751ca97fc91c240b</code></td></tr>
 <tr><td>烧录前 1 MiB NOR 备份</td><td>1,048,576 B</td><td><code>8289eb37081cd9700d63b919ba01ffd8110c53d421e7b6778e29958fac3b6d4d</code></td></tr>
 <tr><td>烧录前 22 MiB NAND 备份</td><td>23,068,672 B</td><td><code>e7569d23c59c9f89105b9e6a33a5359c1a0922ad8f827c0a086176d1395eed0a</code></td></tr>
-<tr><td>最终 main 独立回读</td><td>5,734,412 B</td><td><code>c757045e5e480178069186d28407535c0d994185b9db04ddb339a1defe419753</code></td></tr>
-<tr><td>最终 FTab 独立回读</td><td>11,288 B</td><td><code>cf2916bdabfc7b6204f6e81ffe17ad53df69dac8d2c1954e5ad0530a237e8872</code></td></tr>
-<tr><td>冷启动与压力串口原始日志</td><td>232,645 B</td><td><code>aaec2677553e141f7330febee351bcb64932d10e0f784a4b69723db927e1f0a8</code></td></tr>
+<tr><td>最终 GCC main 写入与校验</td><td>5,734,968 B</td><td><code>37955a8fc2606377a7382fbe73495cd5161a97eae13bdcf1ef6d7f01b7528ed1</code></td></tr>
+<tr><td>最终 GCC Bootloader 写入与校验</td><td>46,144 B</td><td><code>803504f7a4beeb2c62ed4ccefd101d496f376e8f78b4099f928adf66fcf68d45</code></td></tr>
+<tr><td>最终 GCC FTab 写入与校验</td><td>11,288 B</td><td><code>30384744daa0ced31663282db7a234633217dc8ffef4ccd047e9156142f4a4cd</code></td></tr>
+<tr><td>完整压力与十次重启日志（a708db6）</td><td>526,332 B</td><td><code>7d8d222124eb9856a4dedf942daf39e7f29e9893947ed6b4ee9bf05095f30334</code></td></tr>
+<tr><td>最终固件回归日志（ef9837f）</td><td>287,559 B</td><td><code>0760577dc42621048f1b363ce7efc5f669e9acb09274f86154b32d7352a0773b</code></td></tr>
 </tbody></table>
-<p>main 与 FTab 的独立回读逐字节匹配归档。Bootloader 与前一轮完整烧录包相同，哈希未变化，当时已由 sftool 写后校验；本轮没有另存一份 Bootloader 独立回读文件。所有本地原始证据保存在忽略 Git 的 <code>logs/board-validation-20260915-173809</code>，仓库文档只保存可审查的摘要和哈希。</p>
+<p>早期归档曾对 main 与 FTab 做独立回读并逐字节匹配。最终包由 <a href="../../firmware/flash-serial.ps1">flash-serial.ps1</a> 在访问串口前校验构建身份、地址和三个 SHA-256，再通过 COM9 成套写入并启用 sftool 写后校验。所有本地原始证据保存在忽略 Git 的 <code>logs/board-validation-20260916-a708db6</code> 与 <code>logs/board-validation-20260916-ef9837f</code>，仓库文档只保存可审查的摘要和哈希。</p>
 <p>调试中曾单独更新 main，旧 FTab 与新 main 元数据不配套，表现为串口无应用输出、屏幕不亮。写入同一 GCC 归档的 FTab 后立即恢复正常启动，硬件没有损坏。后续统一使用 <a href="../../firmware/flash-serial.ps1">flash-serial.ps1</a>；脚本先检查三个镜像的地址和 SHA-256，再通过 CH342 串口成套写入并启用写后校验，拒绝混用 main、Bootloader 和 FTab。</p>
 
 <h3>4.2 冷启动、生命周期与压力结果</h3>
 <p>一次冷启动中两次读得 CO5300 ID <code>0x331100</code>，显示自动开启并设置亮度；FT6146 被驱动探测到，ID_H=<code>0x64</code>、ID_L=<code>0x56</code>。主界面建立成功，转场返回 <code>res=0</code>。日志中的三个 <code>flash1 is not found</code> 仍存在，但没有阻止 NAND 主镜像、LCD、触摸或当前 UI；偏好与资源持久化仍须在 D15 修复并完成掉电恢复测试。</p>
-<p>自动板测执行 6 轮 Main↔clock，得到 12 次 <code>Trans-anim finish, res=0</code>；结束后堆已用值回到 59,616 B，只有 Main 运行，<code>memcheck</code> 无输出。实物压力窗口快速点击、转场中按键及触摸滑动后，共记录 52 次成功转场、39 次受控动画中止、26 次 clock 销毁和 6 条触摸惯性记录。统计复位后没有再次出现启动头，也没有 HardFault、assert、stack overflow、watchdog 或 fatal。</p>
+<p>完整板测固件执行 6 轮 Main↔clock 生命周期循环和 10 次连续软件重启；每轮都重新识别 CO5300、FT6146，LCD 进入 <code>ON</code>，Main 完成恢复。最终固件再执行 3 次软件重启，结果相同。所有窗口均未出现 HardFault、assert、stack overflow、watchdog 或 fatal，<code>memcheck</code> 无输出。</p>
 <table><thead><tr><th>检查项</th><th>实测</th><th>判定</th></tr></thead><tbody>
-<tr><td>输入计数</td><td>accepted=382，consumed=272，discarded=110，pending=0，rejected=0；382=272+110+0</td><td>守恒，通过</td></tr>
-<tr><td>取消与队列</td><td>cancel=78，队列高水位=6</td><td>压力路径被触发，未出现拒绝或挂死</td></tr>
-<tr><td>消费延迟</td><td>lat_count=272，P95=25 ms</td><td>低于 100 ms 目标，通过</td></tr>
-<tr><td>RT-Thread 堆</td><td>总计 1,808,164 B；结束已用 59,616 B；测试期间最大 203,444 B</td><td>回到基线，通过</td></tr>
-<tr><td>线程栈峰值</td><td>tpread 27%，lcd_task 43%，app_watch 36%，tshell 29%，tidle 22%，timer 28%</td><td>全部低于 75%，错误码均为 000</td></tr>
-<tr><td>对象与内存检查</td><td>仅 Main 运行；<code>memcheck</code> 无输出</td><td>通过</td></tr>
+<tr><td>完整压力输入</td><td>accepted=439，consumed=349，discarded=90，pending=0，rejected=0；cancel=109，高水位=3；439=349+90+0</td><td>计数守恒，通过</td></tr>
+<tr><td>最终固件输入</td><td>accepted=94，consumed=62，discarded=32，pending=0，rejected=0；cancel=18，高水位=5；94=62+32+0</td><td>计数守恒，通过</td></tr>
+<tr><td>最终消费延迟</td><td>样本 62，P95=21 ms，最大 62 ms，超过 100 ms 为 0</td><td>低于 100 ms 目标，通过</td></tr>
+<tr><td>显示恢复</td><td>压力中 1 次 <code>draw_core timeout</code>，恢复计数增加至 1，界面继续响应；亮度置零后单次触摸恢复，reassert=20</td><td>超时不再断言或重启，自动恢复与触摸唤醒均通过</td></tr>
+<tr><td>RT-Thread 堆</td><td>总计 1,808,148 B；长压力结束已用 59,664 B、期间最大 202,116 B；最终三次重启后已用 59,660 B</td><td>回到基线，通过</td></tr>
+<tr><td>最终压力线程栈峰值</td><td>tpread 39%，lcd_task 45%，app_watch 31%，tshell 21%，tidle 22%，timer 25%</td><td>全部低于 75%，错误码均为 000</td></tr>
+<tr><td>对象与内存检查</td><td>重启后仅 Main 运行；<code>memcheck</code> 无输出</td><td>通过</td></tr>
 </tbody></table>
-<p>串口宽度使统计行在 <code>lat_p95_ge_100=</code> 后截断，因此本记录不填写最大延迟或超 100 ms 的精确个数；完整可读的 272 样本与 P95=25 ms 足以判断当前 P95 门槛。帧率、P95/P99 帧间隔和最长卡顿尚未测量，留给 T22。</p>
+<p>长压力固件的一行统计曾在 <code>lat_p95_ge_100=</code> 后被控制台缓冲区截断。最终固件把统计拆成两行并重新上板，完整读得 <code>ge_100=0</code> 与 <code>max_ms=62</code>。压力中点击未实现的占位图标曾产生 5 次受控的 <code>app[none] do LOAD failed</code>，没有创建页面、泄漏或重启；占位图标的禁用态与路由在后续 UI 任务处理。帧率、P95/P99 帧间隔和最长卡顿尚未测量，留给 T22。</p>
 </section>
 
 <section id="reproduce">

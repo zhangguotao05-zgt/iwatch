@@ -33,7 +33,7 @@
 <tr><td>A02 · P0 · 已修复并完成板测</td><td><a href="../../firmware/iwatch/src/gui_apps/main/app_mainmenu.c">app_mainmenu.c</a> 原 display 回调在页面释放后仍可能引用 <code>p_menu_cell</code>。</td><td>退出按回调函数与用户数据注销，再释放页面状态；主机 1,000 轮和板上 Main↔clock 循环后堆回到基线。</td></tr>
 <tr><td>A03 · P1 · 本地回滚路径已补，覆盖边界见实施记录</td><td>表盘 <code>on_start()</code> 分配后直接 <code>memset</code>；<code>app_clock_register()</code> 分配后直接写字段。桌面多处用断言处理分配失败。</td><td>逐次失败注入；构造失败按逆序清理，恢复到预先建立的轻量错误层。禁止在内存不足路径上再次分配整屏兜底资源。</td></tr>
 <tr><td>A04 · P1 · 待修复</td><td><a href="../../firmware/iwatch/src/gui_apps/watch_demo.c">watch_demo.c</a> 的 <code>app_watch_entry()</code> 每次启动执行 <code>set_date(2022, 7, 1)</code> 与 <code>set_time(9, 0, 0)</code>。</td><td>改为读取 RTC 状态和校时记录；保留有效时间，无效时显示待校时。重启不能重设已确认时间；没有备份供电时明确失效。</td></tr>
-<tr><td>A05 · P1 · 已修复并完成 P95 板测</td><td>原 GUI 主循环直接按 <code>lv_timer_handler()</code> 返回值休眠，可能超过活动等待预算。</td><td>统一等待适配已处理无定时器哨兵、tick 换算和锁存事件；等待上限 20 ms。实物压力窗口 272 个消费样本的 P95 为 25 ms。</td></tr>
+<tr><td>A05 · P1 · 已修复并完成 P95 板测</td><td>原 GUI 主循环直接按 <code>lv_timer_handler()</code> 返回值休眠，可能超过活动等待预算。</td><td>统一等待适配已处理无定时器哨兵、tick 换算和锁存事件；等待上限 20 ms。最终固件实物压力窗口 62 个消费样本的 P95 为 21 ms、最大 62 ms，超过 100 ms 为 0。</td></tr>
 <tr><td>A06 · P1 · 待实现</td><td>应用只对 <code>BSP_KEY1_PIN</code> 调用 <code>button_init()</code>；KEY2 虽在 board.conf 声明，未接应用回调。当前队列门控只有单键，M0 点击直接映射 Home。</td><td>KEY1 暂映射表冠按压，KEY2 经实物检查后映射侧键；每键独立门控、独立序号。M1 引入双击识别时必须关闭旧的即时 Home 分支，防止重复导航。旋转表冠状态仍为 absent。</td></tr>
 <tr><td>A07 · P1 · 来源与构建约束已实现</td><td><a href="../../firmware/iwatch/project/project.uvprojx">Keil 工程</a>的四个基础板 <code>bsp_*.c</code> 指向 SDK 的 <code>customer/boards/sf32lb58-lcd_base</code>，不是仓库内同名副本。</td><td>开发板阶段明确以锁定 SDK 的基础板驱动为准；自研 PCB 建新的项目 BSP 并验实际编译路径。禁止只修改未参与编译的副本后宣称硬件行为已变化。</td></tr>
 <tr><td>A08 · P0 · DEV 包板测通过</td><td><a href="../../firmware/iwatch/project/iwatch_sf32lb58_a128_qspi_hcpu/ptab.json">ptab.json</a> 将 main 移到 0x69000000；GCC main 与 FTab 已独立回读匹配归档。</td><td>已完成旧区备份、新 FTab 引导、冷启动及串口恢复。底层 NAND 页/擦除块、ECC/BBM 和持久化掉电语义仍在 D15 验证，不从本次 UI 启动结果外推。</td></tr>
@@ -88,7 +88,7 @@
 <section id="delivery"><h2>5. 构建、分区与可恢复交付</h2>
 <p>规范配置链为：项目 board.conf / Kconfig、项目 ptab.json、SCons 生成的 rtconfig/链接脚本、编译器产物、下载清单。不要编辑 build 目录中的生成头文件作为长期配置。发布清单应同时保存以上输入的 SHA-256、SDK commit 与补丁列表、编译器版本、board_id、partition_version、resource_version。</p>
 <table><thead><tr><th>对象</th><th>当前值</th><th>发布前要求</th></tr></thead><tbody>
-<tr><td>main 装载</td><td>0x69000000，6 MiB；已验收 GCC 镜像为 5,734,412 B，占 91.146%。</td><td>每次构建按实际大小计算并核对 PSRAM 运行窗口；D07 前处理字体资源，避免继续逼近槽上限。</td></tr>
+<tr><td>main 装载</td><td>0x69000000，6 MiB；已验收 GCC 镜像为 5,734,968 B，占 91.155%。</td><td>每次构建按实际大小计算并核对 PSRAM 运行窗口；D07 前处理字体资源，避免继续逼近槽上限。</td></tr>
 <tr><td>ftab / bootloader</td><td>0x1C000000 / 0x1C020000。</td><td>和 main 打包并回读验证；更换引导表前，新的 main 必须已验证可读。</td></tr>
 <tr><td>NAND 数据</td><td>现有 KV 槽各 16 KiB，FS 6 MiB；均属于既有表。</td><td>核对页、擦除块、ECC/BBM 和虚拟地址规则。16 KiB 逻辑槽不证明有独立可擦除物理块；应用禁止绕过驱动直接擦除。</td></tr>
 <tr><td>源码基线</td><td>应用在仓库，SDK 外部依赖；部分基础 BSP 直接来自 SDK。</td><td>记录 dirty 差异并制作可复现补丁；先做干净 SDK 构建，不直接重置现有 SDK 工作区。</td></tr>

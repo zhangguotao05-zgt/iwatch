@@ -245,7 +245,7 @@
 </tr>
 <tr class="odd">
 <td>输入队列、溢出取消、单键点击过滤、GUI 线程消费、诊断</td>
-<td>已实现并上板；压力窗口 accepted=382、rejected=0，计数守恒，272 个消费样本 P95=25 ms</td>
+<td>已实现并上板；最终压力窗口 accepted=94、rejected=0，计数守恒，62 个消费样本 P95=21 ms、最大 62 ms</td>
 </tr>
 <tr class="even">
 <td>PSRAM1 范围和 main 新装载槽</td>
@@ -257,11 +257,11 @@
 </tr>
 <tr class="even">
 <td>GCC</td>
-<td>完整构建成功；<code>main.bin</code> 为 5,734,412 B，占 6 MiB 槽 91.146%，剩余 557,044 B</td>
+<td>完整构建成功；<code>main.bin</code> 为 5,734,968 B，占 6 MiB 槽 91.155%，剩余 556,488 B</td>
 </tr>
 <tr class="odd">
 <td>Keil</td>
-<td>工程重新生成并由 Arm Compiler 6.16 实际编译；928 个源码引用有效；main 为 5,660,576 B</td>
+<td>工程重新生成并由 Arm Compiler 6.16 实际编译；929 个源码引用有效；main 为 5,661,112 B</td>
 </tr>
 <tr class="even">
 <td>主机回归</td>
@@ -269,7 +269,7 @@
 </tr>
 <tr class="odd">
 <td>板上</td>
-<td>D01–D03 GCC 包已通过：6 轮自动生命周期与实物压力后无异常，堆回到 59,616 B，最高线程栈 43%；帧率、低功耗与长期测试仍待后续任务</td>
+<td>D01–D03 GCC 包已通过：6 轮自动生命周期、10+3 次软件重启、实物压力和显示恢复后无断言或故障，堆回到 59,660 B，最终压力最高线程栈 45%；帧率、低功耗与长期测试仍待后续任务</td>
 </tr>
 </tbody>
 </table>

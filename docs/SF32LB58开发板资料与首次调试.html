@@ -110,7 +110,7 @@ customer/boards/sf32lb58-lcd_a128r32n1_qspi/lcpu/board.conf</code></pre>
 <li>FT6146 驱动已注册，但 I2C4 无器件应答并报告总线错误；</li>
 <li>图形应用仍完成初始化并进入 Main 页面，串口 shell 可正常执行命令。</li>
 </ul>
-<p>另有三个 <code>flash1 is not found</code> 的 FAL 报错，目前未阻止 NAND 主镜像或应用启动，后续启用资源文件系统时需要单独核对分区设备名。无屏阶段 <code>free</code> 显示 RT-Thread 管理堆总量 1,809,900 字节、已用 58,928 字节；当时 <code>tpread</code> 的 1 KiB 栈峰值达到 91%。D01–D03 固件已改用 2 KiB 栈，实屏压力峰值为 27%；FAL 持久化问题仍未关闭。</p>
+<p>另有三个 <code>flash1 is not found</code> 的 FAL 报错，目前未阻止 NAND 主镜像或应用启动，后续启用资源文件系统时需要单独核对分区设备名。无屏阶段 <code>free</code> 显示 RT-Thread 管理堆总量 1,809,900 字节、已用 58,928 字节；当时 <code>tpread</code> 的 1 KiB 栈峰值达到 91%。D01–D03 固件已改用 2 KiB 栈，最终实屏压力峰值为 39%；FAL 持久化问题仍未关闭。</p>
 </section>
 <section id="官方资料入口" class="level2">
 <h2>官方资料入口</h2>

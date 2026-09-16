@@ -173,12 +173,12 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 </tr>
 <tr class="odd">
 <td>驱动</td>
-<td><code>tpread</code> 优先级 10、2 KiB 栈，压力峰值 27%；<code>lcd_task</code> 优先级 12、2 KiB 栈，峰值 43%</td>
+<td><code>tpread</code> 优先级 10、2 KiB 栈，最终压力峰值 39%；<code>lcd_task</code> 优先级 12、2 KiB 栈，峰值 45%</td>
 <td>保留 SDK 分工；触摸线程由项目本地实现固定栈预算</td>
 </tr>
 <tr class="even">
 <td>主堆</td>
-<td>D01–D03 固件总量 1,808,164 B，压力结束使用 59,616 B，测试峰值 203,444 B</td>
+<td>D01–D03 固件总量 1,808,148 B，长压力结束使用 59,664 B、测试峰值 202,116 B，最终重启后使用 59,660 B</td>
 <td>结束空闲约 1.67 MiB；这不是全部 PSRAM 可用量</td>
 </tr>
 <tr class="odd">
@@ -209,7 +209,7 @@ docs/ui/                 架构、交互、基线、验收与差异记录</code>
 <li>历史 <code>flash1</code> FAL 缺失提示仍待解决。在挂载和掉电恢复验证通过前，设置只能报告为本次会话有效，不宣称已永久保存。</li>
 </ul>
 <p>本地 v1 配置将 <code>main</code> 装载槽移到 NAND 偏移 <strong>0x01000000（16 MiB）</strong>，地址 <strong>0x69000000</strong>，大小 <strong>6 MiB</strong>；现有 KV、FS、FS_EX、ACPU 和启动 NOR 的地址保持原值。该区域在当前完整表中没有其他分区，且位于配置的 128 MiB NAND 内。第一批同时增加布局/镜像/下载地址检查。</p>
-<p>DEV_A128_NAND 新布局已完成旧区备份、GCC main 写入与独立回读、匹配 FTab 切换、冷启动和串口恢复。已验收 main 为 5,734,412 B，占槽 91.146%。调试中也实际复现了新 main 配旧 FTab 时无法启动，因此后续必须使用 <code>flash-serial.ps1</code> 校验并烧录同一归档的三件套。底层 NAND 几何、ECC/BBM 和持久化掉电恢复仍归 D15。</p>
+<p>DEV_A128_NAND 新布局已完成旧区备份、历史 main/FTab 独立回读、最终三件套写入校验、冷启动和串口恢复。最终验收 main 为 5,734,968 B，占槽 91.155%。调试中也实际复现了新 main 配旧 FTab 时无法启动，因此后续必须使用 <code>flash-serial.ps1</code> 校验并烧录同一归档的三件套。底层 NAND 几何、ECC/BBM 和持久化掉电恢复仍归 D15。</p>
 </section>
 </section>
 <section id="线程与调度" class="level2">
