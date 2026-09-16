@@ -357,12 +357,13 @@ static void iw_input_stat(void)
     latency_max_ms = input_latency_max_ms;
     rt_hw_interrupt_enable(level);
     rt_kprintf("input accepted=%u consumed=%u rejected=%u discarded=%u "
-               "cancel=%u high=%u pending=%u lat_count=%u lat_p95_ms=%u "
-               "lat_p95_ge_100=%u lat_max_ms=%u\n",
+               "cancel=%u high=%u pending=%u\n",
                (unsigned)stats.accepted, (unsigned)stats.consumed,
                (unsigned)stats.rejected, (unsigned)stats.discarded,
                (unsigned)stats.cancellations, (unsigned)stats.high_water,
-               (unsigned)pending, (unsigned)latency_count,
+               (unsigned)pending);
+    rt_kprintf("input latency count=%u p95_ms=%u ge_100=%u max_ms=%u\n",
+               (unsigned)latency_count,
                (unsigned)latency_p95_ms, latency_p95_at_or_above_limit ? 1u : 0u,
                (unsigned)latency_max_ms);
 }
