@@ -22,6 +22,7 @@
 #include "iw_display_guard.h"
 #include "iw_gui_port.h"
 #include "iw_recovery.h"
+#include "iw_boot.h"
 #ifdef BSP_USING_PM
     #include "bf0_pm.h"
     #include "gui_app_pm.h"
@@ -691,11 +692,6 @@ void app_watch_entry(void *parameter)
         extern int wait_platform_init_done(void);
         wait_platform_init_done();
     }
-#else
-    {
-        set_date(2022, 7, 1);
-        set_time(9, 0, 0);
-    }
 #endif /* _MSC_VER */
 
     init_pin();
@@ -814,7 +810,7 @@ void app_register(void)
 int app_watch_init(void)
 {
     rt_err_t ret = RT_EOK;
-    if (iw_gui_port_init() != RT_EOK) return -RT_ERROR;
+    if (iw_boot_init() != RT_EOK) return -RT_ERROR;
 
 
     ret = rt_thread_init(&watch_thread, "app_watch", app_watch_entry, RT_NULL, watch_thread_stack, APP_WATCH_GUI_TASK_STACK_SIZE,

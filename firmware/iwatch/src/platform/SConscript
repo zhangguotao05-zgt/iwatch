@@ -1,4 +1,6 @@
 from building import *
+import os
 cwd = GetCurrentDir()
-group = DefineGroup('Iwatch_platform', Glob('*.c'), depend=[], CPPPATH=[cwd])
+group = DefineGroup('Iwatch_platform', Glob('*.c'), depend=[],
+                    CPPPATH=[cwd, os.path.join(cwd, '../core'), os.path.join(cwd, '../services')])
 Return('group')

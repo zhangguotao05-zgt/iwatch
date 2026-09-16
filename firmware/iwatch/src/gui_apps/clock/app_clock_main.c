@@ -5,11 +5,11 @@
  */
 
 #include "rtconfig.h"
-#include <time.h>
 #include "app_clock_main.h"
 #include "app_clock_status_bar.h"
 #include "iw_recovery.h"
 #include "iw_gui_port.h"
+#include "iw_service_runtime.h"
 // #include "lvsf.h"
 #ifdef RT_USING_XIP_MODULE
     #include "dlmodule.h"
@@ -63,8 +63,6 @@ typedef struct
     static
 #endif
 app_clock_main_t *p_app_clock_main = NULL;
-static rt_uint32_t total_milliseconds = 0;
-static clock_t latched_clock;
 static uint16_t last_active_clock = 0;
 
 static rt_uint16_t get_active_tile_col(lv_obj_t *tileview)
@@ -79,61 +77,29 @@ static rt_uint16_t get_active_tile_col(lv_obj_t *tileview)
 
 void app_clock_main_get_current_time(app_clock_time_t *t)
 {
-    if (t)
+    iw_clock_snapshot_t clock;
+    uint64_t day_ms;
+
+    if (!t) return;
+    memset(t, 0, sizeof(*t));
+    if (!iw_clock_read(&clock)) return;
+
+    if (clock.valid)
     {
-#if 0
-
-        rt_uint32_t cur_seconds;
-
-        cur_seconds = total_milliseconds / 1000;
-        t->ms = total_milliseconds % 1000;
-        t->s = cur_seconds % 60;
-        t->h = cur_seconds / 3600;
-        t->m = (cur_seconds / 60) % 60;
-#elif 1
-
-
-        uint32_t ms;
-        rt_uint32_t cur_seconds;
-        clock_t clk = clock();
-        clock_t elp;
-
-        if (clk >= latched_clock)
-        {
-            elp = clk - latched_clock;
-        }
-        else
-        {
-            elp = INT32_MAX - latched_clock + 1 + clk;
-        }
-        latched_clock = clk;
-
-
-        ms = (uint64_t)elp * 1000 / RT_TICK_PER_SECOND + total_milliseconds;
-        cur_seconds = ms / 1000;
-
-        //cur_seconds *= 10; //speed 10x
-
-        t->ms = ms % 1000;
-        t->s = cur_seconds % 60;
-        t->h = (cur_seconds / 3600) % 24;
-        t->m = (cur_seconds / 60) % 60;
-
-        total_milliseconds = ms;
-
-
-#else
-        uint32_t ms;
-        uint32_t cur_seconds;
-
-        ms = cpu_get_hw_us() / 1000;
-        cur_seconds = ms / 1000;
-        t->ms = ms % 1000;
-        t->s = cur_seconds % 60;
-        t->h = cur_seconds / 3600;
-        t->m = (cur_seconds / 60) % 60;
-
-#endif
+        int64_t local_ms = clock.utc_ms + (int64_t)clock.offset_minutes * INT64_C(60000);
+        int64_t wrapped = local_ms % INT64_C(86400000);
+        if (wrapped < 0) wrapped += INT64_C(86400000);
+        day_ms = (uint64_t)wrapped;
+    }
+    else
+    {
+        /* RTC 无效时只展示本次启动的单调时间，不能伪造一个已校准日期。 */
+        day_ms = clock.mono_ms % UINT64_C(86400000);
+    }
+    t->ms = (uint16_t)(day_ms % 1000u);
+    t->s = (uint8_t)((day_ms / 1000u) % 60u);
+    t->m = (uint8_t)((day_ms / 60000u) % 60u);
+    t->h = (uint8_t)((day_ms / 3600000u) % 24u);
 
 
 #ifdef GRAPHIC_REFRESH_TIME_ANALYSIS
@@ -166,7 +132,6 @@ void app_clock_main_get_current_time(app_clock_time_t *t)
         }
 #endif
 
-    }
 }
 
 #if 0
@@ -518,21 +483,9 @@ extern void app_clock_rotate_bg_register(void);
 #endif
 void app_clock_reset_time(void)
 {
-    struct tm *time_info;
-
-#ifdef WIN32
-    __time32_t raw_time;
-    _time32(&raw_time);
-    time_info = _localtime32(&raw_time);
-#else
-    time_t raw_time;
-    time(&raw_time);
-    time_info = localtime(&raw_time);
-#endif
-    latched_clock = clock();
-    total_milliseconds = (((time_info->tm_hour * 60) + time_info->tm_min) * 60 + time_info->tm_sec) * 1000;
-
-    rt_kprintf("service_reset_time:  %d:%d:%d - %d:%d:%d - %d\n", time_info->tm_year, time_info->tm_mon, time_info->tm_mday, time_info->tm_hour, time_info->tm_min, time_info->tm_sec, time_info->tm_wday);
+    iw_clock_snapshot_t snapshot;
+    /* 保留 SDK 公开符号；实际时间由 iw_time owner 连续维护。 */
+    (void)iw_clock_read(&snapshot);
 }
 
 

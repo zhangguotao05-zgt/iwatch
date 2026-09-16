@@ -35,6 +35,15 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'GUI 事件适配测试编译失败。' }
     & ./test_gui_port.exe
     if ($LASTEXITCODE -ne 0) { throw 'GUI 事件适配测试失败。' }
+    $serviceDir = Join-Path $firmwareDir 'iwatch/src/services'
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$coreDir" /Fetest_time.exe (Join-Path $PSScriptRoot 'test_time.c') (Join-Path $coreDir 'iw_time.c')
+    if ($LASTEXITCODE -ne 0) { throw '时间核心测试编译失败。' }
+    & ./test_time.exe
+    if ($LASTEXITCODE -ne 0) { throw '时间核心测试失败。' }
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$coreDir" "/I$serviceDir" /Fetest_service.exe (Join-Path $PSScriptRoot 'test_service.c') (Join-Path $serviceDir 'iw_service.c') (Join-Path $coreDir 'iw_time.c')
+    if ($LASTEXITCODE -ne 0) { throw '服务账本测试编译失败。' }
+    & ./test_service.exe
+    if ($LASTEXITCODE -ne 0) { throw '服务账本测试失败。' }
     & py -3 (Join-Path $PSScriptRoot 'generate_lifecycle_test.py')
     if ($LASTEXITCODE -ne 0) { throw '生命周期测试生成失败。' }
     foreach ($page in @('clock', 'menu', 'status', 'simple', 'dial', 'rotate_bg')) {

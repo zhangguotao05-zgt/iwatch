@@ -1,12 +1,13 @@
 from building import *
 import rtconfig
+import os
 
 # get current dir path
 cwd = GetCurrentDir()
 
 # init src and inc vars
 src = []
-inc = [cwd]
+inc = [cwd, os.path.join(cwd, '../../services')]
 
 # add LittlevGL common include
 src = Glob('*.c')
