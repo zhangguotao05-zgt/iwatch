@@ -135,6 +135,22 @@ def require_object_compiler(path, expected):
     return comment
 
 
+def require_map_toolchain(path, expected):
+    """识别链接 map 的生成工具，防止共享输出中的旧文件混入归档。"""
+    with path.open('r', encoding='utf-8', errors='replace') as stream:
+        header = stream.read(131072)
+    if 'Component: ARM Compiler' in header and 'Tool: armlink' in header:
+        actual = 'keil'
+    elif ('Archive member included to satisfy reference by file (symbol)' in header or
+          'Linker script and memory map' in header):
+        actual = 'gcc'
+    else:
+        raise ValueError('unrecognized linker map provenance')
+    if actual != expected:
+        raise ValueError(f'linker map belongs to {actual}, requested {expected}')
+    return actual
+
+
 def run(args):
     config, profile = load_profile(args.profile)
     snapshot = source_snapshot(args.sdk, profile, config)
@@ -166,6 +182,7 @@ def run(args):
             raise ValueError('artifact belongs to another source or toolchain')
         verify_artifacts(record, build)
         require_object_compiler(build/'src/gui_apps/watch_demo.o', config['toolchains'][args.toolchain])
+        require_map_toolchain(build/'main.map', args.toolchain)
         print('BUILD IDENTITY OK')
         return
     table = json.loads(check_layout.TABLE.read_text(encoding='utf-8'))
@@ -186,6 +203,7 @@ def run(args):
     budget = image_budget((build/'main.bin').stat().st_size, profile)
     object_rel = 'src/gui_apps/watch_demo.o'
     comment = require_object_compiler(build/object_rel, config['toolchains'][args.toolchain])
+    map_toolchain = require_map_toolchain(build/'main.map', args.toolchain)
     artifacts[object_rel] = sha(build/object_rel)
     extension = 'elf' if args.toolchain == 'gcc' else 'axf'
     for name in ['main', 'bootloader/bootloader', 'ftab/ftab']:
@@ -193,6 +211,7 @@ def run(args):
         artifacts[rel] = sha(build/rel)
     before.update({'completed_utc': datetime.now(timezone.utc).isoformat(), 'budget': budget,
                    'actual_compiler_comment': comment.strip('\x00'),
+                   'actual_map_toolchain': map_toolchain,
                    'artifacts': artifacts, 'board_status': '未刷入；板上验证待执行',
                    'actual_sdk_bsp_path': str(args.sdk/profile['sdk_bsp'])})
     save(build/'build_identity.json', before)

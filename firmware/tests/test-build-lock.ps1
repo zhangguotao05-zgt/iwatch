@@ -15,4 +15,22 @@ try {
 finally { $first.Dispose() }
 $after = Enter-IwatchBuildLock -ProjectDir $testDir
 $after.Dispose()
-Write-Output 'Build lock exclusion/release tests passed'
+
+$approvedBuildDir = Join-Path $testDir 'build_iwatch_sf32lb58_a128_qspi_hcpu'
+New-Item -ItemType Directory -Path $approvedBuildDir -Force | Out-Null
+Set-Content -LiteralPath (Join-Path $approvedBuildDir 'stale.map') -Value 'stale'
+Reset-IwatchBuildDirectory -ProjectDir $testDir -BuildDir $approvedBuildDir
+if (Test-Path -LiteralPath $approvedBuildDir) { throw '已批准的共享输出目录没有被完整清理。' }
+if (-not (Test-Path -LiteralPath $testDir)) { throw '构建目录清理越过了项目边界。' }
+
+$outside = Join-Path (Split-Path -Parent $testDir) 'not-approved'
+New-Item -ItemType Directory -Path $outside -Force | Out-Null
+Set-Content -LiteralPath (Join-Path $outside 'sentinel.txt') -Value 'keep'
+$rejected = $false
+try { Reset-IwatchBuildDirectory -ProjectDir $testDir -BuildDir $outside }
+catch { $rejected = $true }
+if (-not $rejected) { throw '构建目录清理没有拒绝项目边界外路径。' }
+if (-not (Test-Path -LiteralPath (Join-Path $outside 'sentinel.txt'))) {
+    throw '被拒绝的目录发生了修改。'
+}
+Write-Output 'Build lock exclusion/release and safe reset tests passed'

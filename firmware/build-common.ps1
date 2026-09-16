@@ -42,3 +42,32 @@ function Enter-IwatchBuildLock {
     }
     catch { throw '另一个 iwatch 构建正在使用输出目录，请待其结束再构建。' }
 }
+
+function Reset-IwatchBuildDirectory {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$ProjectDir,
+        [Parameter(Mandatory = $true)]
+        [string]$BuildDir
+    )
+
+    $projectFull = [System.IO.Path]::GetFullPath($ProjectDir).TrimEnd([System.IO.Path]::DirectorySeparatorChar)
+    $buildFull = [System.IO.Path]::GetFullPath($BuildDir).TrimEnd([System.IO.Path]::DirectorySeparatorChar)
+    $expected = [System.IO.Path]::GetFullPath(
+        (Join-Path $projectFull 'build_iwatch_sf32lb58_a128_qspi_hcpu')
+    ).TrimEnd([System.IO.Path]::DirectorySeparatorChar)
+    $comparison = [System.StringComparison]::OrdinalIgnoreCase
+    $insideProject = $buildFull.StartsWith(
+        $projectFull + [System.IO.Path]::DirectorySeparatorChar,
+        $comparison
+    )
+
+    if (-not $insideProject -or -not $buildFull.Equals($expected, $comparison)) {
+        throw "拒绝清理未经批准的构建目录: $buildFull"
+    }
+    if (Test-Path -LiteralPath $buildFull) {
+        # GCC 与 Keil 共用 SDK 的固定输出名；完整清理可阻止另一工具链的 map/对象残留。
+        Remove-Item -LiteralPath $buildFull -Recurse -Force
+    }
+}

@@ -59,6 +59,7 @@ $identityArgs = @('--profile', $BuildProfile, '--sdk', $SdkPath, '--toolchain', 
 $buildLock = Enter-IwatchBuildLock -ProjectDir $projectDir
 Push-Location $projectDir
 try {
+    Reset-IwatchBuildDirectory -ProjectDir $projectDir -BuildDir $buildDir
     & python $identityScript 'begin' @identityArgs
     if ($LASTEXITCODE -ne 0) { throw '构建来源校验失败。' }
     & python (Join-Path $firmwareRoot 'check_layout.py')

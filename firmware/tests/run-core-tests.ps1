@@ -48,6 +48,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw '服务账本测试编译失败。' }
     & ./test_service.exe
     if ($LASTEXITCODE -ne 0) { throw '服务账本测试失败。' }
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$PSScriptRoot/mocks" "/I$platformDir" "/I$serviceDir" "/I$coreDir" /Fetest_boot.exe (Join-Path $PSScriptRoot 'test_boot.c') (Join-Path $platformDir 'iw_boot.c')
+    if ($LASTEXITCODE -ne 0) { throw '启动协调失败注入测试编译失败。' }
+    & ./test_boot.exe
+    if ($LASTEXITCODE -ne 0) { throw '启动协调失败注入测试失败。' }
     & py -3 (Join-Path $PSScriptRoot 'generate_lifecycle_test.py')
     if ($LASTEXITCODE -ne 0) { throw '生命周期测试生成失败。' }
     foreach ($page in @('clock', 'menu', 'status', 'simple', 'dial', 'rotate_bg')) {

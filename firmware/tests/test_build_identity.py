@@ -72,6 +72,27 @@ class BuildIdentityTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'compiler differs'):
                 identity.require_object_compiler(path, self.config['toolchains']['keil'])
 
+    def test_linker_map_must_match_requested_toolchain(self):
+        with tempfile.TemporaryDirectory() as directory:
+            path = Path(directory)/'main.map'
+            path.write_text(
+                'Archive member included to satisfy reference by file (symbol)\n',
+                encoding='utf-8')
+            self.assertEqual('gcc', identity.require_map_toolchain(path, 'gcc'))
+            with self.assertRaisesRegex(ValueError, 'belongs to gcc'):
+                identity.require_map_toolchain(path, 'keil')
+
+            path.write_text(
+                'Component: ARM Compiler 6.16 Tool: armlink [5dfeaa00]\n',
+                encoding='utf-8')
+            self.assertEqual('keil', identity.require_map_toolchain(path, 'keil'))
+            with self.assertRaisesRegex(ValueError, 'belongs to keil'):
+                identity.require_map_toolchain(path, 'gcc')
+
+            path.write_text('map without a linker signature\n', encoding='utf-8')
+            with self.assertRaisesRegex(ValueError, 'unrecognized'):
+                identity.require_map_toolchain(path, 'gcc')
+
 
 if __name__ == '__main__':
     unittest.main()

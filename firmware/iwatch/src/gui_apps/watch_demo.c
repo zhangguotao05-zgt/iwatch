@@ -809,25 +809,9 @@ void app_register(void)
 
 int app_watch_init(void)
 {
-    rt_err_t ret = RT_EOK;
-    if (iw_boot_init() != RT_EOK) return -RT_ERROR;
-
-
-    ret = rt_thread_init(&watch_thread, "app_watch", app_watch_entry, RT_NULL, watch_thread_stack, APP_WATCH_GUI_TASK_STACK_SIZE,
-                         RT_THREAD_PRIORITY_MIDDLE, RT_THREAD_TICK_DEFAULT);
-
-    if (RT_EOK != ret)
-    {
-        iw_gui_port_deinit();
-        return ret;
-    }
-    ret = rt_thread_startup(&watch_thread);
-    if (ret != RT_EOK)
-    {
-        rt_thread_detach(&watch_thread);
-        iw_gui_port_deinit();
-    }
-    return ret;
+    return iw_boot_start_app_thread(&watch_thread, "app_watch", app_watch_entry, RT_NULL,
+                                    watch_thread_stack, APP_WATCH_GUI_TASK_STACK_SIZE,
+                                    RT_THREAD_PRIORITY_MIDDLE, RT_THREAD_TICK_DEFAULT);
 }
 
 #if !defined (_MSC_VER)

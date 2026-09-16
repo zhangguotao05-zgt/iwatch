@@ -238,7 +238,6 @@ bool iw_service_set_capability(iw_service_t *service,
                                int32_t last_error)
 {
     iw_capability_entry_t *entry = NULL;
-    bool created = false;
 
     if (!service || capability_id == 0 || state > IW_CAP_STATE_FAULT) return false;
     for (unsigned i = 0; i < service->capability_count; i++)
@@ -249,16 +248,16 @@ bool iw_service_set_capability(iw_service_t *service,
             break;
         }
     }
+    if (entry && entry->state == (uint8_t)state && entry->last_error == last_error) return true;
+    /* revision 耗尽时必须在分配新条目前失败，保证失败路径没有可见副作用。 */
+    if (service->capability_revision == UINT32_MAX) return false;
     if (!entry)
     {
         if (service->capability_count >= IW_CAPABILITY_CAPACITY) return false;
         entry = &service->capabilities[service->capability_count++];
         memset(entry, 0, sizeof(*entry));
         entry->capability_id = (uint16_t)capability_id;
-        created = true;
     }
-    if (!created && entry->state == (uint8_t)state && entry->last_error == last_error) return true;
-    if (service->capability_revision == UINT32_MAX) return false;
     service->capability_revision++;
     entry->revision = service->capability_revision;
     entry->state = (uint8_t)state;

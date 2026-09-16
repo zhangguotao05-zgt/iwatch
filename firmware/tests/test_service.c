@@ -231,6 +231,36 @@ static void test_snapshots_and_client_exhaustion(void)
     assert(!iw_client_next_request(&client, &request));
 }
 
+static void test_capability_revision_exhaustion_has_no_side_effect(void)
+{
+    iw_time_state_t time_state;
+    iw_service_t service;
+    iw_service_t before;
+
+    assert(iw_time_init(&time_state, 0u, 1000u, 1704067200, 0,
+                        IW_TIME_SOURCE_RTC) == IW_TIME_OK);
+    assert(iw_service_init(&service, &time_state, 13u));
+
+    service.capability_revision = UINT32_MAX;
+    before = service;
+    assert(!iw_service_set_capability(&service, IW_CAP_CLOCK,
+                                      IW_CAP_STATE_AVAILABLE, 0));
+    assert(memcmp(&service, &before, sizeof(service)) == 0);
+
+    service.capability_revision = UINT32_MAX - 1u;
+    assert(iw_service_set_capability(&service, IW_CAP_CLOCK,
+                                     IW_CAP_STATE_AVAILABLE, 0));
+    assert(service.capability_count == 1u);
+    assert(service.capability_revision == UINT32_MAX);
+    before = service;
+    assert(!iw_service_set_capability(&service, IW_CAP_CLOCK,
+                                      IW_CAP_STATE_FAULT, -1));
+    assert(memcmp(&service, &before, sizeof(service)) == 0);
+    assert(iw_service_set_capability(&service, IW_CAP_CLOCK,
+                                     IW_CAP_STATE_AVAILABLE, 0));
+    assert(memcmp(&service, &before, sizeof(service)) == 0);
+}
+
 int main(void)
 {
     test_duplicate_expiry_and_session();
@@ -238,6 +268,7 @@ int main(void)
     test_device_failure_has_no_clock_side_effect();
     test_revision_exhaustion_has_no_device_work();
     test_snapshots_and_client_exhaustion();
+    test_capability_revision_exhaustion_has_no_side_effect();
     puts("service tests passed");
     return 0;
 }

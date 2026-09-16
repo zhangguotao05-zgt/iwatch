@@ -103,7 +103,7 @@ bool iw_time_rtc_next_session(uint32_t *session_id)
     }
     else
     {
-        /* 备份域丢失后用 TRNG 建立新命名空间，避免 session 每次回到 1。 */
+        /* 备份域丢失后用 TRNG 降低旧 session 碰撞概率；该值不提供唯一性或安全保证。 */
         if (!session_entropy(&next)) return false;
         next &= IW_RTC_COLD_SESSION_MASK;
         if (next == 0u) next = 1u;
