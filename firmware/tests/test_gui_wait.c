@@ -1,4 +1,5 @@
 #include "iw_gui_wait.h"
+#include "iw_display_guard.h"
 #include "iw_input_queue.h"
 #include <assert.h>
 #include <stdio.h>
@@ -14,6 +15,13 @@ int main(void)
     assert(iw_gui_wait_ticks(1, 100) == 1);
     assert(iw_gui_wait_ticks(20, 100) == 2);
     assert(iw_gui_wait_ticks(20, 32768) == 656);
+    iw_display_wake_gate_t display_gate;
+    iw_display_wake_gate_init(&display_gate);
+    assert(iw_display_wake_gate_take(&display_gate, UINT32_MAX - 10u, 20));
+    assert(!iw_display_wake_gate_take(&display_gate, UINT32_MAX - 1u, 20));
+    assert(!iw_display_wake_gate_take(&display_gate, 8u, 20));
+    assert(iw_display_wake_gate_take(&display_gate, 9u, 20));
+    assert(iw_display_wake_gate_take(&display_gate, 9u, 0));
     iw_input_gate_t keys[2];
     memset(keys, 0, sizeof(keys));
     iw_input_gate_accept(&keys[0], IW_INPUT_CANCEL);

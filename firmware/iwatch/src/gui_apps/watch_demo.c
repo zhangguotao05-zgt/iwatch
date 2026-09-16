@@ -19,6 +19,7 @@
 #include "lv_freetype.h"
 #include "lvsf.h"
 #include "iw_input_queue.h"
+#include "iw_display_guard.h"
 #include "iw_gui_port.h"
 #include "iw_recovery.h"
 #ifdef BSP_USING_PM
@@ -32,6 +33,7 @@
 #define SLEEP_CTRL_PIN   (BSP_KEY1_PIN)
 #define LCD_DEVICE_NAME  "lcd"
 #define IDLE_TIME_LIMIT  (10000)
+#define DISPLAY_WAKE_MIN_MS (250u)
 
 typedef enum
 {
@@ -47,6 +49,9 @@ static struct rt_thread watch_thread;
 ALIGN(RT_ALIGN_SIZE)
 static uint8_t watch_thread_stack[APP_WATCH_GUI_TASK_STACK_SIZE];
 static rt_device_t lcd_device;
+static iw_display_wake_gate_t display_wake_gate;
+static uint32_t display_reassert_count;
+static uint32_t display_recovery_count;
 
 static lv_timer_t *button_event_task;
 static struct rt_event btn_event;
@@ -56,6 +61,70 @@ static lv_obj_t *mbox;
 uint32_t g_mainmenu[2];
 
 extern void ui_datac_init(void);
+
+static void count_saturating_add(uint32_t *value)
+{
+    if (*value != UINT32_MAX) (*value)++;
+}
+
+/* CO5300 偶发保持黑屏时，重发亮度和显示开启命令即可恢复，无需重建 GUI。 */
+static void display_reassert(void)
+{
+#ifndef _WIN32
+    uint32_t now;
+    uint32_t minimum_ticks;
+    uint8_t brightness = 100;
+
+    if (!lcd_device) return;
+    now = (uint32_t)rt_tick_get();
+    minimum_ticks = (uint32_t)rt_tick_from_millisecond(DISPLAY_WAKE_MIN_MS);
+    if (!iw_display_wake_gate_take(&display_wake_gate, now, minimum_ticks)) return;
+    if (RT_EOK == rt_device_control(lcd_device, RTGRAPHIC_CTRL_SET_BRIGHTNESS, &brightness))
+        count_saturating_add(&display_reassert_count);
+#endif
+}
+
+static void display_pointer_event_cb(lv_event_t *event)
+{
+    if (LV_EVENT_PRESSED == lv_event_get_code(event)) display_reassert();
+}
+
+static void display_register_pointer_wake(void)
+{
+    for (lv_indev_t *indev = lv_indev_get_next(NULL); indev; indev = lv_indev_get_next(indev))
+    {
+        if (LV_INDEV_TYPE_POINTER == lv_indev_get_type(indev))
+            lv_indev_add_event_cb(indev, display_pointer_event_cb, LV_EVENT_PRESSED, NULL);
+    }
+}
+
+/* 绘制超时后重新探测面板，并让下一轮 LVGL 刷新完整画面。 */
+static void display_recover_if_faulted(void)
+{
+#ifndef _WIN32
+    uint8_t draw_error = 0;
+    uint8_t brightness = 100;
+
+    if (!lcd_device || RT_EOK != rt_device_control(lcd_device, SF_GRAPHIC_CTRL_GET_DRAW_ERR, &draw_error) ||
+            !draw_error)
+        return;
+
+    count_saturating_add(&display_recovery_count);
+    LOG_E("LCD draw failed; recovery attempt %u", (unsigned)display_recovery_count);
+    (void)rt_device_control(lcd_device, RTGRAPHIC_CTRL_POWEROFF, NULL);
+    (void)rt_device_control(lcd_device, RTGRAPHIC_CTRL_POWERON, NULL);
+    (void)rt_device_control(lcd_device, RTGRAPHIC_CTRL_SET_BRIGHTNESS, &brightness);
+    lv_obj_invalidate(lv_scr_act());
+    lv_disp_trig_activity(NULL);
+#endif
+}
+
+static void iw_display_stat(void)
+{
+    rt_kprintf("display reassert=%u recovery=%u\n",
+               (unsigned)display_reassert_count, (unsigned)display_recovery_count);
+}
+MSH_CMD_EXPORT(iw_display_stat, Show LCD wake and recovery statistics);
 
 /**
  * return to MAIN_APP or CLOCK_APP
@@ -203,6 +272,7 @@ static void input_service(void)
             if (event.pin == SLEEP_CTRL_PIN && iw_input_gate_accept(&input_gate, event.action))
             {
                 activity = true;
+                if (IW_INPUT_PRESS == event.action) display_reassert();
                 /* 暂时保留现有短按 Home 行为，表冠完整语义由 D09 接管。 */
                 if (event.action == IW_INPUT_CLICK)
                 {
@@ -654,6 +724,13 @@ void app_watch_entry(void *parameter)
         RT_ASSERT(RT_EOK == r);
     }
 
+    iw_display_wake_gate_init(&display_wake_gate);
+#ifndef _WIN32
+    /* CO5300 没有 SDK 的 TimeoutReset 回调；模式 2 先保住系统，再由项目层重新探测。 */
+    (void)rt_device_control(lcd_device, SF_GRAPHIC_CTRL_ASSERT_IF_DRAWTIMEOUT, (void *)2);
+#endif
+    display_register_pointer_wake();
+
     if (!iw_recovery_init())
     {
         LOG_E("recovery layer allocation failed; GUI startup stopped");
@@ -686,6 +763,7 @@ void app_watch_entry(void *parameter)
         rt_pm_request(PM_SLEEP_MODE_IDLE);
         ms = lv_timer_handler();
         rt_pm_release(PM_SLEEP_MODE_IDLE);
+        display_recover_if_faulted();
 
 #ifdef BSP_USING_PM
         if (gui_is_force_close())

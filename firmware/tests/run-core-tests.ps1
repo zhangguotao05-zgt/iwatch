@@ -26,7 +26,7 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Host input test compilation failed.' }
     & (Join-Path $outputDir 'test_input_queue.exe')
     if ($LASTEXITCODE -ne 0) { throw 'Host input tests failed.' }
-    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$coreDir" /Fetest_gui_wait.exe (Join-Path $PSScriptRoot 'test_gui_wait.c') (Join-Path $coreDir 'iw_gui_wait.c') (Join-Path $coreDir 'iw_input_queue.c')
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$coreDir" /Fetest_gui_wait.exe (Join-Path $PSScriptRoot 'test_gui_wait.c') (Join-Path $coreDir 'iw_gui_wait.c') (Join-Path $coreDir 'iw_input_queue.c') (Join-Path $coreDir 'iw_display_guard.c')
     if ($LASTEXITCODE -ne 0) { throw 'GUI 等待测试编译失败。' }
     & ./test_gui_wait.exe
     if ($LASTEXITCODE -ne 0) { throw 'GUI 等待与恢复测试失败。' }
