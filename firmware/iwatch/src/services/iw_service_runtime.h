@@ -1,6 +1,7 @@
 #ifndef IW_SERVICE_RUNTIME_H
 #define IW_SERVICE_RUNTIME_H
 
+#include "iw_display.h"
 #include "iw_service.h"
 
 int iw_service_runtime_init(void);
@@ -15,6 +16,20 @@ iw_snapshot_status_t iw_snapshot_read(iw_snapshot_topic_t topic,
                                       size_t capacity,
                                       size_t *required);
 bool iw_clock_read(iw_clock_snapshot_t *snapshot);
+bool iw_brightness_read(iw_brightness_snapshot_t *snapshot);
 void iw_service_runtime_stats(iw_service_stats_t *stats);
+
+/* LCD 设备访问只能由 GUI owner 完成；以下接口只复制邮箱和模型状态。 */
+bool iw_display_runtime_set_available(bool available, int32_t device_error);
+iw_display_take_status_t iw_display_take_request(iw_display_request_t *request);
+bool iw_display_complete_request(const iw_display_request_t *request,
+                                 iw_display_apply_status_t status,
+                                 int32_t device_error);
+bool iw_display_note_current_apply(uint8_t level,
+                                   uint32_t target_revision,
+                                   uint32_t target_sequence,
+                                   iw_display_apply_status_t status,
+                                   int32_t device_error);
+void iw_display_runtime_stats(iw_display_mailbox_stats_t *stats);
 
 #endif

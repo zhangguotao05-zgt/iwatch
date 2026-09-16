@@ -24,6 +24,12 @@ typedef struct
     iw_service_stats_t payload;
 } iw_service_snapshot_message_t;
 
+typedef struct
+{
+    iw_snapshot_header_t header;
+    iw_brightness_snapshot_t payload;
+} iw_brightness_snapshot_message_t;
+
 static uint16_t read_u16(const uint8_t *data)
 {
     return (uint16_t)((uint16_t)data[0] | ((uint16_t)data[1] << 8));
@@ -57,6 +63,11 @@ static void count_add(uint32_t *value)
 static void service_changed(iw_service_t *service)
 {
     if (service->stats.service_revision != UINT32_MAX) service->stats.service_revision++;
+}
+
+static void brightness_changed(iw_service_t *service)
+{
+    if (service->brightness.revision != UINT32_MAX) service->brightness.revision++;
 }
 
 static bool commands_equal(const iw_command_t *left, const iw_command_t *right)
@@ -115,6 +126,18 @@ static void result_payload_set_clock(iw_result_t *result, const iw_clock_snapsho
     result->payload[11] = clock->source;
 }
 
+static void result_payload_set_brightness(iw_result_t *result,
+                                          const iw_brightness_snapshot_t *brightness)
+{
+    memset(result->payload, 0, sizeof(result->payload));
+    result->payload[0] = brightness->desired;
+    result->payload[1] = brightness->applied;
+    result->payload[2] = brightness->persisted;
+    result->payload[3] = brightness->flags;
+    write_u32(&result->payload[4], brightness->desired_revision);
+    write_u32(&result->payload[8], brightness->applied_revision);
+}
+
 static void finish_slot(iw_service_t *service,
                         iw_service_slot_t *slot,
                         iw_result_code_t code,
@@ -125,8 +148,16 @@ static void finish_slot(iw_service_t *service,
     if (clock)
     {
         slot->result.completed_mono_ms = clock->mono_ms;
-        slot->result.model_revision = clock->revision;
-        if (slot->command.opcode == IW_OPCODE_SET_CLOCK) result_payload_set_clock(&slot->result, clock);
+        if (slot->command.opcode == IW_OPCODE_SET_CLOCK)
+        {
+            slot->result.model_revision = clock->revision;
+            result_payload_set_clock(&slot->result, clock);
+        }
+    }
+    if (slot->command.opcode == IW_OPCODE_SET_BRIGHTNESS)
+    {
+        if (clock) slot->result.completed_mono_ms = clock->mono_ms;
+        result_payload_set_brightness(&slot->result, &service->brightness);
     }
     if (service->active_count) service->active_count--;
     count_add(&service->stats.completed);
@@ -136,15 +167,32 @@ static void finish_slot(iw_service_t *service,
 static bool command_shape_valid(const iw_command_t *command)
 {
     iw_set_clock_payload_t payload;
+    iw_set_brightness_payload_t brightness = {0};
 
     if (!command || command->version != IW_COMMAND_VERSION || command->request_id == 0u)
         return false;
-    if (command->opcode != IW_OPCODE_SET_CLOCK || command->payload_bytes != 12u)
-        return false;
-    if (!iw_command_decode_set_clock(command, &payload) || payload.flags != 0u)
-        return false;
-    return iw_time_utc_seconds_valid(payload.utc_seconds) &&
-           iw_time_offset_valid(payload.offset_minutes) && payload.expected_revision != 0u;
+    if (command->opcode == IW_OPCODE_SET_CLOCK)
+    {
+        if (!iw_command_decode_set_clock(command, &payload) || payload.flags != 0u)
+            return false;
+        return iw_time_utc_seconds_valid(payload.utc_seconds) &&
+               iw_time_offset_valid(payload.offset_minutes) && payload.expected_revision != 0u;
+    }
+    if (command->opcode == IW_OPCODE_SET_BRIGHTNESS)
+    {
+        if (!iw_command_decode_set_brightness(command, &brightness)) return false;
+        return brightness.level >= IW_BRIGHTNESS_MIN && brightness.level <= IW_BRIGHTNESS_MAX &&
+               (brightness.kind == IW_BRIGHTNESS_PREVIEW ||
+                brightness.kind == IW_BRIGHTNESS_FINAL) &&
+               brightness.reserved == 0u && brightness.expected_revision != 0u &&
+               brightness.setting_sequence != 0u;
+    }
+    return false;
+}
+
+static bool command_opcode_supported(uint16_t opcode)
+{
+    return opcode == IW_OPCODE_SET_CLOCK || opcode == IW_OPCODE_SET_BRIGHTNESS;
 }
 
 void iw_command_init(iw_command_t *command,
@@ -195,6 +243,42 @@ bool iw_command_decode_set_clock(const iw_command_t *command, iw_set_clock_paylo
     return true;
 }
 
+bool iw_command_encode_set_brightness(iw_command_t *command,
+                                      uint8_t level,
+                                      iw_brightness_kind_t kind,
+                                      uint32_t expected_revision,
+                                      uint32_t setting_sequence)
+{
+    if (!command || command->opcode != IW_OPCODE_SET_BRIGHTNESS ||
+            level < IW_BRIGHTNESS_MIN || level > IW_BRIGHTNESS_MAX ||
+            (kind != IW_BRIGHTNESS_PREVIEW && kind != IW_BRIGHTNESS_FINAL) ||
+            expected_revision == 0u || setting_sequence == 0u)
+        return false;
+
+    memset(command->payload, 0, sizeof(command->payload));
+    command->payload[0] = level;
+    command->payload[1] = (uint8_t)kind;
+    write_u16(&command->payload[2], 0u);
+    write_u32(&command->payload[4], expected_revision);
+    write_u32(&command->payload[8], setting_sequence);
+    command->payload_bytes = 12u;
+    return true;
+}
+
+bool iw_command_decode_set_brightness(const iw_command_t *command,
+                                      iw_set_brightness_payload_t *payload)
+{
+    if (!command || !payload || command->opcode != IW_OPCODE_SET_BRIGHTNESS ||
+            command->payload_bytes != 12u)
+        return false;
+    payload->level = command->payload[0];
+    payload->kind = command->payload[1];
+    payload->reserved = read_u16(&command->payload[2]);
+    payload->expected_revision = read_u32(&command->payload[4]);
+    payload->setting_sequence = read_u32(&command->payload[8]);
+    return true;
+}
+
 bool iw_client_session_init(iw_client_session_t *client, uint32_t session_id)
 {
     if (!client || session_id == 0u) return false;
@@ -224,6 +308,11 @@ bool iw_service_init(iw_service_t *service, iw_time_state_t *time_state, uint32_
     service->next_slot_generation = 1u;
     service->capability_revision = 1u;
     service->stats.service_revision = 1u;
+    service->brightness.revision = 1u;
+    service->brightness.desired_revision = 1u;
+    service->brightness.desired = IW_BRIGHTNESS_DEFAULT;
+    service->brightness.flags = IW_BRIGHTNESS_FLAG_DESIRED_VALID |
+                                IW_BRIGHTNESS_FLAG_SESSION_ONLY;
     return true;
 }
 
@@ -266,17 +355,63 @@ bool iw_service_set_capability(iw_service_t *service,
     return true;
 }
 
+static iw_capability_state_t capability_state(const iw_service_t *service,
+                                              iw_capability_id_t capability_id)
+{
+    for (unsigned i = 0; i < service->capability_count; i++)
+    {
+        if (service->capabilities[i].capability_id == (uint16_t)capability_id)
+            return (iw_capability_state_t)service->capabilities[i].state;
+    }
+    return IW_CAP_STATE_UNKNOWN;
+}
+
+static void supersede_queued_brightness(iw_service_t *service, uint32_t setting_sequence)
+{
+    uint8_t retained[IW_COMMAND_CAPACITY];
+    uint8_t retained_count = 0u;
+    iw_clock_snapshot_t clock;
+    bool have_clock = iw_time_read(service->time_state, &clock);
+
+    for (unsigned offset = 0; offset < service->queue_count; offset++)
+    {
+        uint8_t index = service->queue[(service->queue_head + offset) % IW_COMMAND_CAPACITY];
+        iw_service_slot_t *queued = index < IW_RESULT_LEDGER_CAPACITY ?
+                                    &service->slots[index] : NULL;
+        iw_set_brightness_payload_t payload;
+
+        if (queued && queued->used && queued->result.state == IW_RESULT_STATE_QUEUED &&
+                queued->result.code == IW_RESULT_PENDING &&
+                iw_command_decode_set_brightness(&queued->command, &payload) &&
+                payload.setting_sequence < setting_sequence)
+        {
+            finish_slot(service, queued, IW_RESULT_SUPERSEDED, have_clock ? &clock : NULL);
+            continue;
+        }
+        retained[retained_count++] = index;
+    }
+
+    memset(service->queue, 0, sizeof(service->queue));
+    memcpy(service->queue, retained, retained_count);
+    service->queue_head = 0u;
+    service->queue_count = retained_count;
+}
+
 iw_submit_status_t iw_service_command_submit(iw_service_t *service, const iw_command_t *command)
 {
     int index;
     iw_service_slot_t *slot;
+    iw_set_brightness_payload_t brightness = {0};
+    iw_result_code_t deferred_code = IW_RESULT_PENDING;
+    bool brightness_admitted = false;
 
     if (!service || !command || !service->time_state) return IW_SUBMIT_INVALID;
     if (command->session_id != service->session_id) return IW_SUBMIT_SESSION_CHANGED;
     if (!command_shape_valid(command))
     {
         count_add(&service->stats.rejected);
-        return command->opcode == IW_OPCODE_SET_CLOCK ? IW_SUBMIT_INVALID : IW_SUBMIT_CAPABILITY_UNAVAILABLE;
+        return command_opcode_supported(command->opcode) ? IW_SUBMIT_INVALID :
+               IW_SUBMIT_CAPABILITY_UNAVAILABLE;
     }
 
     index = find_slot_by_request(service, command->request_id);
@@ -289,6 +424,27 @@ iw_submit_status_t iw_service_command_submit(iw_service_t *service, const iw_com
     }
     if (command->request_id <= service->stats.accepted_request_high_water)
         return IW_SUBMIT_RESULT_EXPIRED;
+    if (command->opcode == IW_OPCODE_SET_BRIGHTNESS)
+    {
+        iw_capability_state_t display_state = capability_state(service, IW_CAP_DISPLAY);
+
+        if (display_state != IW_CAP_STATE_AVAILABLE && display_state != IW_CAP_STATE_DEGRADED)
+        {
+            count_add(&service->stats.rejected);
+            return IW_SUBMIT_CAPABILITY_UNAVAILABLE;
+        }
+        (void)iw_command_decode_set_brightness(command, &brightness);
+        if (brightness.expected_revision != service->brightness.desired_revision)
+            deferred_code = IW_RESULT_STATE_CONFLICT;
+        else if (service->brightness.setting_sequence == UINT32_MAX ||
+                 service->brightness.desired_revision == UINT32_MAX ||
+                 service->brightness.revision == UINT32_MAX)
+            deferred_code = IW_RESULT_CAPACITY;
+        else if (brightness.setting_sequence <= service->brightness.setting_sequence)
+            deferred_code = IW_RESULT_STATE_CONFLICT;
+        else
+            brightness_admitted = true;
+    }
     if (service->queue_count >= IW_COMMAND_CAPACITY || service->active_count >= IW_COMMAND_CAPACITY)
     {
         count_add(&service->stats.rejected);
@@ -314,8 +470,22 @@ iw_submit_status_t iw_service_command_submit(iw_service_t *service, const iw_com
     slot->result.opcode = command->opcode;
     slot->result.version = IW_COMMAND_VERSION;
     slot->result.state = IW_RESULT_STATE_QUEUED;
-    slot->result.code = IW_RESULT_PENDING;
+    slot->result.code = (uint8_t)deferred_code;
     slot->result.ledger_generation = slot->generation;
+    if (command->opcode == IW_OPCODE_SET_BRIGHTNESS)
+        slot->result.model_revision = service->brightness.desired_revision;
+    if (brightness_admitted)
+    {
+        service->brightness.desired_revision++;
+        service->brightness.setting_sequence = brightness.setting_sequence;
+        service->brightness.desired = brightness.level;
+        service->brightness.last_error = 0;
+        service->brightness.flags |= IW_BRIGHTNESS_FLAG_DESIRED_VALID |
+                                     IW_BRIGHTNESS_FLAG_SESSION_ONLY;
+        brightness_changed(service);
+        slot->result.model_revision = service->brightness.desired_revision;
+        supersede_queued_brightness(service, brightness.setting_sequence);
+    }
     service->queue[(service->queue_head + service->queue_count) % IW_COMMAND_CAPACITY] = (uint8_t)index;
     service->queue_count++;
     service->active_count++;
@@ -329,7 +499,8 @@ iw_take_status_t iw_service_take_next(iw_service_t *service, iw_service_work_t *
 {
     unsigned index;
     iw_service_slot_t *slot;
-    iw_set_clock_payload_t payload;
+    iw_set_clock_payload_t clock_payload;
+    iw_set_brightness_payload_t brightness_payload;
     iw_clock_snapshot_t clock;
 
     if (!service || !work || service->queue_count == 0u) return IW_TAKE_EMPTY;
@@ -341,20 +512,48 @@ iw_take_status_t iw_service_take_next(iw_service_t *service, iw_service_work_t *
     slot = &service->slots[index];
     slot->result.state = IW_RESULT_STATE_IN_PROGRESS;
     service_changed(service);
-    if (!iw_command_decode_set_clock(&slot->command, &payload) ||
-            !iw_time_read(service->time_state, &clock))
+    if (!iw_time_read(service->time_state, &clock))
     {
         finish_slot(service, slot, IW_RESULT_INVALID, NULL);
         return IW_TAKE_COMPLETED;
     }
-    if (payload.expected_revision != clock.revision)
+
+    if (slot->result.code != IW_RESULT_PENDING)
     {
-        finish_slot(service, slot, IW_RESULT_STATE_CONFLICT, &clock);
+        finish_slot(service, slot, (iw_result_code_t)slot->result.code, &clock);
         return IW_TAKE_COMPLETED;
     }
-    if (clock.revision == UINT32_MAX)
+
+    if (slot->command.opcode == IW_OPCODE_SET_CLOCK)
     {
-        finish_slot(service, slot, IW_RESULT_CAPACITY, &clock);
+        if (!iw_command_decode_set_clock(&slot->command, &clock_payload))
+        {
+            finish_slot(service, slot, IW_RESULT_INVALID, &clock);
+            return IW_TAKE_COMPLETED;
+        }
+        if (clock_payload.expected_revision != clock.revision)
+        {
+            finish_slot(service, slot, IW_RESULT_STATE_CONFLICT, &clock);
+            return IW_TAKE_COMPLETED;
+        }
+        if (clock.revision == UINT32_MAX)
+        {
+            finish_slot(service, slot, IW_RESULT_CAPACITY, &clock);
+            return IW_TAKE_COMPLETED;
+        }
+    }
+    else if (slot->command.opcode == IW_OPCODE_SET_BRIGHTNESS)
+    {
+        if (!iw_command_decode_set_brightness(&slot->command, &brightness_payload) ||
+                slot->result.model_revision == 0u)
+        {
+            finish_slot(service, slot, IW_RESULT_INVALID, &clock);
+            return IW_TAKE_COMPLETED;
+        }
+    }
+    else
+    {
+        finish_slot(service, slot, IW_RESULT_INVALID, &clock);
         return IW_TAKE_COMPLETED;
     }
 
@@ -400,6 +599,123 @@ bool iw_service_finish_set_clock(iw_service_t *service,
         finish_slot(service, slot, IW_RESULT_CAPACITY, &after);
     else
         finish_slot(service, slot, IW_RESULT_INVALID, &after);
+    return true;
+}
+
+bool iw_service_finish_set_brightness(iw_service_t *service,
+                                      const iw_result_token_t *token,
+                                      uint32_t raw_tick,
+                                      iw_result_code_t code,
+                                      int32_t device_error)
+{
+    iw_service_slot_t *slot = slot_from_token(service, token);
+    iw_set_brightness_payload_t payload;
+    iw_clock_snapshot_t clock;
+    bool state_changed = false;
+
+    if (!slot || slot->result.state != IW_RESULT_STATE_IN_PROGRESS ||
+            !iw_command_decode_set_brightness(&slot->command, &payload))
+        return false;
+    if (code != IW_RESULT_OK_APPLIED && code != IW_RESULT_SUPERSEDED &&
+            code != IW_RESULT_DEVICE_BUSY && code != IW_RESULT_UNCONFIRMED_TIMEOUT &&
+            code != IW_RESULT_DEVICE_FAULT)
+        return false;
+
+    iw_time_sample(service->time_state, raw_tick);
+    if (!iw_time_read(service->time_state, &clock)) return false;
+
+    if (code == IW_RESULT_OK_APPLIED)
+    {
+        /* 单显示 owner 保证完成有序；仍拒绝迟到结果倒退 applied 版本。 */
+        if (slot->result.model_revision >= service->brightness.applied_revision)
+        {
+            state_changed = service->brightness.applied != payload.level ||
+                            service->brightness.applied_revision != slot->result.model_revision ||
+                            !(service->brightness.flags & IW_BRIGHTNESS_FLAG_APPLIED_VALID);
+            service->brightness.applied = payload.level;
+            service->brightness.applied_revision = slot->result.model_revision;
+            service->brightness.applied_sequence = payload.setting_sequence;
+            service->brightness.flags |= IW_BRIGHTNESS_FLAG_APPLIED_VALID;
+        }
+        if (slot->result.model_revision == service->brightness.desired_revision &&
+                service->brightness.last_error != 0)
+        {
+            service->brightness.last_error = 0;
+            state_changed = true;
+        }
+    }
+    else if (code != IW_RESULT_SUPERSEDED &&
+             slot->result.model_revision == service->brightness.desired_revision &&
+             service->brightness.last_error != device_error)
+    {
+        service->brightness.last_error = device_error;
+        state_changed = true;
+    }
+
+    if (state_changed)
+    {
+        brightness_changed(service);
+        service_changed(service);
+    }
+    finish_slot(service, slot, code, &clock);
+    return true;
+}
+
+bool iw_service_note_brightness_applied(iw_service_t *service,
+                                        uint8_t level,
+                                        uint32_t target_revision,
+                                        uint32_t target_sequence,
+                                        bool device_success,
+                                        int32_t device_error)
+{
+    bool changed = false;
+
+    if (!service || level < IW_BRIGHTNESS_MIN || level > IW_BRIGHTNESS_MAX ||
+            target_revision != service->brightness.desired_revision ||
+            target_sequence != service->brightness.setting_sequence ||
+            level != service->brightness.desired)
+        return false;
+
+    if (device_success)
+    {
+        if (target_revision >= service->brightness.applied_revision)
+        {
+            changed = service->brightness.applied != level ||
+                      service->brightness.applied_revision != target_revision ||
+                      service->brightness.applied_sequence != target_sequence ||
+                      !(service->brightness.flags & IW_BRIGHTNESS_FLAG_APPLIED_VALID);
+            service->brightness.applied = level;
+            service->brightness.applied_revision = target_revision;
+            service->brightness.applied_sequence = target_sequence;
+            service->brightness.flags |= IW_BRIGHTNESS_FLAG_APPLIED_VALID;
+        }
+        if (target_revision == service->brightness.desired_revision &&
+                service->brightness.last_error != 0)
+        {
+            service->brightness.last_error = 0;
+            changed = true;
+        }
+    }
+    else if (target_revision == service->brightness.desired_revision &&
+             service->brightness.last_error != device_error)
+    {
+        service->brightness.last_error = device_error;
+        changed = true;
+    }
+
+    if (changed)
+    {
+        brightness_changed(service);
+        service_changed(service);
+    }
+    return true;
+}
+
+bool iw_service_brightness_read(const iw_service_t *service,
+                                iw_brightness_snapshot_t *snapshot)
+{
+    if (!service || !snapshot) return false;
+    *snapshot = service->brightness;
     return true;
 }
 
@@ -513,6 +829,20 @@ iw_snapshot_status_t iw_service_snapshot_read(const iw_service_t *service,
         if (!output || capacity < bytes) return IW_SNAPSHOT_TOO_SMALL;
         fill_header(&message.header, service, topic, (uint16_t)sizeof(message.payload),
                     service->stats.service_revision, 0u);
+        memcpy(output, &message, bytes);
+        return IW_SNAPSHOT_OK;
+    }
+    case IW_SNAPSHOT_BRIGHTNESS:
+    {
+        iw_brightness_snapshot_message_t message;
+        message.payload = service->brightness;
+        bytes = sizeof(message);
+        *required = bytes;
+        if (!output || capacity < bytes) return IW_SNAPSHOT_TOO_SMALL;
+        fill_header(&message.header, service, topic, (uint16_t)sizeof(message.payload),
+                    message.payload.revision,
+                    (message.payload.flags & IW_BRIGHTNESS_FLAG_DESIRED_VALID) ?
+                    IW_SNAPSHOT_FLAG_VALID : 0u);
         memcpy(output, &message, bytes);
         return IW_SNAPSHOT_OK;
     }

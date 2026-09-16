@@ -18,6 +18,20 @@ static iw_command_t clock_command(uint32_t session,
     return command;
 }
 
+static iw_command_t brightness_command(uint32_t session,
+                                       uint32_t request,
+                                       uint32_t revision,
+                                       uint32_t sequence,
+                                       uint8_t level,
+                                       iw_brightness_kind_t kind)
+{
+    iw_command_t command;
+    iw_command_init(&command, session, request, 0x0102u, 1u,
+                    IW_OPCODE_SET_BRIGHTNESS);
+    assert(iw_command_encode_set_brightness(&command, level, kind, revision, sequence));
+    return command;
+}
+
 static iw_result_t finish_one(iw_service_t *service, uint32_t tick, bool device_success)
 {
     iw_service_work_t work;
@@ -261,6 +275,255 @@ static void test_capability_revision_exhaustion_has_no_side_effect(void)
     assert(memcmp(&service, &before, sizeof(service)) == 0);
 }
 
+static void test_brightness_preview_final_and_snapshot(void)
+{
+    iw_time_state_t time_state;
+    iw_service_t service;
+    iw_command_t command;
+    iw_service_work_t work;
+    iw_result_t result;
+    iw_result_token_t token;
+    iw_brightness_snapshot_t brightness;
+    iw_snapshot_header_t header;
+    uint8_t tiny[8];
+    uint8_t message[64];
+    size_t required = 0u;
+
+    assert(iw_time_init(&time_state, 0u, 1000u, 1704067200, 0,
+                        IW_TIME_SOURCE_RTC) == IW_TIME_OK);
+    assert(iw_service_init(&service, &time_state, 21u));
+    assert(iw_service_brightness_read(&service, &brightness));
+    assert(brightness.desired == IW_BRIGHTNESS_DEFAULT);
+    assert(brightness.revision == 1u && brightness.desired_revision == 1u &&
+           brightness.setting_sequence == 0u && brightness.applied_sequence == 0u);
+    assert(brightness.flags == (IW_BRIGHTNESS_FLAG_DESIRED_VALID |
+                                IW_BRIGHTNESS_FLAG_SESSION_ONLY));
+    assert(brightness.applied_revision == 0u && brightness.persisted_revision == 0u);
+
+    command = brightness_command(21u, 1u, 1u, 1u, 20u, IW_BRIGHTNESS_PREVIEW);
+    assert(iw_service_command_submit(&service, &command) ==
+           IW_SUBMIT_CAPABILITY_UNAVAILABLE);
+    assert(iw_service_set_capability(&service, IW_CAP_DISPLAY,
+                                     IW_CAP_STATE_AVAILABLE, 0));
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_QUEUED);
+    assert(iw_service_brightness_read(&service, &brightness));
+    assert(brightness.desired == 20u && brightness.desired_revision == 2u &&
+           brightness.setting_sequence == 1u);
+
+    command = brightness_command(21u, 2u, 2u, 2u, 30u, IW_BRIGHTNESS_PREVIEW);
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_QUEUED);
+    assert(iw_service_result_get(&service, 21u, 1u, &result) == IW_RESULT_LOOKUP_FOUND);
+    assert(result.state == IW_RESULT_STATE_TERMINAL && result.code == IW_RESULT_SUPERSEDED);
+    assert(result.payload[0] == 30u && result.payload[1] == 0u);
+    token = (iw_result_token_t){result.session_id, result.request_id,
+                                result.ledger_generation};
+    assert(iw_service_result_ack(&service, &token) == IW_ACK_OK);
+
+    command = brightness_command(21u, 3u, 3u, 3u, 40u, IW_BRIGHTNESS_FINAL);
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_QUEUED);
+    assert(iw_service_result_get(&service, 21u, 2u, &result) == IW_RESULT_LOOKUP_FOUND);
+    assert(result.state == IW_RESULT_STATE_TERMINAL && result.code == IW_RESULT_SUPERSEDED);
+    token = (iw_result_token_t){result.session_id, result.request_id,
+                                result.ledger_generation};
+    assert(iw_service_result_ack(&service, &token) == IW_ACK_OK);
+
+    assert(iw_service_take_next(&service, &work) == IW_TAKE_WORK);
+    assert(work.command.request_id == 3u);
+    assert(iw_service_finish_set_brightness(&service, &work.token, 25u,
+                                            IW_RESULT_OK_APPLIED, 0));
+    assert(iw_service_brightness_read(&service, &brightness));
+    assert(brightness.desired == 40u && brightness.applied == 40u);
+    assert(brightness.revision == 5u);
+    assert(brightness.desired_revision == 4u && brightness.applied_revision == 4u);
+    assert(brightness.setting_sequence == 3u && brightness.applied_sequence == 3u);
+    assert(!(brightness.flags & IW_BRIGHTNESS_FLAG_PERSISTED_VALID));
+    assert(brightness.flags & IW_BRIGHTNESS_FLAG_SESSION_ONLY);
+    assert(iw_service_result_get(&service, 21u, 3u, &result) == IW_RESULT_LOOKUP_FOUND);
+    assert(result.state == IW_RESULT_STATE_TERMINAL && result.code == IW_RESULT_OK_APPLIED);
+    assert(result.model_revision == 4u && result.completed_mono_ms == 25u);
+    assert(result.payload[0] == 40u && result.payload[1] == 40u);
+
+    memset(tiny, 0xA5, sizeof(tiny));
+    assert(iw_service_snapshot_read(&service, IW_SNAPSHOT_BRIGHTNESS, tiny, sizeof(tiny),
+                                    &required) == IW_SNAPSHOT_TOO_SMALL);
+    for (unsigned i = 0; i < sizeof(tiny); i++) assert(tiny[i] == 0xA5u);
+    assert(required == sizeof(iw_snapshot_header_t) + sizeof(iw_brightness_snapshot_t));
+    assert(iw_service_snapshot_read(&service, IW_SNAPSHOT_BRIGHTNESS, message,
+                                    sizeof(message), &required) == IW_SNAPSHOT_OK);
+    memcpy(&header, message, sizeof(header));
+    assert(header.topic == IW_SNAPSHOT_BRIGHTNESS && header.revision == brightness.revision);
+    assert(header.payload_bytes == sizeof(iw_brightness_snapshot_t) && (header.flags & 1u));
+
+    iw_command_init(&command, 21u, 4u, 0x0102u, 1u, IW_OPCODE_SET_BRIGHTNESS);
+    assert(!iw_command_encode_set_brightness(&command, 4u, IW_BRIGHTNESS_PREVIEW, 4u, 4u));
+    assert(!iw_command_encode_set_brightness(&command, 101u, IW_BRIGHTNESS_PREVIEW, 4u, 4u));
+}
+
+static void test_brightness_failures_preserve_applied_state(void)
+{
+    iw_time_state_t time_state;
+    iw_service_t service;
+    iw_command_t command;
+    iw_service_work_t work;
+    iw_result_t result;
+    iw_brightness_snapshot_t brightness;
+
+    assert(iw_time_init(&time_state, 0u, 1000u, 1704067200, 0,
+                        IW_TIME_SOURCE_RTC) == IW_TIME_OK);
+    assert(iw_service_init(&service, &time_state, 22u));
+    assert(iw_service_set_capability(&service, IW_CAP_DISPLAY,
+                                     IW_CAP_STATE_AVAILABLE, 0));
+
+    command = brightness_command(22u, 1u, 1u, 1u, 20u, IW_BRIGHTNESS_PREVIEW);
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_QUEUED);
+    assert(iw_service_take_next(&service, &work) == IW_TAKE_WORK);
+    command = brightness_command(22u, 2u, 2u, 2u, 30u, IW_BRIGHTNESS_FINAL);
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_QUEUED);
+    assert(iw_service_finish_set_brightness(&service, &work.token, 10u,
+                                            IW_RESULT_OK_APPLIED, 0));
+    assert(iw_service_brightness_read(&service, &brightness));
+    assert(brightness.desired == 30u && brightness.desired_revision == 3u);
+    assert(brightness.applied == 20u && brightness.applied_revision == 2u);
+
+    assert(iw_service_take_next(&service, &work) == IW_TAKE_WORK);
+    assert(iw_service_finish_set_brightness(&service, &work.token, 20u,
+                                            IW_RESULT_DEVICE_BUSY, -7));
+    assert(iw_service_result_get(&service, 22u, 2u, &result) == IW_RESULT_LOOKUP_FOUND);
+    assert(result.code == IW_RESULT_DEVICE_BUSY);
+    assert(iw_service_brightness_read(&service, &brightness));
+    assert(brightness.applied == 20u && brightness.applied_revision == 2u);
+    assert(brightness.last_error == -7);
+
+    command = brightness_command(22u, 3u, 3u, 3u, 40u, IW_BRIGHTNESS_PREVIEW);
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_QUEUED);
+    assert(iw_service_take_next(&service, &work) == IW_TAKE_WORK);
+    assert(iw_service_finish_set_brightness(&service, &work.token, 30u,
+                                            IW_RESULT_UNCONFIRMED_TIMEOUT, -2));
+    assert(iw_service_brightness_read(&service, &brightness));
+    assert(brightness.applied == 20u && brightness.last_error == -2);
+
+    command = brightness_command(22u, 4u, 4u, 4u, 50u, IW_BRIGHTNESS_FINAL);
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_QUEUED);
+    assert(iw_service_take_next(&service, &work) == IW_TAKE_WORK);
+    assert(iw_service_finish_set_brightness(&service, &work.token, 40u,
+                                            IW_RESULT_DEVICE_FAULT, -1));
+    assert(iw_service_brightness_read(&service, &brightness));
+    assert(brightness.applied == 20u && brightness.last_error == -1);
+
+    assert(iw_service_note_brightness_applied(&service, 50u, 5u, 4u, true, 0));
+    assert(iw_service_brightness_read(&service, &brightness));
+    assert(brightness.applied == 50u && brightness.applied_revision == 5u &&
+           brightness.applied_sequence == 4u && brightness.last_error == 0);
+    assert(!iw_service_note_brightness_applied(&service, 25u, 4u, 3u, true, 0));
+    assert(!iw_service_note_brightness_applied(&service, 50u, 5u, 3u, false, -8));
+    assert(!iw_service_note_brightness_applied(&service, 49u, 5u, 4u, false, -8));
+    assert(iw_service_brightness_read(&service, &brightness));
+    assert(brightness.applied == 50u && brightness.applied_revision == 5u &&
+           brightness.last_error == 0);
+    assert(iw_service_note_brightness_applied(&service, 50u, 5u, 4u, false, -9));
+    assert(iw_service_brightness_read(&service, &brightness) && brightness.last_error == -9);
+    assert(iw_service_note_brightness_applied(&service, 50u, 5u, 4u, true, 0));
+    assert(iw_service_brightness_read(&service, &brightness) && brightness.last_error == 0);
+}
+
+static void test_brightness_conflicts_and_revision_exhaustion(void)
+{
+    iw_time_state_t time_state;
+    iw_service_t service;
+    iw_command_t command;
+    iw_service_work_t work;
+    iw_result_t result;
+    iw_brightness_snapshot_t before;
+    iw_brightness_snapshot_t after;
+
+    assert(iw_time_init(&time_state, 0u, 1000u, 1704067200, 0,
+                        IW_TIME_SOURCE_RTC) == IW_TIME_OK);
+    assert(iw_service_init(&service, &time_state, 23u));
+    assert(iw_service_set_capability(&service, IW_CAP_DISPLAY,
+                                     IW_CAP_STATE_AVAILABLE, 0));
+    assert(iw_service_brightness_read(&service, &before));
+
+    command = brightness_command(23u, 1u, 2u, 1u, 20u, IW_BRIGHTNESS_PREVIEW);
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_QUEUED);
+    assert(iw_service_take_next(&service, &work) == IW_TAKE_COMPLETED);
+    assert(iw_service_result_get(&service, 23u, 1u, &result) == IW_RESULT_LOOKUP_FOUND);
+    assert(result.code == IW_RESULT_STATE_CONFLICT && result.model_revision == 1u);
+    assert(iw_service_brightness_read(&service, &after));
+    assert(memcmp(&before, &after, sizeof(before)) == 0);
+
+    command = brightness_command(23u, 2u, 1u, 1u, 30u, IW_BRIGHTNESS_FINAL);
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_QUEUED);
+    assert(iw_service_take_next(&service, &work) == IW_TAKE_WORK);
+    assert(iw_service_finish_set_brightness(&service, &work.token, 10u,
+                                            IW_RESULT_OK_APPLIED, 0));
+    assert(iw_service_brightness_read(&service, &before));
+
+    command = brightness_command(23u, 3u, 2u, 1u, 40u, IW_BRIGHTNESS_PREVIEW);
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_QUEUED);
+    assert(iw_service_take_next(&service, &work) == IW_TAKE_COMPLETED);
+    assert(iw_service_result_get(&service, 23u, 3u, &result) == IW_RESULT_LOOKUP_FOUND);
+    assert(result.code == IW_RESULT_STATE_CONFLICT);
+    assert(iw_service_brightness_read(&service, &after));
+    assert(memcmp(&before, &after, sizeof(before)) == 0);
+
+    service.brightness.desired_revision = UINT32_MAX;
+    before = service.brightness;
+    command = brightness_command(23u, 4u, UINT32_MAX, 2u, 50u, IW_BRIGHTNESS_FINAL);
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_QUEUED);
+    assert(iw_service_take_next(&service, &work) == IW_TAKE_COMPLETED);
+    assert(iw_service_result_get(&service, 23u, 4u, &result) == IW_RESULT_LOOKUP_FOUND);
+    assert(result.code == IW_RESULT_CAPACITY);
+    assert(iw_service_brightness_read(&service, &after));
+    assert(memcmp(&before, &after, sizeof(before)) == 0);
+
+    service.brightness.revision = 10u;
+    service.brightness.desired_revision = 10u;
+    service.brightness.setting_sequence = UINT32_MAX;
+    before = service.brightness;
+    command = brightness_command(23u, 5u, 10u, UINT32_MAX, 60u,
+                                 IW_BRIGHTNESS_FINAL);
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_QUEUED);
+    assert(iw_service_take_next(&service, &work) == IW_TAKE_COMPLETED);
+    assert(iw_service_result_get(&service, 23u, 5u, &result) == IW_RESULT_LOOKUP_FOUND);
+    assert(result.code == IW_RESULT_CAPACITY);
+    assert(iw_service_brightness_read(&service, &after));
+    assert(memcmp(&before, &after, sizeof(before)) == 0);
+}
+
+static void test_brightness_rejection_has_no_model_side_effect(void)
+{
+    iw_time_state_t time_state;
+    iw_service_t service;
+    iw_command_t command;
+    iw_brightness_snapshot_t before;
+    iw_brightness_snapshot_t after;
+
+    assert(iw_time_init(&time_state, 0u, 1000u, 1704067200, 0,
+                        IW_TIME_SOURCE_RTC) == IW_TIME_OK);
+    assert(iw_service_init(&service, &time_state, 24u));
+    assert(iw_service_set_capability(&service, IW_CAP_DISPLAY,
+                                     IW_CAP_STATE_AVAILABLE, 0));
+    assert(iw_service_brightness_read(&service, &before));
+
+    command = brightness_command(24u, 1u, 1u, 1u, 20u, IW_BRIGHTNESS_PREVIEW);
+    command.payload[0] = 4u;
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_INVALID);
+    assert(iw_service_brightness_read(&service, &after));
+    assert(memcmp(&before, &after, sizeof(before)) == 0);
+
+    for (uint32_t request = 1u; request <= IW_COMMAND_CAPACITY; request++)
+    {
+        command = clock_command(24u, request, 1u, 1u, request,
+                                1704067200u + request);
+        assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_QUEUED);
+    }
+    command = brightness_command(24u, IW_COMMAND_CAPACITY + 1u, 1u, 1u, 30u,
+                                 IW_BRIGHTNESS_FINAL);
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_BUSY_NO_ADMISSION);
+    assert(iw_service_brightness_read(&service, &after));
+    assert(memcmp(&before, &after, sizeof(before)) == 0);
+}
+
 int main(void)
 {
     test_duplicate_expiry_and_session();
@@ -269,6 +532,10 @@ int main(void)
     test_revision_exhaustion_has_no_device_work();
     test_snapshots_and_client_exhaustion();
     test_capability_revision_exhaustion_has_no_side_effect();
+    test_brightness_preview_final_and_snapshot();
+    test_brightness_failures_preserve_applied_state();
+    test_brightness_conflicts_and_revision_exhaustion();
+    test_brightness_rejection_has_no_model_side_effect();
     puts("service tests passed");
     return 0;
 }

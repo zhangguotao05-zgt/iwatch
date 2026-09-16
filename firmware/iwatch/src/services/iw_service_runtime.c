@@ -17,6 +17,7 @@
 
 static iw_time_state_t runtime_time;
 static iw_service_t runtime_service;
+static iw_display_mailbox_t runtime_display_mailbox;
 static struct rt_mutex runtime_mutex;
 static struct rt_event runtime_event;
 static struct rt_thread runtime_thread;
@@ -40,6 +41,35 @@ static void runtime_sample_locked(void)
     iw_time_sample(&runtime_time, (uint32_t)rt_tick_get());
 }
 
+static iw_result_code_t display_result_code(iw_display_apply_status_t status)
+{
+    switch (status)
+    {
+    case IW_DISPLAY_APPLY_OK:
+        return IW_RESULT_OK_APPLIED;
+    case IW_DISPLAY_APPLY_BUSY:
+        return IW_RESULT_DEVICE_BUSY;
+    case IW_DISPLAY_APPLY_TIMEOUT:
+        return IW_RESULT_UNCONFIRMED_TIMEOUT;
+    default:
+        return IW_RESULT_DEVICE_FAULT;
+    }
+}
+
+static void display_capability_after_apply_locked(iw_display_apply_status_t status,
+                                                   int32_t device_error)
+{
+    if (status == IW_DISPLAY_APPLY_OK)
+        (void)iw_service_set_capability(&runtime_service, IW_CAP_DISPLAY,
+                                        IW_CAP_STATE_AVAILABLE, 0);
+    else if (status == IW_DISPLAY_APPLY_TIMEOUT)
+        (void)iw_service_set_capability(&runtime_service, IW_CAP_DISPLAY,
+                                        IW_CAP_STATE_DEGRADED, device_error);
+    else if (status == IW_DISPLAY_APPLY_FAILED)
+        (void)iw_service_set_capability(&runtime_service, IW_CAP_DISPLAY,
+                                        IW_CAP_STATE_DEGRADED, device_error);
+}
+
 static bool runtime_has_pending(void)
 {
     iw_service_stats_t stats;
@@ -58,8 +88,7 @@ static void runtime_process_batch(void)
     {
         iw_service_work_t work;
         iw_take_status_t take;
-        iw_set_clock_payload_t payload;
-        bool device_success;
+        iw_set_clock_payload_t clock_payload;
 
         if (!runtime_lock()) return;
         runtime_sample_locked();
@@ -73,26 +102,69 @@ static void runtime_process_batch(void)
             continue;
         }
 
-        /* RTC 控制可能阻塞，因此绝不在模型互斥锁内调用。 */
-        device_success = iw_command_decode_set_clock(&work.command, &payload) &&
-                         iw_time_rtc_write(payload.utc_seconds, payload.offset_minutes);
-
-        if (!runtime_lock()) return;
-        (void)iw_service_finish_set_clock(&runtime_service, &work.token,
-                                          (uint32_t)rt_tick_get(), device_success);
-        if (device_success)
+        if (work.command.opcode == IW_OPCODE_SET_CLOCK)
         {
-            (void)iw_service_set_capability(&runtime_service, IW_CAP_CLOCK,
-                                            IW_CAP_STATE_AVAILABLE, 0);
-            (void)iw_service_set_capability(&runtime_service, IW_CAP_RTC_BACKUP,
-                                            IW_CAP_STATE_AVAILABLE, 0);
+            bool device_success;
+
+            /* RTC 控制可能阻塞，因此绝不在模型互斥锁内调用。 */
+            device_success = iw_command_decode_set_clock(&work.command, &clock_payload) &&
+                             iw_time_rtc_write(clock_payload.utc_seconds,
+                                               clock_payload.offset_minutes);
+
+            if (!runtime_lock()) return;
+            (void)iw_service_finish_set_clock(&runtime_service, &work.token,
+                                              (uint32_t)rt_tick_get(), device_success);
+            if (device_success)
+            {
+                (void)iw_service_set_capability(&runtime_service, IW_CAP_CLOCK,
+                                                IW_CAP_STATE_AVAILABLE, 0);
+                (void)iw_service_set_capability(&runtime_service, IW_CAP_RTC_BACKUP,
+                                                IW_CAP_STATE_AVAILABLE, 0);
+            }
+            else
+                (void)iw_service_set_capability(&runtime_service, IW_CAP_RTC_BACKUP,
+                                                iw_time_rtc_available() ? IW_CAP_STATE_FAULT :
+                                                IW_CAP_STATE_ABSENT, -RT_ERROR);
+            runtime_unlock();
+            iw_gui_wake(IW_GUI_WAKE_STATE);
         }
-        else
-            (void)iw_service_set_capability(&runtime_service, IW_CAP_RTC_BACKUP,
-                                            iw_time_rtc_available() ? IW_CAP_STATE_FAULT : IW_CAP_STATE_ABSENT,
-                                            -RT_ERROR);
-        runtime_unlock();
-        iw_gui_wake(IW_GUI_WAKE_STATE);
+        else if (work.command.opcode == IW_OPCODE_SET_BRIGHTNESS)
+        {
+            iw_set_brightness_payload_t payload;
+            iw_display_request_t request = {0};
+            iw_display_request_t replaced = {0};
+            iw_display_post_status_t post;
+
+            if (iw_command_decode_set_brightness(&work.command, &payload))
+            {
+                request.token = work.token;
+                request.setting_sequence = payload.setting_sequence;
+                request.level = payload.level;
+                request.kind = payload.kind;
+            }
+
+            if (!runtime_lock()) return;
+            post = iw_display_mailbox_post(&runtime_display_mailbox, &request, &replaced);
+            if (post == IW_DISPLAY_POST_REPLACED)
+                (void)iw_service_finish_set_brightness(&runtime_service, &replaced.token,
+                                                       (uint32_t)rt_tick_get(),
+                                                       IW_RESULT_SUPERSEDED, 0);
+            else if (post == IW_DISPLAY_POST_STALE)
+                (void)iw_service_finish_set_brightness(&runtime_service, &work.token,
+                                                       (uint32_t)rt_tick_get(),
+                                                       IW_RESULT_SUPERSEDED, 0);
+            else if (post == IW_DISPLAY_POST_INVALID)
+            {
+                (void)iw_service_finish_set_brightness(&runtime_service, &work.token,
+                                                       (uint32_t)rt_tick_get(),
+                                                       IW_RESULT_DEVICE_FAULT, -RT_EINVAL);
+                (void)iw_service_set_capability(&runtime_service, IW_CAP_DISPLAY,
+                                                IW_CAP_STATE_FAULT, -RT_EINVAL);
+            }
+            runtime_unlock();
+            if (post == IW_DISPLAY_POST_ACCEPTED || post == IW_DISPLAY_POST_REPLACED)
+                iw_gui_wake(IW_GUI_WAKE_STATE);
+        }
     }
 
     if (runtime_has_pending()) (void)rt_event_send(&runtime_event, IW_SERVICE_EVENT_COMMAND);
@@ -140,13 +212,18 @@ int iw_service_runtime_init(void)
         return -RT_ERROR;
     if (!iw_service_init(&runtime_service, &runtime_time, session_id))
         return -RT_ERROR;
+    iw_display_mailbox_init(&runtime_display_mailbox);
     (void)iw_service_set_capability(&runtime_service, IW_CAP_CLOCK,
                                     rtc_valid ? IW_CAP_STATE_AVAILABLE : IW_CAP_STATE_DEGRADED,
                                     rtc_valid ? 0 : -RT_ETIMEOUT);
     (void)iw_service_set_capability(&runtime_service, IW_CAP_RTC_BACKUP,
                                     rtc_present ? (rtc_valid ? IW_CAP_STATE_AVAILABLE : IW_CAP_STATE_DEGRADED)
                                                 : IW_CAP_STATE_ABSENT,
-                                    rtc_valid ? 0 : -RT_ERROR);
+                                     rtc_valid ? 0 : -RT_ERROR);
+    (void)iw_service_set_capability(&runtime_service, IW_CAP_DISPLAY,
+                                    IW_CAP_STATE_UNKNOWN, 0);
+    (void)iw_service_set_capability(&runtime_service, IW_CAP_STORAGE,
+                                    IW_CAP_STATE_ABSENT, -RT_ERROR);
 
     result = rt_mutex_init(&runtime_mutex, "iw_svc", RT_IPC_FLAG_PRIO);
     if (result != RT_EOK) return result;
@@ -242,6 +319,92 @@ bool iw_clock_read(iw_clock_snapshot_t *snapshot)
     return success;
 }
 
+bool iw_brightness_read(iw_brightness_snapshot_t *snapshot)
+{
+    bool success;
+
+    if (!snapshot || !runtime_lock()) return false;
+    success = iw_service_brightness_read(&runtime_service, snapshot);
+    runtime_unlock();
+    return success;
+}
+
+bool iw_display_runtime_set_available(bool available, int32_t device_error)
+{
+    bool success;
+
+    if (!runtime_lock()) return false;
+    success = iw_service_set_capability(&runtime_service, IW_CAP_DISPLAY,
+                                        available ? IW_CAP_STATE_AVAILABLE : IW_CAP_STATE_ABSENT,
+                                        available ? 0 : device_error);
+    runtime_unlock();
+    if (success) iw_gui_wake(IW_GUI_WAKE_STATE);
+    return success;
+}
+
+iw_display_take_status_t iw_display_take_request(iw_display_request_t *request)
+{
+    iw_display_take_status_t status;
+
+    if (!request || !runtime_lock()) return IW_DISPLAY_TAKE_EMPTY;
+    status = iw_display_mailbox_take(&runtime_display_mailbox, request);
+    runtime_unlock();
+    return status;
+}
+
+bool iw_display_complete_request(const iw_display_request_t *request,
+                                 iw_display_apply_status_t status,
+                                 int32_t device_error)
+{
+    bool success;
+
+    if (!request || status > IW_DISPLAY_APPLY_FAILED || !runtime_lock()) return false;
+    if (!iw_display_mailbox_matches_in_flight(&runtime_display_mailbox, request))
+    {
+        runtime_unlock();
+        return false;
+    }
+
+    success = iw_service_finish_set_brightness(&runtime_service, &request->token,
+                                                (uint32_t)rt_tick_get(),
+                                                display_result_code(status), device_error);
+    if (success)
+        success = iw_display_mailbox_complete(&runtime_display_mailbox, request, status);
+    if (success) display_capability_after_apply_locked(status, device_error);
+    runtime_unlock();
+    if (success) iw_gui_wake(IW_GUI_WAKE_STATE);
+    return success;
+}
+
+bool iw_display_note_current_apply(uint8_t level,
+                                   uint32_t target_revision,
+                                   uint32_t target_sequence,
+                                   iw_display_apply_status_t status,
+                                   int32_t device_error)
+{
+    bool success;
+
+    if (status > IW_DISPLAY_APPLY_FAILED || !runtime_lock()) return false;
+    success = iw_service_note_brightness_applied(&runtime_service, level, target_revision,
+                                                 target_sequence,
+                                                 status == IW_DISPLAY_APPLY_OK, device_error);
+    if (success)
+    {
+        (void)iw_display_mailbox_note_apply(&runtime_display_mailbox, status);
+        display_capability_after_apply_locked(status, device_error);
+    }
+    runtime_unlock();
+    if (success) iw_gui_wake(IW_GUI_WAKE_STATE);
+    return success;
+}
+
+void iw_display_runtime_stats(iw_display_mailbox_stats_t *stats)
+{
+    if (!stats || !runtime_lock()) return;
+    iw_display_mailbox_stats(&runtime_display_mailbox, stats);
+    runtime_unlock();
+}
+
 void iw_service_runtime_stats(iw_service_stats_t *stats)
 {
     if (!stats || !runtime_lock()) return;
@@ -283,7 +446,19 @@ static void iw_service_stat(void)
 MSH_CMD_EXPORT(iw_service_stat, Show command and result ledger statistics);
 
 static iw_client_session_t diagnostic_client;
-static uint32_t diagnostic_last_request;
+static uint32_t diagnostic_last_clock_request;
+static uint32_t diagnostic_last_brightness_request;
+static uint32_t diagnostic_brightness_sequence;
+
+static bool diagnostic_prepare_client(uint32_t session)
+{
+    if (diagnostic_client.session_id == session) return true;
+    if (!iw_client_session_init(&diagnostic_client, session)) return false;
+    diagnostic_last_clock_request = 0u;
+    diagnostic_last_brightness_request = 0u;
+    diagnostic_brightness_sequence = 0u;
+    return true;
+}
 
 static int iw_clock_set(int argc, char **argv)
 {
@@ -310,8 +485,7 @@ static int iw_clock_set(int argc, char **argv)
         return -RT_EINVAL;
 
     session = iw_service_current_session();
-    if (diagnostic_client.session_id != session && !iw_client_session_init(&diagnostic_client, session))
-        return -RT_ERROR;
+    if (!diagnostic_prepare_client(session)) return -RT_ERROR;
     if (!iw_client_next_request(&diagnostic_client, &request)) return -RT_EFULL;
     iw_command_init(&command, session, request, IW_DIAGNOSTIC_PAGE_ID, 1u, IW_OPCODE_SET_CLOCK);
     if (!iw_command_encode_set_clock(&command, (uint32_t)utc_seconds,
@@ -319,7 +493,7 @@ static int iw_clock_set(int argc, char **argv)
         return -RT_EINVAL;
     status = iw_command_submit(&command);
     if (status == IW_SUBMIT_QUEUED || status == IW_SUBMIT_DUPLICATE)
-        diagnostic_last_request = request;
+        diagnostic_last_clock_request = request;
     rt_kprintf("clock request=%u submit=%u expected_revision=%u\n",
                (unsigned)request, (unsigned)status, (unsigned)clock.revision);
     return status == IW_SUBMIT_QUEUED || status == IW_SUBMIT_DUPLICATE ? RT_EOK : -RT_ERROR;
@@ -331,12 +505,12 @@ static void iw_clock_result(void)
     iw_result_t result;
     iw_result_token_t token;
     uint32_t session = iw_service_current_session();
-    iw_result_lookup_t lookup = iw_result_get(session, diagnostic_last_request, &result);
+    iw_result_lookup_t lookup = iw_result_get(session, diagnostic_last_clock_request, &result);
 
     if (lookup != IW_RESULT_LOOKUP_FOUND)
     {
         rt_kprintf("clock result request=%u lookup=%u\n",
-                   (unsigned)diagnostic_last_request, (unsigned)lookup);
+                   (unsigned)diagnostic_last_clock_request, (unsigned)lookup);
         return;
     }
     rt_kprintf("clock result request=%u state=%u code=%u revision=%u mono_ms=%llu\n",
@@ -351,3 +525,114 @@ static void iw_clock_result(void)
     }
 }
 MSH_CMD_EXPORT(iw_clock_result, Show and acknowledge the last diagnostic clock result);
+
+static int iw_brightness_set(int argc, char **argv)
+{
+    iw_brightness_snapshot_t brightness;
+    iw_command_t command;
+    iw_brightness_kind_t kind;
+    iw_submit_status_t status;
+    uint32_t session;
+    uint32_t request;
+    uint32_t next_sequence;
+    unsigned long level;
+    char *level_end;
+
+    if (argc != 3)
+    {
+        rt_kprintf("usage: iw_brightness_set <5..100> <preview|final>\n");
+        return -RT_EINVAL;
+    }
+    level = strtoul(argv[1], &level_end, 0);
+    if (level_end == argv[1] || *level_end != '\0' ||
+            level < IW_BRIGHTNESS_MIN || level > IW_BRIGHTNESS_MAX)
+        return -RT_EINVAL;
+    if (strcmp(argv[2], "preview") == 0)
+        kind = IW_BRIGHTNESS_PREVIEW;
+    else if (strcmp(argv[2], "final") == 0)
+        kind = IW_BRIGHTNESS_FINAL;
+    else
+        return -RT_EINVAL;
+    if (!iw_brightness_read(&brightness)) return -RT_ERROR;
+
+    session = iw_service_current_session();
+    if (!diagnostic_prepare_client(session)) return -RT_ERROR;
+    if (brightness.setting_sequence > diagnostic_brightness_sequence)
+        diagnostic_brightness_sequence = brightness.setting_sequence;
+    if (diagnostic_brightness_sequence == UINT32_MAX) return -RT_EFULL;
+    next_sequence = diagnostic_brightness_sequence + 1u;
+    if (!iw_client_next_request(&diagnostic_client, &request)) return -RT_EFULL;
+    iw_command_init(&command, session, request, IW_DIAGNOSTIC_PAGE_ID, 1u,
+                    IW_OPCODE_SET_BRIGHTNESS);
+    if (!iw_command_encode_set_brightness(&command, (uint8_t)level, kind,
+                                          brightness.desired_revision, next_sequence))
+        return -RT_EINVAL;
+    status = iw_command_submit(&command);
+    if (status == IW_SUBMIT_QUEUED || status == IW_SUBMIT_DUPLICATE)
+    {
+        diagnostic_last_brightness_request = request;
+        diagnostic_brightness_sequence = next_sequence;
+    }
+    rt_kprintf("brightness request=%u submit=%u level=%u kind=%u expected_revision=%u seq=%u\n",
+               (unsigned)request, (unsigned)status, (unsigned)level, (unsigned)kind,
+               (unsigned)brightness.desired_revision, (unsigned)next_sequence);
+    return status == IW_SUBMIT_QUEUED || status == IW_SUBMIT_DUPLICATE ? RT_EOK : -RT_ERROR;
+}
+MSH_CMD_EXPORT(iw_brightness_set, Set display brightness through the service path);
+
+static void iw_brightness_result(void)
+{
+    iw_result_t result;
+    iw_result_token_t token;
+    uint32_t session = iw_service_current_session();
+    iw_result_lookup_t lookup = iw_result_get(session, diagnostic_last_brightness_request,
+                                               &result);
+
+    if (lookup != IW_RESULT_LOOKUP_FOUND)
+    {
+        rt_kprintf("brightness result request=%u lookup=%u\n",
+                   (unsigned)diagnostic_last_brightness_request, (unsigned)lookup);
+        return;
+    }
+    rt_kprintf("brightness result request=%u state=%u code=%u revision=%u mono_ms=%llu\n",
+               (unsigned)result.request_id, (unsigned)result.state, (unsigned)result.code,
+               (unsigned)result.model_revision, (unsigned long long)result.completed_mono_ms);
+    if (result.state == IW_RESULT_STATE_TERMINAL)
+    {
+        token.session_id = result.session_id;
+        token.request_id = result.request_id;
+        token.ledger_generation = result.ledger_generation;
+        rt_kprintf("brightness result ack=%u\n", (unsigned)iw_result_ack(&token));
+    }
+}
+MSH_CMD_EXPORT(iw_brightness_result, Show and acknowledge the last brightness result);
+
+static void iw_brightness_stat(void)
+{
+    iw_brightness_snapshot_t brightness;
+    iw_display_mailbox_stats_t mailbox;
+
+    memset(&mailbox, 0, sizeof(mailbox));
+    if (!iw_brightness_read(&brightness))
+    {
+        rt_kprintf("brightness unavailable\n");
+        return;
+    }
+    iw_display_runtime_stats(&mailbox);
+    rt_kprintf("brightness revision=%u desired=%u/%u applied=%u/%u persisted=%u/%u seq=%u/%u flags=0x%02x error=%d\n",
+               (unsigned)brightness.revision,
+               (unsigned)brightness.desired, (unsigned)brightness.desired_revision,
+               (unsigned)brightness.applied, (unsigned)brightness.applied_revision,
+               (unsigned)brightness.persisted, (unsigned)brightness.persisted_revision,
+               (unsigned)brightness.setting_sequence, (unsigned)brightness.applied_sequence,
+               (unsigned)brightness.flags,
+               (int)brightness.last_error);
+    rt_kprintf("brightness mailbox posted=%u replaced=%u taken=%u completed=%u stale=%u accepted_seq=%u pending=%u in_flight=%u apply=%u/%u/%u/%u\n",
+               (unsigned)mailbox.posted, (unsigned)mailbox.replaced,
+               (unsigned)mailbox.taken, (unsigned)mailbox.completed,
+               (unsigned)mailbox.stale, (unsigned)mailbox.accepted_sequence,
+               (unsigned)mailbox.pending, (unsigned)mailbox.in_flight,
+               (unsigned)mailbox.apply_ok, (unsigned)mailbox.apply_busy,
+               (unsigned)mailbox.apply_timeout, (unsigned)mailbox.apply_failed);
+}
+MSH_CMD_EXPORT(iw_brightness_stat, Show brightness model and display mailbox state);

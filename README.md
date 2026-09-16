@@ -13,12 +13,15 @@
 - [实施与验收记录](docs/ui/实施与验收_v1.html)
 - [D01–D03 板上验收记录](docs/ui/D01-D03_实施记录.html)
 - [D04–D05 时间与最小服务实施记录](docs/ui/D04-D05_实施记录.html)
+- [D06 显示目标与会话亮度实施记录](docs/ui/D06_显示目标与会话亮度实施记录.html)
 - [Series 11 界面覆盖计划](docs/UI复刻计划_watchOS26.html)
 - [固件构建与调试](firmware/README.html)
 - [硬件原理图 v0.3](hardware/原理图_v0.3_封装与接口完善/阅读说明.html)
 
-开发任务使用 [GitHub Issues](https://github.com/zhangguotao05-zgt/iwatch/issues) 跟踪。任务实际开始时才创建对应的 Dxx Issue；完成后补齐提交、主机测试、双工具链和开发板证据，再以 `completed` 关闭。D01–D05 已按此规则补录为 [#1–#5](https://github.com/zhangguotao05-zgt/iwatch/issues?q=is%3Aissue+is%3Aclosed+label%3Atask)，D06 将在开始开发时创建。
+开发任务使用 [GitHub Issues](https://github.com/zhangguotao05-zgt/iwatch/issues) 跟踪。任务实际开始时才创建对应的 Dxx Issue；完成后补齐提交、主机测试、双工具链和开发板证据，再以 `completed` 关闭。D01–D05 已按此规则补录为 [#1–#5](https://github.com/zhangguotao05-zgt/iwatch/issues?q=is%3Aissue+is%3Aclosed+label%3Atask)；[D06 · #6](https://github.com/zhangguotao05-zgt/iwatch/issues/6) 已完成实现、主机回归、双工具链构建及开发板验收。
 
 D01–D03 已完成页面生命周期、BSP/分区/双工具链来源、GUI 等待/唤醒和输入取消实现，并在开发板上完成备份、三件套写入校验、冷启动、输入压力、显示超时恢复和黑屏触摸唤醒验收。D04/D05 已完成时间、启动协调、32 B 命令、48 B 结果、固定账本与快照，并通过主机、双工具链及开发板校时、软件复位和断电冷启动验收；断电后 RTC 正确失效，服务使用 TRNG 生成非零 31 位随机 session，该值只降低碰撞概率，不作为唯一性或安全保证。DEV_A128_NAND 的 main 位于 `0x69000000`，必须与同一归档的 Bootloader、FTab 成套烧录。
+
+D06 已实现 `SET_BRIGHTNESS`、目标/实际/持久状态、最新目标 mailbox 和 GUI owner 驱动回执；首次显示、触摸 reassert 与故障恢复均读取当前目标。持久值仍明确为会话状态，真实 NAND 保存留 D15。最终 GCC main 为 5,744,572 B，双工具链身份、三件套写后校验、20%/80% 亮度、软件复位和输入压力均已通过开发板验收。
 
 当前 main 已占 6 MiB 槽约 91%，完整中文字体与图片必须在继续扩展界面前迁移或裁剪；`flash1` 的 FAL 持久化、低功耗和长期测试尚未关闭。仓库目前没有可直接投产的佩戴版 PCB 或完整 watchOS 界面。

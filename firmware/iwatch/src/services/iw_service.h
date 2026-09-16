@@ -12,6 +12,9 @@
 #define IW_RESULT_LEDGER_CAPACITY 32u
 #define IW_CAPABILITY_CAPACITY 8u
 #define IW_RESULT_PAYLOAD_BYTES 12u
+#define IW_BRIGHTNESS_MIN 5u
+#define IW_BRIGHTNESS_MAX 100u
+#define IW_BRIGHTNESS_DEFAULT 100u
 
 typedef enum
 {
@@ -55,6 +58,50 @@ typedef struct
 
 typedef enum
 {
+    IW_BRIGHTNESS_PREVIEW = 1,
+    IW_BRIGHTNESS_FINAL = 2
+} iw_brightness_kind_t;
+
+typedef struct
+{
+    uint32_t expected_revision;
+    uint32_t setting_sequence;
+    uint8_t level;
+    uint8_t kind;
+    uint16_t reserved;
+} iw_set_brightness_payload_t;
+
+_Static_assert(sizeof(iw_set_brightness_payload_t) == 12u,
+               "亮度命令载荷必须保持 12 字节");
+
+typedef enum
+{
+    IW_BRIGHTNESS_FLAG_DESIRED_VALID = 0x01,
+    IW_BRIGHTNESS_FLAG_APPLIED_VALID = 0x02,
+    IW_BRIGHTNESS_FLAG_PERSISTED_VALID = 0x04,
+    IW_BRIGHTNESS_FLAG_SESSION_ONLY = 0x08
+} iw_brightness_flag_t;
+
+typedef struct
+{
+    uint32_t revision;
+    uint32_t desired_revision;
+    uint32_t applied_revision;
+    uint32_t persisted_revision;
+    uint32_t setting_sequence;
+    uint32_t applied_sequence;
+    int32_t last_error;
+    uint8_t desired;
+    uint8_t applied;
+    uint8_t persisted;
+    uint8_t flags;
+} iw_brightness_snapshot_t;
+
+_Static_assert(sizeof(iw_brightness_snapshot_t) == 32u,
+               "亮度快照必须保持 32 字节");
+
+typedef enum
+{
     IW_SUBMIT_QUEUED = 0,
     IW_SUBMIT_DUPLICATE,
     IW_SUBMIT_INVALID,
@@ -89,7 +136,8 @@ typedef enum
     IW_RESULT_STORAGE_UNAVAILABLE,
     IW_RESULT_UNCONFIRMED_TIMEOUT,
     IW_RESULT_EXPIRED,
-    IW_RESULT_SESSION_CHANGED
+    IW_RESULT_SESSION_CHANGED,
+    IW_RESULT_DEVICE_BUSY
 } iw_result_code_t;
 
 typedef struct
@@ -181,7 +229,8 @@ typedef enum
 {
     IW_SNAPSHOT_CLOCK = 1,
     IW_SNAPSHOT_CAPABILITIES = 2,
-    IW_SNAPSHOT_SERVICE = 3
+    IW_SNAPSHOT_SERVICE = 3,
+    IW_SNAPSHOT_BRIGHTNESS = 4
 } iw_snapshot_topic_t;
 
 typedef struct
@@ -244,6 +293,7 @@ typedef struct
     iw_service_slot_t slots[IW_RESULT_LEDGER_CAPACITY];
     iw_capability_entry_t capabilities[IW_CAPABILITY_CAPACITY];
     iw_service_stats_t stats;
+    iw_brightness_snapshot_t brightness;
     uint8_t queue[IW_COMMAND_CAPACITY];
     uint32_t session_id;
     uint32_t next_slot_generation;
@@ -271,6 +321,13 @@ bool iw_command_encode_set_clock(iw_command_t *command,
                                  int16_t offset_minutes,
                                  uint32_t expected_revision);
 bool iw_command_decode_set_clock(const iw_command_t *command, iw_set_clock_payload_t *payload);
+bool iw_command_encode_set_brightness(iw_command_t *command,
+                                      uint8_t level,
+                                      iw_brightness_kind_t kind,
+                                      uint32_t expected_revision,
+                                      uint32_t setting_sequence);
+bool iw_command_decode_set_brightness(const iw_command_t *command,
+                                      iw_set_brightness_payload_t *payload);
 
 bool iw_client_session_init(iw_client_session_t *client, uint32_t session_id);
 bool iw_client_next_request(iw_client_session_t *client, uint32_t *request_id);
@@ -287,6 +344,19 @@ bool iw_service_finish_set_clock(iw_service_t *service,
                                  const iw_result_token_t *token,
                                  uint32_t raw_tick,
                                  bool device_success);
+bool iw_service_finish_set_brightness(iw_service_t *service,
+                                      const iw_result_token_t *token,
+                                      uint32_t raw_tick,
+                                      iw_result_code_t code,
+                                      int32_t device_error);
+bool iw_service_note_brightness_applied(iw_service_t *service,
+                                        uint8_t level,
+                                        uint32_t target_revision,
+                                        uint32_t target_sequence,
+                                        bool device_success,
+                                        int32_t device_error);
+bool iw_service_brightness_read(const iw_service_t *service,
+                                iw_brightness_snapshot_t *snapshot);
 iw_result_lookup_t iw_service_result_get(const iw_service_t *service,
                                          uint32_t session_id,
                                          uint32_t request_id,

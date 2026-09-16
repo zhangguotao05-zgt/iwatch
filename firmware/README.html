@@ -29,7 +29,7 @@
     <main>
 <section id="iwatch-sf32lb58-固件" class="level1">
 <h1>iwatch SF32LB58 固件</h1>
-<p>这里保存本项目可修改、可提交的固件源码。基线来自 SiFli-SDK v2.5.1 的 <code>example/multimedia/lvgl/watch_v9</code>。当前验证平台为 <strong>SF32LB58-DevKit-LCD、A128R32N1、QSPI 屏接口、A1 修订</strong>，CO5300 + FT6146 模组已点亮。DEV_A128_NAND 的 D01–D05 已完成主机回归、GCC/Keil 构建身份、三件套烧录、冷启动、校时、软件复位、完全断电和输入压力验收。证据见 <a href="../docs/ui/D01-D03_实施记录.html">D01–D03</a> 与 <a href="../docs/ui/D04-D05_实施记录.html">D04–D05 实施记录</a>。</p>
+<p>这里保存本项目可修改、可提交的固件源码。基线来自 SiFli-SDK v2.5.1 的 <code>example/multimedia/lvgl/watch_v9</code>。当前验证平台为 <strong>SF32LB58-DevKit-LCD、A128R32N1、QSPI 屏接口、A1 修订</strong>，CO5300 + FT6146 模组已点亮。DEV_A128_NAND 的 D01–D06 已完成主机、双工具链和开发板验收；D06 的 GCC 三件套已写入并校验，真实亮度、会话复位和输入压力通过。证据见 <a href="../docs/ui/D01-D03_实施记录.html">D01–D03</a>、<a href="../docs/ui/D04-D05_实施记录.html">D04–D05</a> 与 <a href="../docs/ui/D06_显示目标与会话亮度实施记录.html">D06 实施记录</a>。</p>
 <section id="目录" class="level2">
 <h2>目录</h2>
 <pre class="text"><code>firmware/
@@ -93,8 +93,8 @@
 </section>
 <section id="架构与基础测试" class="level2">
 <h2>架构与基础测试</h2>
-<p><a href="../docs/ui/系统架构_v1.1.html">系统架构</a>、<a href="../docs/ui/视觉与交互规范_v1.html">视觉规范</a> 和 <a href="../docs/ui/实施与验收_v1.html">实施记录</a> 定义后续开发边界。M0 已闭环；M1.0 的 D04/D05 已完成整改复验，界面仍以原演示基线为主。</p>
-<p>开发前先读 <a href="../docs/ui/架构复审与开发基线_v1.1.html">复审问题</a>、<a href="../docs/ui/功能逻辑与页面契约_v1.html">功能契约</a> 和 <a href="../docs/ui/模块接口与开发任务_v1.html">模块接口与任务</a>。D04/D05 实现了单调时钟、RTC 有效性、启动协调、固定容量命令/结果账本和版本化快照；审批确认后可开始 D06 显示目标与会话设置。</p>
+<p><a href="../docs/ui/系统架构_v1.1.html">系统架构</a>、<a href="../docs/ui/视觉与交互规范_v1.html">视觉规范</a> 和 <a href="../docs/ui/实施与验收_v1.html">实施记录</a> 定义后续开发边界。M0 与 M1.0 已闭环；下一项为 D07 资源与共享组件，界面仍以原演示基线为主。</p>
+<p>开发前先读 <a href="../docs/ui/架构复审与开发基线_v1.1.html">复审问题</a>、<a href="../docs/ui/功能逻辑与页面契约_v1.html">功能契约</a> 和 <a href="../docs/ui/模块接口与开发任务_v1.html">模块接口与任务</a>。D04/D05 实现单调时间、RTC 有效性、启动协调、固定容量命令/结果账本和版本化快照；D06 已完成亮度命令、目标/实际状态、显示 mailbox、GUI owner 驱动回执及开发板验收。</p>
 <p>Windows 主机测试需要 Visual Studio C/C++ 工具和 Python 3.13；脚本同时在 Windows PowerShell 5.1 下进行语法解析，JSON 文件按 UTF-8 显式读取：</p>
 <pre class="powershell"><code>.\firmware\tests\run-core-tests.ps1</code></pre>
 <p>也可以单独运行只读布局检查；第二条必须指向与本次镜像匹配的完整输出目录：</p>

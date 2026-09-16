@@ -5709,6 +5709,13 @@
           </Files>
           <Files>
             <File>
+              <FileName>iw_display.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\platform\iw_display.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
               <FileName>iw_drv_touch.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\src\platform\iw_drv_touch.c</FilePath>

@@ -31,11 +31,15 @@ try {
     & ./test_gui_wait.exe
     if ($LASTEXITCODE -ne 0) { throw 'GUI 等待与恢复测试失败。' }
     $platformDir = Join-Path $firmwareDir 'iwatch/src/platform'
+    $serviceDir = Join-Path $firmwareDir 'iwatch/src/services'
     & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od "/I$coreDir" "/I$platformDir" "/I$PSScriptRoot/mocks" /Fetest_gui_port.exe (Join-Path $PSScriptRoot 'test_gui_port.c') (Join-Path $platformDir 'iw_gui_port.c') (Join-Path $coreDir 'iw_gui_wait.c')
     if ($LASTEXITCODE -ne 0) { throw 'GUI 事件适配测试编译失败。' }
     & ./test_gui_port.exe
     if ($LASTEXITCODE -ne 0) { throw 'GUI 事件适配测试失败。' }
-    $serviceDir = Join-Path $firmwareDir 'iwatch/src/services'
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$platformDir" "/I$serviceDir" "/I$coreDir" /Fetest_display.exe (Join-Path $PSScriptRoot 'test_display.c') (Join-Path $platformDir 'iw_display.c')
+    if ($LASTEXITCODE -ne 0) { throw '显示目标邮箱测试编译失败。' }
+    & ./test_display.exe
+    if ($LASTEXITCODE -ne 0) { throw '显示目标邮箱测试失败。' }
     & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$coreDir" /Fetest_time.exe (Join-Path $PSScriptRoot 'test_time.c') (Join-Path $coreDir 'iw_time.c')
     if ($LASTEXITCODE -ne 0) { throw '时间核心测试编译失败。' }
     & ./test_time.exe

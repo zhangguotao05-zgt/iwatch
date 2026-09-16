@@ -23,6 +23,7 @@
 #include "iw_gui_port.h"
 #include "iw_recovery.h"
 #include "iw_boot.h"
+#include "iw_service_runtime.h"
 #ifdef BSP_USING_PM
     #include "bf0_pm.h"
     #include "gui_app_pm.h"
@@ -35,6 +36,7 @@
 #define LCD_DEVICE_NAME  "lcd"
 #define IDLE_TIME_LIMIT  (10000)
 #define DISPLAY_WAKE_MIN_MS (250u)
+#define DISPLAY_APPLY_WARN_MS (250u)
 
 typedef enum
 {
@@ -68,19 +70,95 @@ static void count_saturating_add(uint32_t *value)
     if (*value != UINT32_MAX) (*value)++;
 }
 
-/* CO5300 偶发保持黑屏时，重发亮度和显示开启命令即可恢复，无需重建 GUI。 */
+static bool display_target_read(uint8_t *level, uint32_t *revision, uint32_t *sequence)
+{
+    iw_brightness_snapshot_t snapshot;
+
+    if (!level || !revision || !sequence || !iw_brightness_read(&snapshot) ||
+            !(snapshot.flags & IW_BRIGHTNESS_FLAG_DESIRED_VALID))
+        return false;
+    *level = snapshot.desired;
+    *revision = snapshot.desired_revision;
+    *sequence = snapshot.setting_sequence;
+    return true;
+}
+
+/* 此函数只允许在 GUI owner 中调用，避免与 SDK 的 LCD 串行状态并发。 */
+static iw_display_apply_status_t display_apply_brightness(uint8_t level, int32_t *device_error)
+{
+#ifndef _WIN32
+    uint32_t started;
+    uint32_t elapsed;
+    rt_err_t result;
+
+    if (!device_error) return IW_DISPLAY_APPLY_FAILED;
+    if (!lcd_device)
+    {
+        *device_error = -RT_ENOSYS;
+        return IW_DISPLAY_APPLY_FAILED;
+    }
+    started = (uint32_t)rt_tick_get();
+    result = rt_device_control(lcd_device, RTGRAPHIC_CTRL_SET_BRIGHTNESS, &level);
+    elapsed = (uint32_t)((uint32_t)rt_tick_get() - started);
+    *device_error = (int32_t)result;
+    if (result == RT_EOK)
+    {
+        if (elapsed > (uint32_t)rt_tick_from_millisecond(DISPLAY_APPLY_WARN_MS))
+            LOG_W("LCD brightness apply is slow: %u ticks", (unsigned)elapsed);
+        return IW_DISPLAY_APPLY_OK;
+    }
+    if (result == -RT_EBUSY || result == RT_EBUSY) return IW_DISPLAY_APPLY_BUSY;
+    if (result == -RT_ETIMEOUT || result == RT_ETIMEOUT) return IW_DISPLAY_APPLY_TIMEOUT;
+    return IW_DISPLAY_APPLY_FAILED;
+#else
+    (void)level;
+    if (device_error) *device_error = -RT_ENOSYS;
+    return IW_DISPLAY_APPLY_FAILED;
+#endif
+}
+
+static bool display_apply_current_target(void)
+{
+    uint8_t level;
+    uint32_t revision;
+    uint32_t sequence;
+    int32_t device_error = 0;
+    iw_display_apply_status_t status;
+
+    if (!display_target_read(&level, &revision, &sequence)) return false;
+    status = display_apply_brightness(level, &device_error);
+    (void)iw_display_note_current_apply(level, revision, sequence, status, device_error);
+    return status == IW_DISPLAY_APPLY_OK;
+}
+
+static void display_process_pending(void)
+{
+    iw_display_request_t request;
+    iw_display_take_status_t take = iw_display_take_request(&request);
+
+    if (take == IW_DISPLAY_TAKE_READY)
+    {
+        int32_t device_error = 0;
+        iw_display_apply_status_t status = display_apply_brightness(request.level, &device_error);
+
+        if (!iw_display_complete_request(&request, status, device_error))
+            LOG_E("LCD brightness completion rejected: request=%u seq=%u",
+                  (unsigned)request.token.request_id, (unsigned)request.setting_sequence);
+    }
+}
+
+/* CO5300 偶发保持黑屏时，重发当前目标亮度即可恢复，无需重建 GUI。 */
 static void display_reassert(void)
 {
 #ifndef _WIN32
     uint32_t now;
     uint32_t minimum_ticks;
-    uint8_t brightness = 100;
 
     if (!lcd_device) return;
     now = (uint32_t)rt_tick_get();
     minimum_ticks = (uint32_t)rt_tick_from_millisecond(DISPLAY_WAKE_MIN_MS);
     if (!iw_display_wake_gate_take(&display_wake_gate, now, minimum_ticks)) return;
-    if (RT_EOK == rt_device_control(lcd_device, RTGRAPHIC_CTRL_SET_BRIGHTNESS, &brightness))
+    if (display_apply_current_target())
         count_saturating_add(&display_reassert_count);
 #endif
 }
@@ -104,7 +182,7 @@ static void display_recover_if_faulted(void)
 {
 #ifndef _WIN32
     uint8_t draw_error = 0;
-    uint8_t brightness = 100;
+    rt_err_t power_result;
 
     if (!lcd_device || RT_EOK != rt_device_control(lcd_device, SF_GRAPHIC_CTRL_GET_DRAW_ERR, &draw_error) ||
             !draw_error)
@@ -112,9 +190,21 @@ static void display_recover_if_faulted(void)
 
     count_saturating_add(&display_recovery_count);
     LOG_E("LCD draw failed; recovery attempt %u", (unsigned)display_recovery_count);
-    (void)rt_device_control(lcd_device, RTGRAPHIC_CTRL_POWEROFF, NULL);
-    (void)rt_device_control(lcd_device, RTGRAPHIC_CTRL_POWERON, NULL);
-    (void)rt_device_control(lcd_device, RTGRAPHIC_CTRL_SET_BRIGHTNESS, &brightness);
+    power_result = rt_device_control(lcd_device, RTGRAPHIC_CTRL_POWEROFF, NULL);
+    if (power_result == RT_EOK)
+        power_result = rt_device_control(lcd_device, RTGRAPHIC_CTRL_POWERON, NULL);
+    if (power_result == RT_EOK)
+        (void)display_apply_current_target();
+    else
+    {
+        uint8_t level;
+        uint32_t revision;
+        uint32_t sequence;
+        if (display_target_read(&level, &revision, &sequence))
+            (void)iw_display_note_current_apply(level, revision, sequence,
+                                                IW_DISPLAY_APPLY_FAILED,
+                                                (int32_t)power_result);
+    }
     lv_obj_invalidate(lv_scr_act());
     lv_disp_trig_activity(NULL);
 #endif
@@ -720,7 +810,6 @@ void app_watch_entry(void *parameter)
         rt_err_t r = littlevgl2rtt_init(LCD_DEVICE_NAME);
         RT_ASSERT(RT_EOK == r);
     }
-
     iw_display_wake_gate_init(&display_wake_gate);
 #ifndef _WIN32
     /* CO5300 没有 SDK 的 TimeoutReset 回调；模式 2 先保住系统，再由项目层重新探测。 */
@@ -733,6 +822,8 @@ void app_watch_entry(void *parameter)
         LOG_E("recovery layer allocation failed; GUI startup stopped");
         return;
     }
+    (void)iw_display_runtime_set_available(lcd_device != RT_NULL,
+                                           lcd_device ? 0 : -RT_ENOSYS);
     lv_ex_data_pool_init();
     resource_init();
     gui_app_init(1);
@@ -756,6 +847,7 @@ void app_watch_entry(void *parameter)
     {
         uint32_t ms;
         input_service();
+        display_process_pending();
 
         rt_pm_request(PM_SLEEP_MODE_IDLE);
         ms = lv_timer_handler();
@@ -792,11 +884,8 @@ void app_watch_entry(void *parameter)
 
         if (first_loop)
         {
-#ifndef WIN32
-            //Turn on lcd backlight after power on
-            uint8_t brightness = 100;
-            rt_device_control(lcd_device, RTGRAPHIC_CTRL_SET_BRIGHTNESS, &brightness);//打开背光
-#endif /* WIN32 */
+            /* 上电后使用模型中的当前目标，不回退到固定示例亮度。 */
+            (void)display_apply_current_target();
             first_loop = 0;
         }
     }
