@@ -1,0 +1,157 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch D07 资源预算、字体方案、主题与共享组件设计方案">
+  <title>D07 资源预算与共享组件设计方案 v1 · iwatch</title>
+  <link rel="stylesheet" href="../assets/engineering.css">
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D07 资源预算与共享组件设计方案 v1</span></header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录"><ul>
+      <li><a href="#decision">1. 审批结论项</a></li>
+      <li><a href="#baseline">2. 当前容量基线</a></li>
+      <li><a href="#options">3. 方案比较</a></li>
+      <li><a href="#tiers">4. 资源分层与预算</a></li>
+      <li><a href="#font">5. 字体方案</a></li>
+      <li><a href="#pack">6. 外部资源包边界</a></li>
+      <li><a href="#theme">7. 主题与组件架构</a></li>
+      <li><a href="#failure">8. 失败与降级</a></li>
+      <li><a href="#delivery">9. 实施顺序</a></li>
+      <li><a href="#verification">10. 验收矩阵</a></li>
+      <li><a href="#non-scope">11. 非范围</a></li>
+    </ul></nav>
+    <main>
+      <h1>D07 资源预算与共享组件设计方案 v1</h1>
+      <p class="doc-meta">2026-09-16 · 审批稿 · DEV_A128_NAND / PRODUCT_N16_NOR 共同约束 · 跟踪任务 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">Issue #7</a></p>
+
+      <section id="decision"><h2>1. 审批结论项</h2>
+        <p>D07 在写代码前冻结以下决策。审批通过后按第 9 节顺序实施；任一容量阈值或职责边界调整，都先更新本文和 Issue，再修改固件。</p>
+        <table><thead><tr><th>项目</th><th>建议值</th><th>原因</th></tr></thead><tbody>
+          <tr><td>内置字体上限</td><td>128 KiB</td><td>覆盖启动/错误页、ASCII、数字和 D07–D10 首批中文；普通构建不依赖外部文件系统。</td></tr>
+          <tr><td>内置图片上限</td><td>1 MiB</td><td>当前实际链接 866,577 B；D07 新组件优先使用 LVGL 图元，不新增装饰性大图。</td></tr>
+          <tr><td>D07 main 上限</td><td>4 MiB</td><td>6 MiB 槽至少保留 2 MiB，供 D08–D14 的路由、业务与必要内置资源使用。</td></tr>
+          <tr><td>公共外部资源包上限</td><td>4 MiB</td><td>同时适配 128 MiB NAND 开发板和 16 MiB 外部 NOR 产品目标；不以开发板大容量掩盖产品约束。</td></tr>
+          <tr><td>外部资源启用时点</td><td>D15</td><td><code>flash1</code>、FAL、ECC/坏块和掉电一致性尚未闭环；D07 只冻结格式与回退接口。</td></tr>
+          <tr><td>D07 首批组件</td><td>ScreenFrame、ListRow、PillButton、StatePanel、StatusBanner</td><td>足以支持 D10 的设置/亮度流程；度量卡、环形表和选择器在对应业务任务扩展。</td></tr>
+        </tbody></table>
+        <p>建议整体批准以上六项。它们共同保证：设备即使没有可用外部资源区，也能启动、显示错误并完成首批系统操作；D07 不提前宣称 D15 的持久化能力，也不提前宣称 D16 的真实显示恢复能力。</p>
+      </section>
+
+      <section id="baseline"><h2>2. 当前容量基线</h2>
+        <p>基线固件实现提交为 <code>0828250b856f5502c04335a6930bbcf4fc6fdbd7</code>，D06 文档与测试跟进到 <code>c018631</code>，测试跟进没有改变镜像。GCC 归档的 main SHA-256 为 <code>3aac99a03981b29f5176b89ea43bba58c5af2051c372be9dc35692191ed09095</code>。</p>
+        <table><thead><tr><th>对象</th><th>实测字节</th><th>占 main</th><th>说明</th></tr></thead><tbody>
+          <tr><td>main.bin</td><td>5,745,568</td><td>100%</td><td>占 6 MiB 槽 91.323%，仅余 545,888 B。</td></tr>
+          <tr><td><code>.font_data</code></td><td>3,939,852</td><td>68.572%</td><td>完整 Droid Sans Fallback，当前容量问题的主要来源。</td></tr>
+          <tr><td><code>.ROM3_IMG*</code></td><td>866,577</td><td>15.083%</td><td>实际链接到 ELF 的图片段，包含段头。</td></tr>
+          <tr><td>代码及其他内容</td><td>939,139</td><td>16.345%</td><td>由 main 减去字体和图片段得到，用于规划，不代替链接器逐段审计。</td></tr>
+        </tbody></table>
+        <p>若只把完整字体替换成不超过 128 KiB 的子集，按当前链接结果静态估算 main 为 1,936,788 B，占 6 MiB 的 30.784%，可恢复 4,354,668 B 余量。最终数字必须由 GCC、Keil 真实构建确认，不能用估算值关闭任务。</p>
+      </section>
+
+      <section id="options"><h2>3. 方案比较</h2>
+        <table><thead><tr><th>方案</th><th>优点</th><th>问题</th><th>结论</th></tr></thead><tbody>
+          <tr><td>A · 完整字体继续内置</td><td>无需改现有字体调用，可显示大字符集。</td><td>单字体占 main 68.572%，D07 增加少量代码即逼近 6 MiB 槽上限。</td><td>拒绝</td></tr>
+          <tr><td>B · 子集字体内置，组件使用图元，外部包延后</td><td>启动路径独立；预计恢复约 4.35 MB；现有 tiny_ttf 可继续支持多字号。</td><td>每次新增静态文案必须更新字符清单；动态长文本需要缺字策略。</td><td>采用</td></tr>
+          <tr><td>C · 字体和图片立即全部迁入 NAND FS</td><td>main 最小，后续资源扩充方便。</td><td><code>flash1</code> 仍不可用；NAND 坏块、ECC、掉电和产品 NOR 差异尚未验证，会把 D15 风险带入启动路径。</td><td>拒绝</td></tr>
+          <tr><td>D · 多字号静态位图字体</td><td>解码简单、运行时行为确定。</td><td>20/22/26/30/64/80/96 等字号会重复存储字形，后续字符扩展成本高。</td><td>暂不采用</td></tr>
+        </tbody></table>
+        <p>选定 B。子集 TTF 只解决静态系统文案和数字显示；后续通知、健康说明等开放文本由 D15 外部字库或产品限定字符集解决。未知字符不能触发越界、崩溃或空白布局。</p>
+      </section>
+
+      <section id="tiers"><h2>4. 资源分层与预算</h2>
+        <table><thead><tr><th>层级</th><th>内容</th><th>可用性要求</th><th>预算</th></tr></thead><tbody>
+          <tr><td>R0 · 内置关键资源</td><td>最小字体、主题 token、首批组件、启动/错误/恢复文字、必要小图。</td><td>main 可校验即必须可用；不得访问 <code>flash1</code>。</td><td>字体 ≤128 KiB，图片 ≤1 MiB，D07 main ≤4 MiB。</td></tr>
+          <tr><td>R1 · 公共外部包</td><td>完整产品字体、图标、静态页面图片和音效。</td><td>D15 校验挂载成功后才发布 AVAILABLE；失败回到 R0。</td><td>≤4 MiB。</td></tr>
+          <tr><td>R2 · 可选业务包</td><td>表盘、照片和后续 App 的可替换内容。</td><td>按能力和存储 profile 发布；缺失不影响系统设置和恢复。</td><td>D15/D17 按产品存储另行批准。</td></tr>
+        </tbody></table>
+        <p>R0 是 DEV_A128_NAND 与 PRODUCT_N16_NOR 的共同下限。开发板的 128 MiB NAND 只用于验证，不改变产品目标只有 1 MiB SiP NOR 与 16 MiB 外部 NOR 的事实。D07 不调整现有分区表。</p>
+        <p>运行时不新增线程。字体复用现有 PSRAM tiny_ttf cache；共享组件不得再建立独立图片缓存。组件展示页销毁后，堆占用在连续两轮稳定采样中回到进入前基线，GUI 线程栈继续低于 75%。</p>
+      </section>
+
+      <section id="font"><h2>5. 字体方案</h2>
+        <p>源字体继续使用项目现有 Droid Sans Fallback 2.55b。字体 name table 标明 Apache License 2.0；实现时补资源 NOTICE、源文件 SHA-256 和生成产物清单。公开仓库保留源字体，保证无需依赖某台电脑上的 SDK 路径即可复现子集。</p>
+        <p>方案阶段已做一次只读可行性测量：使用 FontTools 4.65.0，保留 hint，以可打印 ASCII、当前 <code>zh_cn.json</code> 全部值和首批组件状态文案组成 215 个唯一字符。源字体 SHA-256 为 <code>05d71b179ef97b82cf1bb91cef290c600a510f77f39b4964359e3ef88378c79d</code>，两次独立生成均得到 33,200 B、SHA-256 <code>f421964adb49db812cb3e50b426304c171e8444782248cb39d4072534ea9f336</code>。这只证明 128 KiB 对首批范围有足够余量；审批后仍须用正式字符清单、脚本和双工具链产物关闭容量门槛。</p>
+        <ol>
+          <li>字符输入由可打印 ASCII、<code>zh_cn.json</code> 的全部值、D07–D10 静态文案清单和明确列出的符号组成。禁止扫描 C 注释或 HTML 文档，以免无关汉字进入固件。</li>
+          <li>生成器固定 FontTools 版本、关闭时间戳重算、固定表顺序；输出 manifest 记录源字体、字符输入、工具版本、码点列表、输出大小和 SHA-256。</li>
+          <li>普通 GCC/Keil 构建直接使用已提交的子集 TTF，不要求开发机安装 FontTools；只有更新字符清单时才运行生成器。</li>
+          <li>构建前检查 manifest 与输入哈希，构建后从 ELF/AXF 节表读取 <code>.font_data</code> 实际大小。输入漂移、缺字或超过 128 KiB 均停止构建。</li>
+          <li>GUI owner 持有单一字体服务，允许字号固定为 20、22、26、30、64、80、96。组件只取得只读字体指针，不自行创建或销毁字体。</li>
+        </ol>
+        <p>静态文案出现未列入子集的字符属于构建错误。运行时外部文本出现缺字时显示替代字形并保持原布局高度，同时记录限频诊断；不得临时加载完整字体或从服务线程直接创建 LVGL 字体。</p>
+      </section>
+
+      <section id="pack"><h2>6. 外部资源包边界</h2>
+        <p>D07 只冻结接口，不实现 NAND/NOR 读取。建议资源包使用 64 B 小端固定头：<code>magic[4]</code>、<code>schema_version:u16</code>、<code>header_bytes:u16</code>、<code>resource_version:u32</code>、<code>compatible_api:u32</code>、<code>payload_bytes:u32</code>、<code>entry_count:u32</code>、<code>payload_sha256[32]</code>、<code>flags:u32</code>、<code>header_crc32:u32</code>。magic 固定为 <code>IWR1</code>。</p>
+        <p>资源 ID 由受版本控制的注册表显式分配，不使用运行时路径哈希。D15 再确定 TOC、A/B 提交、ECC/坏块处理、签名需求和流式解码。D07 的资源 Provider 只有 <code>UNAVAILABLE</code> 与内置 R0 两种真实状态；不得因为分区表中存在 FS_REGION 就报告外部资源可用。</p>
+      </section>
+
+      <section id="theme"><h2>7. 主题与组件架构</h2>
+        <table><thead><tr><th>模块</th><th>职责</th><th>禁止项</th></tr></thead><tbody>
+          <tr><td><code>gui_core/iw_theme</code></td><td>提供 390×450 profile、颜色、间距、圆角、字号、动效和 Q0/Q1 质量 token；数据只读。</td><td>不访问服务、不创建对象、不分配堆。</td></tr>
+          <tr><td><code>gui_core/iw_font</code></td><td>GUI owner 中初始化固定字号缓存，校验字体来源，统一 OOM 降级和销毁顺序。</td><td>组件不得直接调用 tiny_ttf create/destroy。</td></tr>
+          <tr><td><code>gui_core/iw_components</code></td><td>创建和更新无业务状态的原子组件；父对象拥有子树，状态通过显式模型更新。</td><td>不订阅服务、不创建业务 timer、不保存调用方临时字符串指针。</td></tr>
+          <tr><td><code>gui_apps/component_gallery</code></td><td>展示所有状态、最长中文、最大字号、Q0/Q1 和错误降级；只作为开发入口。</td><td>不加入产品桌面，不承担 D08 路由。</td></tr>
+        </tbody></table>
+        <p>首批组件及状态固定如下：</p>
+        <ul>
+          <li><strong>ScreenFrame：</strong>普通、滚动和全屏三种框架，统一 18 px 左右与 24 px 上下安全区。</li>
+          <li><strong>ListRow：</strong>默认、按下、禁用、多行、右值五种状态；内容宽度 354 px，高度至少 60 px。</li>
+          <li><strong>PillButton：</strong>正常、按下、等待、禁用、危险五种状态；高度 60 px、圆角 30 px，等待态阻止重复提交。</li>
+          <li><strong>StatePanel：</strong>加载、空、错误、外部资源不可用四种状态；占位保持内容区域尺寸稳定。</li>
+          <li><strong>StatusBanner：</strong>信息、成功、提醒、危险四种语义；D07 只提供静态展示，限频与自动关闭交给后续 Presenter。</li>
+        </ul>
+        <p>组件构造返回明确成功或错误码。任何中途失败都删除已经创建的对象并清空调用方句柄；重复 destroy 安全。组件事件只上报语义动作，由页面 Presenter 决定是否提交服务命令。</p>
+      </section>
+
+      <section id="failure"><h2>8. 失败与降级</h2>
+        <table><thead><tr><th>故障</th><th>检测</th><th>行为</th></tr></thead><tbody>
+          <tr><td>字体输入或 manifest 漂移</td><td>构建前哈希检查。</td><td>停止构建，不复用旧子集。</td></tr>
+          <tr><td>字体或图片超预算</td><td>从最终 ELF/AXF 节表统计。</td><td>GCC/Keil 构建失败，不生成可发布归档。</td></tr>
+          <tr><td>字体创建 OOM</td><td>tiny_ttf 返回空。</td><td>释放本次已创建字体和对象，显示仅依赖默认字体的最小错误层。</td></tr>
+          <tr><td>图片缺失或解码失败</td><td>资源 Provider 返回错误。</td><td>显示同尺寸图元占位；点击区域和布局不改变。</td></tr>
+          <tr><td>外部资源不可用</td><td>Provider 能力为 UNAVAILABLE。</td><td>只使用 R0，不尝试裸读 NAND，不显示“资源已加载”。</td></tr>
+          <tr><td>Q1 绘制内存不足</td><td>临时缓存申请失败。</td><td>同一转场边界降到 Q0；按钮位置、文案和输入语义不变。</td></tr>
+          <tr><td>组件构造中途失败</td><td>任一 LVGL 对象或回调注册失败。</td><td>逆序释放并返回错误；页面可进入 D01 最小错误层。</td></tr>
+        </tbody></table>
+      </section>
+
+      <section id="delivery"><h2>9. 实施顺序</h2>
+        <ol>
+          <li><strong>D07-A · 容量闭环：</strong>加入字体字符清单、确定性生成器和 manifest；固件改为链接子集；最终产物自动检查字体、图片和 main 三项预算。</li>
+          <li><strong>D07-B · 基础服务：</strong>实现只读主题 token 和 GUI owner 字体服务；迁移现有状态栏的私有字体缓存，覆盖 OOM 和重复销毁。</li>
+          <li><strong>D07-C · 首批组件：</strong>按本方案实现五类组件，统一状态、样式与所有权；不接业务服务。</li>
+          <li><strong>D07-D · 展示与验收：</strong>建立组件展示页，完成主机回归、双工具链构建和开发板实屏验收，再关闭 Issue #7。</li>
+        </ol>
+        <p>每阶段单独提交，前一阶段检查失败时不进入下一阶段。字体替换会改变固件，D07-A 完成后必须重新生成 GCC/Keil 归档；开发板只烧录通过 G2 的 GCC 三件套。</p>
+      </section>
+
+      <section id="verification"><h2>10. 验收矩阵</h2>
+        <table><thead><tr><th>层级</th><th>检查</th><th>通过条件</th></tr></thead><tbody>
+          <tr><td>资源生成</td><td>同一输入连续生成两次；修改字符清单；故意加入源字体缺失字符。</td><td>输出哈希一致；输入变化必然反映到 manifest；缺字明确失败。</td></tr>
+          <tr><td>预算</td><td>使用合成 ELF 节和真实 GCC/Keil 产物验证边界值、超限 1 B、缺节和重复节。</td><td>≤阈值通过；超限、缺少必需节或格式错误均失败。</td></tr>
+          <tr><td>生命周期</td><td>五类组件各 1000 次创建/销毁；每个分配点 OOM 注入；重复 destroy。</td><td>无泄漏、越界和释放后访问；对象、回调和堆回到稳定基线。</td></tr>
+          <tr><td>T12 布局</td><td>长中文、最大字号、缺图、Q0/Q1、RGB565 色阶和最窄内容宽度。</td><td>无重叠、越界或不可读；占位不改变交互区域。</td></tr>
+          <tr><td>双工具链</td><td>GCC→Keil→GCC 干净切换，身份、map、节预算和三件套 DryRun。</td><td>两套身份独立且 main ≤4 MiB；字体 ≤128 KiB；图片 ≤1 MiB。</td></tr>
+          <tr><td>开发板</td><td>进入展示页，滚动、点击、禁用与等待态操作；20%/80% 亮度各一轮；1000 次页面循环。</td><td>画面正确、输入 P95 &lt;100 ms、无重启；栈 &lt;75%；销毁后堆回稳定基线；保存原始 COM10。</td></tr>
+        </tbody></table>
+      </section>
+
+      <section id="non-scope"><h2>11. 非范围</h2>
+        <ul>
+          <li>D07 不写 NAND/NOR，不挂载 <code>flash1</code>，不实现资源包 A/B，也不声明断电保存；这些属于 D15。</li>
+          <li>D07 不实现真实屏幕故障的确认、有限重试、分项计数或受控重启；这些属于 D16。</li>
+          <li>D07 不实现页面注册表、返回栈和导航事务；这些属于 D08。</li>
+          <li>D07 不完成正式设置、亮度和手动校时页面；这些属于 D10。</li>
+          <li>D07 不复制 Apple 字体、图标或受限资源；所有提交资源必须记录来源与许可。</li>
+        </ul>
+      </section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script src="../assets/engineering.js"></script>
+</body>
+</html>
