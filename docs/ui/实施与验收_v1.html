@@ -257,11 +257,11 @@
 <td>已接入 GCC 与 Keil 的构建前后；SDK/BSP、有效配置、实际编译器、镜像地址/大小/哈希检查通过</td>
 </tr>
 <tr class="even">
-<td>GCC</td>
+<td>D01–D03 历史 GCC 包</td>
 <td>完整构建成功；<code>main.bin</code> 为 5,734,968 B，占 6 MiB 槽 91.155%，剩余 556,488 B</td>
 </tr>
 <tr class="odd">
-<td>Keil</td>
+<td>D01–D03 历史 Keil 包</td>
 <td>工程重新生成并由 Arm Compiler 6.16 实际编译；929 个源码引用有效；main 为 5,661,112 B</td>
 </tr>
 <tr class="even">
@@ -281,13 +281,13 @@
 <section id="m1-实施记录" class="level2">
 <h2>7. M1.0 实施记录</h2>
 <table><thead><tr><th>项目</th><th>当前状态</th></tr></thead><tbody>
-<tr><td>D04 时间核心</td><td>已实现 32 位 tick 回绕、分数换算、UTC/时区/revision、可信 RTC 标记和一次性期限；固定启动日期已删除。T06 与 T07 主机部分通过。</td></tr>
-<tr><td>D05 服务核心</td><td>已实现 32 B 命令、16 条队列、32 槽账本、48 B 结果、24 B 快照头、幂等 token、全局 ACK 和能力状态。T08/T09 与 T10 纯模型部分通过。</td></tr>
-<tr><td>运行时</td><td><code>iw_service</code> 优先级 17、静态栈 4 KiB；每批最多 8 条。RTC I/O 在模型锁外，FinSH 诊断经过正式命令链路。</td></tr>
-<tr><td>双工具链首轮</td><td>GCC 14.2.1 main 5,739,848 B；Arm Compiler 6.16 main 5,665,968 B。两者均通过实际编译、链接、布局和身份归档，正式烧录前将在收口提交重新构建。</td></tr>
-<tr><td>开发板</td><td>CH342 尚未连接，本轮尚未烧录。需完成无可信时间启动、手动校时、结果 ACK、软复位保持、session 递增、表盘和触摸回归。</td></tr>
+<tr><td>D04 时间核心</td><td>已实现 32 位 tick 回绕、分数换算、UTC/时区/revision、可信 RTC 标记和一次性期限；固定启动日期已删除。T06 主机通过，T07 的校时、软件复位保持和完全断电失效已完成板测。</td></tr>
+<tr><td>D05 服务核心</td><td>已实现 32 B 命令、16 条队列、32 槽账本、48 B 结果、24 B 快照头、幂等 token、全局 ACK 和能力状态。T08/T09 与 T10 纯模型部分通过，命令执行、ACK 和 session 路径完成板测。</td></tr>
+<tr><td>运行时</td><td><code>iw_service</code> 优先级 17、静态栈 4 KiB；每批最多 8 条。RTC I/O 在模型锁外，FinSH 诊断经过正式命令链路。应用线程初始化、boot 初始化和线程启动的失败所有权及重试路径均有故障注入覆盖。</td></tr>
+<tr><td>双工具链收口</td><td>GCC 14.2.1 main 5,740,368 B，map 判定为 GCC；Arm Compiler 6.16 main 5,666,408 B，map 判定为 Arm Compiler 6.16，934 个源码引用有效。两者从干净共享输出目录真实编译并独立归档，map 哈希不同，身份检查和 Windows PowerShell 5.1 入口通过。</td></tr>
+<tr><td>开发板</td><td>COM9 CH342 完成确定 GCC 三件套写入与校验，COM10 以 1,000,000 baud 保存原始日志，全程未访问 COM8/J-Link。无可信时间启动、校时与 ACK、软件复位保持和 session 递增、完全断电失效、冷启动随机 session、显示和输入压力均通过；最终 P95=27 ms、最大 62 ms、≥100 ms 为 0。</td></tr>
 </tbody></table>
-<p>完整接口、故障边界和上板步骤见 <a href="D04-D05_实施记录.html">D04–D05 时间与最小服务实施记录</a>。通过后进入 D06；D06 必须使用当前目标亮度，D07 前处理完整中文字体和图片容量，D16 再完成显示恢复计数、确认、有限重试与受控重启。</p>
+<p>完整接口、故障边界、构建身份和板上原始证据索引见 <a href="D04-D05_实施记录.html">D04–D05 时间与最小服务实施记录</a>。D04/D05 整改复验完成，审批确认后可开始 D06；D06 必须使用当前目标亮度，D07 前处理完整中文字体和图片容量，D16 再完成显示恢复计数、确认、有限重试与受控重启。</p>
 </section>
 </section>
     </main>

@@ -34,8 +34,8 @@
 <ul>
 <li><a href="SF32LB58开发板资料与首次调试.html">开发板资料与首次实测记录</a></li>
 </ul>
-<p>项目已将可修改的 <code>watch_v9</code> 应用源码、A128 QSPI/A1 板级配置和项目分区表迁入仓库的 <a href="../firmware/README.html">firmware</a> 目录，名称统一为 <strong>iwatch</strong>。D01–D03 已通过主机测试、GCC 14.2.1、Arm Compiler 6.16 和开发板验收；Keil 工程含 929 个有效源码引用。最终 GCC 的 main、Bootloader 与 FTab 已成套写入并校验，历史基线另有 main 与 FTab 独立回读证据。</p>
-<p>表盘链表释放、桌面刷新回调、GUI 等待上限、输入取消和构建来源已经修复。D04/D05 已删除启动固定日期，加入版本化时间、RTC 可信标记、启动协调、固定命令/结果账本和快照接口，并通过主机、GCC/Keil 与开发板验收。板上校时结果完成并 ACK；软件复位后 UTC、UTC+8 与 RTC source 保持，session 递增；完全断电后 RTC 明确失效且 session 由 TRNG 重建。当前公共 BSP 继续取自固定 SDK 提交，下一步进入 D06 显示目标与会话设置。</p>
+<p>项目已将可修改的 <code>watch_v9</code> 应用源码、A128 QSPI/A1 板级配置和项目分区表迁入仓库的 <a href="../firmware/README.html">firmware</a> 目录，名称统一为 <strong>iwatch</strong>。D01–D05 已通过主机测试、GCC 14.2.1、Arm Compiler 6.16 和开发板验收；当前 Keil 工程含 934 个有效源码引用。最终 GCC 的 main、Bootloader 与 FTab 已成套写入并校验，历史基线另有 main 与 FTab 独立回读证据。</p>
+<p>表盘链表释放、桌面刷新回调、GUI 等待上限、输入取消和构建来源已经修复。D04/D05 已删除启动固定日期，加入版本化时间、RTC 可信标记、启动协调、固定命令/结果账本和快照接口，并通过主机、GCC/Keil 与开发板整改复验。板上校时结果完成并 ACK；软件复位后 UTC、UTC+8 与 RTC source 保持，session 确定递增；完全断电后 RTC 明确失效，服务使用 TRNG 生成非零 31 位随机 session。本次冷启动样本与断电前不同，但随机值只降低碰撞概率，不承担唯一性或安全保证。当前公共 BSP 继续取自固定 SDK 提交，审批确认后可开始 D06 显示目标与会话设置。</p>
 <ul>
 <li><a href="ui/架构复审与开发基线_v1.1.html">复审发现与开发准入</a></li>
 <li><a href="ui/D01-D03_实施记录.html">D01–D03 构建与板上验收</a></li>

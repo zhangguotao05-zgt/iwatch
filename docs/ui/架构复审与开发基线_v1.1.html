@@ -10,7 +10,7 @@
 <li><a href="#gates">6. 开发与验收门槛</a></li>
 <li><a href="#sources">7. 依据与适用版本</a></li></ul></nav><main>
 <h1>架构复审与开发基线 v1.1</h1>
-<p class="doc-meta">2026-09-16 · D01–D05 已验收 · D04/D05 实现含冷启动会话修正 <code>4e05ed2</code> · 适用：SF32LB58-DevKit-LCD A128R32N1、390×450 CO5300/FT6146</p>
+<p class="doc-meta">2026-09-16 · D01–D05 已验收 · D04/D05 整改实现基线 <code>9d74498</code> · 适用：SF32LB58-DevKit-LCD A128R32N1、390×450 CO5300/FT6146</p>
 <p>现有分层方向继续使用，当前代码仍以 SDK 演示工程为界面基线。D01–D05 已完成主机、双工具链和目标板验收；时间、启动协调、最小服务、软件复位保持及断电失效路径均已有实测。本文的问题状态始终区分静态检查、主机测试、构建和开发板实测。</p>
 <p>配套阅读：<a href="系统架构_v1.1.html">系统架构</a>、<a href="功能逻辑与页面契约_v1.html">功能逻辑与页面契约</a>、<a href="模块接口与开发任务_v1.html">模块接口与开发任务</a>。文档 v1.1 是架构细化版本，不是新固件版本。</p>
 
@@ -37,7 +37,7 @@
 <tr><td>A06 · P1 · 待实现</td><td>应用只对 <code>BSP_KEY1_PIN</code> 调用 <code>button_init()</code>；KEY2 虽在 board.conf 声明，未接应用回调。当前队列门控只有单键，M0 点击直接映射 Home。</td><td>KEY1 暂映射表冠按压，KEY2 经实物检查后映射侧键；每键独立门控、独立序号。M1 引入双击识别时必须关闭旧的即时 Home 分支，防止重复导航。旋转表冠状态仍为 absent。</td></tr>
 <tr><td>A07 · P1 · 来源与构建约束已实现</td><td><a href="../../firmware/iwatch/project/project.uvprojx">Keil 工程</a>的四个基础板 <code>bsp_*.c</code> 指向 SDK 的 <code>customer/boards/sf32lb58-lcd_base</code>，不是仓库内同名副本。</td><td>开发板阶段明确以锁定 SDK 的基础板驱动为准；自研 PCB 建新的项目 BSP 并验实际编译路径。禁止只修改未参与编译的副本后宣称硬件行为已变化。</td></tr>
 <tr><td>A08 · P0 · DEV 包板测通过</td><td><a href="../../firmware/iwatch/project/iwatch_sf32lb58_a128_qspi_hcpu/ptab.json">ptab.json</a> 将 main 移到 0x69000000；GCC main 与 FTab 已独立回读匹配归档。</td><td>已完成旧区备份、新 FTab 引导、冷启动及串口恢复。底层 NAND 页/擦除块、ECC/BBM 和持久化掉电语义仍在 D15 验证，不从本次 UI 启动结果外推。</td></tr>
-<tr><td>A09 · P1 · 已加文件锁、归档及身份校验</td><td>GCC 与 Keil 使用同一个 <code>build_iwatch_sf32lb58_a128_qspi_hcpu</code> 目录；<a href="../../firmware/generate-keil.ps1">generate-keil.ps1</a> 只在生成前调用布局检查。本版 SDK 的 --target=mdk5 启用 no_exec，只生成工程；原来把模拟构建输出当成真实编译的说法有误。现在包装脚本单独执行实际 Keil 构建。</td><td>首个发布包加入工具链、源码/配置哈希与镜像清单；每次构建后检查。分离输出目录前禁止并行构建；不能凭文件名识别镜像来源。</td></tr>
+<tr><td>A09 · P1 · 已完成双工具链来源整改</td><td>GCC 与 Keil 使用同一个 <code>build_iwatch_sf32lb58_a128_qspi_hcpu</code> 目录；<a href="../../firmware/generate-keil.ps1">generate-keil.ps1</a> 的 SDK --target=mdk5 阶段只生成工程，包装脚本随后单独执行实际 Keil 构建。此前共享目录可能保留另一工具链的 map。</td><td>两个包装脚本现在持锁后安全清空确定输出目录，真实编译后校验 object 与 map 的工具链标记，再分别归档源码/配置/产物哈希。双工具链必须顺序执行，身份检查不能只凭文件名或 map 哈希存在。</td></tr>
 <tr><td>A10 · P1 · 文档已修正</td><td>M1 依赖设置/命令服务，旧分期却把消息与时钟基础放到 M2；8 个待提醒槽无法覆盖 8 个计时器与 16 个闹钟同时触发。</td><td>依赖提前到 M1.0；提醒按源预留 24 槽并可合并重复发生，普通通知另算。详见接口文档。</td></tr>
 <tr><td>A11 · P1 · 已修正</td><td>无屏和旧演示固件数据已明确标为历史；新固件记录绑定构建包、回读哈希、串口窗口和压力栈数据。</td><td>继续由 HTML 校验脚本检查入口、相互链接和锚点；每个新镜像单独记录板上身份，不能继承本次结果。</td></tr>
 <tr><td>A12 · P2 · 接入前处理</td><td>未启用的 PM/DFU 分支仍包含旧 LVGL 调用方式；当前配置不代表这些路径编译或运行通过。</td><td>开启功能前迁移相关 API、明确上下文，新增该配置的构建及唤醒测试；默认关闭不会被误写成已经支持休眠/升级。</td></tr>
@@ -47,12 +47,12 @@
 
 <section id="baseline"><h2>3. 唯一开发基线与能力表</h2>
 <table><thead><tr><th>项目</th><th>当前基线</th><th>开发约束</th></tr></thead><tbody>
-<tr><td>应用 / SDK</td><td>D01–D03 板测包的 Git 起点为 <code>9abe267</code>，并绑定未提交源码哈希；SiFli-SDK v2.5.1，commit <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code>。</td><td>构建在隔离、干净 SDK 检出中完成；后续提交或源码变化必须重新生成身份和板测证据。</td></tr>
+<tr><td>应用 / SDK</td><td>D04/D05 整改实现基线为 <code>9d74498</code>；SiFli-SDK v2.5.1 固定在 <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code>。</td><td>构建在隔离、干净 SDK 检出中完成；交付归档必须重新绑定最终 HEAD。固件输入或二进制变化需要重建并重新判定是否板测。</td></tr>
 <tr><td>板型 / 芯片标识</td><td>A128R32N1 开发板，A1 修订；HCPU 240 MHz、LCPU 48 MHz 为旧固件日志实测。自研板原理图选型为 SF32LB586VDD36。</td><td>board rtconfig.py 中 <code>PACKAGE='SF32LB587'</code> 是 SDK 构建选择，不能当作开发板封装丝印证据，也不能自动替代自研板 BOM。</td></tr>
 <tr><td>显示 / 触摸</td><td>390×450，CO5300 + FT6146，QSPI + I²C；已点亮、读到触摸 ID，并完成连续点击与滑动压力测试。</td><td>产品校准仍需单列四角、方向和边缘误差；CWS05/CST820 是未来佩戴板候选，不属于当前运行配置。</td></tr>
 <tr><td>内存 / tick</td><td>PSRAM 16+16 MiB；NAND 128 MiB 为配置值；RT tick 1000 Hz。</td><td>以有效 rtconfig、链接 map、板上容量为三项核对；设备型号和擦除几何仍需记录。</td></tr>
 <tr><td>KEY1 / KEY2 / 表冠</td><td>KEY1 已接软件；KEY2 未注册；实体旋钮未接入。</td><td>逻辑注入可测旋转语义，但不能把它写成实物表冠验证。</td></tr>
-<tr><td>RTC</td><td>驱动已启用；固定日期覆盖已删除；备份寄存器 29/30 保存时间可信状态与反码，28/31 保存 session 及反码。</td><td>板上已确认软件复位保持 UTC/时区/可信状态；备份域丢失后时间失效，session 由 TRNG 重建后再在软复位间递增。</td></tr>
+<tr><td>RTC</td><td>驱动已启用；固定日期覆盖已删除；备份寄存器 29/30 保存时间可信状态与反码，28/31 保存 session 及反码。</td><td>板上已确认软件复位保持 UTC/时区/可信状态；备份域丢失后时间失效，session 由 TRNG 生成非零 31 位随机值后再在软复位间递增。随机值只降低碰撞概率，不能作为唯一性或安全保证。</td></tr>
 <tr><td>PPG / IMU / 电池 / 触感</td><td>应用未接入可信测量或控制链路。</td><td>默认 absent 或 unknown；不从采购清单推断已有硬件功能。</td></tr>
 <tr><td>文件系统 / PM / 无线</td><td>存储验证未闭环；PM 未启用；无线功能暂不开发。</td><td>M1 会话设置有效，跨重启保存为 M4 能力；深睡与常亮显示分别验收。</td></tr>
 </tbody></table>
@@ -72,7 +72,7 @@
  G --> K["存储不可用：会话模式"]
  E --> L["显示失败：串口诊断 / 保留恢复入口"]
 </pre>
-<p>逻辑启动顺序现由 <code>iw_boot</code> 协调者管理，入口仍由 <code>INIT_APP_EXPORT(app_watch_init)</code> 触发。它先建立 GUI 唤醒对象，再建立时间与服务运行时；没有第二个自动入口重复初始化队列、事件或能力表。目标板验收继续核对线程和失败输出。</p>
+<p>逻辑启动顺序现由 <code>iw_boot</code> 协调者管理，入口仍由 <code>INIT_APP_EXPORT(app_watch_init)</code> 触发。入口先建立静态应用线程对象，再初始化 GUI 唤醒对象和时间/服务运行时，最后启动应用线程；没有第二个自动入口重复初始化队列、事件或能力表。线程对象初始化失败时 boot 尚未生效；boot 初始化失败会撤销本次 GUI/服务资源；线程启动失败只分离未启动的线程对象，保留设备生命周期的 boot 资源供重试。两条失败重试路径已有主机故障注入覆盖。</p>
 <table><thead><tr><th>阶段</th><th>成功条件</th><th>失败去向</th></tr></thead><tbody>
 <tr><td>B0 存储引导</td><td>bootloader、ftab、main 来自同一发布包且地址/校验一致。</td><td>进入已验证的串口恢复路径；当前尚无自动双槽回滚。</td></tr>
 <tr><td>B1 最小运行时</td><td>固定队列/账本、时间服务与诊断缓冲建立。</td><td>记录启动失败阶段；不继续接收业务命令。</td></tr>
