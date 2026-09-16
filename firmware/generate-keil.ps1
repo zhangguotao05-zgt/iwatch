@@ -95,6 +95,22 @@ try {
         return '<Define>' + [string]::Join(', ', $defines) + '</Define>'
     })
 
+    # 链接器预定义宏来自同一无序集合，也必须按完整参数段排序。
+    $projectText = [regex]::Replace($projectText, '<Misc>([^<]* --predefine=[^<]*)</Misc>', {
+        param($match)
+        [string[]]$segments = [regex]::Split($match.Groups[1].Value, ' --predefine=')
+        if ($segments.Length -lt 2) {
+            return $match.Value
+        }
+        [string[]]$predefines = $segments[1..($segments.Length - 1)]
+        [Array]::Sort($predefines, [StringComparer]::Ordinal)
+        $value = $segments[0]
+        foreach ($predefine in $predefines) {
+            $value += ' --predefine=' + $predefine
+        }
+        return '<Misc>' + $value + '</Misc>'
+    })
+
     # 把 SDK 引用改为有效绝对路径，保证从实际工程目录打开时能够解析。
     $relativeSdkPath = [System.IO.Path]::GetRelativePath($projectDir, $SdkPath)
     $escapedSdkPath = [System.Security.SecurityElement]::Escape($SdkPath)
