@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch D07-A0 字体、资源预算与 SDK 安全补丁工具链实施记录">
+  <title>D07-A0 工具与安全链实施记录 · iwatch</title>
+  <link rel="stylesheet" href="../assets/engineering.css">
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D07-A0 工具与安全链实施记录</span></header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录"><ul>
+      <li><a href="#scope">1. 范围与状态</a></li>
+      <li><a href="#font">2. 字符清单与子集生成</a></li>
+      <li><a href="#budget">3. 双工具链资源计量</a></li>
+      <li><a href="#patch">4. SDK 补丁管理</a></li>
+      <li><a href="#oom">5. 内存失败注入</a></li>
+      <li><a href="#verification">6. 主机验证</a></li>
+      <li><a href="#gate">7. A1 准入门槛</a></li>
+    </ul></nav>
+    <main>
+      <h1>D07-A0 工具与安全链实施记录</h1>
+      <p class="doc-meta">2026-09-16 · 方案基线 <code>967483d</code> · Issue <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">#7</a> · 主机工具链通过，实屏基线待补</p>
+
+      <section id="scope"><h2>1. 范围与状态</h2>
+        <p>D07-A0 建立兼容字体替换前的可复现输入、安全补丁和预算检查，不替换固件中的完整 TTF，不修改页面、分区或可刷镜像，也不访问串口和调试器。当前主机实现与回归通过；进入 A1 前还需保存替换前通知页的实屏照片，因此本记录不把 D07 或字体替换写成已验收。</p>
+        <table><thead><tr><th>项目</th><th>结果</th><th>状态</th></tr></thead><tbody>
+          <tr><td>旧通知结构基线</td><td>锁定 390×450、七个字号、五组通知、换行和滚动规则，并绑定来源文件哈希。</td><td>主机基线已保存</td></tr>
+          <tr><td>替换前实屏基线</td><td>需要顶部三条短通知、两条长文、20% 与 80% 亮度照片。</td><td>待采集，阻止 A1 首次烧录</td></tr>
+          <tr><td>字体与预算工具</td><td>确定性子集生成、GCC ELF/map 和 Keil map 分项统计已实现。</td><td>主机通过</td></tr>
+          <tr><td>安全补丁</td><td>固定 SDK 的 11 文件白名单补丁、派生 worktree 和构建身份已实现。</td><td>主机通过，尚未进入固件镜像</td></tr>
+          <tr><td>硬件与镜像</td><td>本阶段没有构建、烧录或板上运行新镜像。</td><td>不适用</td></tr>
+        </tbody></table>
+      </section>
+
+      <section id="font"><h2>2. 字符清单与子集生成</h2>
+        <p><code>font_charset.json</code> 是唯一正式字符契约。输入只包含可打印 ASCII、<code>zh_cn.json</code> 全部值、源码中 <code>notify_msgs</code> 的十个字符串，以及 D07–D10 已登记静态文案。生成器严格比较通知字符串，源码发生变化但清单未更新时立即失败。</p>
+        <table><thead><tr><th>对象</th><th>值</th></tr></thead><tbody>
+          <tr><td>字符数</td><td>336；覆盖现有十个通知字符串和 16/18/20/22/24/26/28 px 旧字号</td></tr>
+          <tr><td>字符集 SHA-256</td><td><code>b993eb902bd724502250fb44cb7bf0c968f55f39b32fb27717e0de9a04165980</code></td></tr>
+          <tr><td>源字体</td><td>3,939,852 B；<code>05d71b179ef97b82cf1bb91cef290c600a510f77f39b4964359e3ef88378c79d</code></td></tr>
+          <tr><td>FontTools</td><td>固定 4.65.0；名称表、推荐字形和 <code>.notdef</code> 轮廓选项受版本控制</td></tr>
+          <tr><td>子集结果</td><td>两次独立生成均为 56,804 B；<code>4f69f4ba565598e217501e7985bfdc7ccfd68d0bed472325218d01e89bbe284f</code></td></tr>
+        </tbody></table>
+        <p>检查同时比较每个码点的 cmap、advance、左边距、轮廓边界和字体垂直度量。A0 的子集只写入忽略入库的测试输出目录；A1 才替换固件资源。</p>
+      </section>
+
+      <section id="budget"><h2>3. 双工具链资源计量</h2>
+        <p><code>resource_budget.py</code> 先验证 <code>build_identity.json</code> 中 main、map 和 ELF/AXF 哈希，再按工具链读取实际链接结果。GCC 从 ELF 节表统计 TTF 和图片，并用 map 输入段交叉核对；Keil 从 armlink map 的输入段、字体符号和 Image component sizes 交叉核对。错误工具链、陈旧产物、重复或未分配节、截断 ELF/map 均拒绝。</p>
+        <table><thead><tr><th>归档</th><th>main</th><th>TTF</th><th>位图字体</th><th>图片</th><th>A0 判定</th></tr></thead><tbody>
+          <tr><td>GCC 当前基线</td><td>5,745,568 B</td><td>3,939,852 B</td><td>51,335 B</td><td>866,577 B</td><td>预期超限</td></tr>
+          <tr><td>Keil 当前基线</td><td>5,671,520 B</td><td>3,939,852 B</td><td>51,335 B</td><td>866,577 B</td><td>预期超限</td></tr>
+        </tbody></table>
+        <p>A0 使用 <code>--report-only</code> 证明解析器能识别替换前的真实超限基线。A1 子集替换后，构建包装脚本必须生成 <code>resource_budget.json</code>、纳入构建身份并启用硬门槛；在当前完整字体上提前启用硬失败会使已知基线无法复现。</p>
+      </section>
+
+      <section id="patch"><h2>4. SDK 补丁管理</h2>
+        <p>固定 SDK 本体保持在 <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code> 且工作树干净。<code>sdk_patch.py</code> 从该提交创建 detached 派生 worktree，应用版本化补丁并核对 11 个允许文件、补丁后文件哈希、反向可应用性和无额外修改；路径逃逸、未知文件、手工改动或补丁漂移都会失败。半应用 worktree 会通过 Git worktree 命令回收。</p>
+        <p>补丁 SHA-256 为 <code>ac5eb8a5935e3d8e6b26ca845a2d6dbe28cc7ad4b46df48093afe91a0a7c233a</code>。构建身份现在区分 <code>base</code> 与 <code>patched</code>：基础 SDK 记录干净状态；派生 SDK 记录固定提交、补丁哈希和全部补丁后文件哈希。两种状态以外的 SDK 均不能生成合法身份。</p>
+        <p>补丁保留 LVGL 普通分配 API 的致命断言，只给 tiny_ttf 增加可恢复的 cache、红黑树节点和绘制缓冲路径。字体构造任一步失败会逆序释放部分对象；字形元数据或 A8 位图失败会置一次性故障 latch。STB 的活动边与 96 px 字形动态扫描线也在分配失败时返回，避免先解引用空指针。</p>
+      </section>
+
+      <section id="oom"><h2>5. 内存失败注入</h2>
+        <p>主机测试使用真实补丁后 LVGL 9 源码和自定义分配器，保持 <code>LV_USE_ASSERT_MALLOC=1</code>。测试先探测每条路径的分配数量，再逐个注入一次失败，保证失败点随上游实现变化时仍完整覆盖。</p>
+        <table><thead><tr><th>路径</th><th>覆盖内容</th><th>结果</th></tr></thead><tbody>
+          <tr><td>create</td><td>字体描述符、字体对象和三类 cache 的部分初始化回滚</td><td>全部失败点无断言、无泄漏</td></tr>
+          <tr><td>metadata</td><td>cache entry、红黑树节点与链表节点</td><td>失败锁存，后续字形请求停止</td></tr>
+          <tr><td>bitmap</td><td>绘制描述符、A8 数据、STB 活动边和 96 px 动态扫描线</td><td>缓冲释放，无空指针访问</td></tr>
+          <tr><td>repeat</td><td>28/96 px 交替创建、取字形、绘制、释放和销毁 1,000 次</td><td>live block/bytes 每轮回到稳定基线</td></tr>
+        </tbody></table>
+        <p>当前矩阵共覆盖 25 个单点失败位置，并额外验证普通 draw buffer API 仍只在描述符失败时断言、像素缓冲失败仍返回空指针；字体可恢复路径结果为 <code>oom=1</code>、<code>asserts=0</code>。重复生命周期结束时 LVGL 全局稳定基线为 7 blocks / 3,056 B。该稳定基线不是板上字体内存预算。A1/B 仍需分别采集主堆和 PSRAM 字形池，并证明反复进出没有持续增长。</p>
+      </section>
+
+      <section id="verification"><h2>6. 主机验证</h2>
+        <p>正式入口：</p>
+        <pre class="powershell"><code>python -m pip install -r firmware/requirements.txt
+python firmware/sdk_patch.py prepare --base-sdk &lt;fixed-sdk&gt; --output &lt;derived-sdk&gt; --init-submodules
+.\firmware\tests\run-d07-a0-tests.ps1 -PythonPath &lt;python.exe&gt; -PatchedSdkPath &lt;derived-sdk&gt;</code></pre>
+        <p>本轮通过固定 SDK 与派生 SDK 校验、两次字体生成、25 点 OOM 矩阵、1,000 次生命周期、25 项 Python 检查和两套真实归档解析。完整核心回归和 HTML 链接、锚点、校验和检查也必须在提交前通过。测试输出位于忽略入库的 <code>firmware/tests/build/d07-a0/</code>，不作为可烧录产物。</p>
+      </section>
+
+      <section id="gate"><h2>7. A1 准入门槛</h2>
+        <ol>
+          <li>在当前未替换字体的固件上采集五个规定视图，记录构建身份、亮度、照片和原始串口证据，并把基线 JSON 的状态改为已完成。</li>
+          <li>A1 必须使用由补丁工具创建且验证通过的派生 SDK；不得直接修改固定 SDK。</li>
+          <li>A1 只替换兼容子集并收紧 cache，保留七个旧字号；先完成主机和双工具链预算，再申请 G2 上板。</li>
+          <li>替换后逐条复验五组通知、简繁长文、滚动、按键返回和 20%/80% 亮度；任何缺字、布局变化、断言或重启都回滚。</li>
+          <li>主堆和 PSRAM 字形池分别记录峰值与稳态；除残留 ≤32 KiB 外，还必须证明多轮页面切换没有持续增长。</li>
+        </ol>
+        <p>以上门槛未全部完成前，不开发 D07-B/C 组件，也不关闭 Issue #7。</p>
+      </section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>
+  <script src="../assets/engineering.js"></script>
+</body>
+</html>

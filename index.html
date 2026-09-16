@@ -46,7 +46,7 @@
 <td>页面路由、输入优先级、亮度与时间设置、计时/闹钟状态和异常流程</td>
 </tr>
 <tr>
-<td><a href="docs/ui/D01-D03_实施记录.html">D01–D03 实施与验证记录</a><br><a href="docs/ui/D04-D05_实施记录.html">D04–D05 时间与服务记录</a><br><a href="docs/ui/D06_显示目标与会话亮度实施记录.html">D06 显示与亮度记录</a><br><a href="docs/ui/模块接口与开发任务_v1.html">模块接口与开发任务</a></td>
+<td><a href="docs/ui/D01-D03_实施记录.html">D01–D03 实施与验证记录</a><br><a href="docs/ui/D04-D05_实施记录.html">D04–D05 时间与服务记录</a><br><a href="docs/ui/D06_显示目标与会话亮度实施记录.html">D06 显示与亮度记录</a><br><a href="docs/ui/D07-A0_工具与安全链实施记录.html">D07-A0 工具与安全链记录</a><br><a href="docs/ui/模块接口与开发任务_v1.html">模块接口与开发任务</a></td>
 <td>板上基线、时间/服务实现、显示目标与亮度、消息和数据模型、资源预算、D01–D18 任务与 T01–T25 测试</td>
 </tr>
 <tr class="odd">
@@ -124,7 +124,7 @@
 </ul>
 <p><strong>注意版本体系：</strong>文件名中的“方案/BOM v0.4”是早期规划文档版本，不代表原理图已经升级到 v0.4。历史方案中的模组及旧屏幕建议，以最新原理图说明和修订评估为准。</p>
 <p>项目现名为 <strong>iwatch</strong>。已归档的 v0.1–v0.3 电路文件和 ZIP 工程包继续保留原来的 <code>HealthWatch-SF58</code> 文件名及校验值；说明文档改为 HTML 后，目录中的校验清单同步指向当前 HTML。后续新版本使用 <code>iwatch</code> 名称。</p>
-<p>固件 D01–D06 已通过主机、双工具链和开发板验收。D06 整改后的 GCC 三件套已写入并校验，20% PREVIEW、80% FINAL、busy/timeout/failed 结果、ACK、会话复位、当前目标 reassert 和受控输入压力均通过；压力窗口 P95 为 28 ms、最大 64 ms、无 ≥100 ms 样本。当前 GCC main 为 5,745,568 B，占 6 MiB 槽的 91.323%，D07 前必须完成资源裁剪或外置方案。</p>
+<p>固件 D01–D06 已通过主机、双工具链和开发板验收。D07 v2 已以 <code>967483d</code> 为批准基线；A0 的字符契约、确定性子集、双工具链预算解析、受控 SDK 补丁和 25 点主机 OOM 注入已经通过，尚待采集替换前通知页实屏基线。当前 GCC main 为 5,745,568 B，占 6 MiB 槽的 91.323%；A1 尚未替换字体，也没有产生新可刷镜像。</p>
 </section>
 <section id="目录" class="level2">
 <h2>目录</h2>

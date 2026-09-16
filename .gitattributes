@@ -17,6 +17,7 @@ docs/assets/engineering.js text eol=lf
 *.efoo text eol=lf
 *.esym text eol=lf
 *.txt text eol=lf
+*.patch text eol=lf -whitespace
 *.epro binary
 *.xlsx binary
 *.pdf binary

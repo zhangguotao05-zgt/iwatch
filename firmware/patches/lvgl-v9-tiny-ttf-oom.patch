@@ -1,0 +1,796 @@
+diff --git a/external/lvgl_v9/src/draw/lv_draw_buf.c b/external/lvgl_v9/src/draw/lv_draw_buf.c
+index 8e942dd3a4b6f3e2712cca81b224dad1d095ef8c..d4d34d7b97c2356035e7f26ca80825b473ba53fa 100644
+--- a/external/lvgl_v9/src/draw/lv_draw_buf.c
++++ b/external/lvgl_v9/src/draw/lv_draw_buf.c
+@@ -35,6 +35,8 @@ static void buf_copy(lv_draw_buf_t * dest, const lv_area_t * dest_area,
+ static void * buf_align(void * buf, lv_color_format_t color_format);
+ static void * draw_buf_malloc(const lv_draw_buf_handlers_t * handler, size_t size_bytes,
+                               lv_color_format_t color_format);
++static lv_draw_buf_t * draw_buf_create_ex(const lv_draw_buf_handlers_t * handlers, uint32_t w, uint32_t h,
++                                          lv_color_format_t cf, uint32_t stride, bool assert_descriptor);
+ static void draw_buf_free(const lv_draw_buf_handlers_t * handler, void * buf);
+ static uint32_t width_to_stride(uint32_t w, lv_color_format_t color_format);
+ static uint32_t _calculate_draw_buf_size(uint32_t w, uint32_t h, lv_color_format_t cf, uint32_t stride);
+@@ -254,11 +256,23 @@ lv_draw_buf_t * lv_draw_buf_create(uint32_t w, uint32_t h, lv_color_format_t cf,
+ 
+ lv_draw_buf_t * lv_draw_buf_create_ex(const lv_draw_buf_handlers_t * handlers, uint32_t w, uint32_t h,
+                                       lv_color_format_t cf, uint32_t stride)
++{
++    return draw_buf_create_ex(handlers, w, h, cf, stride, true);
++}
++
++lv_draw_buf_t * lv_draw_buf_try_create_ex(const lv_draw_buf_handlers_t * handlers, uint32_t w, uint32_t h,
++                                          lv_color_format_t cf, uint32_t stride)
++{
++    return draw_buf_create_ex(handlers, w, h, cf, stride, false);
++}
++
++static lv_draw_buf_t * draw_buf_create_ex(const lv_draw_buf_handlers_t * handlers, uint32_t w, uint32_t h,
++                                          lv_color_format_t cf, uint32_t stride, bool assert_descriptor)
+ {
+     LV_PROFILER_DRAW_BEGIN;
+     lv_draw_buf_t * draw_buf = lv_malloc_zeroed(sizeof(lv_draw_buf_t));
+-    LV_ASSERT_MALLOC(draw_buf);
+     if(draw_buf == NULL) {
++        if(assert_descriptor) LV_ASSERT_MALLOC(draw_buf);
+         LV_PROFILER_DRAW_END;
+         return NULL;
+     }
+diff --git a/external/lvgl_v9/src/draw/lv_draw_buf.h b/external/lvgl_v9/src/draw/lv_draw_buf.h
+index 30d5a9e6d72ad600f2e43dffda57f55d345e6141..e466987d4caf3a58adcd36dcb8b5192fd90b493d 100644
+--- a/external/lvgl_v9/src/draw/lv_draw_buf.h
++++ b/external/lvgl_v9/src/draw/lv_draw_buf.h
+@@ -230,6 +230,13 @@ lv_draw_buf_t * lv_draw_buf_create(uint32_t w, uint32_t h, lv_color_format_t cf,
+ lv_draw_buf_t * lv_draw_buf_create_ex(const lv_draw_buf_handlers_t * handlers, uint32_t w, uint32_t h,
+                                       lv_color_format_t cf, uint32_t stride);
+ 
++/**
++ * 创建允许内存不足返回 NULL 的绘制缓冲区。
++ * 仅供已经实现降级路径的调用方使用。
++ */
++lv_draw_buf_t * lv_draw_buf_try_create_ex(const lv_draw_buf_handlers_t * handlers, uint32_t w, uint32_t h,
++                                          lv_color_format_t cf, uint32_t stride);
++
+ /**
+  * Duplicate a draw buf with same image size, stride and color format. Copy the image data too.
+  * @param draw_buf  the draw buf to duplicate
+diff --git a/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.c b/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.c
+index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a93757cefdad 100644
+--- a/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.c
++++ b/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.c
+@@ -24,7 +24,8 @@
+ #define STBTT_HEAP_FACTOR_SIZE_32 50
+ #define STBTT_HEAP_FACTOR_SIZE_128 20
+ #define STBTT_HEAP_FACTOR_SIZE_DEFAULT 10
+-#define STBTT_malloc(x, u) ((void)(u), lv_malloc(x))
++static void * tiny_ttf_stb_malloc(size_t size, void * user_data);
++#define STBTT_malloc(x, u) tiny_ttf_stb_malloc((x), (u))
+ #define STBTT_free(x, u) ((void)(u), lv_free(x))
+ 
+ #if LV_TINY_TTF_FILE_SUPPORT != 0
+@@ -68,6 +69,8 @@ typedef struct ttf_font_desc {
+     int descent;
+     int cache_size;
+     lv_font_kerning_t kerning;
++    bool oom_latched;
++    bool stb_oom;
+ } ttf_font_desc_t;
+ 
+ typedef struct _tiny_ttf_glyph_cache_data_t {
+@@ -119,7 +122,10 @@ static void tiny_ttf_kerning_cache_free_cb(tiny_ttf_kerning_cache_data_t * node,
+ static lv_cache_compare_res_t tiny_ttf_kerning_cache_compare_cb(const tiny_ttf_kerning_cache_data_t * lhs,
+                                                                 const tiny_ttf_kerning_cache_data_t * rhs);
+ 
+-static void lv_tiny_ttf_cache_create(ttf_font_desc_t * dsc);
++static bool lv_tiny_ttf_cache_create(ttf_font_desc_t * dsc);
++static bool tiny_ttf_set_size(lv_font_t * font, int32_t font_size);
++static void tiny_ttf_desc_destroy(ttf_font_desc_t * dsc);
++static void tiny_ttf_report_oom(ttf_font_desc_t * dsc, lv_tiny_ttf_oom_reason_t reason);
+ 
+ static lv_font_t * tiny_ttf_font_create_cb(const lv_font_info_t * info, const void * src);
+ static void tiny_ttf_font_delete_cb(lv_font_t * font);
+@@ -140,6 +146,8 @@ const lv_font_class_t lv_tiny_ttf_font_class = {
+ /**********************
+  *  STATIC VARIABLES
+  **********************/
++static lv_tiny_ttf_oom_cb_t oom_cb;
++static void * oom_cb_user_data;
+ 
+ /**********************
+  *      MACROS
+@@ -149,11 +157,24 @@ const lv_font_class_t lv_tiny_ttf_font_class = {
+  *   GLOBAL FUNCTIONS
+  **********************/
+ 
++void lv_tiny_ttf_set_oom_cb(lv_tiny_ttf_oom_cb_t cb, void * user_data)
++{
++    oom_cb = cb;
++    oom_cb_user_data = user_data;
++}
++
+ void lv_tiny_ttf_set_size(lv_font_t * font, int32_t font_size)
++{
++    if(!tiny_ttf_set_size(font, font_size)) {
++        LV_LOG_ERROR("tiny_ttf: unable to change font size");
++    }
++}
++
++static bool tiny_ttf_set_size(lv_font_t * font, int32_t font_size)
+ {
+     if(font_size <= 0) {
+         LV_LOG_ERROR("invalid font size: %"LV_PRIx32, font_size);
+-        return;
++        return false;
+     }
+     ttf_font_desc_t * dsc = (ttf_font_desc_t *)font->dsc;
+     dsc->scale = stbtt_ScaleForMappingEmToPixels(&dsc->info, font_size);
+@@ -178,7 +199,7 @@ void lv_tiny_ttf_set_size(lv_font_t * font, int32_t font_size)
+         dsc->kerning_cache = NULL;
+     }
+ 
+-    lv_tiny_ttf_cache_create(dsc);
++    return lv_tiny_ttf_cache_create(dsc);
+ }
+ 
+ void lv_tiny_ttf_destroy(lv_font_t * font)
+@@ -187,15 +208,7 @@ void lv_tiny_ttf_destroy(lv_font_t * font)
+ 
+     if(font->dsc != NULL) {
+         ttf_font_desc_t * ttf = (ttf_font_desc_t *)font->dsc;
+-#if LV_TINY_TTF_FILE_SUPPORT != 0
+-        if(ttf->stream.file != NULL) {
+-            lv_fs_close(&ttf->file);
+-        }
+-#endif
+-        lv_cache_destroy(ttf->glyph_cache, NULL);
+-        lv_cache_destroy(ttf->draw_data_cache, NULL);
+-        lv_cache_destroy(ttf->kerning_cache, NULL);
+-        lv_free(ttf);
++        tiny_ttf_desc_destroy(ttf);
+         font->dsc = NULL;
+     }
+ 
+@@ -256,7 +269,7 @@ static uint16_t ttf_get_glyph_pair_kerning_width(const ttf_font_desc_t * dsc, ui
+         .dsc = dsc,
+     };
+ 
+-    if(dsc->kerning_cache->max_size == 0) {
++    if(dsc->oom_latched || dsc->kerning_cache == NULL || dsc->kerning_cache->max_size == 0) {
+         /* No cache, call the create function directly */
+         bool ret = tiny_ttf_kerning_cache_create_cb(&kerning_cache_search_key, (void *)&kerning_cache_create_data);
+         LV_ASSERT(ret);
+@@ -266,7 +279,11 @@ static uint16_t ttf_get_glyph_pair_kerning_width(const ttf_font_desc_t * dsc, ui
+     LV_ASSERT_NULL(dsc->kerning_cache);
+     lv_cache_entry_t * kerning_entry = lv_cache_acquire_or_create(dsc->kerning_cache, &kerning_cache_search_key,
+                                                                   (void *)&kerning_cache_create_data);
+-    LV_ASSERT_NULL(kerning_entry);
++    if(kerning_entry == NULL) {
++        tiny_ttf_report_oom((ttf_font_desc_t *)dsc, LV_TINY_TTF_OOM_GLYPH_METADATA);
++        tiny_ttf_kerning_cache_create_cb(&kerning_cache_search_key, (void *)&kerning_cache_create_data);
++        return kerning_cache_search_key.adv_w16;
++    }
+     tiny_ttf_kerning_cache_data_t * data = lv_cache_entry_get_data(kerning_entry);
+     LV_ASSERT_NULL(data);
+ 
+@@ -291,6 +308,10 @@ static bool ttf_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_t * d
+     }
+ 
+     ttf_font_desc_t * dsc = (ttf_font_desc_t *)font->dsc;
++    if(dsc == NULL || dsc->oom_latched || dsc->glyph_cache == NULL) return false;
++
++    int g1 = stbtt_FindGlyphIndex(&dsc->info, (int)unicode_letter);
++    if(g1 == 0) return false;
+ 
+     tiny_ttf_glyph_cache_data_t search_key = {
+         .unicode = unicode_letter,
+@@ -302,8 +323,7 @@ static bool ttf_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_t * d
+ 
+     if(entry == NULL) {
+         if(!dsc->cache_size) {  /* no cache, do everything directly */
+-            int g1 = stbtt_FindGlyphIndex(&dsc->info, (int)unicode_letter);
+-            tiny_ttf_glyph_cache_create_cb(&search_key, dsc);
++            if(!tiny_ttf_glyph_cache_create_cb(&search_key, dsc)) return false;
+             *dsc_out = search_key.glyph_dsc;
+             adv_w = search_key.adv_w;
+ 
+@@ -319,6 +339,7 @@ static bool ttf_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_t * d
+             dsc_out->entry = NULL;
+             return true;
+         }
++        tiny_ttf_report_oom(dsc, LV_TINY_TTF_OOM_GLYPH_METADATA);
+         LV_LOG_ERROR("cache not allocated");
+         return false;
+     }
+@@ -335,10 +356,13 @@ static bool ttf_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_t * d
+ 
+         int g2 = 0;
+         search_key.unicode = unicode_letter_next; /* reuse search key */
+-        lv_cache_entry_t * entry_next = lv_cache_acquire_or_create(dsc->glyph_cache, &search_key, (void *)dsc);
++        int next_glyph = stbtt_FindGlyphIndex(&dsc->info, (int)unicode_letter_next);
++        lv_cache_entry_t * entry_next = next_glyph ?
++                                        lv_cache_acquire_or_create(dsc->glyph_cache, &search_key, (void *)dsc) : NULL;
+ 
+         if(entry_next == NULL) {
+-            g2 = stbtt_FindGlyphIndex(&dsc->info, (int)unicode_letter_next);
++            g2 = next_glyph;
++            if(next_glyph) tiny_ttf_report_oom(dsc, LV_TINY_TTF_OOM_GLYPH_METADATA);
+         }
+         else {
+             tiny_ttf_glyph_cache_data_t * data_next = lv_cache_entry_get_data(entry_next);
+@@ -360,6 +384,7 @@ static const void * ttf_get_glyph_bitmap_cb(lv_font_glyph_dsc_t * g_dsc, lv_draw
+     uint32_t glyph_index = g_dsc->gid.index;
+     const lv_font_t * font = g_dsc->resolved_font;
+     ttf_font_desc_t * dsc = (ttf_font_desc_t *)font->dsc;
++    if(dsc == NULL || dsc->oom_latched || dsc->draw_data_cache == NULL) return NULL;
+     tiny_ttf_cache_data_t search_key = {
+         .glyph_index = glyph_index,
+         .size = font->line_height,
+@@ -377,6 +402,7 @@ static const void * ttf_get_glyph_bitmap_cb(lv_font_glyph_dsc_t * g_dsc, lv_draw
+                 return NULL;
+             }
+         }
++        tiny_ttf_report_oom(dsc, LV_TINY_TTF_OOM_GLYPH_BITMAP);
+         LV_LOG_ERROR("cache not allocated");
+         return NULL;
+     }
+@@ -392,7 +418,7 @@ static void ttf_release_glyph_cb(const lv_font_t * font, lv_font_glyph_dsc_t * g
+ 
+     ttf_font_desc_t * dsc = (ttf_font_desc_t *)font->dsc;
+     if(!dsc->cache_size) {  /* no cache, do everything directly */
+-        lv_draw_buf_destroy((lv_draw_buf_t *)g_dsc->entry);
++        if(g_dsc->entry) lv_draw_buf_destroy((lv_draw_buf_t *)g_dsc->entry);
+     }
+     else {
+         if(g_dsc->entry == NULL) {
+@@ -403,33 +429,58 @@ static void ttf_release_glyph_cb(const lv_font_t * font, lv_font_glyph_dsc_t * g
+     g_dsc->entry = NULL;
+ }
+ 
+-static void lv_tiny_ttf_cache_create(ttf_font_desc_t * dsc)
++static bool lv_tiny_ttf_cache_create(ttf_font_desc_t * dsc)
+ {
+-    /*Init cache*/
+-    dsc->glyph_cache = lv_cache_create(&lv_cache_class_lru_rb_count, sizeof(tiny_ttf_glyph_cache_data_t), dsc->cache_size,
++    /* 仅 tiny_ttf 使用可恢复缓存，其他缓存仍保留致命内存断言。 */
++    dsc->glyph_cache = lv_cache_try_create(&lv_cache_class_lru_rb_count_try,
++                                           sizeof(tiny_ttf_glyph_cache_data_t), dsc->cache_size,
+     (lv_cache_ops_t) {
+         .compare_cb = (lv_cache_compare_cb_t)tiny_ttf_glyph_cache_compare_cb,
+         .create_cb = (lv_cache_create_cb_t)tiny_ttf_glyph_cache_create_cb,
+         .free_cb = (lv_cache_free_cb_t)tiny_ttf_glyph_cache_free_cb
+     });
++    if(dsc->glyph_cache == NULL) {
++        tiny_ttf_report_oom(dsc, LV_TINY_TTF_OOM_GLYPH_CACHE);
++        goto failed;
++    }
+     lv_cache_set_name(dsc->glyph_cache, "TINY_TTF_GLYPH");
+ 
+-    dsc->draw_data_cache = lv_cache_create(&lv_cache_class_lru_rb_count, sizeof(tiny_ttf_cache_data_t), dsc->cache_size,
++    dsc->draw_data_cache = lv_cache_try_create(&lv_cache_class_lru_rb_count_try,
++                                               sizeof(tiny_ttf_cache_data_t), dsc->cache_size,
+     (lv_cache_ops_t) {
+         .compare_cb = (lv_cache_compare_cb_t)tiny_ttf_draw_data_cache_compare_cb,
+         .create_cb = (lv_cache_create_cb_t)tiny_ttf_draw_data_cache_create_cb,
+         .free_cb = (lv_cache_free_cb_t)tiny_ttf_draw_data_cache_free_cb,
+     });
++    if(dsc->draw_data_cache == NULL) {
++        tiny_ttf_report_oom(dsc, LV_TINY_TTF_OOM_DRAW_CACHE);
++        goto failed;
++    }
+     lv_cache_set_name(dsc->draw_data_cache, "TINY_TTF_DRAW_DATA");
+ 
+-    dsc->kerning_cache = lv_cache_create(&lv_cache_class_lru_rb_count, sizeof(tiny_ttf_kerning_cache_data_t),
+-                                         LV_TINY_TTF_CACHE_KERNING_CNT,
++    dsc->kerning_cache = lv_cache_try_create(&lv_cache_class_lru_rb_count_try,
++                                             sizeof(tiny_ttf_kerning_cache_data_t),
++                                             LV_TINY_TTF_CACHE_KERNING_CNT,
+     (lv_cache_ops_t) {
+         .compare_cb = (lv_cache_compare_cb_t)tiny_ttf_kerning_cache_compare_cb,
+         .create_cb = (lv_cache_create_cb_t)tiny_ttf_kerning_cache_create_cb,
+         .free_cb = (lv_cache_free_cb_t)tiny_ttf_kerning_cache_free_cb,
+     });
++    if(dsc->kerning_cache == NULL) {
++        tiny_ttf_report_oom(dsc, LV_TINY_TTF_OOM_KERNING_CACHE);
++        goto failed;
++    }
+     lv_cache_set_name(dsc->kerning_cache, "TINY_TTF_KERNING_DATA");
++    return true;
++
++failed:
++    if(dsc->kerning_cache) lv_cache_destroy(dsc->kerning_cache, NULL);
++    if(dsc->draw_data_cache) lv_cache_destroy(dsc->draw_data_cache, NULL);
++    if(dsc->glyph_cache) lv_cache_destroy(dsc->glyph_cache, NULL);
++    dsc->kerning_cache = NULL;
++    dsc->draw_data_cache = NULL;
++    dsc->glyph_cache = NULL;
++    return false;
+ }
+ 
+ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size_t data_size, int32_t font_size,
+@@ -442,6 +493,7 @@ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size
+     }
+     ttf_font_desc_t * dsc = lv_malloc_zeroed(sizeof(ttf_font_desc_t));
+     if(dsc == NULL) {
++        tiny_ttf_report_oom(NULL, LV_TINY_TTF_OOM_FONT_DESC);
+         LV_LOG_ERROR("tiny_ttf: out of memory");
+         return NULL;
+     }
+@@ -459,7 +511,7 @@ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size
+         dsc->stream.size = data_size;
+     }
+     if(0 == stbtt_InitFont(&dsc->info, &dsc->stream, stbtt_GetFontOffsetForIndex(&dsc->stream, 0))) {
+-        lv_free(dsc);
++        tiny_ttf_desc_destroy(dsc);
+         LV_LOG_ERROR("tiny_ttf: init failed");
+         return NULL;
+     }
+@@ -467,7 +519,7 @@ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size
+ #else
+     dsc->stream = (const uint8_t *)data;
+     if(0 == stbtt_InitFont(&dsc->info, dsc->stream, stbtt_GetFontOffsetForIndex(dsc->stream, 0))) {
+-        lv_free(dsc);
++        tiny_ttf_desc_destroy(dsc);
+         LV_LOG_ERROR("tiny_ttf: init failed");
+         return NULL;
+     }
+@@ -477,7 +529,8 @@ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size
+ 
+     lv_font_t * out_font = lv_malloc_zeroed(sizeof(lv_font_t));
+     if(out_font == NULL) {
+-        lv_free(dsc);
++        tiny_ttf_report_oom(dsc, LV_TINY_TTF_OOM_FONT_OBJECT);
++        tiny_ttf_desc_destroy(dsc);
+         LV_LOG_ERROR("tiny_ttf: out of memory");
+         return NULL;
+     }
+@@ -496,7 +549,11 @@ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size
+     out_font->get_glyph_bitmap = ttf_get_glyph_bitmap_cb;
+     out_font->release_glyph = ttf_release_glyph_cb;
+     out_font->dsc = dsc;
+-    lv_tiny_ttf_set_size(out_font, font_size);
++    if(!tiny_ttf_set_size(out_font, font_size)) {
++        lv_tiny_ttf_destroy(out_font);
++        return NULL;
++    }
++    dsc->info.userdata = dsc;
+     return out_font;
+ }
+ #if LV_TINY_TTF_FILE_SUPPORT != 0
+@@ -596,8 +653,10 @@ static bool tiny_ttf_draw_data_cache_create_cb(tiny_ttf_cache_data_t * node, voi
+     w = x2 - x1 + 1;
+     h = y2 - y1 + 1;
+ 
+-    lv_draw_buf_t * draw_buf = lv_draw_buf_create_ex(font_draw_buf_handlers, w, h, LV_COLOR_FORMAT_A8, LV_STRIDE_AUTO);
++    lv_draw_buf_t * draw_buf = lv_draw_buf_try_create_ex(font_draw_buf_handlers, w, h, LV_COLOR_FORMAT_A8,
++                                                         LV_STRIDE_AUTO);
+     if(NULL == draw_buf) {
++        tiny_ttf_report_oom(dsc, LV_TINY_TTF_OOM_GLYPH_BITMAP);
+         LV_LOG_ERROR("tiny_ttf: out of memory");
+         return false;
+     }
+@@ -605,7 +664,13 @@ static bool tiny_ttf_draw_data_cache_create_cb(tiny_ttf_cache_data_t * node, voi
+     lv_draw_buf_clear(draw_buf, NULL);
+ 
+     uint32_t stride = draw_buf->header.stride;
++    dsc->stb_oom = false;
+     stbtt_MakeGlyphBitmap(info, draw_buf->data, w, h, stride, dsc->scale, dsc->scale, g1);
++    if(dsc->stb_oom) {
++        lv_draw_buf_destroy(draw_buf);
++        tiny_ttf_report_oom(dsc, LV_TINY_TTF_OOM_GLYPH_BITMAP);
++        return false;
++    }
+ 
+     lv_draw_buf_flush_cache(draw_buf, NULL);
+     node->draw_buf = draw_buf;
+@@ -616,7 +681,7 @@ static void tiny_ttf_draw_data_cache_free_cb(tiny_ttf_cache_data_t * node, void
+ {
+     LV_UNUSED(user_data);
+ 
+-    lv_draw_buf_destroy(node->draw_buf);
++    if(node->draw_buf) lv_draw_buf_destroy(node->draw_buf);
+ }
+ 
+ static lv_cache_compare_res_t tiny_ttf_draw_data_cache_compare_cb(const tiny_ttf_cache_data_t * lhs,
+@@ -693,11 +758,19 @@ static void * tiny_ttf_font_dup_src_cb(const void * src)
+     const lv_tiny_ttf_font_src_t * font_src = src;
+ 
+     lv_tiny_ttf_font_src_t * new_src = lv_malloc_zeroed(sizeof(lv_tiny_ttf_font_src_t));
+-    LV_ASSERT_MALLOC(new_src);
++    if(new_src == NULL) {
++        tiny_ttf_report_oom(NULL, LV_TINY_TTF_OOM_FONT_OBJECT);
++        return NULL;
++    }
+     *new_src = *font_src;
+ 
+     if(font_src->path) {
+         new_src->path = lv_strdup(font_src->path);
++        if(new_src->path == NULL) {
++            tiny_ttf_report_oom(NULL, LV_TINY_TTF_OOM_FONT_OBJECT);
++            lv_free(new_src);
++            return NULL;
++        }
+     }
+ 
+     return new_src;
+@@ -714,4 +787,34 @@ static void tiny_ttf_font_free_src_cb(void * src)
+     lv_free(font_src);
+ }
+ 
++static void tiny_ttf_desc_destroy(ttf_font_desc_t * dsc)
++{
++    if(dsc == NULL) return;
++#if LV_TINY_TTF_FILE_SUPPORT != 0
++    if(dsc->stream.file != NULL) lv_fs_close(&dsc->file);
++#endif
++    if(dsc->glyph_cache) lv_cache_destroy(dsc->glyph_cache, NULL);
++    if(dsc->draw_data_cache) lv_cache_destroy(dsc->draw_data_cache, NULL);
++    if(dsc->kerning_cache) lv_cache_destroy(dsc->kerning_cache, NULL);
++    lv_free(dsc);
++}
++
++static void tiny_ttf_report_oom(ttf_font_desc_t * dsc, lv_tiny_ttf_oom_reason_t reason)
++{
++    if(dsc != NULL) {
++        if(dsc->oom_latched) return;
++        dsc->oom_latched = true;
++    }
++    if(oom_cb) oom_cb(reason, oom_cb_user_data);
++}
++
++static void * tiny_ttf_stb_malloc(size_t size, void * user_data)
++{
++    void * memory = lv_malloc(size);
++    if(memory == NULL && user_data != NULL) {
++        ((ttf_font_desc_t *)user_data)->stb_oom = true;
++    }
++    return memory;
++}
++
+ #endif
+diff --git a/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.h b/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.h
+index 09910bca97871a87bb26168911c13f10b7c0c59e..e18a7977031d104d77c9aa8bef44ca3346012a66 100644
+--- a/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.h
++++ b/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.h
+@@ -32,12 +32,29 @@ typedef struct {
+     size_t cache_size; /**< Size of the font cache*/
+ } lv_tiny_ttf_font_src_t;
+ 
++typedef enum {
++    LV_TINY_TTF_OOM_FONT_DESC = 0,
++    LV_TINY_TTF_OOM_FONT_OBJECT,
++    LV_TINY_TTF_OOM_GLYPH_CACHE,
++    LV_TINY_TTF_OOM_DRAW_CACHE,
++    LV_TINY_TTF_OOM_KERNING_CACHE,
++    LV_TINY_TTF_OOM_GLYPH_METADATA,
++    LV_TINY_TTF_OOM_GLYPH_BITMAP,
++} lv_tiny_ttf_oom_reason_t;
++
++typedef void (*lv_tiny_ttf_oom_cb_t)(lv_tiny_ttf_oom_reason_t reason, void * user_data);
++
+ LV_ATTRIBUTE_EXTERN_DATA extern const lv_font_class_t lv_tiny_ttf_font_class;
+ 
+ /**********************
+  * GLOBAL PROTOTYPES
+  **********************/
+ 
++/**
++ * 设置 tiny_ttf 内存不足通知。回调只允许置位或增加饱和计数。
++ */
++void lv_tiny_ttf_set_oom_cb(lv_tiny_ttf_oom_cb_t cb, void * user_data);
++
+ #if LV_TINY_TTF_FILE_SUPPORT != 0
+ /**
+  * Create a font from the specified file or path with the specified line height.
+diff --git a/external/lvgl_v9/src/libs/tiny_ttf/stb_truetype_htcw.h b/external/lvgl_v9/src/libs/tiny_ttf/stb_truetype_htcw.h
+index d2dc388be0d152c4335193582200411df3e98dcb..f21402e3e926c275d9b9a2722ee31949df1f2740 100644
+--- a/external/lvgl_v9/src/libs/tiny_ttf/stb_truetype_htcw.h
++++ b/external/lvgl_v9/src/libs/tiny_ttf/stb_truetype_htcw.h
+@@ -3133,8 +3133,8 @@ static stbtt__active_edge * stbtt__new_active(stbtt__hheap * hh, stbtt__edge * e
+ {
+     stbtt__active_edge * z = (stbtt__active_edge *)stbtt__hheap_alloc(hh, sizeof(*z), userdata);
+     float dxdy = (e->x1 - e->x0) / (e->y1 - e->y0);
+-    STBTT_assert(z != NULL);
+     if(!z) return z;
++    STBTT_assert(z != NULL);
+ 
+     // round dx down to avoid overshooting
+     if(dxdy < 0)
+@@ -3157,9 +3157,9 @@ static stbtt__active_edge * stbtt__new_active(stbtt__hheap * hh, stbtt__edge * e
+ {
+     stbtt__active_edge * z = (stbtt__active_edge *)stbtt__hheap_alloc(hh, sizeof(*z), userdata);
+     float dxdy = (e->x1 - e->x0) / (e->y1 - e->y0);
++    if(!z) return z;
+     STBTT_assert(z != NULL);
+     //STBTT_assert(e->y0 <= start_point);
+-    if(!z) return z;
+     z->fdx = dxdy;
+     z->fdy = dxdy != 0.0f ? (1.0f / dxdy) : 0.0f;
+     z->fx = e->x0 + dxdy * (start_point - e->y0);
+@@ -3234,8 +3234,10 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap * result, stbtt__edge *
+     int s; // vertical subsample index
+     unsigned char scanline_data[512], * scanline;
+ 
+-    if(result->w > 512)
++    if(result->w > 512) {
+         scanline = (unsigned char *)STBTT_malloc(result->w, userdata);
++        if(scanline == NULL) return;
++    }
+     else
+         scanline = scanline_data;
+ 
+@@ -3625,8 +3627,10 @@ static void stbtt__rasterize_sorted_edges(stbtt__bitmap * result, stbtt__edge *
+ 
+     STBTT__NOTUSED(vsubsample);
+ 
+-    if(result->w > 64)
++    if(result->w > 64) {
+         scanline = (float *)STBTT_malloc((result->w * 2 + 1) * sizeof(float), userdata);
++        if(scanline == NULL) return;
++    }
+     else
+         scanline = scanline_data;
+ 
+diff --git a/external/lvgl_v9/src/misc/cache/class/lv_cache_lru_rb.c b/external/lvgl_v9/src/misc/cache/class/lv_cache_lru_rb.c
+index 79b64b18826bc090c9674f9fbb47d6a4104e5d26..8d73fa5c4d9481c3c6c2e8bd550f0866ccec530f 100644
+--- a/external/lvgl_v9/src/misc/cache/class/lv_cache_lru_rb.c
++++ b/external/lvgl_v9/src/misc/cache/class/lv_cache_lru_rb.c
+@@ -76,12 +76,14 @@ typedef struct _lv_lru_rb_t lv_lru_rb_t_;
+  **********************/
+ 
+ static void * alloc_cb(void);
++static void * alloc_try_cb(void);
+ static bool init_cnt_cb(lv_cache_t * cache);
+ static bool init_size_cb(lv_cache_t * cache);
+ static void  destroy_cb(lv_cache_t * cache, void * user_data);
+ 
+ static lv_cache_entry_t * get_cb(lv_cache_t * cache, const void * key, void * user_data);
+ static lv_cache_entry_t * add_cb(lv_cache_t * cache, const void * key, void * user_data);
++static lv_cache_entry_t * add_try_cb(lv_cache_t * cache, const void * key, void * user_data);
+ static void remove_cb(lv_cache_t * cache, lv_cache_entry_t * entry, void * user_data);
+ static void drop_cb(lv_cache_t * cache, const void * key, void * user_data);
+ static void drop_all_cb(lv_cache_t * cache, void * user_data);
+@@ -89,7 +91,7 @@ static lv_cache_entry_t * get_victim_cb(lv_cache_t * cache, void * user_data);
+ static lv_cache_reserve_cond_res_t reserve_cond_cb(lv_cache_t * cache, const void * key, size_t reserved_size,
+                                                    void * user_data);
+ 
+-static void * alloc_new_node(lv_lru_rb_t_ * lru, void * key, void * user_data);
++static void * alloc_new_node(lv_lru_rb_t_ * lru, void * key, void * user_data, bool try_alloc);
+ inline static void ** get_lru_node(lv_lru_rb_t_ * lru, lv_rb_node_t * node);
+ 
+ static uint32_t cnt_get_data_size_cb(const void * data);
+@@ -130,6 +132,21 @@ const lv_cache_class_t lv_cache_class_lru_rb_size = {
+     .reserve_cond_cb = reserve_cond_cb,
+     .iter_create_cb = cache_iter_create_cb,
+ };
++
++const lv_cache_class_t lv_cache_class_lru_rb_count_try = {
++    .alloc_cb = alloc_try_cb,
++    .init_cb = init_cnt_cb,
++    .destroy_cb = destroy_cb,
++
++    .get_cb = get_cb,
++    .add_cb = add_try_cb,
++    .remove_cb = remove_cb,
++    .drop_cb = drop_cb,
++    .drop_all_cb = drop_all_cb,
++    .get_victim_cb = get_victim_cb,
++    .reserve_cond_cb = reserve_cond_cb,
++    .iter_create_cb = cache_iter_create_cb,
++};
+ /**********************
+  *  STATIC VARIABLES
+  **********************/
+@@ -145,7 +162,7 @@ const lv_cache_class_t lv_cache_class_lru_rb_size = {
+ /**********************
+  *   STATIC FUNCTIONS
+  **********************/
+-static void * alloc_new_node(lv_lru_rb_t_ * lru, void * key, void * user_data)
++static void * alloc_new_node(lv_lru_rb_t_ * lru, void * key, void * user_data, bool try_alloc)
+ {
+     LV_UNUSED(user_data);
+ 
+@@ -156,7 +173,7 @@ static void * alloc_new_node(lv_lru_rb_t_ * lru, void * key, void * user_data)
+         return NULL;
+     }
+ 
+-    lv_rb_node_t * node = lv_rb_insert(&lru->rb, key);
++    lv_rb_node_t * node = try_alloc ? lv_rb_try_insert(&lru->rb, key) : lv_rb_insert(&lru->rb, key);
+     if(node == NULL)
+         goto FAILED_HANDLER2;
+ 
+@@ -189,7 +206,19 @@ inline static void ** get_lru_node(lv_lru_rb_t_ * lru, lv_rb_node_t * node)
+ static void * alloc_cb(void)
+ {
+     void * res = lv_malloc(sizeof(lv_lru_rb_t_));
+-    LV_ASSERT_MALLOC(res);
++    if(res == NULL) {
++        LV_ASSERT_MALLOC(res);
++        LV_LOG_ERROR("malloc failed");
++        return NULL;
++    }
++
++    lv_memzero(res, sizeof(lv_lru_rb_t_));
++    return res;
++}
++
++static void * alloc_try_cb(void)
++{
++    void * res = lv_malloc(sizeof(lv_lru_rb_t_));
+     if(res == NULL) {
+         LV_LOG_ERROR("malloc failed");
+         return NULL;
+@@ -310,7 +339,7 @@ static lv_cache_entry_t * add_cb(lv_cache_t * cache, const void * key, void * us
+         return NULL;
+     }
+ 
+-    lv_rb_node_t * new_node = alloc_new_node(lru, (void *)key, user_data);
++    lv_rb_node_t * new_node = alloc_new_node(lru, (void *)key, user_data, false);
+     if(new_node == NULL) {
+         return NULL;
+     }
+@@ -322,6 +351,21 @@ static lv_cache_entry_t * add_cb(lv_cache_t * cache, const void * key, void * us
+     return entry;
+ }
+ 
++static lv_cache_entry_t * add_try_cb(lv_cache_t * cache, const void * key, void * user_data)
++{
++    LV_UNUSED(user_data);
++
++    lv_lru_rb_t_ * lru = (lv_lru_rb_t_ *)cache;
++    if(lru == NULL || key == NULL) return NULL;
++
++    lv_rb_node_t * new_node = alloc_new_node(lru, (void *)key, user_data, true);
++    if(new_node == NULL) return NULL;
++
++    lv_cache_entry_t * entry = lv_cache_entry_get_entry(new_node->data, cache->node_size);
++    cache->size += lru->get_data_size_cb(key);
++    return entry;
++}
++
+ static void remove_cb(lv_cache_t * cache, lv_cache_entry_t * entry, void * user_data)
+ {
+     LV_UNUSED(user_data);
+diff --git a/external/lvgl_v9/src/misc/cache/class/lv_cache_lru_rb.h b/external/lvgl_v9/src/misc/cache/class/lv_cache_lru_rb.h
+index a7dbdc0995f59cd64ab382037a0376098c4c6051..805d3748a91423235ac647b11e9f4c4d96576cf5 100644
+--- a/external/lvgl_v9/src/misc/cache/class/lv_cache_lru_rb.h
++++ b/external/lvgl_v9/src/misc/cache/class/lv_cache_lru_rb.h
+@@ -33,6 +33,7 @@ extern "C" {
+  *************************/
+ LV_ATTRIBUTE_EXTERN_DATA extern const lv_cache_class_t lv_cache_class_lru_rb_count;
+ LV_ATTRIBUTE_EXTERN_DATA extern const lv_cache_class_t lv_cache_class_lru_rb_size;
++LV_ATTRIBUTE_EXTERN_DATA extern const lv_cache_class_t lv_cache_class_lru_rb_count_try;
+ /**********************
+  *      MACROS
+  **********************/
+diff --git a/external/lvgl_v9/src/misc/cache/lv_cache.c b/external/lvgl_v9/src/misc/cache/lv_cache.c
+index a029db17909ecec3d8f21e188ad72509124ffa40..b30e6e353532fa2f1623cb519a3f6180c244bdc0 100644
+--- a/external/lvgl_v9/src/misc/cache/lv_cache.c
++++ b/external/lvgl_v9/src/misc/cache/lv_cache.c
+@@ -27,6 +27,8 @@
+ static void cache_drop_internal_no_lock(lv_cache_t * cache, const void * key, void * user_data);
+ static bool cache_evict_one_internal_no_lock(lv_cache_t * cache, void * user_data);
+ static lv_cache_entry_t * cache_add_internal_no_lock(lv_cache_t * cache, const void * key, void * user_data);
++static lv_cache_t * cache_create(const lv_cache_class_t * cache_class, size_t node_size, size_t max_size,
++                                 lv_cache_ops_t ops, bool assert_on_failure);
+ 
+ /**********************
+  *  GLOBAL VARIABLES
+@@ -47,9 +49,25 @@ static lv_cache_entry_t * cache_add_internal_no_lock(lv_cache_t * cache, const v
+ lv_cache_t * lv_cache_create(const lv_cache_class_t * cache_class,
+                              size_t node_size, size_t max_size,
+                              lv_cache_ops_t ops)
++{
++    return cache_create(cache_class, node_size, max_size, ops, true);
++}
++
++lv_cache_t * lv_cache_try_create(const lv_cache_class_t * cache_class,
++                                 size_t node_size, size_t max_size,
++                                 lv_cache_ops_t ops)
++{
++    return cache_create(cache_class, node_size, max_size, ops, false);
++}
++
++static lv_cache_t * cache_create(const lv_cache_class_t * cache_class, size_t node_size, size_t max_size,
++                                 lv_cache_ops_t ops, bool assert_on_failure)
+ {
+     lv_cache_t * cache = cache_class->alloc_cb();
+-    LV_ASSERT_MALLOC(cache);
++    if(cache == NULL) {
++        if(assert_on_failure) LV_ASSERT_MALLOC(cache);
++        return NULL;
++    }
+ 
+     cache->clz = cache_class;
+     cache->node_size = node_size;
+diff --git a/external/lvgl_v9/src/misc/cache/lv_cache.h b/external/lvgl_v9/src/misc/cache/lv_cache.h
+index 3e393e8732ac33948a737ef9ef4d01a8bd1b4891..8a7e4041cfd04aada0503de0580a5af4e138177a 100644
+--- a/external/lvgl_v9/src/misc/cache/lv_cache.h
++++ b/external/lvgl_v9/src/misc/cache/lv_cache.h
+@@ -49,6 +49,14 @@ lv_cache_t * lv_cache_create(const lv_cache_class_t * cache_class,
+                              size_t node_size, size_t max_size,
+                              lv_cache_ops_t ops);
+ 
++/**
++ * 创建允许内存不足返回 NULL 的缓存对象。
++ * 仅供已经实现完整回滚和降级路径的调用方使用。
++ */
++lv_cache_t * lv_cache_try_create(const lv_cache_class_t * cache_class,
++                                 size_t node_size, size_t max_size,
++                                 lv_cache_ops_t ops);
++
+ /**
+  * Destroy a cache object.
+  * @param cache         The cache object pointer to destroy.
+diff --git a/external/lvgl_v9/src/misc/lv_rb.c b/external/lvgl_v9/src/misc/lv_rb.c
+index 8a7328caaa03e158f4cdd453ab7101fb88a06d6a..5df038391b4f9d8bf389316c58a6af1b2c420f95 100644
+--- a/external/lvgl_v9/src/misc/lv_rb.c
++++ b/external/lvgl_v9/src/misc/lv_rb.c
+@@ -21,7 +21,8 @@
+  *  STATIC PROTOTYPES
+  **********************/
+ 
+-static lv_rb_node_t * rb_create_node(lv_rb_t * tree);
++static lv_rb_node_t * rb_create_node(lv_rb_t * tree, bool assert_on_failure);
++static lv_rb_node_t * rb_insert(lv_rb_t * tree, void * key, bool assert_on_failure);
+ static lv_rb_node_t * rb_find_leaf_parent(lv_rb_t * tree, lv_rb_node_t * node);
+ static void rb_right_rotate(lv_rb_t * tree, lv_rb_node_t * node);
+ static void rb_left_rotate(lv_rb_t * tree, lv_rb_node_t * node);
+@@ -64,6 +65,16 @@ bool lv_rb_init(lv_rb_t * tree, lv_rb_compare_t compare, size_t node_size)
+ }
+ 
+ lv_rb_node_t * lv_rb_insert(lv_rb_t * tree, void * key)
++{
++    return rb_insert(tree, key, true);
++}
++
++lv_rb_node_t * lv_rb_try_insert(lv_rb_t * tree, void * key)
++{
++    return rb_insert(tree, key, false);
++}
++
++static lv_rb_node_t * rb_insert(lv_rb_t * tree, void * key, bool assert_on_failure)
+ {
+     LV_ASSERT_NULL(tree);
+     if(tree == NULL) {
+@@ -73,7 +84,7 @@ lv_rb_node_t * lv_rb_insert(lv_rb_t * tree, void * key)
+     lv_rb_node_t * node = lv_rb_find(tree, key);
+     if(node) return node;
+     else {
+-        node = rb_create_node(tree);
++        node = rb_create_node(tree, assert_on_failure);
+         if(node == NULL) return NULL;
+ 
+         if(tree->root == NULL) {
+@@ -330,17 +341,17 @@ lv_rb_node_t * lv_rb_maximum_from(lv_rb_node_t * node)
+  *   STATIC FUNCTIONS
+  **********************/
+ 
+-static lv_rb_node_t * rb_create_node(lv_rb_t * tree)
++static lv_rb_node_t * rb_create_node(lv_rb_t * tree, bool assert_on_failure)
+ {
+     lv_rb_node_t * node = lv_malloc_zeroed(sizeof(lv_rb_node_t));
+-    LV_ASSERT_MALLOC(node);
+     if(node == NULL) {
++        if(assert_on_failure) LV_ASSERT_MALLOC(node);
+         return NULL;
+     }
+ 
+     node->data = lv_malloc_zeroed(tree->size);
+-    LV_ASSERT_MALLOC(node->data);
+     if(node->data == NULL) {
++        if(assert_on_failure) LV_ASSERT_MALLOC(node->data);
+         lv_free(node);
+         return NULL;
+     }
+diff --git a/external/lvgl_v9/src/misc/lv_rb.h b/external/lvgl_v9/src/misc/lv_rb.h
+index bec0a788f72804e4e3bfd3ad033e7c5eb4835a24..7398630f736d10a394252a7e6136c8ef7b4924b3 100644
+--- a/external/lvgl_v9/src/misc/lv_rb.h
++++ b/external/lvgl_v9/src/misc/lv_rb.h
+@@ -40,6 +40,7 @@ typedef lv_rb_compare_res_t (*lv_rb_compare_t)(const void * a, const void * b);
+ 
+ bool lv_rb_init(lv_rb_t * tree, lv_rb_compare_t compare, size_t node_size);
+ lv_rb_node_t * lv_rb_insert(lv_rb_t * tree, void * key);
++lv_rb_node_t * lv_rb_try_insert(lv_rb_t * tree, void * key);
+ lv_rb_node_t * lv_rb_find(lv_rb_t * tree, const void * key);
+ void * lv_rb_remove_node(lv_rb_t * tree, lv_rb_node_t * node);
+ void * lv_rb_remove(lv_rb_t * tree, const void * key);

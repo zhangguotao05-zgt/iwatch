@@ -1,0 +1,67 @@
+{
+  "schema": 1,
+  "approval_base_commit": "967483d",
+  "source": {
+    "path": "firmware/iwatch/src/gui_apps/clock/app_clock_status_bar.c",
+    "sha256": "1b3ae9ed61fc7415a9938589285041f96269604825f105bee09c96e09096f517"
+  },
+  "display": {
+    "width_px": 390,
+    "height_px": 450,
+    "header": "Notifications",
+    "title_width_percent": 80,
+    "content_width_percent": 100,
+    "title_long_mode": "LV_LABEL_LONG_SCROLL_CIRCULAR",
+    "content_long_mode": "LV_LABEL_LONG_WRAP"
+  },
+  "legacy_sizes_px": [16, 18, 20, 22, 24, 26, 28],
+  "notifications": [
+    {
+      "title": "思澈科技欢迎您",
+      "content": "思澈科技欢迎您",
+      "title_size_px": 18,
+      "content_size_px": 16,
+      "content_height_percent": 20
+    },
+    {
+      "title": "思澈科技欢迎您",
+      "content": "思澈科技欢迎您",
+      "title_size_px": 22,
+      "content_size_px": 20,
+      "content_height_percent": 20
+    },
+    {
+      "title": "思澈科技欢迎您",
+      "content": "思澈科技欢迎您",
+      "title_size_px": 24,
+      "content_size_px": 22,
+      "content_height_percent": 20
+    },
+    {
+      "title": "关于我们",
+      "content": "思澈科技是一家专注于物联网技术的公司，提供一站式的物联网解决方案。最先提出嵌入式MCU+GPU的物联网解决方案，为客户提供更高性能、更低功耗的物联网产品。",
+      "title_size_px": 26,
+      "content_size_px": 24,
+      "content_height_percent": 80
+    },
+    {
+      "title": "我们是谁",
+      "content": "思澈科技成立於2019年3月，總部位於上海張江高科技園區，在重慶、北京、深圳、蘇州均設有分子公司，團隊成員均來自於美國、中國的一線電晶體設計企業，包括Marvell、 Broadcom、Amazon、 紫光展銳、聯發科等，碩士以上學歷占比超過80%； 團隊骨幹具有豐富的產品定義->自主研發->大規模量產的全流程經驗，由這些骨幹成員主導研發的晶片累計出貨超過10億顆。",
+      "title_size_px": 28,
+      "content_size_px": 26,
+      "content_height_percent": 80
+    }
+  ],
+  "real_screen_capture": {
+    "status": "pending",
+    "required_before_a1_flash": true,
+    "required_views": [
+      "通知页顶部及前三条短通知",
+      "关于我们长文换行",
+      "我们是谁简繁体长文换行",
+      "20% 亮度",
+      "80% 亮度"
+    ],
+    "evidence": []
+  }
+}

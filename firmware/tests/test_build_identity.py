@@ -1,6 +1,7 @@
 from pathlib import Path
 import copy
 import json
+import os
 import sys
 import struct
 import tempfile
@@ -92,6 +93,25 @@ class BuildIdentityTests(unittest.TestCase):
             path.write_text('map without a linker signature\n', encoding='utf-8')
             with self.assertRaisesRegex(ValueError, 'unrecognized'):
                 identity.require_map_toolchain(path, 'gcc')
+
+    def test_source_snapshot_accepts_only_declared_sdk_states(self):
+        root = Path(__file__).resolve().parents[2]
+        base = Path(os.environ.get('IWATCH_BASE_SDK',
+                                   r'C:\OpenSiFli\SiFli-SDK-v2.5.1-iwatch-locked'))
+        derived = Path(os.environ.get('IWATCH_PATCHED_SDK', str(root / 'work/sdk-d07-a0')))
+        if not base.exists() or not derived.exists():
+            self.skipTest('local fixed and derived SDK worktrees are not present')
+
+        base_snapshot = identity.source_snapshot(base, self.profile, self.config)
+        self.assertEqual('base', base_snapshot['sdk_mode'])
+        self.assertTrue(base_snapshot['sdk_clean'])
+        self.assertIsNone(base_snapshot['sdk_patch'])
+
+        derived_snapshot = identity.source_snapshot(derived, self.profile, self.config)
+        self.assertEqual('patched', derived_snapshot['sdk_mode'])
+        self.assertFalse(derived_snapshot['sdk_clean'])
+        self.assertEqual(identity.sdk_patch.load_manifest()[0]['patch_sha256'],
+                         derived_snapshot['sdk_patch']['sha256'])
 
 
 if __name__ == '__main__':

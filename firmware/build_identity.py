@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 import check_layout
+import sdk_patch
 
 FIRMWARE = Path(__file__).resolve().parent
 ROOT = FIRMWARE.parent
@@ -55,12 +56,10 @@ def image_budget(size, profile):
 
 
 def source_snapshot(sdk, profile, config):
-    commit = git(sdk, 'rev-parse', 'HEAD')
+    sdk_state = sdk_patch.identify_sdk(sdk)
+    commit = sdk_state['sdk_commit']
     if commit != config['sdk_commit']:
         raise ValueError(f'wrong SDK commit: {commit}')
-    dirty = git(sdk, 'status', '--porcelain', '--untracked-files=normal')
-    if dirty:
-        raise ValueError('SDK must be clean; use a separate worktree at the pinned commit:\n' + dirty)
     modules = git(sdk, 'submodule', 'status', '--recursive').splitlines()
     if len(modules) < 2 or any(line.startswith(('-', '+', 'U')) for line in modules):
         raise ValueError('SDK submodules are missing or differ from the pinned revision')
@@ -83,7 +82,15 @@ def source_snapshot(sdk, profile, config):
     bsp_files = {path.relative_to(sdk).as_posix(): sha(path) for path in sorted(bsp.rglob('*')) if path.is_file()}
     if not (bsp/'script/SConscript').is_file() or len(list(bsp.glob('*.c'))) != 4:
         raise ValueError('unexpected actual SDK BSP source set')
-    return {'sdk_commit': commit, 'sdk_clean': True, 'sdk_submodules': [line.strip().split()[:2] for line in modules],
+    patch_identity = None
+    if sdk_state['mode'] == 'patched':
+        patch_identity = {
+            'sha256': sdk_state['patch_sha256'],
+            'files': sdk_state['patched_file_sha256'],
+        }
+    return {'sdk_commit': commit, 'sdk_mode': sdk_state['mode'],
+            'sdk_clean': sdk_state['mode'] == 'base', 'sdk_patch': patch_identity,
+            'sdk_submodules': [line.strip().split()[:2] for line in modules],
             'sdk_bsp': bsp_files, 'project_inputs': sources}
 
 

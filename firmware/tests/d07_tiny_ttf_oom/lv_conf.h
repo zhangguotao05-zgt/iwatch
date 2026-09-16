@@ -1,0 +1,24 @@
+#ifndef LV_CONF_H
+#define LV_CONF_H
+
+#define LV_COLOR_DEPTH 16
+#define LV_USE_OS LV_OS_NONE
+#define LV_USE_STDLIB_MALLOC LV_STDLIB_CUSTOM
+#define LV_USE_STDLIB_STRING LV_STDLIB_CLIB
+#define LV_USE_STDLIB_SPRINTF LV_STDLIB_CLIB
+#define LV_USE_LOG 0
+
+#define LV_USE_ASSERT_NULL 1
+#define LV_USE_ASSERT_MALLOC 1
+#define LV_ASSERT_HANDLER_INCLUDE "tiny_ttf_test_hooks.h"
+#define LV_ASSERT_HANDLER tiny_ttf_test_assert_handler();
+
+#define LV_USE_TINY_TTF 1
+#define LV_TINY_TTF_FILE_SUPPORT 0
+#define LV_TINY_TTF_CACHE_GLYPH_CNT 16
+#define LV_TINY_TTF_CACHE_KERNING_CNT 32
+
+#define LV_BUILD_EXAMPLES 0
+#define LV_BUILD_DEMOS 0
+
+#endif

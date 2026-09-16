@@ -1,0 +1,72 @@
+{
+  "schema": 1,
+  "source_font": "firmware/iwatch/src/resource/fonts/DroidSansFallback.ttf",
+  "fonttools_version": "4.65.0",
+  "ascii_ranges": [
+    [32, 126]
+  ],
+  "json_value_sources": [
+    "firmware/iwatch/src/resource/strings/zh_cn.json"
+  ],
+  "notification_source": {
+    "path": "firmware/iwatch/src/gui_apps/clock/app_clock_status_bar.c",
+    "array": "notify_msgs",
+    "expected_strings": [
+      "思澈科技欢迎您",
+      "思澈科技欢迎您",
+      "思澈科技欢迎您",
+      "思澈科技欢迎您",
+      "思澈科技欢迎您",
+      "思澈科技欢迎您",
+      "关于我们",
+      "思澈科技是一家专注于物联网技术的公司，提供一站式的物联网解决方案。最先提出嵌入式MCU+GPU的物联网解决方案，为客户提供更高性能、更低功耗的物联网产品。",
+      "我们是谁",
+      "思澈科技成立於2019年3月，總部位於上海張江高科技園區，在重慶、北京、深圳、蘇州均設有分子公司，團隊成員均來自於美國、中國的一線電晶體設計企業，包括Marvell、 Broadcom、Amazon、 紫光展銳、聯發科等，碩士以上學歷占比超過80%； 團隊骨幹具有豐富的產品定義->自主研發->大規模量產的全流程經驗，由這些骨幹成員主導研發的晶片累計出貨超過10億顆。"
+    ]
+  },
+  "planned_static_strings": [
+    "组件展示",
+    "字体资源",
+    "图片资源",
+    "加载中",
+    "请稍等",
+    "暂无数据",
+    "返回",
+    "确定",
+    "再次加载",
+    "危险",
+    "禁用",
+    "错误",
+    "亮度校正",
+    "内部存储",
+    "常用",
+    "等待",
+    "成功",
+    "手动",
+    "提醒",
+    "不可用",
+    "稍后",
+    "按下",
+    "关于",
+    "内容",
+    "外部",
+    "发生"
+  ],
+  "legacy_sizes_px": [16, 18, 20, 22, 24, 26, 28],
+  "future_sizes_px": [30, 64, 80, 96],
+  "subset_options": [
+    "--name-IDs=*",
+    "--name-languages=*",
+    "--name-legacy",
+    "--recommended-glyphs",
+    "--notdef-outline"
+  ],
+  "expected": {
+    "character_count": 336,
+    "charset_sha256": "b993eb902bd724502250fb44cb7bf0c968f55f39b32fb27717e0de9a04165980",
+    "source_font_bytes": 3939852,
+    "source_font_sha256": "05d71b179ef97b82cf1bb91cef290c600a510f77f39b4964359e3ef88378c79d",
+    "subset_font_bytes": 56804,
+    "subset_font_sha256": "4f69f4ba565598e217501e7985bfdc7ccfd68d0bed472325218d01e89bbe284f"
+  }
+}

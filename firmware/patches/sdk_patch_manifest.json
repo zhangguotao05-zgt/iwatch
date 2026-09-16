@@ -1,0 +1,63 @@
+{
+  "files": [
+    {
+      "base_sha256": "21ad8877fc3bd99bdcea9aa77383055fabb728cc39ef7c17f67d19b7f99c3671",
+      "patched_sha256": "9ad53c0a7a9b0cf065b785945ae78aa398f381fe8acf3882378b6b3056f23f08",
+      "path": "external/lvgl_v9/src/draw/lv_draw_buf.c"
+    },
+    {
+      "base_sha256": "933ab3b7b298480bbff21ae2fe7221df786d10fb29f2ac54e6443ad8998dcefe",
+      "patched_sha256": "6147387fbb5aec1d32303451a41456dc07f2b1c49c4b624907c24778f0bdf909",
+      "path": "external/lvgl_v9/src/draw/lv_draw_buf.h"
+    },
+    {
+      "base_sha256": "b6023189c33b3c0c9b762a44413ae5857d6175ccbdabbf7573c82d9bfa5ec3f6",
+      "patched_sha256": "61f0440dbf13c76625185eb924df2139c595e97effe050b39719414ce343f7f6",
+      "path": "external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.c"
+    },
+    {
+      "base_sha256": "b74742be3f172e9f5826791ca02d5fdad2b7a5423e17c356c09e85536a60832b",
+      "patched_sha256": "16062aae1dce3a67345a1779a52ccb502554f6d28eec793bd4fc2639265ee561",
+      "path": "external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.h"
+    },
+    {
+      "base_sha256": "bf989936a0e69b53b455e583b583d0bffb6feaaa72b8c2a05af4bacfef7c6ed9",
+      "patched_sha256": "61a248b2d5f5bb245162ac368024a6fd935bd50b64120c405a78d8fa54e5fed9",
+      "path": "external/lvgl_v9/src/libs/tiny_ttf/stb_truetype_htcw.h"
+    },
+    {
+      "base_sha256": "a24cfa05f34a7de472714de952cf4184ea9a48af57597521fb9f8095e1b80f27",
+      "patched_sha256": "2019fdca2b0f4c3604ef372b1373f8751b3b89b96aa4fdff31978476e3dc4de8",
+      "path": "external/lvgl_v9/src/misc/cache/class/lv_cache_lru_rb.c"
+    },
+    {
+      "base_sha256": "d82926b1230444c4f5e96a248238cc742b37380db17c0f8636f90857a33d37fa",
+      "patched_sha256": "33c1ca19356822e8d068e1be5dd20da8d41909800f3d45e2a40b61ae7643fb3e",
+      "path": "external/lvgl_v9/src/misc/cache/class/lv_cache_lru_rb.h"
+    },
+    {
+      "base_sha256": "d45a3df0cf144cd56c70aeee10f1817f55480e1a6cb22ce43eeaf4f88219b60c",
+      "patched_sha256": "7c40aff71e4106a3cb6af36ddd20046486413cd53cc929b9d9910834694ac6a6",
+      "path": "external/lvgl_v9/src/misc/cache/lv_cache.c"
+    },
+    {
+      "base_sha256": "ee21712d894191713297045ced7fdb2ac56445968c92352709ace099c8b5082b",
+      "patched_sha256": "f220a3fa956fc452d9f0701e302a230a1115c338fdb5b4e8e6d1f46ec3775fd6",
+      "path": "external/lvgl_v9/src/misc/cache/lv_cache.h"
+    },
+    {
+      "base_sha256": "376ed3247c31f42e7841fdc9a253f4a3c8eb895da5c11a8c553b9278cc44d4ef",
+      "patched_sha256": "899c51de14e253bd06ad2d17922cc7a98f397a5c61c2bd7762b27e6ce1f6c8da",
+      "path": "external/lvgl_v9/src/misc/lv_rb.c"
+    },
+    {
+      "base_sha256": "b758d58da2016f02fd8503a747a362a0037e5adb11752caa86b9c2a0568970d1",
+      "patched_sha256": "e47d5ca2475171eab1afa45e87d5cac7ecd414bececc1fba87e1f64bdc5d3461",
+      "path": "external/lvgl_v9/src/misc/lv_rb.h"
+    }
+  ],
+  "patch_file": "firmware/patches/lvgl-v9-tiny-ttf-oom.patch",
+  "patch_sha256": "ac5eb8a5935e3d8e6b26ca845a2d6dbe28cc7ad4b46df48093afe91a0a7c233a",
+  "schema": 1,
+  "sdk_commit": "421126d9f476ed8e2a6f0b0ca28a9f241c182e65"
+}

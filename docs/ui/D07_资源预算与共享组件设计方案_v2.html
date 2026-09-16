@@ -11,7 +11,7 @@
   <header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D07 资源预算与共享组件设计方案 v2</span></header>
   <div class="page-shell">
     <nav class="toc" aria-label="文档目录"><ul>
-      <li><a href="#decision">1. 待审批决策</a></li>
+      <li><a href="#decision">1. 已批准决策</a></li>
       <li><a href="#baseline">2. 已核对基线</a></li>
       <li><a href="#strategy">3. 方案与阶段门槛</a></li>
       <li><a href="#budget">4. 分项容量预算</a></li>
@@ -26,10 +26,10 @@
     </ul></nav>
     <main>
       <h1>D07 资源预算与共享组件设计方案 v2</h1>
-      <p class="doc-meta">2026-09-16 · 二次审批稿 · DEV_A128_NAND / PRODUCT_N16_NOR 共同约束 · 跟踪任务 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">Issue #7</a></p>
+      <p class="doc-meta">2026-09-16 · 已批准方案基线 <code>967483d</code> · DEV_A128_NAND / PRODUCT_N16_NOR 共同约束 · 跟踪任务 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">Issue #7</a></p>
 
-      <section id="decision"><h2>1. 待审批决策</h2>
-        <p>保留 v1 的方案 B，补齐旧页面兼容、Keil 计量和字体内存失败处理。审批通过前不修改字体、主题或组件固件。</p>
+      <section id="decision"><h2>1. 已批准决策</h2>
+        <p>方案 B 已基于提交 <code>967483d</code> 批准实施。审批结论允许从 D07-A0 开始，不代表 D07 功能验收通过；A1 必须带入安全补丁，且旧页面主机与实屏回归通过后才能开发新组件。A0 实施状态见<a href="D07-A0_工具与安全链实施记录.html">工具与安全链记录</a>。</p>
         <table><thead><tr><th>项目</th><th>建议值或规则</th><th>审批依据</th></tr></thead><tbody>
           <tr><td>子集 TTF</td><td>≤128 KiB</td><td>覆盖现有页面与 D07–D10 静态文案；普通启动不依赖外部资源。</td></tr>
           <tr><td>内置位图字体</td><td>≤64 KiB</td><td>当前实际链接 51,335 B；预创建应急层继续使用 <code>lv_font_montserrat_20</code>。</td></tr>
