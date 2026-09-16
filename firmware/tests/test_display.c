@@ -32,6 +32,7 @@ typedef struct
     bool busy_query_ok;
     bool readback_query_ok;
     bool busy;
+    unsigned state_query_fail_at;
     unsigned state_reads;
     unsigned writes;
     unsigned readbacks;
@@ -54,7 +55,8 @@ static bool fake_read_state(void *context, iw_display_driver_state_t *state)
     fake_driver_t *driver = context;
 
     driver->state_reads++;
-    if (!driver->state_query_ok) return false;
+    if (!driver->state_query_ok || driver->state_reads == driver->state_query_fail_at)
+        return false;
     *state = driver->state_reads == 1u ? driver->before_state : driver->after_state;
     return true;
 }
@@ -146,10 +148,82 @@ static void test_verified_driver_apply(void)
     assert(error == IW_DISPLAY_ERROR_TIMEOUT && driver.writes == 1u &&
            driver.readbacks == 0u);
 
-    fake_driver_init(&driver, 49u);
+}
+
+/* 以下六项固定审批阶段补充的确认边界，失败时均不得报告成功。 */
+static void test_verified_apply_rejects_incomplete_adapter(void)
+{
+    fake_driver_t driver;
+    iw_display_driver_ops_t ops;
+    int32_t error;
+
+    fake_driver_init(&driver, 50u);
+    ops = fake_ops(&driver);
+    ops.read_busy = NULL;
+    assert(iw_display_apply_verified(&ops, 50u, &error) == IW_DISPLAY_APPLY_FAILED);
+    assert(error == IW_DISPLAY_ERROR_INVALID_ADAPTER);
+    assert(driver.state_reads == 0u && driver.writes == 0u && driver.readbacks == 0u);
+}
+
+static void test_verified_apply_rejects_initial_state_query_failure(void)
+{
+    fake_driver_t driver;
+    iw_display_driver_ops_t ops;
+    int32_t error;
+
+    fake_driver_init(&driver, 50u);
+    driver.state_query_ok = false;
     ops = fake_ops(&driver);
     assert(iw_display_apply_verified(&ops, 50u, &error) == IW_DISPLAY_APPLY_FAILED);
-    assert(error == IW_DISPLAY_ERROR_READBACK_MISMATCH && driver.writes == 1u);
+    assert(error == IW_DISPLAY_ERROR_STATE_QUERY && driver.writes == 0u);
+}
+
+static void test_verified_apply_rejects_busy_query_failure(void)
+{
+    fake_driver_t driver;
+    iw_display_driver_ops_t ops;
+    int32_t error;
+
+    fake_driver_init(&driver, 50u);
+    driver.busy_query_ok = false;
+    ops = fake_ops(&driver);
+    assert(iw_display_apply_verified(&ops, 50u, &error) == IW_DISPLAY_APPLY_FAILED);
+    assert(error == IW_DISPLAY_ERROR_BUSY_QUERY && driver.writes == 0u);
+}
+
+static void test_verified_apply_rejects_invalid_write_status(void)
+{
+    fake_driver_t driver;
+    iw_display_driver_ops_t ops;
+    int32_t error;
+
+    fake_driver_init(&driver, 50u);
+    driver.write_status = (iw_display_apply_status_t)99;
+    ops = fake_ops(&driver);
+    assert(iw_display_apply_verified(&ops, 50u, &error) == IW_DISPLAY_APPLY_FAILED);
+    assert(error == IW_DISPLAY_ERROR_CONTROL && driver.writes == 1u &&
+           driver.readbacks == 0u);
+}
+
+static void test_verified_apply_rejects_post_state_query_failure(void)
+{
+    fake_driver_t driver;
+    iw_display_driver_ops_t ops;
+    int32_t error;
+
+    fake_driver_init(&driver, 50u);
+    driver.state_query_fail_at = 2u;
+    ops = fake_ops(&driver);
+    assert(iw_display_apply_verified(&ops, 50u, &error) == IW_DISPLAY_APPLY_FAILED);
+    assert(error == IW_DISPLAY_ERROR_STATE_QUERY && driver.writes == 1u &&
+           driver.readbacks == 0u);
+}
+
+static void test_verified_apply_rejects_unconfirmed_readback(void)
+{
+    fake_driver_t driver;
+    iw_display_driver_ops_t ops;
+    int32_t error;
 
     fake_driver_init(&driver, 50u);
     driver.readback_query_ok = false;
@@ -157,12 +231,20 @@ static void test_verified_driver_apply(void)
     assert(iw_display_apply_verified(&ops, 50u, &error) == IW_DISPLAY_APPLY_FAILED);
     assert(error == IW_DISPLAY_ERROR_READBACK_QUERY);
 
-    fake_driver_init(&driver, 50u);
-    driver.state_query_ok = false;
+    fake_driver_init(&driver, 49u);
     ops = fake_ops(&driver);
     assert(iw_display_apply_verified(&ops, 50u, &error) == IW_DISPLAY_APPLY_FAILED);
-    assert(error == IW_DISPLAY_ERROR_STATE_QUERY && driver.writes == 0u);
+    assert(error == IW_DISPLAY_ERROR_READBACK_MISMATCH && driver.writes == 1u);
+}
 
+static void test_verified_apply_rejects_invalid_arguments(void)
+{
+    fake_driver_t driver;
+    iw_display_driver_ops_t ops;
+    int32_t error;
+
+    fake_driver_init(&driver, 50u);
+    ops = fake_ops(&driver);
     assert(iw_display_apply_verified(NULL, 50u, &error) == IW_DISPLAY_APPLY_FAILED);
     assert(error == IW_DISPLAY_ERROR_INVALID_ADAPTER);
     assert(iw_display_apply_verified(&ops, 4u, &error) == IW_DISPLAY_APPLY_FAILED);
@@ -253,6 +335,13 @@ static void test_invalid_requests_have_no_side_effect(void)
 int main(void)
 {
     test_verified_driver_apply();
+    test_verified_apply_rejects_incomplete_adapter();
+    test_verified_apply_rejects_initial_state_query_failure();
+    test_verified_apply_rejects_busy_query_failure();
+    test_verified_apply_rejects_invalid_write_status();
+    test_verified_apply_rejects_post_state_query_failure();
+    test_verified_apply_rejects_unconfirmed_readback();
+    test_verified_apply_rejects_invalid_arguments();
     test_latest_target_and_exact_completion();
     test_invalid_requests_have_no_side_effect();
     puts("display mailbox tests passed");
