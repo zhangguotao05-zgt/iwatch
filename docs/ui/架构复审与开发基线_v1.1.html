@@ -10,8 +10,8 @@
 <li><a href="#gates">6. 开发与验收门槛</a></li>
 <li><a href="#sources">7. 依据与适用版本</a></li></ul></nav><main>
 <h1>架构复审与开发基线 v1.1</h1>
-<p class="doc-meta">2026-09-16 · D04/D05 实现基线 <code>c90061b</code> 后续边界修正 · 适用：SF32LB58-DevKit-LCD A128R32N1、390×450 CO5300/FT6146</p>
-<p>现有分层方向继续使用，当前代码仍以 SDK 演示工程为界面基线。D01–D03 已完成目标板验收；D04/D05 已落成时间、启动协调和最小服务代码，并通过主机与双工具链构建，目标板验收待执行。本文的问题状态始终区分静态检查、主机测试、构建和开发板实测。</p>
+<p class="doc-meta">2026-09-16 · D01–D05 已验收 · D04/D05 实现含冷启动会话修正 <code>4e05ed2</code> · 适用：SF32LB58-DevKit-LCD A128R32N1、390×450 CO5300/FT6146</p>
+<p>现有分层方向继续使用，当前代码仍以 SDK 演示工程为界面基线。D01–D05 已完成主机、双工具链和目标板验收；时间、启动协调、最小服务、软件复位保持及断电失效路径均已有实测。本文的问题状态始终区分静态检查、主机测试、构建和开发板实测。</p>
 <p>配套阅读：<a href="系统架构_v1.1.html">系统架构</a>、<a href="功能逻辑与页面契约_v1.html">功能逻辑与页面契约</a>、<a href="模块接口与开发任务_v1.html">模块接口与开发任务</a>。文档 v1.1 是架构细化版本，不是新固件版本。</p>
 
 <section id="decision"><h2>1. 复审结论与开发边界</h2>
@@ -23,7 +23,7 @@
 <tr><td>离线范围可执行</td><td>本地工具做真实业务；缺少传感器/电池硬件时返回能力状态；在线 App 使用独立演示数据。</td><td>界面、状态栏和历史记录都能区分真实、样例与未知。</td></tr>
 <tr><td>首期资源有硬上限</td><td>8 个计时器、16 个闹钟、24 个提醒槽；GUI 栈 16 KiB，新增服务栈 4 KiB。</td><td>容量测试和内存账本；数字是项目预算，不是 Apple 产品限制。</td></tr>
 </tbody></table>
-<p>M0.1 的 D01–D03 已完成。D04/D05 已通过主机与两套工具链，下一检查点是确定 GCC 三件套的开发板校时、软复位保持和服务诊断。DEV_A128_NAND 的历史确定 GCC 包已经通过新分区引导、回读与恢复验证；该结果不授权刷入本轮不同来源或任意组合的镜像。参考 watchOS 26 的具体小版本、表冠实物和手表结构尺寸未冻结，不影响核心状态机与组件开发。</p>
+<p>M0.1 的 D01–D03 已完成。D04/D05 已通过主机、两套工具链和确定 GCC 三件套的开发板校时、软件复位保持、断电失效及服务诊断。DEV_A128_NAND 包继续遵守同一归档三件套、FTab 最后写入和写后校验要求；该结果不授权刷入不同来源或任意组合的镜像。参考 watchOS 26 的具体小版本、表冠实物和手表结构尺寸未冻结，不影响核心状态机与组件开发。</p>
 </section>
 
 <section id="findings"><h2>2. 源码与文档问题清单</h2>
@@ -32,7 +32,7 @@
 <tr><td>A01 · P0 · 已修复并完成板测</td><td><a href="../../firmware/iwatch/src/gui_apps/clock/app_clock_main.c">app_clock_main.c</a> 原 <code>on_stop()</code> 在遍历中释放当前节点，下一步会访问已释放的 <code>next</code>。</td><td>现已先摘链再反初始化和释放；主机 1,000 轮与板上 26 次 clock 销毁通过，<code>memcheck</code> 无输出。</td></tr>
 <tr><td>A02 · P0 · 已修复并完成板测</td><td><a href="../../firmware/iwatch/src/gui_apps/main/app_mainmenu.c">app_mainmenu.c</a> 原 display 回调在页面释放后仍可能引用 <code>p_menu_cell</code>。</td><td>退出按回调函数与用户数据注销，再释放页面状态；主机 1,000 轮和板上 Main↔clock 循环后堆回到基线。</td></tr>
 <tr><td>A03 · P1 · 本地回滚路径已补，覆盖边界见实施记录</td><td>表盘 <code>on_start()</code> 分配后直接 <code>memset</code>；<code>app_clock_register()</code> 分配后直接写字段。桌面多处用断言处理分配失败。</td><td>逐次失败注入；构造失败按逆序清理，恢复到预先建立的轻量错误层。禁止在内存不足路径上再次分配整屏兜底资源。</td></tr>
-<tr><td>A04 · P1 · 代码/构建已修复，板测待执行</td><td><a href="../../firmware/iwatch/src/gui_apps/watch_demo.c">watch_demo.c</a> 原来每次启动执行 <code>set_date(2022, 7, 1)</code> 与 <code>set_time(9, 0, 0)</code>。</td><td>固定日期已删除；现在由 <code>iw_time</code>、RTC 可信标记和版本化快照决定有效性。主机已覆盖日期、回绕和冲突，目标板仍需完成校时与软复位保持。</td></tr>
+<tr><td>A04 · P1 · 已修复并完成板测</td><td><a href="../../firmware/iwatch/src/gui_apps/watch_demo.c">watch_demo.c</a> 原来每次启动执行 <code>set_date(2022, 7, 1)</code> 与 <code>set_time(9, 0, 0)</code>。</td><td>固定日期已删除；现在由 <code>iw_time</code>、RTC 可信标记和版本化快照决定有效性。主机覆盖日期、回绕和冲突；目标板完成手动校时、软件复位保持及断电后明确失效。</td></tr>
 <tr><td>A05 · P1 · 已修复并完成 P95 板测</td><td>原 GUI 主循环直接按 <code>lv_timer_handler()</code> 返回值休眠，可能超过活动等待预算。</td><td>统一等待适配已处理无定时器哨兵、tick 换算和锁存事件；等待上限 20 ms。最终固件实物压力窗口 62 个消费样本的 P95 为 21 ms、最大 62 ms，超过 100 ms 为 0。</td></tr>
 <tr><td>A06 · P1 · 待实现</td><td>应用只对 <code>BSP_KEY1_PIN</code> 调用 <code>button_init()</code>；KEY2 虽在 board.conf 声明，未接应用回调。当前队列门控只有单键，M0 点击直接映射 Home。</td><td>KEY1 暂映射表冠按压，KEY2 经实物检查后映射侧键；每键独立门控、独立序号。M1 引入双击识别时必须关闭旧的即时 Home 分支，防止重复导航。旋转表冠状态仍为 absent。</td></tr>
 <tr><td>A07 · P1 · 来源与构建约束已实现</td><td><a href="../../firmware/iwatch/project/project.uvprojx">Keil 工程</a>的四个基础板 <code>bsp_*.c</code> 指向 SDK 的 <code>customer/boards/sf32lb58-lcd_base</code>，不是仓库内同名副本。</td><td>开发板阶段明确以锁定 SDK 的基础板驱动为准；自研 PCB 建新的项目 BSP 并验实际编译路径。禁止只修改未参与编译的副本后宣称硬件行为已变化。</td></tr>
@@ -52,7 +52,7 @@
 <tr><td>显示 / 触摸</td><td>390×450，CO5300 + FT6146，QSPI + I²C；已点亮、读到触摸 ID，并完成连续点击与滑动压力测试。</td><td>产品校准仍需单列四角、方向和边缘误差；CWS05/CST820 是未来佩戴板候选，不属于当前运行配置。</td></tr>
 <tr><td>内存 / tick</td><td>PSRAM 16+16 MiB；NAND 128 MiB 为配置值；RT tick 1000 Hz。</td><td>以有效 rtconfig、链接 map、板上容量为三项核对；设备型号和擦除几何仍需记录。</td></tr>
 <tr><td>KEY1 / KEY2 / 表冠</td><td>KEY1 已接软件；KEY2 未注册；实体旋钮未接入。</td><td>逻辑注入可测旋转语义，但不能把它写成实物表冠验证。</td></tr>
-<tr><td>RTC</td><td>驱动已启用；固定日期覆盖已删除；备份寄存器 29/30 保存可信状态与反码，31 保存 session 计数。</td><td>校时、软复位保持和备份域丢失仍需目标板记录；能力状态与时间可信度已经分开。</td></tr>
+<tr><td>RTC</td><td>驱动已启用；固定日期覆盖已删除；备份寄存器 29/30 保存时间可信状态与反码，28/31 保存 session 及反码。</td><td>板上已确认软件复位保持 UTC/时区/可信状态；备份域丢失后时间失效，session 由 TRNG 重建后再在软复位间递增。</td></tr>
 <tr><td>PPG / IMU / 电池 / 触感</td><td>应用未接入可信测量或控制链路。</td><td>默认 absent 或 unknown；不从采购清单推断已有硬件功能。</td></tr>
 <tr><td>文件系统 / PM / 无线</td><td>存储验证未闭环；PM 未启用；无线功能暂不开发。</td><td>M1 会话设置有效，跨重启保存为 M4 能力；深睡与常亮显示分别验收。</td></tr>
 </tbody></table>
@@ -106,7 +106,7 @@
 <tr><td>G3 首个闭环可扩展</td><td>计时器/提醒和系统壳层。</td><td>表盘→设置→亮度完整路径及错误路径通过；快速导航无残留；缺失硬件状态正确。</td></tr>
 <tr><td>G4 可以长测</td><td>低功耗、持久化、8 小时混合测试。</td><td>监督/故障注入、计时恢复、存储提交语义和设备超时已独立验证。</td></tr>
 </tbody></table>
-<p>当前 G0 已通过；D01–D03 的主机、构建和开发板三栏已通过。D04/D05 已通过主机和双工具链，G1 只剩确定镜像的目标板校时、重启与服务闭环。历史 DEV_A128_NAND GCC 包满足当时 G2；本轮仍须重新执行身份检查和 DryRun 后才能烧录。G3–G4 未通过。证据见 <a href="D01-D03_实施记录.html">D01–D03</a> 与 <a href="D04-D05_实施记录.html">D04–D05 实施记录</a>。</p>
+<p>当前 G0、G1 已通过；D01–D05 的主机、构建和开发板三栏已通过。DEV_A128_NAND 的确定 GCC 三件套完成身份检查、DryRun、写入校验、校时、软件复位和断电冷启动验收，本轮 G2 已通过。G3–G4 未通过。证据见 <a href="D01-D03_实施记录.html">D01–D03</a> 与 <a href="D04-D05_实施记录.html">D04–D05 实施记录</a>。</p>
 </section>
 
 <section id="sources"><h2>7. 依据与适用版本</h2>

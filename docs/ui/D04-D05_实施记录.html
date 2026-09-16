@@ -21,20 +21,21 @@
     </ul></nav>
     <main>
       <h1>D04–D05 时间与最小服务实施记录</h1>
-      <p class="doc-meta">2026-09-16 · DEV_A128_NAND · 实现提交 <code>c90061b</code> 后补充边界修正 · 板上验收待执行</p>
+      <p class="doc-meta">2026-09-16 · DEV_A128_NAND · 冷启动会话修正 <code>4e05ed2</code> · 主机、构建与开发板验收通过</p>
 
       <section id="scope"><h2>1. 范围与结论</h2>
-        <p>D04/D05 已落成可编译代码：启动不再把 RTC 强制改为 2022-07-01 09:00:00；系统建立单调时间、可信 RTC 标记、版本化时钟、固定容量命令队列、结果账本、能力表和只读快照。主机测试及 GCC/Keil 首轮构建已经通过。当前状态是“实现与构建通过、开发板待验收”，尚未把本轮镜像写入开发板，也未推送远端。</p>
-        <table><thead><tr><th>任务</th><th>已完成</th><th>仍需实物确认</th></tr></thead><tbody>
-          <tr><td>D04</td><td>32 位 tick 回绕扩展、分数 tick 换算、日期范围、RTC 可信标记、时区、revision、期限一次触发、移除固定日期。</td><td>首次无可信标记、手动校时、软复位保持、表盘本地时间显示。</td></tr>
-          <tr><td>D05</td><td>32 B 命令、16 条队列、32 槽账本、48 B 结果、24 B 快照头、幂等 token、全局 ACK、能力状态、服务线程。</td><td>线程启动、FinSH 诊断、命令执行与 ACK、会话号跨软复位递增。</td></tr>
+        <p>D04/D05 已完成：启动不再把 RTC 强制改为 2022-07-01 09:00:00；系统建立单调时间、可信 RTC 标记、版本化时钟、固定容量命令队列、结果账本、能力表和只读快照。主机回归、GCC/Keil 构建和确定 GCC 三件套的开发板校时、软件复位、断电冷启动及界面交互均通过。</p>
+        <table><thead><tr><th>任务</th><th>已完成</th><th>开发板结果</th></tr></thead><tbody>
+          <tr><td>D04</td><td>32 位 tick 回绕扩展、分数 tick 换算、日期范围、RTC 可信标记、时区、revision、期限一次触发、移除固定日期。</td><td>无可信标记时 invalid；命令校时成功；软件复位保持 UTC、UTC+8 和 RTC source；完全断电后正确失效。</td></tr>
+          <tr><td>D05</td><td>32 B 命令、16 条队列、32 槽账本、48 B 结果、24 B 快照头、幂等 token、全局 ACK、能力状态、服务线程。</td><td>命令执行与 ACK 通过；软件复位 session 递增；断电后以 TRNG 建立新 session，未复用旧请求命名空间。</td></tr>
         </tbody></table>
       </section>
 
       <section id="time"><h2>2. D04 时间基础</h2>
         <p><code>core/iw_time.[ch]</code> 不直接依赖 RT-Thread、RTC 或 LVGL。唯一 owner 传入 32 位原始 tick；模块用无符号差扩展为 64 位毫秒，并保留除法余数，避免 32.768 kHz 等时基持续截断。相邻采样必须短于一整轮 tick，运行时每秒至少采样一次。</p>
         <p><code>ClockSnapshot</code> 同时给出 <code>mono_ms</code>、<code>utc_ms</code>、<code>offset_minutes</code>、<code>revision</code>、<code>valid</code> 与 <code>source</code>。UTC 与时区偏移分别保存，计时期限只使用单调时间。可接受日期为 2000-01-01 00:00:00 至 2099-12-31 23:59:59 UTC，时区偏移范围为 −840 至 +840 分钟；非法日期、revision 耗尽和加法溢出均显式返回错误。</p>
-        <p><code>platform/iw_time_rtc.[ch]</code> 使用 SF32LB58 RTC 备份寄存器 29、30 保存“状态字及其按位反码”，寄存器 31 保存服务会话计数。固定 SDK 的公共 <code>RTC_BACKUP</code> 枚举目前只占 0–11。写时间时先撤销可信标记，RTC 写成功后再写入并回读状态字；任一步失败都不会把时间声明为可信。备份域丢失后时钟为 invalid，不用一个看似合理的 RTC 数值冒充已校准时间。</p>
+        <p><code>platform/iw_time_rtc.[ch]</code> 使用 SF32LB58 RTC 备份寄存器 29、30 保存“时间状态字及其按位反码”，寄存器 31、28 保存“服务 session 及其按位反码”。固定 SDK 的公共 <code>RTC_BACKUP</code> 枚举目前只占 0–11。写时间时先撤销可信标记，RTC 写成功后再写入并回读状态字；任一步失败都不会把时间声明为可信。session 记录完整时在软件复位后递增；备份域丢失或记录不完整时由 TRNG 生成非零 31 位新基值，再恢复递增。随机 session 用于隔离冷启动前后的请求，不作为安全凭据。</p>
+        <p>开发板没有独立保持本项目 RTC 备份域的供电条件。完全断电后无法推断断电时长，因此时钟回到 invalid 是预期保护行为；系统不会用闪存中的旧秒值伪造当前时间。后续佩戴版若要求断电仍走时，必须在电源设计中保证 RTC/AON 域持续供电，并单独测量保持电流和晶振误差。</p>
         <p>旧演示代码的 <code>set_date(2022, 7, 1)</code> 和 <code>set_time(9, 0, 0)</code> 已删除。表盘读取服务时钟；有效时按 UTC 加显式时区偏移显示，无效时只展示本次会话的单调时间，等待 D10 的正式“待校时”页面。</p>
       </section>
 
@@ -57,24 +58,26 @@
       </section>
 
       <section id="host"><h2>5. 主机与构建证据</h2>
-        <p><code>firmware/tests/run-core-tests.ps1</code> 已通过。新增覆盖包括 tick 跨 <code>0xffffffff</code>、32.768 kHz 分数换算、一次性期限、闰日和非法日期、时钟有效性与 revision、重复/冲突/过期 token、session 重建、16 条队列与 32 槽账本、设备失败无模型副作用、revision 耗尽无设备写、旧页面 generation 与全局 ACK、快照容量及 request_id 耗尽。原有输入、GUI 等待/取消、生命周期 OOM、1000 次循环、14 项布局/身份和构建锁测试同时通过。</p>
-        <table><thead><tr><th>工具链</th><th>首轮实现提交</th><th>main</th><th>6 MiB 占用 / 剩余</th><th>状态</th></tr></thead><tbody>
-          <tr><td>GCC 14.2.1</td><td><code>c90061bd3d10…</code></td><td>5,739,848 B</td><td>91.230% / 551,608 B</td><td>真实编译、链接、布局检查及归档通过。</td></tr>
-          <tr><td>Arm Compiler 6.16</td><td><code>c90061bd3d10…</code></td><td>5,665,968 B</td><td>90.058% / 625,488 B</td><td>Keil 工程生成、真实编译、链接、布局检查及归档通过。</td></tr>
+        <p><code>firmware/tests/run-core-tests.ps1</code> 已通过。新增覆盖包括 tick 跨 <code>0xffffffff</code>、32.768 kHz 分数换算、一次性期限、闰日和非法日期、时钟有效性与 revision、RTC 可信标记、session 冷启动随机重建/软复位递增/反码损坏/TRNG 失败/计数耗尽、重复/冲突/过期 token、16 条队列与 32 槽账本、设备失败无模型副作用、revision 耗尽无设备写、旧页面 generation 与全局 ACK、快照容量及 request_id 耗尽。原有输入、GUI 等待/取消、生命周期 OOM、1000 次循环、14 项布局/身份和构建锁测试同时通过。</p>
+        <table><thead><tr><th>工具链</th><th>构建源码</th><th>main</th><th>6 MiB 占用 / 剩余</th><th>状态</th></tr></thead><tbody>
+          <tr><td>GCC 14.2.1</td><td><code>4e05ed22cfff…</code></td><td>5,740,328 B</td><td>91.240% / 551,128 B</td><td>板测包；真实编译、链接、布局、身份和 DryRun 通过。</td></tr>
+          <tr><td>Arm Compiler 6.16</td><td><code>4e05ed22cfff…</code></td><td>5,666,368 B</td><td>90.064% / 625,088 B</td><td>真实编译、链接、布局和身份校验通过。</td></tr>
         </tbody></table>
-        <p>上述是边界修正前的首轮构建证据，证明新增模块能通过两套工具链。正式烧录前会在收口提交上重新生成两套身份归档；开发板只烧录同一 GCC 归档中的 Bootloader、main 和 FTab。</p>
+        <p>板测 GCC main 的 SHA-256 为 <code>5b6f8edb14afa9c68a0d8929e8f612412b836b6642666936f76143581864a2b2</code>；Bootloader 为 <code>803504f7a4beeb2c62ed4ccefd101d496f376e8f78b4099f928adf66fcf68d45</code>；FTab 为 <code>498e1abf544024ed71b5c543fb87a376cd9a759cec06f0f682c9e21e4bc8a2f0</code>。开发板只烧录同一 GCC 归档中的三件套，FTab 最后写入。Keil main、Bootloader、FTab 的 SHA-256 分别为 <code>60c3a3230615bfda2f4e43f134125c56833f0d65af6954f37a1c4db34661c115</code>、<code>746899a11d60b070e4458b5d0788ce6e39032b8c253d2cd529d0a265c3d81c38</code>、<code>54c43820f232758fabf6c62d1d92c394ceed41a9cdc6e3a5d15600cbb1f04d5c</code>。文档收口后再次生成两套身份归档；GCC 二进制必须与本次板测哈希逐字节一致。</p>
       </section>
 
       <section id="board"><h2>6. 开发板验收</h2>
-        <p>当前 CH342 下载口和日志口未连接，因此本节暂不标记通过。验收只使用 COM9 下载和 COM10 1,000,000 baud 日志，不访问 COM8/J-Link。</p>
+        <p>验收使用 COM9 CH342 下载口和 COM10 1,000,000 baud HCPU 日志口，全程未访问 COM8/J-Link。下表记录本轮串口实测值；原始串口工作日志按仓库规则保留在本机 <code>logs/</code>，不作为公开源码依赖。</p>
         <table><thead><tr><th>步骤</th><th>预期</th><th>状态</th></tr></thead><tbody>
-          <tr><td>归档 DryRun 与三件套烧录</td><td>地址、尺寸、哈希、工具链身份一致；FTab 最后写入并回读。</td><td>待执行</td></tr>
-          <tr><td>首次启动</td><td>屏幕与触摸正常；旧 RTC 没有本项目可信标记时 <code>valid=0</code>。</td><td>待执行</td></tr>
-          <tr><td>服务诊断</td><td><code>iw_service</code> 线程存在；队列、active、ledger 初值合理。</td><td>待执行</td></tr>
-          <tr><td>手动校时</td><td>提交返回 QUEUED，结果为 OK_APPLIED，revision 增加，ACK 后账本释放。</td><td>待执行</td></tr>
-          <tr><td>软复位</td><td>UTC 继续前进、偏移保持、RTC source 有效、session_id 递增。</td><td>待执行</td></tr>
-          <tr><td>界面回归</td><td>表盘时间与 +480 分钟本地时间一致；触摸和页面切换仍响应。</td><td>待执行</td></tr>
+          <tr><td>归档 DryRun 与三件套烧录</td><td>地址、尺寸、哈希、工具链身份一致；FTab 最后写入并回读。</td><td>通过；三件套写入和校验完成。</td></tr>
+          <tr><td>首次启动</td><td>旧 RTC 没有本项目可信标记时 <code>valid=0</code>；服务能建立新命名空间。</td><td>通过；<code>valid=0</code>，首次 session=<code>288667609</code>。</td></tr>
+          <tr><td>服务诊断</td><td><code>iw_service</code> 线程存在；队列、active、ledger 初值合理。</td><td>通过；优先级 17、静态栈 4096 B、最高使用 8%，各计数为 0。</td></tr>
+          <tr><td>手动校时</td><td>提交返回 QUEUED，结果为 OK_APPLIED，revision 增加，ACK 后账本释放。</td><td>通过；request=1、submit=0、code=1、revision=2、ack=0，账本回到 0。</td></tr>
+          <tr><td>软件复位</td><td>UTC 继续前进、偏移保持、RTC source 有效、session_id 递增。</td><td>通过；UTC=<code>1789529821645 ms</code>、offset=480、source=RTC，session 从 <code>288667609</code> 增至 <code>288667610</code>。</td></tr>
+          <tr><td>完全断电</td><td>无后备供电时 RTC 明确失效；session 不复用断电前命名空间。</td><td>通过；<code>valid=0</code>、session=<code>1943800313</code>，服务栈仍为 8%。</td></tr>
+          <tr><td>界面回归</td><td>显示、触摸线程和主应用正常运行；表盘/页面实物操作无退化。</td><td>通过；实物确认“亮且响应”。46 个输入完成消费，P95=24 ms、最大 25 ms、≥100 ms 为 0；14 个事件随 15 次页面取消受控丢弃，rejected=0、pending=0。</td></tr>
         </tbody></table>
+        <p>交互回归后显示 reassert=26、recovery=0，没有触发显示故障恢复；线程最高栈占用为 lcd_task 43%、app_watch 37%、tpread 22%、iw_service 8%。RT-Thread 堆总计 1,800,800 B，已用 59,660 B，历史最大 203,692 B，回到 D01–D03 的稳定基线。</p>
       </section>
 
       <section id="follow"><h2>7. 后续约束</h2>
@@ -83,7 +86,7 @@
           <li>D16 将显示恢复拆成尝试、成功和失败计数，加入恢复确认、有限重试及最终受控重启；D01–D03 只证明一次故障恢复成功。</li>
           <li>GCC main 已超过 6 MiB 槽的 91%。D07 前必须保留启动/错误页最小内置字库，并明确完整中文字体和图片的裁剪或外置方案。</li>
           <li>构建使用包装脚本或 Python 3.13；Python 3.7 不支持身份脚本使用的 <code>Path.is_relative_to</code>。</li>
-          <li>D04/D05 通过后再进入 D06；D10 才提供正式手动校时页面，本阶段的 FinSH 命令仅用于验证服务闭环。</li>
+          <li>D04/D05 已通过，下一步进入 D06；D10 才提供正式手动校时页面，本阶段的 FinSH 命令仅用于验证服务闭环。</li>
         </ul>
       </section>
     </main>
