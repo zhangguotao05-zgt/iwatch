@@ -73,7 +73,7 @@
       </section>
 
       <section id="board"><h2>6. 开发板验收</h2>
-        <p>验收使用 COM9 CH342 下载口与 COM10 1,000,000 baud HCPU 日志口，全程未访问 COM8/J-Link。上述 GCC 归档的 Bootloader、main 和 FTab 按固定地址写入，FTab 最后写入，三件套均完成写后校验。冷启动两次识别 CO5300 ID <code>0x331100</code>，FT6146 报告 ID_H <code>0x64</code>、ID_L <code>0x56</code>，主界面进入成功。</p>
+        <p>验收使用 COM9 CH342 下载口与 COM10 1,000,000 baud HCPU 日志口，全程未访问 COM8/J-Link。上述 GCC 归档的 Bootloader、main 和 FTab 按固定地址写入，FTab 最后写入，三件套均完成写后校验。原始串口流中的启动序列记录了 CO5300 ID <code>0x331100</code>、FT6146 驱动初始化和主界面进入；日志没有输出 FT6146 的独立 ID_H/ID_L，因此不据此声明具体触摸 ID。</p>
         <table><thead><tr><th>步骤</th><th>通过条件</th><th>状态</th></tr></thead><tbody>
           <tr><td>冷启动</td><td>默认 desired=100、applied=100，persisted 无效，flags=<code>0x0b</code>，last_error=0。</td><td>通过</td></tr>
           <tr><td>PREVIEW / FINAL</td><td>20 PREVIEW 得到 OK_APPLIED，实屏明显变暗；80 FINAL 得到 OK_APPLIED 并完成 ACK，desired/applied 均为 80。</td><td>通过</td></tr>

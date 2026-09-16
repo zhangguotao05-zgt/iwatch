@@ -24,6 +24,7 @@
 #include "iw_recovery.h"
 #include "iw_boot.h"
 #include "iw_service_runtime.h"
+#include <string.h>
 #ifdef BSP_USING_PM
     #include "bf0_pm.h"
     #include "gui_app_pm.h"
@@ -55,6 +56,7 @@ static rt_device_t lcd_device;
 static iw_display_wake_gate_t display_wake_gate;
 static uint32_t display_reassert_count;
 static uint32_t display_recovery_count;
+static uint8_t display_fault_pending;
 
 static lv_timer_t *button_event_task;
 static struct rt_event btn_event;
@@ -83,13 +85,88 @@ static bool display_target_read(uint8_t *level, uint32_t *revision, uint32_t *se
     return true;
 }
 
+#ifndef _WIN32
+static bool lcd_driver_read_state(void *context, iw_display_driver_state_t *state)
+{
+    LCD_DrvStatusTypeDef lcd_state = LCD_STATUS_NONE;
+    rt_err_t result;
+
+    if (!context || !state) return false;
+    result = rt_device_control((rt_device_t)context, RTGRAPHIC_CTRL_GET_STATE, &lcd_state);
+    if (result != RT_EOK) return false;
+    switch (lcd_state)
+    {
+    case LCD_STATUS_INITIALIZED:
+    case LCD_STATUS_DISPLAY_ON:
+    case LCD_STATUS_DISPLAY_OFF:
+    case LCD_STATUS_IDLE_MODE:
+        *state = IW_DISPLAY_DRIVER_STATE_READY;
+        return true;
+    case LCD_STATUS_OPENING:
+    case LCD_STATUS_DISPLAY_OFF_PENDING:
+        *state = IW_DISPLAY_DRIVER_STATE_BUSY;
+        return true;
+    case LCD_STATUS_DISPLAY_TIMEOUT:
+        *state = IW_DISPLAY_DRIVER_STATE_TIMEOUT;
+        return true;
+    case LCD_STATUS_NONE:
+    case LCD_STATUS_NOT_FIND_LCD:
+        *state = IW_DISPLAY_DRIVER_STATE_UNAVAILABLE;
+        return true;
+    default:
+        *state = IW_DISPLAY_DRIVER_STATE_UNKNOWN;
+        return false;
+    }
+}
+
+static bool lcd_driver_read_busy(void *context, bool *busy)
+{
+    bool value = true;
+    rt_err_t result;
+
+    if (!context || !busy) return false;
+    result = rt_device_control((rt_device_t)context, RTGRAPHIC_CTRL_GET_BUSY, &value);
+    if (result != RT_EOK) return false;
+    *busy = value;
+    return true;
+}
+
+static iw_display_apply_status_t lcd_driver_write_brightness(void *context,
+                                                             uint8_t level,
+                                                             int32_t *device_error)
+{
+    rt_err_t result;
+
+    if (!context || !device_error) return IW_DISPLAY_APPLY_FAILED;
+    result = rt_device_control((rt_device_t)context, RTGRAPHIC_CTRL_SET_BRIGHTNESS, &level);
+    *device_error = (int32_t)result;
+    if (result == RT_EOK) return IW_DISPLAY_APPLY_OK;
+    if (result == -RT_EBUSY || result == RT_EBUSY) return IW_DISPLAY_APPLY_BUSY;
+    if (result == -RT_ETIMEOUT || result == RT_ETIMEOUT) return IW_DISPLAY_APPLY_TIMEOUT;
+    return IW_DISPLAY_APPLY_FAILED;
+}
+
+static bool lcd_driver_read_brightness(void *context, uint8_t *level)
+{
+    uint8_t value = UINT8_MAX;
+    rt_err_t result;
+
+    if (!context || !level) return false;
+    result = rt_device_control((rt_device_t)context, RTGRAPHIC_CTRL_GET_BRIGHTNESS, &value);
+    if (result != RT_EOK || value > IW_BRIGHTNESS_MAX) return false;
+    *level = value;
+    return true;
+}
+#endif
+
 /* 此函数只允许在 GUI owner 中调用，避免与 SDK 的 LCD 串行状态并发。 */
 static iw_display_apply_status_t display_apply_brightness(uint8_t level, int32_t *device_error)
 {
 #ifndef _WIN32
+    iw_display_driver_ops_t ops;
     uint32_t started;
     uint32_t elapsed;
-    rt_err_t result;
+    iw_display_apply_status_t status;
 
     if (!device_error) return IW_DISPLAY_APPLY_FAILED;
     if (!lcd_device)
@@ -97,24 +174,59 @@ static iw_display_apply_status_t display_apply_brightness(uint8_t level, int32_t
         *device_error = -RT_ENOSYS;
         return IW_DISPLAY_APPLY_FAILED;
     }
+    ops.context = lcd_device;
+    ops.read_state = lcd_driver_read_state;
+    ops.read_busy = lcd_driver_read_busy;
+    ops.write_brightness = lcd_driver_write_brightness;
+    ops.read_brightness = lcd_driver_read_brightness;
     started = (uint32_t)rt_tick_get();
-    result = rt_device_control(lcd_device, RTGRAPHIC_CTRL_SET_BRIGHTNESS, &level);
+    status = iw_display_apply_verified(&ops, level, device_error);
     elapsed = (uint32_t)((uint32_t)rt_tick_get() - started);
-    *device_error = (int32_t)result;
-    if (result == RT_EOK)
-    {
-        if (elapsed > (uint32_t)rt_tick_from_millisecond(DISPLAY_APPLY_WARN_MS))
-            LOG_W("LCD brightness apply is slow: %u ticks", (unsigned)elapsed);
-        return IW_DISPLAY_APPLY_OK;
-    }
-    if (result == -RT_EBUSY || result == RT_EBUSY) return IW_DISPLAY_APPLY_BUSY;
-    if (result == -RT_ETIMEOUT || result == RT_ETIMEOUT) return IW_DISPLAY_APPLY_TIMEOUT;
-    return IW_DISPLAY_APPLY_FAILED;
+    if (elapsed > (uint32_t)rt_tick_from_millisecond(DISPLAY_APPLY_WARN_MS))
+        LOG_W("LCD brightness apply is slow: %u ticks", (unsigned)elapsed);
+    return status;
 #else
     (void)level;
     if (device_error) *device_error = -RT_ENOSYS;
     return IW_DISPLAY_APPLY_FAILED;
 #endif
+}
+
+/* 只注入下一条 mailbox 请求，避免影响触摸唤醒和恢复路径。 */
+static bool display_take_fault_once(iw_display_apply_status_t *status, int32_t *device_error)
+{
+#ifndef _WIN32
+    uint8_t fault;
+    rt_base_t level;
+
+    if (!status || !device_error) return false;
+    level = rt_hw_interrupt_disable();
+    fault = display_fault_pending;
+    display_fault_pending = 0u;
+    rt_hw_interrupt_enable(level);
+    if (fault == 1u)
+    {
+        *status = IW_DISPLAY_APPLY_BUSY;
+        *device_error = -RT_EBUSY;
+        return true;
+    }
+    if (fault == 2u)
+    {
+        *status = IW_DISPLAY_APPLY_TIMEOUT;
+        *device_error = -RT_ETIMEOUT;
+        return true;
+    }
+    if (fault == 3u)
+    {
+        *status = IW_DISPLAY_APPLY_FAILED;
+        *device_error = -RT_EIO;
+        return true;
+    }
+#else
+    (void)status;
+    (void)device_error;
+#endif
+    return false;
 }
 
 static bool display_apply_current_target(void)
@@ -139,13 +251,49 @@ static void display_process_pending(void)
     if (take == IW_DISPLAY_TAKE_READY)
     {
         int32_t device_error = 0;
-        iw_display_apply_status_t status = display_apply_brightness(request.level, &device_error);
+        iw_display_apply_status_t status;
+
+        if (!display_take_fault_once(&status, &device_error))
+            status = display_apply_brightness(request.level, &device_error);
 
         if (!iw_display_complete_request(&request, status, device_error))
             LOG_E("LCD brightness completion rejected: request=%u seq=%u",
                   (unsigned)request.token.request_id, (unsigned)request.setting_sequence);
     }
 }
+
+static int iw_display_fault_once(int argc, char **argv)
+{
+#ifndef _WIN32
+    uint8_t fault;
+    rt_base_t level;
+
+    if (argc != 2)
+    {
+        rt_kprintf("usage: iw_display_fault_once <busy|timeout|failed>\n");
+        return -RT_EINVAL;
+    }
+    if (strcmp(argv[1], "busy") == 0)
+        fault = 1u;
+    else if (strcmp(argv[1], "timeout") == 0)
+        fault = 2u;
+    else if (strcmp(argv[1], "failed") == 0)
+        fault = 3u;
+    else
+        return -RT_EINVAL;
+
+    level = rt_hw_interrupt_disable();
+    display_fault_pending = fault;
+    rt_hw_interrupt_enable(level);
+    rt_kprintf("display next mailbox fault=%u\n", (unsigned)fault);
+    return RT_EOK;
+#else
+    (void)argc;
+    (void)argv;
+    return -1;
+#endif
+}
+MSH_CMD_EXPORT(iw_display_fault_once, Inject one bounded display mailbox failure);
 
 /* CO5300 偶发保持黑屏时，重发当前目标亮度即可恢复，无需重建 GUI。 */
 static void display_reassert(void)
@@ -212,8 +360,9 @@ static void display_recover_if_faulted(void)
 
 static void iw_display_stat(void)
 {
-    rt_kprintf("display reassert=%u recovery=%u\n",
-               (unsigned)display_reassert_count, (unsigned)display_recovery_count);
+    rt_kprintf("display reassert=%u recovery=%u fault_pending=%u\n",
+               (unsigned)display_reassert_count, (unsigned)display_recovery_count,
+               (unsigned)display_fault_pending);
 }
 MSH_CMD_EXPORT(iw_display_stat, Show LCD wake and recovery statistics);
 

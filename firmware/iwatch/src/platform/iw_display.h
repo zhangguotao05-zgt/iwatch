@@ -40,6 +40,39 @@ typedef enum
     IW_DISPLAY_APPLY_FAILED
 } iw_display_apply_status_t;
 
+typedef enum
+{
+    IW_DISPLAY_DRIVER_STATE_UNKNOWN = 0,
+    IW_DISPLAY_DRIVER_STATE_READY,
+    IW_DISPLAY_DRIVER_STATE_BUSY,
+    IW_DISPLAY_DRIVER_STATE_TIMEOUT,
+    IW_DISPLAY_DRIVER_STATE_UNAVAILABLE
+} iw_display_driver_state_t;
+
+typedef enum
+{
+    IW_DISPLAY_ERROR_INVALID_ADAPTER = -2000,
+    IW_DISPLAY_ERROR_STATE_QUERY = -2001,
+    IW_DISPLAY_ERROR_UNAVAILABLE = -2002,
+    IW_DISPLAY_ERROR_TIMEOUT = -2003,
+    IW_DISPLAY_ERROR_BUSY_QUERY = -2004,
+    IW_DISPLAY_ERROR_BUSY = -2005,
+    IW_DISPLAY_ERROR_CONTROL = -2006,
+    IW_DISPLAY_ERROR_READBACK_QUERY = -2007,
+    IW_DISPLAY_ERROR_READBACK_MISMATCH = -2008
+} iw_display_error_t;
+
+typedef struct
+{
+    void *context;
+    bool (*read_state)(void *context, iw_display_driver_state_t *state);
+    bool (*read_busy)(void *context, bool *busy);
+    iw_display_apply_status_t (*write_brightness)(void *context,
+                                                  uint8_t level,
+                                                  int32_t *device_error);
+    bool (*read_brightness)(void *context, uint8_t *level);
+} iw_display_driver_ops_t;
+
 typedef struct
 {
     uint32_t posted;
@@ -80,5 +113,10 @@ bool iw_display_mailbox_note_apply(iw_display_mailbox_t *mailbox,
                                    iw_display_apply_status_t status);
 void iw_display_mailbox_stats(const iw_display_mailbox_t *mailbox,
                               iw_display_mailbox_stats_t *stats);
+
+/* 只有驱动状态和亮度回读均确认后，才允许报告应用成功。 */
+iw_display_apply_status_t iw_display_apply_verified(const iw_display_driver_ops_t *ops,
+                                                     uint8_t level,
+                                                     int32_t *device_error);
 
 #endif

@@ -24,6 +24,110 @@ static bool request_valid(const iw_display_request_t *request)
            request->reserved == 0u;
 }
 
+static iw_display_apply_status_t driver_state_status(iw_display_driver_state_t state,
+                                                      int32_t *device_error)
+{
+    switch (state)
+    {
+    case IW_DISPLAY_DRIVER_STATE_READY:
+        return IW_DISPLAY_APPLY_OK;
+    case IW_DISPLAY_DRIVER_STATE_BUSY:
+        *device_error = IW_DISPLAY_ERROR_BUSY;
+        return IW_DISPLAY_APPLY_BUSY;
+    case IW_DISPLAY_DRIVER_STATE_TIMEOUT:
+        *device_error = IW_DISPLAY_ERROR_TIMEOUT;
+        return IW_DISPLAY_APPLY_TIMEOUT;
+    case IW_DISPLAY_DRIVER_STATE_UNAVAILABLE:
+        *device_error = IW_DISPLAY_ERROR_UNAVAILABLE;
+        return IW_DISPLAY_APPLY_FAILED;
+    default:
+        *device_error = IW_DISPLAY_ERROR_STATE_QUERY;
+        return IW_DISPLAY_APPLY_FAILED;
+    }
+}
+
+iw_display_apply_status_t iw_display_apply_verified(const iw_display_driver_ops_t *ops,
+                                                     uint8_t level,
+                                                     int32_t *device_error)
+{
+    iw_display_driver_state_t state = IW_DISPLAY_DRIVER_STATE_UNKNOWN;
+    iw_display_apply_status_t status;
+    bool busy = true;
+    uint8_t applied = 0u;
+
+    if (!device_error) return IW_DISPLAY_APPLY_FAILED;
+    *device_error = 0;
+    if (!ops || !ops->read_state || !ops->read_busy || !ops->write_brightness ||
+            !ops->read_brightness || level < IW_BRIGHTNESS_MIN ||
+            level > IW_BRIGHTNESS_MAX)
+    {
+        *device_error = IW_DISPLAY_ERROR_INVALID_ADAPTER;
+        return IW_DISPLAY_APPLY_FAILED;
+    }
+
+    if (!ops->read_state(ops->context, &state))
+    {
+        *device_error = IW_DISPLAY_ERROR_STATE_QUERY;
+        return IW_DISPLAY_APPLY_FAILED;
+    }
+    status = driver_state_status(state, device_error);
+    if (status != IW_DISPLAY_APPLY_OK) return status;
+
+    if (!ops->read_busy(ops->context, &busy))
+    {
+        *device_error = IW_DISPLAY_ERROR_BUSY_QUERY;
+        return IW_DISPLAY_APPLY_FAILED;
+    }
+    if (busy)
+    {
+        *device_error = IW_DISPLAY_ERROR_BUSY;
+        return IW_DISPLAY_APPLY_BUSY;
+    }
+
+    status = ops->write_brightness(ops->context, level, device_error);
+    if (status > IW_DISPLAY_APPLY_FAILED)
+    {
+        *device_error = IW_DISPLAY_ERROR_CONTROL;
+        return IW_DISPLAY_APPLY_FAILED;
+    }
+    if (status != IW_DISPLAY_APPLY_OK)
+    {
+        if (*device_error == 0)
+        {
+            if (status == IW_DISPLAY_APPLY_BUSY)
+                *device_error = IW_DISPLAY_ERROR_BUSY;
+            else if (status == IW_DISPLAY_APPLY_TIMEOUT)
+                *device_error = IW_DISPLAY_ERROR_TIMEOUT;
+            else
+                *device_error = IW_DISPLAY_ERROR_CONTROL;
+        }
+        return status;
+    }
+
+    state = IW_DISPLAY_DRIVER_STATE_UNKNOWN;
+    if (!ops->read_state(ops->context, &state))
+    {
+        *device_error = IW_DISPLAY_ERROR_STATE_QUERY;
+        return IW_DISPLAY_APPLY_FAILED;
+    }
+    status = driver_state_status(state, device_error);
+    if (status != IW_DISPLAY_APPLY_OK) return status;
+
+    if (!ops->read_brightness(ops->context, &applied))
+    {
+        *device_error = IW_DISPLAY_ERROR_READBACK_QUERY;
+        return IW_DISPLAY_APPLY_FAILED;
+    }
+    if (applied != level)
+    {
+        *device_error = IW_DISPLAY_ERROR_READBACK_MISMATCH;
+        return IW_DISPLAY_APPLY_FAILED;
+    }
+
+    *device_error = 0;
+    return IW_DISPLAY_APPLY_OK;
+}
+
 void iw_display_mailbox_init(iw_display_mailbox_t *mailbox)
 {
     if (mailbox) memset(mailbox, 0, sizeof(*mailbox));

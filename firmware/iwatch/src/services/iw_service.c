@@ -65,9 +65,34 @@ static void service_changed(iw_service_t *service)
     if (service->stats.service_revision != UINT32_MAX) service->stats.service_revision++;
 }
 
-static void brightness_changed(iw_service_t *service)
+static bool brightness_equal_without_revision(const iw_brightness_snapshot_t *left,
+                                              const iw_brightness_snapshot_t *right)
 {
-    if (service->brightness.revision != UINT32_MAX) service->brightness.revision++;
+    return left->desired_revision == right->desired_revision &&
+           left->applied_revision == right->applied_revision &&
+           left->persisted_revision == right->persisted_revision &&
+           left->setting_sequence == right->setting_sequence &&
+           left->applied_sequence == right->applied_sequence &&
+           left->last_error == right->last_error &&
+           left->desired == right->desired && left->applied == right->applied &&
+           left->persisted == right->persisted && left->flags == right->flags;
+}
+
+/* 先验证 revision 容量，再一次性提交新快照，保证失败时没有部分写入。 */
+static bool brightness_commit(iw_service_t *service,
+                              const iw_brightness_snapshot_t *candidate,
+                              bool *changed)
+{
+    iw_brightness_snapshot_t next;
+
+    if (!service || !candidate || !changed) return false;
+    *changed = !brightness_equal_without_revision(&service->brightness, candidate);
+    if (!*changed) return true;
+    if (service->brightness.revision == UINT32_MAX) return false;
+    next = *candidate;
+    next.revision = service->brightness.revision + 1u;
+    service->brightness = next;
+    return true;
 }
 
 static bool commands_equal(const iw_command_t *left, const iw_command_t *right)
@@ -437,8 +462,8 @@ iw_submit_status_t iw_service_command_submit(iw_service_t *service, const iw_com
         if (brightness.expected_revision != service->brightness.desired_revision)
             deferred_code = IW_RESULT_STATE_CONFLICT;
         else if (service->brightness.setting_sequence == UINT32_MAX ||
-                 service->brightness.desired_revision == UINT32_MAX ||
-                 service->brightness.revision == UINT32_MAX)
+                  service->brightness.desired_revision == UINT32_MAX ||
+                  service->brightness.revision >= UINT32_MAX - 1u)
             deferred_code = IW_RESULT_CAPACITY;
         else if (brightness.setting_sequence <= service->brightness.setting_sequence)
             deferred_code = IW_RESULT_STATE_CONFLICT;
@@ -476,13 +501,16 @@ iw_submit_status_t iw_service_command_submit(iw_service_t *service, const iw_com
         slot->result.model_revision = service->brightness.desired_revision;
     if (brightness_admitted)
     {
-        service->brightness.desired_revision++;
-        service->brightness.setting_sequence = brightness.setting_sequence;
-        service->brightness.desired = brightness.level;
-        service->brightness.last_error = 0;
-        service->brightness.flags |= IW_BRIGHTNESS_FLAG_DESIRED_VALID |
-                                     IW_BRIGHTNESS_FLAG_SESSION_ONLY;
-        brightness_changed(service);
+        iw_brightness_snapshot_t next = service->brightness;
+
+        next.revision++;
+        next.desired_revision++;
+        next.setting_sequence = brightness.setting_sequence;
+        next.desired = brightness.level;
+        next.last_error = 0;
+        next.flags |= IW_BRIGHTNESS_FLAG_DESIRED_VALID |
+                      IW_BRIGHTNESS_FLAG_SESSION_ONLY;
+        service->brightness = next;
         slot->result.model_revision = service->brightness.desired_revision;
         supersede_queued_brightness(service, brightness.setting_sequence);
     }
@@ -611,6 +639,7 @@ bool iw_service_finish_set_brightness(iw_service_t *service,
     iw_service_slot_t *slot = slot_from_token(service, token);
     iw_set_brightness_payload_t payload;
     iw_clock_snapshot_t clock;
+    iw_brightness_snapshot_t next;
     bool state_changed = false;
 
     if (!slot || slot->result.state != IW_RESULT_STATE_IN_PROGRESS ||
@@ -624,39 +653,30 @@ bool iw_service_finish_set_brightness(iw_service_t *service,
     iw_time_sample(service->time_state, raw_tick);
     if (!iw_time_read(service->time_state, &clock)) return false;
 
+    next = service->brightness;
     if (code == IW_RESULT_OK_APPLIED)
     {
         /* 单显示 owner 保证完成有序；仍拒绝迟到结果倒退 applied 版本。 */
-        if (slot->result.model_revision >= service->brightness.applied_revision)
+        if (slot->result.model_revision >= next.applied_revision)
         {
-            state_changed = service->brightness.applied != payload.level ||
-                            service->brightness.applied_revision != slot->result.model_revision ||
-                            !(service->brightness.flags & IW_BRIGHTNESS_FLAG_APPLIED_VALID);
-            service->brightness.applied = payload.level;
-            service->brightness.applied_revision = slot->result.model_revision;
-            service->brightness.applied_sequence = payload.setting_sequence;
-            service->brightness.flags |= IW_BRIGHTNESS_FLAG_APPLIED_VALID;
+            next.applied = payload.level;
+            next.applied_revision = slot->result.model_revision;
+            next.applied_sequence = payload.setting_sequence;
+            next.flags |= IW_BRIGHTNESS_FLAG_APPLIED_VALID;
         }
-        if (slot->result.model_revision == service->brightness.desired_revision &&
-                service->brightness.last_error != 0)
-        {
-            service->brightness.last_error = 0;
-            state_changed = true;
-        }
+        if (slot->result.model_revision == next.desired_revision)
+            next.last_error = 0;
     }
     else if (code != IW_RESULT_SUPERSEDED &&
-             slot->result.model_revision == service->brightness.desired_revision &&
-             service->brightness.last_error != device_error)
-    {
-        service->brightness.last_error = device_error;
-        state_changed = true;
-    }
+             slot->result.model_revision == next.desired_revision)
+        next.last_error = device_error;
 
-    if (state_changed)
+    if (!brightness_commit(service, &next, &state_changed))
     {
-        brightness_changed(service);
-        service_changed(service);
+        finish_slot(service, slot, IW_RESULT_CAPACITY, &clock);
+        return true;
     }
+    if (state_changed) service_changed(service);
     finish_slot(service, slot, code, &clock);
     return true;
 }
@@ -668,6 +688,7 @@ bool iw_service_note_brightness_applied(iw_service_t *service,
                                         bool device_success,
                                         int32_t device_error)
 {
+    iw_brightness_snapshot_t next;
     bool changed = false;
 
     if (!service || level < IW_BRIGHTNESS_MIN || level > IW_BRIGHTNESS_MAX ||
@@ -676,38 +697,23 @@ bool iw_service_note_brightness_applied(iw_service_t *service,
             level != service->brightness.desired)
         return false;
 
+    next = service->brightness;
     if (device_success)
     {
-        if (target_revision >= service->brightness.applied_revision)
+        if (target_revision >= next.applied_revision)
         {
-            changed = service->brightness.applied != level ||
-                      service->brightness.applied_revision != target_revision ||
-                      service->brightness.applied_sequence != target_sequence ||
-                      !(service->brightness.flags & IW_BRIGHTNESS_FLAG_APPLIED_VALID);
-            service->brightness.applied = level;
-            service->brightness.applied_revision = target_revision;
-            service->brightness.applied_sequence = target_sequence;
-            service->brightness.flags |= IW_BRIGHTNESS_FLAG_APPLIED_VALID;
+            next.applied = level;
+            next.applied_revision = target_revision;
+            next.applied_sequence = target_sequence;
+            next.flags |= IW_BRIGHTNESS_FLAG_APPLIED_VALID;
         }
-        if (target_revision == service->brightness.desired_revision &&
-                service->brightness.last_error != 0)
-        {
-            service->brightness.last_error = 0;
-            changed = true;
-        }
+        if (target_revision == next.desired_revision) next.last_error = 0;
     }
-    else if (target_revision == service->brightness.desired_revision &&
-             service->brightness.last_error != device_error)
-    {
-        service->brightness.last_error = device_error;
-        changed = true;
-    }
+    else if (target_revision == next.desired_revision)
+        next.last_error = device_error;
 
-    if (changed)
-    {
-        brightness_changed(service);
-        service_changed(service);
-    }
+    if (!brightness_commit(service, &next, &changed)) return false;
+    if (changed) service_changed(service);
     return true;
 }
 

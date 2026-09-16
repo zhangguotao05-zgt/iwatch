@@ -488,6 +488,42 @@ static void test_brightness_conflicts_and_revision_exhaustion(void)
     assert(result.code == IW_RESULT_CAPACITY);
     assert(iw_service_brightness_read(&service, &after));
     assert(memcmp(&before, &after, sizeof(before)) == 0);
+
+    service.brightness.revision = UINT32_MAX - 1u;
+    service.brightness.desired_revision = 10u;
+    service.brightness.setting_sequence = 10u;
+    service.brightness.desired = 60u;
+    before = service.brightness;
+    command = brightness_command(23u, 6u, 10u, 11u, 70u,
+                                 IW_BRIGHTNESS_FINAL);
+    assert(iw_service_command_submit(&service, &command) == IW_SUBMIT_QUEUED);
+    assert(iw_service_take_next(&service, &work) == IW_TAKE_COMPLETED);
+    assert(iw_service_result_get(&service, 23u, 6u, &result) == IW_RESULT_LOOKUP_FOUND);
+    assert(result.code == IW_RESULT_CAPACITY);
+    assert(iw_service_brightness_read(&service, &after));
+    assert(memcmp(&before, &after, sizeof(before)) == 0);
+
+    service.brightness.revision = UINT32_MAX;
+    service.brightness.desired_revision = 12u;
+    service.brightness.setting_sequence = 12u;
+    service.brightness.desired = 80u;
+    service.brightness.applied = 60u;
+    service.brightness.applied_revision = 10u;
+    service.brightness.applied_sequence = 10u;
+    service.brightness.last_error = -8;
+    before = service.brightness;
+    assert(!iw_service_note_brightness_applied(&service, 80u, 12u, 12u, true, 0));
+    assert(iw_service_brightness_read(&service, &after));
+    assert(memcmp(&before, &after, sizeof(before)) == 0);
+
+    service.brightness.applied = 80u;
+    service.brightness.applied_revision = 12u;
+    service.brightness.applied_sequence = 12u;
+    service.brightness.last_error = 0;
+    before = service.brightness;
+    assert(iw_service_note_brightness_applied(&service, 80u, 12u, 12u, true, 0));
+    assert(iw_service_brightness_read(&service, &after));
+    assert(memcmp(&before, &after, sizeof(before)) == 0);
 }
 
 static void test_brightness_rejection_has_no_model_side_effect(void)
