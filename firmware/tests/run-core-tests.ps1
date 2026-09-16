@@ -40,6 +40,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw '时间核心测试编译失败。' }
     & ./test_time.exe
     if ($LASTEXITCODE -ne 0) { throw '时间核心测试失败。' }
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$platformDir" "/I$PSScriptRoot/mocks" /Fetest_time_rtc.exe (Join-Path $PSScriptRoot 'test_time_rtc.c') (Join-Path $platformDir 'iw_time_rtc.c')
+    if ($LASTEXITCODE -ne 0) { throw 'RTC 可信标记与会话测试编译失败。' }
+    & ./test_time_rtc.exe
+    if ($LASTEXITCODE -ne 0) { throw 'RTC 可信标记与会话测试失败。' }
     & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$coreDir" "/I$serviceDir" /Fetest_service.exe (Join-Path $PSScriptRoot 'test_service.c') (Join-Path $serviceDir 'iw_service.c') (Join-Path $coreDir 'iw_time.c')
     if ($LASTEXITCODE -ne 0) { throw '服务账本测试编译失败。' }
     & ./test_service.exe

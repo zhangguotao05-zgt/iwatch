@@ -4,11 +4,13 @@
 #include <rtdevice.h>
 
 #define IW_RTC_DEVICE_NAME "rtc"
+#define IW_RTC_SESSION_INVERSE_REGISTER 28u
 #define IW_RTC_STATE_INVERSE_REGISTER 29u
 #define IW_RTC_STATE_REGISTER 30u
 #define IW_RTC_SESSION_REGISTER 31u
 #define IW_RTC_STATE_SIGNATURE UINT32_C(0x49570000)
 #define IW_RTC_STATE_SIGNATURE_MASK UINT32_C(0xffff0000)
+#define IW_RTC_COLD_SESSION_MASK UINT32_C(0x7fffffff)
 
 static rt_device_t rtc_device(void)
 {
@@ -59,18 +61,54 @@ bool iw_time_rtc_write(uint32_t utc_seconds, int16_t offset_minutes)
            HAL_Get_backup(IW_RTC_STATE_INVERSE_REGISTER) == ~state;
 }
 
+static bool session_entropy(uint32_t *entropy)
+{
+    RNG_HandleTypeDef rng = {0};
+    uint32_t seed;
+    bool success;
+
+    if (!entropy) return false;
+    rng.Instance = hwp_trng;
+    if (HAL_RNG_Init(&rng) != HAL_OK) return false;
+    success = HAL_RNG_GenerateRandomSeed(&rng, &seed) == HAL_OK &&
+              HAL_RNG_GenerateRandomNumber(&rng, entropy) == HAL_OK;
+    (void)HAL_RNG_DeInit(&rng);
+    return success;
+}
+
+static bool session_store(uint32_t session_id)
+{
+    /* 反码最后写入；任意一次中断都只会留下无效记录。 */
+    HAL_Set_backup(IW_RTC_SESSION_INVERSE_REGISTER, 0u);
+    if (HAL_Get_backup(IW_RTC_SESSION_INVERSE_REGISTER) != 0u) return false;
+    HAL_Set_backup(IW_RTC_SESSION_REGISTER, session_id);
+    HAL_Set_backup(IW_RTC_SESSION_INVERSE_REGISTER, ~session_id);
+    return HAL_Get_backup(IW_RTC_SESSION_REGISTER) == session_id &&
+           HAL_Get_backup(IW_RTC_SESSION_INVERSE_REGISTER) == ~session_id;
+}
+
 bool iw_time_rtc_next_session(uint32_t *session_id)
 {
     uint32_t previous;
+    uint32_t inverse;
     uint32_t next;
 
     if (!session_id) return false;
     previous = HAL_Get_backup(IW_RTC_SESSION_REGISTER);
-    if (previous == UINT32_MAX) return false;
-    next = previous + 1u;
-    if (next == 0u) return false;
-    HAL_Set_backup(IW_RTC_SESSION_REGISTER, next);
-    if (HAL_Get_backup(IW_RTC_SESSION_REGISTER) != next) return false;
+    inverse = HAL_Get_backup(IW_RTC_SESSION_INVERSE_REGISTER);
+    if (previous != 0u && inverse == ~previous)
+    {
+        if (previous == UINT32_MAX) return false;
+        next = previous + 1u;
+    }
+    else
+    {
+        /* 备份域丢失后用 TRNG 建立新命名空间，避免 session 每次回到 1。 */
+        if (!session_entropy(&next)) return false;
+        next &= IW_RTC_COLD_SESSION_MASK;
+        if (next == 0u) next = 1u;
+    }
+    if (!session_store(next)) return false;
     *session_id = next;
     return true;
 }
