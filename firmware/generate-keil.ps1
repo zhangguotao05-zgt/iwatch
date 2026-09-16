@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$SdkPath = $env:SIFLI_SDK_PATH,
     [ValidateSet("DEV_A128_NAND", "PRODUCT_N16_NOR")]
@@ -113,7 +113,7 @@ try {
     })
 
     # 把 SDK 引用改为有效绝对路径，保证从实际工程目录打开时能够解析。
-    $relativeSdkPath = [System.IO.Path]::GetRelativePath($projectDir, $SdkPath)
+    $relativeSdkPath = Get-IwatchRelativePath -BasePath $projectDir -TargetPath $SdkPath
     $escapedSdkPath = [System.Security.SecurityElement]::Escape($SdkPath)
     $projectText = $projectText.Replace($relativeSdkPath, $escapedSdkPath)
     [System.IO.File]::WriteAllText($keilProject, $projectText, [System.Text.UTF8Encoding]::new($false))

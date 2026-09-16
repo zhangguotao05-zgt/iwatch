@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [string]$SdkPath = $env:SIFLI_SDK_PATH,
     [ValidateSet("DEV_A128_NAND", "PRODUCT_N16_NOR")]

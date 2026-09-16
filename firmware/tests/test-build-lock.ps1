@@ -1,4 +1,4 @@
-$ErrorActionPreference = 'Stop'
+﻿$ErrorActionPreference = 'Stop'
 . (Join-Path (Split-Path -Parent $PSScriptRoot) 'build-common.ps1')
 $testDir = Join-Path $PSScriptRoot 'build/lock-test'
 New-Item -ItemType Directory -Path $testDir -Force | Out-Null
@@ -34,3 +34,12 @@ if (-not (Test-Path -LiteralPath (Join-Path $outside 'sentinel.txt'))) {
     throw '被拒绝的目录发生了修改。'
 }
 Write-Output 'Build lock exclusion/release and safe reset tests passed'
+
+$relativeBase = Join-Path $testDir 'base\project'
+$relativeTarget = Join-Path $testDir 'sdk root'
+New-Item -ItemType Directory -Path $relativeBase, $relativeTarget -Force | Out-Null
+$relativeActual = Get-IwatchRelativePath -BasePath $relativeBase -TargetPath $relativeTarget
+if ($relativeActual -ne '..\..\sdk root') {
+    throw "兼容相对路径计算错误：$relativeActual"
+}
+Write-Output 'PowerShell 5.1 relative path compatibility test passed'

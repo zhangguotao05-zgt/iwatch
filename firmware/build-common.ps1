@@ -1,4 +1,4 @@
-function Get-IwatchBuildRoot {
+﻿function Get-IwatchBuildRoot {
     [CmdletBinding()]
     param(
         [Parameter(Mandatory = $true)]
@@ -70,4 +70,27 @@ function Reset-IwatchBuildDirectory {
         # GCC 与 Keil 共用 SDK 的固定输出名；完整清理可阻止另一工具链的 map/对象残留。
         Remove-Item -LiteralPath $buildFull -Recurse -Force
     }
+}
+
+function Get-IwatchRelativePath {
+    [CmdletBinding()]
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]$BasePath,
+        [Parameter(Mandatory = $true)]
+        [string]$TargetPath
+    )
+
+    $baseFull = [IO.Path]::GetFullPath($BasePath).TrimEnd('\', '/') + [IO.Path]::DirectorySeparatorChar
+    $targetFull = [IO.Path]::GetFullPath($TargetPath)
+    $baseUri = [Uri]$baseFull
+    $targetUri = [Uri]$targetFull
+
+    if ($baseUri.Scheme -ne $targetUri.Scheme) {
+        return $targetFull
+    }
+
+    # Windows PowerShell 5.1 的 .NET Framework 没有 Path.GetRelativePath()。
+    $relative = [Uri]::UnescapeDataString($baseUri.MakeRelativeUri($targetUri).ToString())
+    return $relative.Replace('/', [IO.Path]::DirectorySeparatorChar)
 }

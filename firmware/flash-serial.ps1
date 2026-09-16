@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param(
     [Parameter(Mandatory = $true)]
     [ValidatePattern('^COM\d+$')]
@@ -26,8 +26,8 @@ if (-not (Test-Path -LiteralPath $manifestPath -PathType Leaf)) {
     throw "缺少烧录清单：$manifestPath"
 }
 
-$identity = Get-Content -LiteralPath $identityPath -Raw | ConvertFrom-Json
-$manifest = Get-Content -LiteralPath $manifestPath -Raw | ConvertFrom-Json
+$identity = Get-Content -LiteralPath $identityPath -Raw -Encoding UTF8 | ConvertFrom-Json
+$manifest = Get-Content -LiteralPath $manifestPath -Raw -Encoding UTF8 | ConvertFrom-Json
 if ($identity.profile -ne $BuildProfile) {
     throw "构建身份中的 profile 为 $($identity.profile)，与请求的 $BuildProfile 不一致。"
 }

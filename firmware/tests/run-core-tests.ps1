@@ -1,4 +1,4 @@
-[CmdletBinding()]
+﻿[CmdletBinding()]
 param([string]$VisualStudioPath)
 
 $ErrorActionPreference = 'Stop'
@@ -64,5 +64,6 @@ try {
     & py -3 -m unittest discover -s $PSScriptRoot -p 'test_*.py' -v
     if ($LASTEXITCODE -ne 0) { throw 'Layout regression tests failed.' }
     & (Join-Path $PSScriptRoot 'test-build-lock.ps1')
+    & (Join-Path $PSScriptRoot 'test-powershell-syntax.ps1')
 }
 finally { Pop-Location }
