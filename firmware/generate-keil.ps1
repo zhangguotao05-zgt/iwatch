@@ -118,6 +118,11 @@ try {
     $projectText = $projectText.Replace($relativeSdkPath, $escapedSdkPath)
     [System.IO.File]::WriteAllText($keilProject, $projectText, [System.Text.UTF8Encoding]::new($false))
 
+    # --target=mdk5 会启用 SDK 的 no_exec，仅输出工程和模拟构建日志。
+    # 必须先实际构建，生成工程引用的临时资源源文件，再做引用完整性检查。
+    & scons '--board=iwatch_sf32lb58_a128_qspi' "--board_search_path=$boardDir" "-j$Jobs"
+    if ($LASTEXITCODE -ne 0) { throw 'Keil 实际编译或链接失败。' }
+
     [xml]$projectXml = [System.IO.File]::ReadAllText((Join-Path $repositoryProjectDir 'project.uvprojx'))
     $missingFiles = [System.Collections.Generic.List[string]]::new()
     foreach ($fileNode in $projectXml.SelectNodes('//FilePath')) {
@@ -139,11 +144,6 @@ try {
     Write-Output "Keil project: $keilProject"
     Write-Output "Repository file: $(Join-Path $repositoryProjectDir 'project.uvprojx')"
     Write-Output "Validated source references: $($projectXml.SelectNodes('//FilePath').Count)"
-
-    # --target=mdk5 会启用 SDK 的 no_exec，仅输出工程和模拟构建日志。
-    # 必须另起一次不带 --target 的构建，才能获得真正的 Arm Compiler 镜像。
-    & scons '--board=iwatch_sf32lb58_a128_qspi' "--board_search_path=$boardDir" "-j$Jobs"
-    if ($LASTEXITCODE -ne 0) { throw 'Keil 实际编译或链接失败。' }
 
     & python $identityScript 'finish' @identityArgs
     if ($LASTEXITCODE -ne 0) { throw '构建后配置、镜像或来源校验失败，产物不可发布。' }
