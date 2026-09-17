@@ -68,12 +68,34 @@ class FontSubsetTests(unittest.TestCase):
 
     def test_approved_character_set_and_legacy_messages(self):
         charset, _ = subset.collect_charset(self.config)
-        self.assertEqual(336, len(charset))
+        self.assertEqual(389, len(charset))
         self.assertEqual(self.config["expected"]["charset_sha256"],
                          subset.sha256_bytes(charset.encode("utf-8")))
         for message in self.config["notification_source"]["expected_strings"]:
             self.assertTrue(set(message).issubset(charset))
         self.assertEqual([16, 18, 20, 22, 24, 26, 28], self.config["legacy_sizes_px"])
+
+    def test_product_texts_are_bound_and_cover_visual_contract(self):
+        import html
+        import re
+        source = {"path": "firmware/iwatch/src/gui_core/iw_product_text.h", "array": "iw_product_texts"}
+        self.assertIn(source, self.config["c_string_sources"])
+        texts = subset.parse_c_string_array(ROOT / source["path"], source["array"])
+        contract = (ROOT / "docs/ui/Apple_Watch界面复刻定稿_v2.html").read_text(encoding="utf-8")
+        section = re.search(r'<section id="assets">(.*?)</section>', contract, re.S).group(1)
+        content = re.search(r'<pre[^>]*>(.*?)</pre>', section, re.S).group(1)
+        content = html.unescape(re.sub(r'<[^>]+>', '', content))
+        # 定稿中的中文逐条进入编译文案，不仅检查临时子集能够生成。
+        for text in content.split():
+            if re.search(r'[\u4e00-\u9fff]', text):
+                self.assertIn(text, texts)
+        original = subset.parse_c_string_array
+        def changed(path, name):
+            values = original(path, name)
+            return values + ["龘"] if name == "iw_product_texts" else values
+        with mock.patch.object(subset, "parse_c_string_array", side_effect=changed):
+            with self.assertRaisesRegex(ValueError, "character count changed"):
+                subset.verify_committed(self.config_path)
 
     def test_changed_notification_list_is_rejected(self):
         changed = json.loads(json.dumps(self.config, ensure_ascii=False))

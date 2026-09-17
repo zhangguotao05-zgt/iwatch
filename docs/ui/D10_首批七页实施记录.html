@@ -1,0 +1,66 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D10 首批七页实施记录 · iwatch</title><link rel="stylesheet" href="../assets/engineering.css"></head>
+<body><header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D10 首批正式界面</span></header>
+<div class="page-shell"><nav class="toc"><ul><li><a href="#status">状态</a></li><li><a href="#model">编辑模型</a></li><li><a href="#font">正式字体</a></li><li><a href="#integration">接入顺序</a></li><li><a href="#validation">验证与边界</a></li></ul></nav>
+<main class="doc-main"><h1>D10 首批七页实施记录</h1>
+<p class="doc-meta">2026-09-18 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/12">Issue #12</a> · 开发起点 f392996 · 视觉契约 IW-VISUAL-2.0 / REF-W26-ZH-R1</p>
+<section id="status"><h2>当前状态</h2>
+<p>D09 已按审批基线 042ba6f、固件源码 05fb667 收口。D10 七页、路由与服务接入已在本地实现，正在准备最终双工具链构建和实机验证；尚未完成阶段验收，Issue #12 保持打开。当前未烧录 D10，不能继承 D09 板测结论。</p>
+<table><thead><tr><th>范围</th><th>状态</th></tr></thead><tbody>
+<tr><td>校时草稿、格式化、亮度数值映射</td><td>已接入真实服务，包含校时冲突重试、亮度预览合并与最终提交。</td></tr>
+<tr><td>七页文案与正式字体</td><td>已加入正式清单并生成，字体校验与既有绘制回归通过。</td></tr>
+<tr><td>七页 View、路由、命令结果</td><td>已实现。开机进入 iwlist，KEY1 在列表根页与数字表盘之间切换，列表只展示已接入的设置；新页面已登记全局故障回收。</td></tr>
+<tr><td>目标构建、实机与视觉验收</td><td>探索性 GCC 构建通过，main 为 1,908,852 B；之后新增画线保护和按压反馈，必须重新构建。最终双工具链、实机与视觉验收待执行。</td></tr>
+</tbody></table></section>
+<section id="model"><h2>编辑模型与所有权</h2>
+<p><a href="../../firmware/iwatch/src/gui_core/iw_settings_model.h">iw_settings_model</a> 是无堆分配的纯 C 模型；<a href="../../firmware/iwatch/src/gui_core/iw_product_scene.h">iw_product_scene</a> 使用固定 48 项节点并复制文本；<a href="../../firmware/iwatch/src/gui_core/iw_product_view.h">iw_product_view</a> 负责裁切、绘制、命中与滚动。<a href="../../firmware/iwatch/src/platform/iw_product_controller.h">iw_product_controller</a> 读取服务、维护草稿并发出导航请求。LVGL 操作仍限定在 app_watch 线程。</p>
+<ul>
+<li>SET_CLOCK 携带 expected_revision；字段编辑候选值与草稿分开。冲突保留页面，明确点“重试”后重读快照，成功按来源返回。Home 丢弃离开的编辑页。</li>
+<li>无效 RTC 使用 2026-01-01 00:00、UTC+08:00 作为编辑起点，并保留 needs_calibration；表盘与顶栏仍显示真实快照，无效时间显示 --:--。</li>
+<li>本地编辑年份覆盖 1999～2100，以承接 UTC 两端与 ±14 小时时区的跨年值；提交仍受时间核心 UTC 2000～2099 范围限制，秒归零。</li>
+<li>月份切换不偷偷修正日期：2 月 31 日保留并返回非法日期，星期标记为无效；修正为合法日期后重新计算星期。时区以一分钟为步长，UTC+08:07 不丢精度。</li>
+<li>转换或初始化失败不修改目标值；字符串缓冲不足时清空可写输出。字段步进用 64 位中间值处理 int32 极值。</li>
+<li>亮度轨道相对坐标 96～258 映射 5～100。预览最多 20 Hz，只保留一项尚未提交的新值，FINAL 优先于旧预览；稳定状态展示 applied，等待状态展示目标。</li>
+<li><a href="../../firmware/iwatch/src/gui_core/iw_ui_commands.h">全局命令客户端</a> 有 8 个固定槽，不保存页面指针；退出只解除结果消费，已受理命令继续查询与 ACK。GUI 与诊断共用运行时请求号分配器。两秒未取得结果显示“正在确认结果”，仍可退出；若服务永久无响应，槽保留至结果或 session 更换，容量满后拒绝新请求，不伪造失败或成功。</li>
+<li>全局故障等待 GPU/LCD 空闲后停止作用域、删除页面、释放字体，根页以新 generation 重建。关于页显示提交、实际输入摘要与工具链；构建 finish/verify 验证 main.bin 含该身份，头文件随归档保存。</li>
+</ul></section>
+<section id="font"><h2>正式字体及文案</h2>
+<p><a href="../../firmware/iwatch/src/gui_core/iw_product_text.h">七页正式文案</a>已绑定到 <a href="../../firmware/iwatch/src/resource/fonts/font_charset.json">font_charset.json</a>。沿用 DroidSansFallbackRegular 及既有 11 种字号，保留十条旧通知文案，补齐<a href="Apple_Watch界面复刻定稿_v2.html#assets">施工定稿文案表</a>涉及的 53 个缺字。</p>
+<table><thead><tr><th>项</th><th>本地 D10 结果</th></tr></thead><tbody>
+<tr><td>字符数 / 字体大小</td><td>336 → 389；56,804 → 65,752 B，增加 8,948 B，低于 131,072 B 上限。</td></tr>
+<tr><td>字体 SHA-256</td><td><code>7cd5c22db298bbf726b1afa9e52f1ecf4c8c61e65683a4c911b211a377661919</code></td></tr>
+<tr><td>构建阻断</td><td>继续使用正式字体、清单及输入文案校验；新增测试检查定稿中文条目全部出现在编译文案，并验证遗漏字符会拒绝校验。</td></tr>
+<tr><td>资源边界</td><td>本项只证明字体文件容量；目标 main 大小、主堆、PSRAM 字形池峰值与反复进入后的趋势仍需分别测量。</td></tr>
+</tbody></table>
+<p>受控 SDK 补丁从 29 文件扩至 31 文件，新增横/竖/斜线遮罩分配判空、失败通知及圆端受控填充。回调只锁存故障，不在绘制中删除对象；全局断言和缓存同步保留。补丁 SHA-256：<code>52b18a9f4f107962121c2f692c434141c090979658d894da8728eba08381b506</code>，基础 SDK 仍为干净的 421126d9…。</p></section>
+<section id="integration"><h2>接入及验收约束</h2>
+<ol>
+<li>按<a href="Apple_Watch界面复刻定稿_v2.html">视觉施工定稿 v2</a>实现七页共用的顶栏、列表行、亮度控制和校时选择器。数字表盘、应用列表、设置、显示与亮度、亮度详情、手动校时、关于页使用同一套运行 View 进行主机渲染。</li>
+<li>沿用 D08 页面作用域、SDK 页面栈和 D09 输入仲裁，补齐来源相关 Back、绝对 Home、滚动恢复以及选择器子态。新增字体使用方必须登记全局故障清理；GPU/LCD 未空闲不得回收。</li>
+<li>接入真实时钟、亮度与 capability 快照。命令结果由有界的全局客户端收取并 ACK；页面销毁后仍回收结果，旧 generation 不更新新页面。预览合并、最终提交、revision 冲突、队列拒绝和超时分别处理。</li>
+<li>完成主机回归，再生成 GCC/Keil 新归档，验证身份、预算、地址与 DryRun 后进行新固件实机验证；按 V01～V08 分别记录布局、状态、导航、字号、能力缺失、Q0/Q1/减弱动效和反复进出。</li>
+</ol>
+<p>禁用能力显示不可用，不创建虚假的联网、健康或持久化结果。会话亮度仍标注“仅本次有效”。关于页使用真实构建身份，缺失项显示未提供。</p></section>
+<section id="validation"><h2>本轮验证与未完成项</h2>
+<table><thead><tr><th>证据层</th><th>结果</th></tr></thead><tbody>
+<tr><td>主机模型</td><td>146,100 次日期/时区往返、1000 轮编辑、命令 ACK/离页/session 回归通过；核心脚本 46 项 Python 检查，其中一项环境跳过。</td></tr>
+<tr><td>主机真实 View</td><td>37 个构造失败点、47 个绘制任务失败点、15 个实际画线分配失败点；1000 轮七页生命周期、1000 轮控制器、1000 轮路由/故障恢复通过。真实 pointer 单击、取消、拖动和最终提交通过。</td></tr>
+<tr><td>既有回归</td><td>字体、组件、输入溢出、SDK 路由及 4046 次像素对照通过。GUI 脚本 38 项 Python 与核心脚本有重叠，不相加。主机采用全量包装脚本，避免本机 Ninja 本地化依赖输出导致旧头文件对象混用。</td></tr>
+<tr><td>目标 / 实机</td><td>最终双工具链、预算、身份、DryRun 与板测待执行。</td></tr>
+</tbody></table>
+<p>本地日志：<code>work/d10-core-final.log</code>、<code>work/d10-gui-sdk-final.log</code>（仅本地可用，尚未封存最终板测归档）。复现使用 <a href="../../firmware/tests/run-core-tests.ps1">核心脚本</a>与 <a href="../../firmware/tests/run-d07-a0-tests.ps1">GUI 全量脚本</a>，后者包含产品矩阵。</p>
+<p><a href="assets/d10-product/manifest.json">112 个同源样本与哈希</a>涵盖七页 × Q0/Q1 × 正常/减弱动效 × 正常/放大正文，另含校时六字段和关于页底部。固定数据 VIS-FIXTURE-01 只用于主机，不作为 RTC 或实屏证据。</p>
+<div style="display:flex;flex-wrap:wrap;gap:12px">
+<img width="195" height="225" src="assets/d10-product/product-114.png" alt="主机数字表盘">
+<img width="195" height="225" src="assets/d10-product/product-115.png" alt="主机应用列表">
+<img width="195" height="225" src="assets/d10-product/product-116.png" alt="主机设置">
+<img width="195" height="225" src="assets/d10-product/product-117.png" alt="主机显示与亮度">
+<img width="195" height="225" src="assets/d10-product/product-118.png" alt="主机亮度详情">
+<img width="195" height="225" src="assets/d10-product/product-119.png" alt="主机时间与日期">
+<img width="195" height="225" src="assets/d10-product/product-120.png" alt="主机关于本机"></div>
+<ul><li>当前转场保持无快照稳定切换；250/290 ms 转场及字段 190 ms 吸附尚未实现，单列差异，不能称定稿动效已完成。按压 75 ms、圆入口缩放及减弱动效只改颜色已接入；Q1 仅返回圆局部高光。</li>
+<li>放大样本覆盖列表/设置正文；校时数字、部分次级文案保持原字号。全局字号设置仍禁用，完整放大重排待补齐。</li>
+<li>后续补齐最长身份与异常状态组合、V01～V08 实屏确认、十轮完整流程、两类内存趋势和首帧/帧间隔，才申请 D10 收口。</li></ul>
+<p><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/8">#8</a> 继续保留历史最大 215 ms、D09 最大 133 ms 和六次触摸溢出；<a href="https://github.com/zhangguotao05-zgt/iwatch/issues/10">#10</a> 未定位的显示异常仍打开。页面成型后独立记录首帧、帧间隔和停顿，不以输入队列延迟代替帧率。D10 Issue #12 保持打开。</p>
+</section></main></div></body></html>

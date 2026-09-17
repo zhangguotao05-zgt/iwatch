@@ -16,7 +16,7 @@ import sdk_patch
 class SdkPatchTests(unittest.TestCase):
     def test_manifest_has_exact_whitelist_and_valid_patch_hash(self):
         manifest, patch = sdk_patch.load_manifest()
-        self.assertEqual(29, len(manifest["files"]))
+        self.assertEqual(31, len(manifest["files"]))
         self.assertTrue(patch.is_file())
         self.assertIn("external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.c",
                       {item["path"] for item in manifest["files"]})

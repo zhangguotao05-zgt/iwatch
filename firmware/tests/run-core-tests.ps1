@@ -66,6 +66,14 @@ try {
     & ./test_boot.exe
     if ($LASTEXITCODE -ne 0) { throw '启动协调失败注入测试失败。' }
     $guiCoreDir = Join-Path $firmwareDir 'iwatch/src/gui_core'
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$guiCoreDir" "/I$coreDir" "/I$serviceDir" /Fetest_ui_commands.exe (Join-Path $PSScriptRoot 'test_ui_commands.c') (Join-Path $guiCoreDir 'iw_ui_commands.c') (Join-Path $serviceDir 'iw_service.c') (Join-Path $coreDir 'iw_time.c')
+    if ($LASTEXITCODE -ne 0) { throw 'D10 全局结果客户端编译失败。' }
+    & ./test_ui_commands.exe
+    if ($LASTEXITCODE -ne 0) { throw 'D10 全局结果客户端测试失败。' }
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$guiCoreDir" "/I$coreDir" "/I$serviceDir" /Fetest_settings_model.exe (Join-Path $PSScriptRoot 'test_settings_model.c') (Join-Path $guiCoreDir 'iw_settings_model.c') (Join-Path $coreDir 'iw_time.c')
+    if ($LASTEXITCODE -ne 0) { throw 'D10 设置数据模型编译失败。' }
+    & ./test_settings_model.exe
+    if ($LASTEXITCODE -ne 0) { throw 'D10 日历、草稿及亮度边界测试失败。' }
     & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$guiCoreDir" /Fetest_navigation.exe (Join-Path $PSScriptRoot 'test_navigation.c') (Join-Path $guiCoreDir 'iw_scope.c') (Join-Path $guiCoreDir 'iw_routes.c') (Join-Path $guiCoreDir 'iw_navigator.c')
     if ($LASTEXITCODE -ne 0) { throw 'D08 作用域与导航测试编译失败。' }
     & ./test_navigation.exe

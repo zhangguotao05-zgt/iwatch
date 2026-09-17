@@ -6,6 +6,7 @@
 #include "iw_gui_owner.h"
 #include "iw_service.h"
 #include "iw_router_text.h"
+#include "iw_product_controller.h"
 #include "src/core/lv_obj_private.h"
 #include "src/core/lv_obj_class_private.h"
 #include "src/core/lv_obj_style_private.h"
@@ -64,6 +65,8 @@ static void notify_page(unsigned index, gui_app_msg_type_t event)
 {
     dispatch_index = index;
     if (stack[index].handler) stack[index].handler(event, NULL);
+    else if (!index && !strcmp(active_app,"iwlist")) iw_router_root_event(IW_PAGE_LAUNCHER_LIST,(unsigned)event);
+    else if (!index && !strcmp(active_app,"iwface")) iw_router_root_event(IW_PAGE_FACE,(unsigned)event);
 }
 static void *gui_app_this_page_userdata(void) { return stack[dispatch_index].data; }
 static void gui_app_set_enter_anim_type(unsigned major, unsigned minor, unsigned aux)
@@ -100,7 +103,7 @@ static int gui_app_goback_to_page(const char *name)
 
 static int gui_app_run(const char *name)
 {
-    assert(!queued && (!strcmp(name, "Main") || !strcmp(name, "clock")));
+    assert(!queued && (!strcmp(name, "Main") || !strcmp(name, "clock") || !strcmp(name,"iwface") || !strcmp(name,"iwlist")));
     if (reject_home) { reject_home--; return -1; }
     next_app = name; queued = 4;
     return RT_EOK;
@@ -148,6 +151,17 @@ static void gui_app_process_pending(void)
         notify_page(depth, GUI_APP_MSG_ONRESUME);
         depth++;
         if (hold_after_resume) { held_transition = true; hold_after_resume = false; }
+    } else if (operation==4 && (!strcmp(next_app,"iwface") || !strcmp(next_app,"iwlist"))) {
+        lv_obj_t *new_screen=route_screen_create(); assert(new_screen);
+        notify_page(depth-1,GUI_APP_MSG_ONPAUSE);
+        lv_scr_load(new_screen);
+        while (depth) {
+            notify_page(depth-1,GUI_APP_MSG_ONSTOP);
+            lv_obj_delete(stack[depth-1].screen);
+            memset(&stack[--depth],0,sizeof(stack[0]));
+        }
+        active_app=next_app; stack[0].screen=new_screen; memcpy(stack[0].name,"root",5); depth=1;
+        notify_page(0,GUI_APP_MSG_ONSTART); notify_page(0,GUI_APP_MSG_ONRESUME);
     } else {
         unsigned target = operation >= 3 ? 0 : depth - 2;
         if (operation == 4) active_app = next_app;
@@ -301,5 +315,47 @@ int test_router(lv_display_t *display, size_t number, bool failure)
     }
     assert(!test_font_assert_count() && !irq_depth);
     printf("component_router loops=%zu depth=8 overflow_rejected=1 asserts=0 result=ok\n", number);
+    return 0;
+}
+
+extern void test_product_runtime_init(void);
+int test_product_router(lv_display_t *display,size_t loops)
+{
+    test_product_runtime_init();
+    assert(iw_time_init(&service_time,0,1000,1704067200,0,IW_TIME_SOURCE_RTC)==IW_TIME_OK);
+    assert(iw_service_init(&service,&service_time,1));
+    stack[0]=(fake_page_t){.screen=lv_display_get_screen_active(display)};
+    memcpy(stack[0].name,"root",5); depth=1; active_app="iwlist";
+    iw_router_init(); notify_page(0,GUI_APP_MSG_ONSTART); notify_page(0,GUI_APP_MSG_ONRESUME); process();
+    for (size_t i=0;i<loops;i++) {
+        assert(iw_router_open(IW_PAGE_SETTINGS)); process(); assert(depth==2);
+        assert(iw_router_open(IW_PAGE_DISPLAY)); process(); assert(depth==3);
+        assert(iw_router_open(IW_PAGE_BRIGHTNESS)); process(); assert(depth==4);
+        assert(iw_router_back()); process(); assert(depth==3);
+        assert(iw_router_home()); process(); assert(depth==1 && !strcmp(active_app,"iwlist"));
+        assert(iw_router_home()); process(); assert(depth==1 && !strcmp(active_app,"iwface"));
+        assert(iw_router_open(IW_PAGE_TIME)); process(); assert(depth==2);
+        route_page_t *p=find_page(stack[1].data); assert(p && p->product && p->scope.visible);
+        p->product->view.action(IW_ACTION_FIELD+IW_EDIT_YEAR,0,true,p->product->view.context);
+        assert(p->product->model.draft.editing==IW_EDIT_YEAR);
+        assert(iw_router_back()); process();
+        assert(depth==2 && p->product->model.draft.editing==IW_EDIT_NONE);
+        assert(iw_router_back()); process(); assert(depth==1 && !strcmp(active_app,"iwface"));
+        assert(iw_router_open(IW_PAGE_ABOUT)); process(); assert(depth==2);
+        assert(iw_router_rotate(32));
+        iw_gui_fault_raise(); process(); assert(depth==1);
+        iw_gui_fault_dismiss(); assert(iw_router_recover()); process();
+        assert(depth==1 && !strcmp(active_app,"iwlist"));
+        gui_app_route_snapshot_t s; (void)gui_app_get_route_snapshot(&s);
+        p=snapshot_page(&s,false);
+        assert(p && p->product && p->product->view.surface && !p->failed && p->scope.visible);
+        assert(iw_font_collect());
+    }
+    notify_page(0,GUI_APP_MSG_ONSTOP); process();
+    assert(iw_font_collect());
+    for (unsigned i=0;i<ROUTE_SLOTS;i++) assert(!pages[i]);
+    iw_font_stats_t stats; iw_font_get_stats(&stats); assert(!stats.references);
+    assert(!test_font_assert_count());
+    printf("product_router loops=%zu home_back_picker_recovery=ok asserts=0 result=ok\n",loops);
     return 0;
 }

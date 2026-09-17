@@ -14,5 +14,9 @@ bool iw_router_home(void);
 /* 应急返回始终回桌面，禁止因来源是桌面而反向进入表盘。 */
 bool iw_router_recover(void);
 bool iw_router_rotate(int32_t steps);
+/* 正式页面只允许在 GUI 所有者请求；生命周期消息由两个内置根应用转发。 */
+bool iw_router_open(uint16_t page_id);
+void iw_router_root_event(uint16_t page_id, unsigned message);
+uint32_t iw_router_wait_ms(void);
 
 #endif

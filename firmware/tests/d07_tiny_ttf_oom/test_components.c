@@ -24,6 +24,9 @@ extern int test_component_gallery_render(lv_display_t *display, unsigned variant
 extern int test_touch_input(size_t loops);
 extern int test_router(lv_display_t *display, size_t number, bool failure);
 extern int test_sdk_navigation(void);
+extern int test_product_view(lv_display_t *display, size_t number, unsigned mode);
+extern int test_product_controller(size_t loops);
+extern int test_product_router(lv_display_t *display,size_t loops);
 
 static unsigned cancellations, recoveries, quiesced, actions;
 static bool recovery_visible;
@@ -494,7 +497,17 @@ int test_components(const void *data, size_t size, const char *stage, size_t num
     lv_obj_t *warmup = lv_obj_create(lv_display_get_screen_active(display));
     lv_obj_delete(warmup);
     int result;
-    if (!strcmp(stage, "component_sdk_nav")) result = test_sdk_navigation();
+    if (!strcmp(stage, "component_product_router")) result = test_product_router(display,number);
+    else if (!strcmp(stage, "component_product_controller")) result = test_product_controller(number);
+    else if (!strcmp(stage, "component_product_oom")) result = test_product_view(display, number, 0);
+    else if (!strcmp(stage, "component_product_draw_oom")) result = test_product_view(display, number, 3);
+    else if (!strcmp(stage, "component_product_input")) result = test_product_view(display, number, 4);
+    else if (!strcmp(stage, "component_product_line_0")) result = test_product_view(display, number, 5);
+    else if (!strcmp(stage, "component_product_line_1")) result = test_product_view(display, number, 6);
+    else if (!strcmp(stage, "component_product_line_2")) result = test_product_view(display, number, 7);
+    else if (!strcmp(stage, "component_product")) result = test_product_view(display, number, 1);
+    else if (!strcmp(stage, "component_product_render")) result = test_product_view(display, number, 2);
+    else if (!strcmp(stage, "component_sdk_nav")) result = test_sdk_navigation();
     else if (!strcmp(stage, "component_router")) result = test_router(display, number, false);
     else if (!strcmp(stage, "component_router_oom")) result = test_router(display, number, true);
     else if (!strcmp(stage, "component_navigation")) result = test_component_navigation(number);

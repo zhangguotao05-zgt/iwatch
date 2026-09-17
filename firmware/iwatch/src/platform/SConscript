@@ -2,5 +2,7 @@ from building import *
 import os
 cwd = GetCurrentDir()
 group = DefineGroup('Iwatch_platform', Glob('*.c'), depend=[],
-                    CPPPATH=[cwd, os.path.join(cwd, '../core'), os.path.join(cwd, '../services')])
+                    CPPPATH=[cwd, os.path.join(cwd, '../core'), os.path.join(cwd, '../services'),
+                        os.path.join(cwd, '../../project/build_iwatch_sf32lb58_a128_qspi_hcpu')],
+                    CPPDEFINES=['IW_TARGET_BUILD'])
 Return('group')

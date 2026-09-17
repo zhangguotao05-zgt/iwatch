@@ -41,6 +41,11 @@
       "patched_sha256": "6147387fbb5aec1d32303451a41456dc07f2b1c49c4b624907c24778f0bdf909"
     },
     {
+      "path": "external/lvgl_v9/src/draw/lv_draw_line.h",
+      "base_sha256": "9301c854dc2b5de50c2a140cbec45f7dbd86a1b9da198d860765e1527526cb1b",
+      "patched_sha256": "74ed9e4ab37c4cb2ba0ec385a38d188ef419602a9cf181ad0933088ab4cf099f"
+    },
+    {
       "path": "external/lvgl_v9/src/draw/lv_draw_rect.h",
       "base_sha256": "095f632dd4ae843336db0821b247b5d95df2667eea15d8712e8ca59bf51479de",
       "patched_sha256": "ce77dcc18b7a8135d77e203852b7c4a7bea9edf93b82a4a645f1c85712481985"
@@ -59,6 +64,11 @@
       "path": "external/lvgl_v9/src/draw/sw/lv_draw_sw_grad.h",
       "base_sha256": "984308dbe083609ae6e6b2d7411ffa9c2050674feebe3420a61194265c20b4f4",
       "patched_sha256": "905ef6867c745153ae25098ab78901325b8354418c287df7c450aceb6180cdc0"
+    },
+    {
+      "path": "external/lvgl_v9/src/draw/sw/lv_draw_sw_line.c",
+      "base_sha256": "40ca00c3fad2850a4f375553ae1e62ae9c52b18f99dd9efa32d374477e358a05",
+      "patched_sha256": "29034e3b769427b34ed2bb8e10b83a86532ffd6ef39095b880dc7adf3db0465f"
     },
     {
       "path": "external/lvgl_v9/src/draw/sw/lv_draw_sw_mask.c",
@@ -147,7 +157,7 @@
     }
   ],
   "patch_file": "firmware/patches/lvgl-v9-tiny-ttf-oom.patch",
-  "patch_sha256": "12a68b87de9a00016e8430565f8f76932d45e68790b5e1dcd15a163173896c55",
+  "patch_sha256": "52b18a9f4f107962121c2f692c434141c090979658d894da8728eba08381b506",
   "schema": 1,
   "sdk_commit": "421126d9f476ed8e2a6f0b0ca28a9f241c182e65"
 }

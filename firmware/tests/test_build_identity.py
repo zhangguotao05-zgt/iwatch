@@ -12,6 +12,20 @@ import build_identity as identity
 
 
 class BuildIdentityTests(unittest.TestCase):
+    def test_embedded_identity_tracks_inputs_and_actual_image(self):
+        record = {'git_head': 'a' * 40, 'inputs': {'file': 'one'}, 'compiler': {'name': 'gcc'}}
+        record['embedded_tag'] = identity.embedded_tag(record)
+        with tempfile.TemporaryDirectory() as directory:
+            build = Path(directory)
+            (build/'main.bin').write_bytes(record['embedded_tag'].encode('ascii') + b'\0')
+            identity.verify_embedded_tag(record, build)
+            record['inputs']['file'] = 'two'
+            with self.assertRaisesRegex(ValueError, 'does not match'):
+                identity.verify_embedded_tag(record, build)
+            record['embedded_tag'] = identity.embedded_tag(record)
+            with self.assertRaisesRegex(ValueError, 'missing'):
+                identity.verify_embedded_tag(record, build)
+
     def setUp(self):
         self.config, self.profile = identity.load_profile('DEV_A128_NAND')
 

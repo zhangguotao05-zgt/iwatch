@@ -1,4 +1,5 @@
 #include "iw_components.h"
+#include "iw_draw_checked.h"
 #include "iw_font.h"
 #include "iw_font_port.h"
 #include "iw_gui_owner.h"
@@ -309,7 +310,7 @@ bool iw_components_tick(void)
     return active;
 }
 
-static bool submit_fill(lv_layer_t *layer, const lv_area_t *area, uint32_t color, int32_t radius,
+bool iw_draw_fill_checked(lv_layer_t *layer, const lv_area_t *area, uint32_t color, int32_t radius,
     uint8_t opacity, bool gradient, uint32_t end_color)
 {
     lv_draw_task_t *task = lv_draw_add_task_checked(layer, area, LV_DRAW_TASK_TYPE_FILL);
@@ -332,7 +333,7 @@ static bool submit_fill(lv_layer_t *layer, const lv_area_t *area, uint32_t color
     return true;
 }
 
-static bool submit_text(lv_layer_t *layer, const lv_area_t *area, const char *text,
+bool iw_draw_text_checked(lv_layer_t *layer, const lv_area_t *area, const char *text,
     const lv_font_t *font, uint32_t color, lv_text_align_t align, uint8_t opacity)
 {
     if (!text[0] || area->x2 < area->x1 || area->y2 < area->y1) return true;
@@ -377,11 +378,11 @@ static void draw_component(component_t *component, lv_layer_t *layer)
     uint32_t background = theme->surface;
     uint8_t opacity = component->state == IW_DISABLED ? LV_OPA_50 : LV_OPA_COVER;
     if (component->kind == IW_SCREEN_FRAME) {
-        if (!submit_fill(layer, &area, theme->background, 0, 255, false, 0)) return;
+        if (!iw_draw_fill_checked(layer, &area, theme->background, 0, 255, false, 0)) return;
         area.x1 += theme->inset_x; area.x2 -= theme->inset_x;
         area.y1 += theme->inset_y;
         area.y2 = area.y1 + component->primary.font->line_height - 1;
-        (void)submit_text(layer, &area, component->title, component->primary.font, theme->text, LV_TEXT_ALIGN_LEFT, 255);
+        (void)iw_draw_text_checked(layer, &area, component->title, component->primary.font, theme->text, LV_TEXT_ALIGN_LEFT, 255);
         return;
     }
     if (component->kind == IW_PILL_BUTTON) background = tone_color(component->state);
@@ -390,8 +391,8 @@ static void draw_component(component_t *component, lv_layer_t *layer)
     int32_t inset_y = lv_area_get_height(&area) * (1000 - effects->pressed_scale_permille) * component->press_value / 2000000;
     area.x1 += inset_x; area.x2 -= inset_x; area.y1 += inset_y; area.y2 -= inset_y;
     int32_t radius = component->kind == IW_PILL_BUTTON ? theme->button_radius : theme->card_radius;
-    if (!submit_fill(layer, &area, background, radius, effects->surface_opacity, false, 0)) return;
-    if (component->pressed && !submit_fill(layer, &area, theme->text, radius, effects->highlight_opacity,
+    if (!iw_draw_fill_checked(layer, &area, background, radius, effects->surface_opacity, false, 0)) return;
+    if (component->pressed && !iw_draw_fill_checked(layer, &area, theme->text, radius, effects->highlight_opacity,
             effects->highlight_gradient, background)) return;
     area.x1 += theme->card_padding; area.x2 -= theme->card_padding;
     area.y1 += theme->card_padding; area.y2 -= theme->card_padding;
@@ -400,13 +401,13 @@ static void draw_component(component_t *component, lv_layer_t *layer)
         area.y1 = (component->base.coords.y1 + component->base.coords.y2 - line + 1) / 2;
         area.y2 = area.y1 + line - 1;
         const char *text = component->state == IW_WAITING ? "..." : component->title;
-        (void)submit_text(layer, &area, text, component->primary.font, theme->text, LV_TEXT_ALIGN_CENTER, opacity);
+        (void)iw_draw_text_checked(layer, &area, text, component->primary.font, theme->text, LV_TEXT_ALIGN_CENTER, opacity);
         return;
     }
     if (component->kind == IW_STATUS_BANNER || component->kind == IW_STATE_PANEL) {
         lv_area_t mark = area;
         mark.x2 = mark.x1 + theme->gap[0] - 1;
-        if (!submit_fill(layer, &mark, tone_color(component->state), theme->gap[0] / 2, 255, false, 0)) return;
+        if (!iw_draw_fill_checked(layer, &mark, tone_color(component->state), theme->gap[0] / 2, 255, false, 0)) return;
         area.x1 += theme->gap[2];
     }
     lv_area_t title = area;
@@ -417,12 +418,12 @@ static void draw_component(component_t *component, lv_layer_t *layer)
         int32_t value_width = lv_area_get_width(&area) / 3;
         value.x1 = value.x2 - value_width + 1;
         title.x2 = value.x1 - theme->gap[1] - 1;
-        if (!submit_text(layer, &value, component->value, component->primary.font, theme->secondary, LV_TEXT_ALIGN_RIGHT, opacity)) return;
+        if (!iw_draw_text_checked(layer, &value, component->value, component->primary.font, theme->secondary, LV_TEXT_ALIGN_RIGHT, opacity)) return;
     }
-    if (!submit_text(layer, &title, component->title, component->primary.font, theme->text, LV_TEXT_ALIGN_LEFT, opacity)) return;
+    if (!iw_draw_text_checked(layer, &title, component->title, component->primary.font, theme->text, LV_TEXT_ALIGN_LEFT, opacity)) return;
     if (component->detail[0]) {
         area.y1 = title.y2 + theme->gap[1] + 1;
-        (void)submit_text(layer, &area, component->detail, component->secondary.font, theme->secondary, LV_TEXT_ALIGN_LEFT, opacity);
+        (void)iw_draw_text_checked(layer, &area, component->detail, component->secondary.font, theme->secondary, LV_TEXT_ALIGN_LEFT, opacity);
     }
 }
 

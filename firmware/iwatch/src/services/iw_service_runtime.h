@@ -6,6 +6,8 @@
 
 int iw_service_runtime_init(void);
 uint32_t iw_service_current_session(void);
+/* GUI 与诊断共享编号分配器，session/request 在同一模型锁内取得。 */
+bool iw_request_allocate(uint32_t *session, uint32_t *request);
 
 /* 这些入口均为有界复制；设备访问只在服务线程、模型锁之外执行。 */
 iw_submit_status_t iw_command_submit(const iw_command_t *command);

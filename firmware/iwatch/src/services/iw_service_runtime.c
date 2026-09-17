@@ -22,6 +22,7 @@ static struct rt_mutex runtime_mutex;
 static struct rt_event runtime_event;
 static struct rt_thread runtime_thread;
 static bool runtime_initialized;
+static iw_client_session_t runtime_client;
 
 ALIGN(RT_ALIGN_SIZE)
 static uint8_t runtime_thread_stack[IW_SERVICE_THREAD_STACK_SIZE];
@@ -263,6 +264,17 @@ uint32_t iw_service_current_session(void)
     return session;
 }
 
+bool iw_request_allocate(uint32_t *session, uint32_t *request)
+{
+    if (!session || !request || !runtime_lock()) return false;
+    uint32_t current = iw_service_session_id(&runtime_service);
+    bool ready = runtime_client.session_id == current || iw_client_session_init(&runtime_client, current);
+    bool allocated = ready && iw_client_next_request(&runtime_client, request);
+    if (allocated) *session = current;
+    runtime_unlock();
+    return allocated;
+}
+
 iw_submit_status_t iw_command_submit(const iw_command_t *command)
 {
     iw_submit_status_t status;
@@ -486,7 +498,7 @@ static int iw_clock_set(int argc, char **argv)
 
     session = iw_service_current_session();
     if (!diagnostic_prepare_client(session)) return -RT_ERROR;
-    if (!iw_client_next_request(&diagnostic_client, &request)) return -RT_EFULL;
+    if (!iw_request_allocate(&session, &request)) return -RT_EFULL;
     iw_command_init(&command, session, request, IW_DIAGNOSTIC_PAGE_ID, 1u, IW_OPCODE_SET_CLOCK);
     if (!iw_command_encode_set_clock(&command, (uint32_t)utc_seconds,
                                      (int16_t)offset_minutes, clock.revision))
@@ -561,7 +573,7 @@ static int iw_brightness_set(int argc, char **argv)
         diagnostic_brightness_sequence = brightness.setting_sequence;
     if (diagnostic_brightness_sequence == UINT32_MAX) return -RT_EFULL;
     next_sequence = diagnostic_brightness_sequence + 1u;
-    if (!iw_client_next_request(&diagnostic_client, &request)) return -RT_EFULL;
+    if (!iw_request_allocate(&session, &request)) return -RT_EFULL;
     iw_command_init(&command, session, request, IW_DIAGNOSTIC_PAGE_ID, 1u,
                     IW_OPCODE_SET_BRIGHTNESS);
     if (!iw_command_encode_set_brightness(&command, (uint8_t)level, kind,

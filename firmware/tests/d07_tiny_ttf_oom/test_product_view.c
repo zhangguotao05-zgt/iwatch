@@ -1,0 +1,228 @@
+#include "iw_product_view.h"
+#include "iw_gui_owner.h"
+#include "src/draw/lv_draw_private.h"
+#include "src/draw/sw/lv_draw_sw.h"
+#include "src/draw/sw/lv_draw_sw_mask_private.h"
+#include "src/core/lv_refr_private.h"
+#include <assert.h>
+#include <stdio.h>
+
+extern void test_font_arm_failure(size_t index);
+extern size_t test_font_live_bytes(void);
+extern size_t test_font_live_blocks(void);
+extern size_t test_font_allocation_sequence(void);
+extern unsigned test_font_assert_count(void);
+extern void test_component_capture(lv_display_t *, lv_obj_t *, unsigned);
+
+static const uint16_t product_pages[] = {IW_PAGE_FACE,    IW_PAGE_LAUNCHER_LIST, IW_PAGE_SETTINGS,
+                                         IW_PAGE_DISPLAY, IW_PAGE_BRIGHTNESS,    IW_PAGE_TIME,
+                                         IW_PAGE_ABOUT};
+
+static lv_point_t pointer_point;
+static lv_indev_state_t pointer_state;
+static unsigned pointer_actions, pointer_finals;
+static uint16_t pointer_action;
+static int32_t pointer_value;
+static void read_pointer(lv_indev_t *input, lv_indev_data_t *data) {
+    (void)input;
+    data->point = pointer_point;
+    data->state = pointer_state;
+}
+static void touch(lv_indev_t *input, int x, int y, bool down) {
+    pointer_point = (lv_point_t){x, y};
+    pointer_state = down ? LV_INDEV_STATE_PRESSED : LV_INDEV_STATE_RELEASED;
+    lv_tick_inc(20);
+    lv_indev_read(input);
+}
+static void pointer_action_cb(uint16_t action, int32_t value, bool final, void *context) {
+    (void)context;
+    pointer_actions++;
+    pointer_finals += final;
+    pointer_action = action;
+    pointer_value = value;
+}
+
+static void input_cases(iw_product_view_t *view, iw_product_model_t *m) {
+    lv_indev_t *input = lv_indev_create();
+    assert(input);
+    lv_indev_set_type(input, LV_INDEV_TYPE_POINTER);
+    lv_indev_set_read_cb(input, read_pointer);
+    for (unsigned reduced = 0; reduced < 2; reduced++) {
+        m->reduced_motion = reduced != 0;
+        assert(iw_product_view_create(view, lv_screen_active(), IW_PAGE_SETTINGS, m, pointer_action_cb, NULL, NULL));
+        lv_obj_update_layout(view->surface);
+        pointer_actions = pointer_finals = 0;
+        touch(input, 150, 145, true);
+        lv_tick_inc(75);
+        (void)iw_product_view_tick(view);
+        assert(view->press_value == 1000 && !pointer_actions);
+        lv_indev_reset(input, NULL);
+        touch(input, 150, 145, false);
+        assert(!pointer_actions);
+        touch(input, 150, 145, true);
+        touch(input, 150, 145, false);
+        assert(pointer_actions == 1 && pointer_action == IW_PAGE_DISPLAY);
+        assert(iw_product_view_destroy(view));
+    }
+    assert(iw_product_view_create(view, lv_screen_active(), IW_PAGE_ABOUT, m, pointer_action_cb, NULL, NULL));
+    lv_obj_update_layout(view->surface);
+    pointer_actions = 0;
+    touch(input, 150, 340, true);
+    touch(input, 150, 150, true);
+    touch(input, 150, 150, false);
+    assert(view->scroll_y > 0 && !pointer_actions);
+    assert(iw_product_view_destroy(view));
+    assert(iw_product_view_create(view, lv_screen_active(), IW_PAGE_BRIGHTNESS, m, pointer_action_cb, NULL, NULL));
+    lv_obj_update_layout(view->surface);
+    pointer_actions = pointer_finals = 0;
+    touch(input, 120, 310, true);
+    touch(input, 276, 310, true);
+    touch(input, 276, 310, false);
+    assert(pointer_action == IW_ACTION_TRACK && pointer_value == 100 && pointer_finals == 1);
+    touch(input, 120, 310, true);
+    lv_indev_reset(input, NULL);
+    touch(input, 120, 310, false);
+    assert(pointer_finals == 1);
+    assert(iw_product_view_destroy(view));
+    lv_indev_delete(input);
+}
+
+static unsigned line_failures;
+static void line_failed(void) { line_failures++; iw_gui_fault_raise(); }
+static size_t line_case(lv_display_t *display, unsigned variant, size_t failure) {
+    lv_draw_sw_mask_cleanup();
+    lv_draw_buf_t *buffer = lv_draw_buf_create(128, 128, LV_COLOR_FORMAT_RGB565, LV_STRIDE_AUTO);
+    assert(buffer);
+    lv_layer_t layer = {0};
+    layer.draw_buf = buffer;
+    layer.color_format = LV_COLOR_FORMAT_RGB565;
+    layer.buf_area = (lv_area_t){0, 0, 127, 127};
+    lv_draw_task_t task = {0};
+    task.target_layer = &layer;
+    task.clip_area = layer.buf_area;
+    lv_draw_line_dsc_t dsc;
+    lv_draw_line_dsc_init(&dsc);
+    dsc.p1 = (lv_point_precise_t){15, 15};
+    dsc.p2 = (lv_point_precise_t){variant == 2 ? 15 : 70, variant == 1 ? 15 : 70};
+    dsc.width = 8;
+    dsc.opa = 255;
+    dsc.color = lv_color_white();
+    dsc.round_start = dsc.round_end = 1;
+    dsc.allocation_failed_cb = line_failed;
+    if (variant) { dsc.dash_width = 4; dsc.dash_gap = 3; }
+    lv_refr_set_disp_refreshing(display);
+    size_t before = test_font_allocation_sequence();
+    test_font_arm_failure(failure);
+    lv_draw_sw_line(&task, &dsc);
+    size_t count = test_font_allocation_sequence() - before;
+    test_font_arm_failure(0);
+    assert((line_failures != 0) == (failure != 0));
+    lv_draw_buf_destroy(buffer);
+    lv_draw_sw_mask_cleanup();
+    if (failure) assert(!iw_gui_fault_process());
+    return count;
+}
+
+static iw_product_model_t fixture(void) {
+    iw_product_model_t m = {
+        .clock = {.utc_ms = INT64_C(1789610970000), .valid = true, .revision = 3, .offset_minutes = 480,
+                  .source = IW_TIME_SOURCE_RTC},
+        .message = IW_TEXT_COUNT,
+        .display_available = true,
+        .time_available = true,
+        .back = true,
+        .hardware = "SF32LB58 A128",
+        .firmware = "HOST FIXTURE",
+        .toolchain = "HOST ASan"};
+    m.brightness = (iw_brightness_snapshot_t){.desired = 80,
+                                              .applied = 80,
+                                              .flags = IW_BRIGHTNESS_FLAG_DESIRED_VALID |
+                                                       IW_BRIGHTNESS_FLAG_APPLIED_VALID};
+    assert(iw_time_draft_begin(&m.draft, &m.clock));
+    return m;
+}
+
+int test_product_view(lv_display_t *display, size_t number, unsigned mode) {
+    iw_product_model_t m = fixture();
+    /* 固定存储避免测试栈大小影响嵌入式页面状态的所有权。 */
+    static iw_product_view_t view;
+    size_t blocks = test_font_live_blocks(), bytes = test_font_live_bytes();
+    size_t allocations = 0;
+    if (mode >= 5 && mode <= 7) {
+        allocations = line_case(display, mode - 5, number);
+    } else if (mode == 4) {
+        input_cases(&view, &m);
+    } else if (mode == 3) {
+        assert(iw_product_view_create(&view, lv_screen_active(), IW_PAGE_FACE, &m, NULL, NULL, NULL));
+        lv_obj_update_layout(view.surface);
+        lv_layer_t layer = {0};
+        layer._clip_area = layer.buf_area = (lv_area_t){0, 0, 389, 449};
+        layer.opa = 255;
+        size_t before = test_font_allocation_sequence();
+        test_font_arm_failure(number);
+        assert(lv_obj_send_event(view.surface, LV_EVENT_DRAW_MAIN, &layer) == LV_RESULT_OK);
+        allocations = test_font_allocation_sequence() - before;
+        test_font_arm_failure(0);
+        if (number) assert(iw_gui_fault_pending());
+        for (lv_draw_task_t *task = layer.draw_task_head; task; task = task->next)
+            task->state = LV_DRAW_TASK_STATE_FINISHED;
+        (void)lv_draw_dispatch_layer(display, &layer);
+        if (iw_gui_fault_pending()) assert(!iw_gui_fault_process());
+        assert(iw_product_view_destroy(&view));
+    } else if (mode == 0) {
+        size_t before = test_font_allocation_sequence();
+        test_font_arm_failure(number);
+        bool created = iw_product_view_create(&view, lv_screen_active(), IW_PAGE_FACE, &m, NULL, NULL, NULL);
+        allocations = test_font_allocation_sequence() - before;
+        test_font_arm_failure(0);
+        if (!number)
+            assert(created);
+        else
+            assert(!created);
+        if (iw_gui_fault_pending()) assert(!iw_gui_fault_process());
+        assert(iw_product_view_destroy(&view));
+    } else if (mode == 1) {
+        for (size_t cycle = 0; cycle < number; cycle++) {
+            for (unsigned i = 0; i < sizeof(product_pages) / sizeof(product_pages[0]); i++) {
+                assert(iw_product_view_create(&view, lv_screen_active(), product_pages[i], &m, NULL, NULL,
+                                              NULL));
+                iw_product_view_scroll(&view, INT32_MAX);
+                iw_product_view_activate(&view, false);
+                iw_product_view_activate(&view, true);
+                assert(iw_product_view_destroy(&view) && iw_product_view_destroy(&view));
+            }
+            assert(iw_font_collect());
+            assert(test_font_live_bytes() == bytes && test_font_live_blocks() == blocks);
+        }
+    } else {
+        m.large_text = (number / 7) % 2 != 0;
+        m.quality = (iw_theme_quality_t)((number / 14) % 2);
+        m.reduced_motion = number >= 28;
+        uint16_t page = product_pages[number % 7];
+        m.back = page != IW_PAGE_SETTINGS;
+        assert(iw_product_view_create(&view, lv_screen_active(), page, &m, NULL, NULL, NULL));
+        if (page != IW_PAGE_FACE && page != IW_PAGE_LAUNCHER_LIST && m.back) {
+            assert(view.scene.nodes[0].action == IW_ACTION_BACK && view.scene.nodes[1].fill == 0x242426);
+        }
+        test_component_capture(display, view.surface, 100u + (unsigned)number);
+        if (page == IW_PAGE_ABOUT) {
+            iw_product_view_scroll(&view, INT32_MAX);
+            test_component_capture(display, view.surface, 300u + (unsigned)number);
+        }
+        if (page == IW_PAGE_TIME)
+            for (unsigned field = 0; field < IW_EDIT_NONE; field++) {
+                assert(iw_time_draft_select(&m.draft, (iw_time_field_t)field));
+                assert(iw_product_view_update(&view, &m));
+                test_component_capture(display, view.surface, 200u + (unsigned)(number / 7) * IW_EDIT_NONE + field);
+                iw_time_draft_cancel_field(&m.draft);
+            }
+        assert(iw_product_view_destroy(&view));
+    }
+    assert(iw_font_collect());
+    assert(!view.surface && !view.frame.object && !test_font_assert_count());
+    /* 渲染缓存归主机 LVGL，不纳入构造/销毁分配点的泄漏判定。 */
+    if (mode != 2) assert(test_font_live_bytes() == bytes && test_font_live_blocks() == blocks);
+    printf("product_view mode=%u number=%zu allocations=%zu asserts=0 result=ok\n", mode, number,
+           allocations);
+    return 0;
+}

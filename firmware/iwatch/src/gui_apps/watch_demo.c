@@ -430,6 +430,7 @@ static uint32_t gui_process_frame(void)
     if (app_clock_main_process_font_fault() || iw_components_demo_process()) return 1u;
     if (iw_router_process()) return 1u;
     if (iw_components_tick() && wait_ms > 16u) wait_ms = 16u;
+    if (wait_ms > iw_router_wait_ms()) wait_ms = iw_router_wait_ms();
     return wait_ms;
 }
 
@@ -828,7 +829,7 @@ void app_watch_entry(void *parameter)
 
 
 
-    gui_app_run("Main");
+    gui_app_run("iwlist");
     lv_disp_trig_activity(NULL);
 
 

@@ -222,6 +222,19 @@ index 30d5a9e6..e466987d 100644
  /**
   * Duplicate a draw buf with same image size, stride and color format. Copy the image data too.
   * @param draw_buf  the draw buf to duplicate
+diff --git a/external/lvgl_v9/src/draw/lv_draw_line.h b/external/lvgl_v9/src/draw/lv_draw_line.h
+index 79cc4f95..68e58b79 100644
+--- a/external/lvgl_v9/src/draw/lv_draw_line.h
++++ b/external/lvgl_v9/src/draw/lv_draw_line.h
+@@ -58,6 +58,8 @@ typedef struct {
+ 
+     /**1: Do not bother with line ending (if it's not visible for any reason) */
+     uint8_t raw_end     : 1;
++    /* 分配失败只锁存故障；资源回收交由 GUI 安全点。 */
++    void (*allocation_failed_cb)(void);
+ } lv_draw_line_dsc_t;
+ 
+ /**********************
 diff --git a/external/lvgl_v9/src/draw/lv_draw_rect.h b/external/lvgl_v9/src/draw/lv_draw_rect.h
 index 9c870d1b..c16e1df0 100644
 --- a/external/lvgl_v9/src/draw/lv_draw_rect.h
@@ -358,6 +371,52 @@ index 3033119a..c6257c1e 100644
  
  /**
   * Clean up the gradient item after it was get with `lv_grad_get_from_cache`.
+diff --git a/external/lvgl_v9/src/draw/sw/lv_draw_sw_line.c b/external/lvgl_v9/src/draw/sw/lv_draw_sw_line.c
+index dbc4953d..a5a9e13f 100644
+--- a/external/lvgl_v9/src/draw/sw/lv_draw_sw_line.c
++++ b/external/lvgl_v9/src/draw/sw/lv_draw_sw_line.c
+@@ -75,6 +75,7 @@ void lv_draw_sw_line(lv_draw_task_t * t, const lv_draw_line_dsc_t * dsc)
+         cir_dsc.color = dsc->color;
+         cir_dsc.radius = LV_RADIUS_CIRCLE;
+         cir_dsc.opa = dsc->opa;
++        cir_dsc.allocation_failed_cb = dsc->allocation_failed_cb;
+ 
+         int32_t r = (dsc->width >> 1);
+         int32_t r_corr = (dsc->width & 1) ? 0 : 1;
+@@ -142,6 +143,10 @@ static void LV_ATTRIBUTE_FAST_MEM draw_line_hor(lv_draw_task_t * t, const lv_dra
+         int32_t dash_start = blend_area.x1 % (dsc->dash_gap + dsc->dash_width);
+ 
+         lv_opa_t * mask_buf = lv_malloc(blend_area_w);
++        if(!mask_buf) {
++            if(dsc->allocation_failed_cb) dsc->allocation_failed_cb();
++            return;
++        }
+         blend_dsc.mask_buf = mask_buf;
+         blend_dsc.mask_area = &blend_area;
+         blend_dsc.mask_res = LV_DRAW_SW_MASK_RES_CHANGED;
+@@ -215,6 +220,10 @@ static void LV_ATTRIBUTE_FAST_MEM draw_line_ver(lv_draw_task_t * t, const lv_dra
+         blend_area.y2 = blend_area.y1;
+ 
+         lv_opa_t * mask_buf = lv_malloc(draw_area_w);
++        if(!mask_buf) {
++            if(dsc->allocation_failed_cb) dsc->allocation_failed_cb();
++            return;
++        }
+         blend_dsc.mask_buf = mask_buf;
+         blend_dsc.mask_area = &blend_area;
+         blend_dsc.mask_res = LV_DRAW_SW_MASK_RES_CHANGED;
+@@ -346,6 +355,11 @@ static void LV_ATTRIBUTE_FAST_MEM draw_line_skew(lv_draw_task_t * t, const lv_dr
+     uint32_t hor_res = (uint32_t)lv_display_get_horizontal_resolution(lv_refr_get_disp_refreshing());
+     size_t mask_buf_size = LV_MIN(lv_area_get_size(&blend_area), hor_res);
+     lv_opa_t * mask_buf = lv_malloc(mask_buf_size);
++    if(!mask_buf) {
++        /* 直线遮罩参数只引用栈上数据，尚未占用任何缓存。 */
++        if(dsc->allocation_failed_cb) dsc->allocation_failed_cb();
++        return;
++    }
+ 
+     int32_t y2 = blend_area.y2;
+     blend_area.y2 = blend_area.y1;
 diff --git a/external/lvgl_v9/src/draw/sw/lv_draw_sw_mask.c b/external/lvgl_v9/src/draw/sw/lv_draw_sw_mask.c
 index 7c154ba3..8642bfe6 100644
 --- a/external/lvgl_v9/src/draw/sw/lv_draw_sw_mask.c

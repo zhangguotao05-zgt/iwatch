@@ -1,0 +1,291 @@
+#include "iw_product_scene.h"
+#include <stdio.h>
+#include <string.h>
+
+#define TEXT(id) iw_product_texts[IW_TEXT_##id]
+
+static bool add(iw_product_scene_t *s, int x, int y, int w, int h, int baseline, unsigned px, unsigned color,
+                unsigned fill, unsigned radius, unsigned align, unsigned action, bool fixed, bool disabled,
+                const char *text) {
+    if (s->count == IW_PRODUCT_NODES || !text || strlen(text) >= IW_PRODUCT_TEXT_BYTES) return false;
+    iw_product_node_t *n = &s->nodes[s->count++];
+    *n = (iw_product_node_t){.x = (int16_t)x,
+                             .y = (int16_t)y,
+                             .width = (int16_t)w,
+                             .height = (int16_t)h,
+                             .baseline = (int16_t)baseline,
+                             .font_px = (uint8_t)px,
+                             .color = disabled ? IW_PRODUCT_DISABLED : color,
+                             .fill = fill,
+                             .radius = (uint8_t)radius,
+                             .align = (uint8_t)align,
+                             .action = (uint16_t)action,
+                             .fixed = fixed,
+                             .disabled = disabled};
+    memcpy(n->text, text, strlen(text) + 1);
+    if (!fixed && y + h > s->content_height) s->content_height = (uint16_t)(y + h);
+    return true;
+}
+
+static bool label(iw_product_scene_t *s, int x, int baseline, int w, unsigned px, unsigned color,
+                  unsigned align, bool fixed, const char *text) {
+    return add(s, x, baseline - (int)px, w, (int)px + 12, baseline, px, color, 0, 0, align, 0, fixed, false,
+               text);
+}
+
+static bool button(iw_product_scene_t *s, int x, int y, int w, int h, unsigned action, bool disabled,
+                   bool fixed, const char *text) {
+    return add(s, x, y, w, h, y + h / 2 + 9, 26, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 24, 1, action, fixed, disabled, text);
+}
+
+static bool icon(iw_product_scene_t *s, int x, int y, int size, unsigned kind, unsigned color, bool fixed) {
+    if (!add(s, x, y, size, size, 0, 0, color, 0, 0, 0, 0, fixed, false, "")) return false;
+    s->nodes[s->count - 1].icon = (uint8_t)kind;
+    return true;
+}
+
+static bool shortcut(iw_product_scene_t *s, int cx, int cy, unsigned action, unsigned symbol,
+                     unsigned color) {
+    return add(s, cx - 40, cy - 40, 80, 80, 0, 0, color, 0, 0, 0, action, false, false, "") &&
+           add(s, cx - 36, cy - 36, 72, 72, 0, 0, color, IW_PRODUCT_SURFACE, 36, 0, 0, false, false, "") &&
+           icon(s, cx - 24, cy - 24, 48, symbol, color, false);
+}
+
+static bool header(iw_product_scene_t *s, const iw_product_model_t *m, const char *title) {
+    char time[6];
+    (void)iw_clock_format_hm(&m->clock, time, sizeof(time));
+    s->clip_top = 104;
+    return (!m->back || (add(s, 20, 18, 56, 56, 0, 0, IW_PRODUCT_WHITE, 0, 0, 0, IW_ACTION_BACK, true, false, "") &&
+                         add(s, 24, 22, 48, 48, 0, 0, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 24, 0, 0, true, false, "") &&
+                         icon(s, 28, 26, 40, IW_ICON_BACK, IW_PRODUCT_WHITE, true))) &&
+           label(s, 240, 42, 108, 22, IW_PRODUCT_WHITE, 2, true, time) &&
+           label(s, 28, 88, 320, 30, IW_PRODUCT_WHITE, m->back ? 2u : 0u, true, title);
+}
+
+static bool brightness_control(iw_product_scene_t *s, const iw_product_model_t *m, int y) {
+    uint8_t level = m->preview_level ? m->preview_level
+                    : m->pending     ? m->brightness.desired
+                                     : m->brightness.applied;
+    int width = (level >= 5 && level <= 100) ? (int)(level - 5) * 162 / 95 : 0;
+    return add(s, 18, y, 354, 88, 0, 0, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 24, 0, 0, false, false, "") &&
+           button(s, 18, y, 80, 88, IW_ACTION_DIM, !m->display_available, false, "") &&
+           button(s, 292, y, 80, 88, IW_ACTION_BRIGHTEN, !m->display_available, false, "") &&
+           icon(s, 42, y + 28, 32, IW_ICON_SUN, m->display_available ? IW_PRODUCT_WHITE : IW_PRODUCT_DISABLED, false) &&
+           icon(s, 312, y + 22, 44, IW_ICON_SUN, m->display_available ? IW_PRODUCT_WHITE : IW_PRODUCT_DISABLED, false) &&
+           add(s, 98, y, 194, 88, 0, 0, IW_PRODUCT_WHITE, 0, 0, 0, IW_ACTION_TRACK, false, !m->display_available, "") &&
+           add(s, 114, y + 41, 162, 6, 0, 0, IW_PRODUCT_WHITE, 0x164a26, 3, 0, 0, false, false, "") &&
+           (!width || add(s, 114, y + 41, width, 6, 0, 0, IW_PRODUCT_WHITE, 0x30d158, 3, 0, 0, false, false, ""));
+}
+
+static bool face(iw_product_scene_t *s, const iw_product_model_t *m) {
+    char time[6], date[64], offset[10], source[64];
+    iw_calendar_fields_t local;
+    bool valid = iw_clock_local_fields(&m->clock, &local);
+    (void)iw_clock_format_hm(&m->clock, time, sizeof(time));
+    (void)iw_clock_format_offset(m->clock.offset_minutes, offset, sizeof(offset));
+    if (valid)
+        (void)snprintf(date, sizeof(date), "%u %s", local.day,
+                       iw_product_texts[IW_TEXT_MONDAY + local.weekday]);
+    else
+        (void)snprintf(date, sizeof(date), "%s", TEXT(DATE_INVALID));
+    (void)snprintf(source, sizeof(source), "%s %s / %s", TEXT(SOURCE),
+                   m->clock.source == IW_TIME_SOURCE_RTC      ? "RTC"
+                   : m->clock.source == IW_TIME_SOURCE_MANUAL ? "MANUAL"
+                                                              : "--",
+                   offset);
+    if (!label(s, 30, 50, 320, 26, IW_PRODUCT_WARNING, 2, false, date)) return false;
+    static const int centers[] = {160, 208, 244, 280, 328};
+    for (unsigned i = 0; i < 5; i++) {
+        char digit[2] = {time[i], 0};
+        int width = i == 2 ? 24 : 48;
+        if (!label(s, centers[i] - width / 2, 157, width, 80, IW_PRODUCT_WHITE, 1, false, digit)) return false;
+    }
+    return shortcut(s, 64, 116, IW_PAGE_SETTINGS, IW_ICON_SETTINGS, IW_PRODUCT_SECONDARY) &&
+           add(s, 30, 188, 330, 122, 214, 22, IW_PRODUCT_WARNING, 0, 0, 0, IW_PAGE_TIME, false, false,
+               TEXT(LOCAL_TIME)) &&
+           label(s, 30, 258, 330, 26, valid ? IW_PRODUCT_WHITE : IW_PRODUCT_WARNING, 0, false,
+                 valid ? TEXT(TIME_VALID) : TEXT(TIME_INVALID)) &&
+           label(s, 30, 294, 330, 20, IW_PRODUCT_SECONDARY, 0, false, valid ? source : TEXT(TAP_SET_TIME)) &&
+           shortcut(s, 66, 365, IW_PAGE_DISPLAY, IW_ICON_SUN, IW_PRODUCT_BLUE) &&
+           shortcut(s, 324, 365, IW_PAGE_ABOUT, IW_ICON_INFO, IW_PRODUCT_BLUE);
+}
+
+static bool time_page(iw_product_scene_t *s, const iw_product_model_t *m) {
+    const iw_time_draft_t *d = &m->draft;
+    char text[48];
+    s->clip_bottom = 354;
+    if (d->editing != IW_EDIT_NONE) {
+        if (!header(s, m, iw_product_texts[IW_TEXT_PICK_YEAR + d->editing])) return false;
+        iw_time_draft_t previous = *d, next = *d;
+        (void)iw_time_draft_step(&previous, -1);
+        (void)iw_time_draft_step(&next, 1);
+        char before[24], after[24];
+        if (d->editing == IW_EDIT_OFFSET) {
+            (void)iw_clock_format_offset(previous.candidate, before, sizeof(before));
+            (void)iw_clock_format_offset(next.candidate, after, sizeof(after));
+        } else {
+            (void)snprintf(before, sizeof(before), "%d", previous.candidate);
+            (void)snprintf(after, sizeof(after), "%d", next.candidate);
+        }
+        if (d->editing == IW_EDIT_OFFSET)
+            (void)iw_clock_format_offset(d->candidate, text, sizeof(text));
+        else
+            (void)snprintf(text, sizeof(text), "%d", d->candidate);
+        return button(s, 68, 116, 254, 60, IW_ACTION_PICK_PREV,
+                      m->pending || previous.candidate == d->candidate, false, before) &&
+               add(s, 68, 190, 254, 60, 230, 30, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 20, 1, 0, false, false, text) &&
+               button(s, 68, 266, 254, 60, IW_ACTION_PICK_NEXT, m->pending || next.candidate == d->candidate,
+                      false, after) &&
+               button(s, 18, 366, 170, 60, IW_ACTION_PICK_CANCEL, false, true, TEXT(CANCEL)) &&
+               button(s, 202, 366, 170, 60, IW_ACTION_PICK_CHOOSE, m->pending, true, TEXT(CHOOSE));
+    }
+    if (!header(s, m, TEXT(TIME_DATE))) return false;
+    int values[] = {d->value.year, d->value.month, d->value.day, d->value.hour, d->value.minute};
+    for (unsigned i = 0; i < 5; i++) {
+        (void)snprintf(text, sizeof(text), "%d %s", values[i], iw_product_texts[IW_TEXT_YEAR + i]);
+        if (!button(s, i < 3 ? 18 + (int)i * 122 : 18 + (int)(i - 3) * 184, i < 3 ? 108 : 196,
+                    i < 3 ? 110 : 170, 76, IW_ACTION_FIELD + i, m->pending || !m->time_available, false,
+                    text))
+            return false;
+    }
+    (void)iw_clock_format_offset(d->offset_minutes, text, sizeof(text));
+    return button(s, 18, 284, 354, 64, IW_ACTION_FIELD + IW_EDIT_OFFSET, m->pending || !m->time_available,
+                  false, text) &&
+           button(s, 18, 366, 170, 60,
+                  m->message == IW_TEXT_TIME_CONFLICT ? IW_ACTION_RELOAD : IW_ACTION_TIME_CANCEL, false, true,
+                  m->message == IW_TEXT_TIME_CONFLICT ? TEXT(RETRY) : TEXT(CANCEL)) &&
+           button(s, 202, 366, 170, 60, IW_ACTION_TIME_SAVE, m->pending || !m->time_available, true,
+                  m->pending ? TEXT(SETTING) : TEXT(SETTINGS));
+}
+
+bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product_model_t *m) {
+    if (!s || !m || (unsigned)m->draft.editing > IW_EDIT_NONE || (unsigned)m->message > IW_TEXT_COUNT)
+        return false;
+    memset(s, 0, sizeof(*s));
+    s->page_id = id;
+    s->clip_bottom = 450;
+    bool ok = false;
+    unsigned body = m->large_text ? 30u : 26u;
+    char value[48];
+    switch (id) {
+    case IW_PAGE_FACE:
+        ok = face(s, m);
+        break;
+    case IW_PAGE_LAUNCHER_LIST: {
+        /* 与路由共用注册表，只列已实现的应用根页；当前只有设置符合条件。 */
+        unsigned count = 0;
+        ok = true;
+        for (size_t i = 0; ok && i < iw_route_count(); i++) {
+            const iw_route_descriptor_t *r = iw_route_at(i);
+            if (r->support != IW_ROUTE_READY || r->parent_id != IW_PAGE_LAUNCHER_LIST ||
+                r->app_id == IW_APP_SYSTEM)
+                continue;
+            int y = 68 + (int)count++ * 88;
+            ok = add(s, 18, y, 354, 88, 0, 0, IW_PRODUCT_WHITE, 0, 24, 0, r->page_id, false, false, "") &&
+                 add(s, 28, y + 8, 72, 72, 0, 0, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 36, 0, 0, false, false, "") &&
+                 icon(s, 40, y + 20, 48, IW_ICON_SETTINGS, IW_PRODUCT_WHITE, false) &&
+                 label(s, 118, y + 55, 244, body, IW_PRODUCT_WHITE, 0, false,
+                       r->page_id == IW_PAGE_SETTINGS ? TEXT(SETTINGS) : r->name);
+        }
+        if (!count) ok = label(s, 30, 230, 330, 26, IW_PRODUCT_SECONDARY, 1, false, TEXT(EMPTY_APPS));
+        break;
+    }
+    case IW_PAGE_SETTINGS:
+        ok = header(s, m, TEXT(SETTINGS));
+        for (unsigned i = 0; ok && i < 3; i++) {
+            static const uint16_t target[] = {IW_PAGE_DISPLAY, IW_PAGE_TIME, IW_PAGE_ABOUT};
+            static const iw_product_text_id_t title[] = {IW_TEXT_DISPLAY, IW_TEXT_TIME_DATE,
+                                                         IW_TEXT_ABOUT_DEVICE};
+            int y = 112 + (int)i * 88;
+            ok = add(s, 18, y, 354, 76, 0, 0, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 24, 0, target[i], false, false, "") &&
+                 icon(s, 34, y + 14, 48,
+                      i == 0   ? IW_ICON_SUN
+                      : i == 1 ? IW_ICON_CLOCK
+                               : IW_ICON_INFO,
+                      IW_PRODUCT_BLUE, false) &&
+                 label(s, 98, y + 48, 226, body, IW_PRODUCT_WHITE, 0, false, iw_product_texts[title[i]]) &&
+                 icon(s, 334, y + 26, 24, IW_ICON_NEXT, IW_PRODUCT_SECONDARY, false);
+        }
+        break;
+    case IW_PAGE_DISPLAY:
+        ok = header(s, m, TEXT(DISPLAY)) &&
+             label(s, 34, 127, 320, 20, IW_PRODUCT_SECONDARY, 0, false, TEXT(APPEARANCE)) &&
+             brightness_control(s, m, 144) &&
+             button(s, 18, 244, 354, 64, IW_PAGE_BRIGHTNESS, false, false, TEXT(BRIGHTNESS_DETAIL)) &&
+             button(s, 18, 320, 354, 76, 0, true, false, TEXT(TEXT_SIZE)) &&
+             label(s, 34, 426, 320, 20, IW_PRODUCT_SECONDARY, 1, false, TEXT(SESSION_ONLY));
+        break;
+    case IW_PAGE_BRIGHTNESS:
+        if (m->brightness.flags & IW_BRIGHTNESS_FLAG_APPLIED_VALID || m->preview_level || m->pending)
+            (void)snprintf(value, sizeof(value), "%u%%",
+                           m->preview_level ? m->preview_level
+                           : m->pending     ? m->brightness.desired
+                                            : m->brightness.applied);
+        else
+            (void)snprintf(value, sizeof(value), "--%%");
+        ok = header(s, m, TEXT(BRIGHTNESS)) &&
+             label(s, 30, 161, 330, 22, IW_PRODUCT_SECONDARY, 1, false,
+                   !m->display_available ? TEXT(DISPLAY_UNAVAILABLE)
+                   : m->pending          ? TEXT(PENDING)
+                   : (m->brightness.flags & IW_BRIGHTNESS_FLAG_APPLIED_VALID) &&
+                           m->brightness.applied_sequence == m->brightness.setting_sequence &&
+                           !m->brightness.last_error
+                       ? TEXT(APPLIED)
+                       : TEXT(UNCONFIRMED)) &&
+             label(s, 30, 247, 330, 80, IW_PRODUCT_WHITE, 1, false, value) && brightness_control(s, m, 276) &&
+             label(s, 30, 410, 330, 20, IW_PRODUCT_SECONDARY, 1, false, TEXT(SESSION_ONLY));
+        break;
+    case IW_PAGE_TIME:
+        ok = time_page(s, m);
+        break;
+    case IW_PAGE_ABOUT: {
+        const char *values[] = {"iwatch",
+                                m->hardware,
+                                m->firmware,
+                                m->toolchain,
+                                "IW-VISUAL-2.0",
+                                "390 x 450 QSPI AMOLED",
+                                m->time_available && m->display_available ? "RTC / DISPLAY"
+                                                                          : TEXT(NOT_CONNECTED)};
+        ok = header(s, m, TEXT(ABOUT_DEVICE));
+        int y = 0;
+        for (unsigned i = 0; ok && i < 7; i++) {
+            const char *text = values[i] ? values[i] : TEXT(NOT_PROVIDED);
+            /* 预留保守行数；实际换行由同一 LVGL 字体度量完成，长身份字段不截断。 */
+            unsigned units = 0;
+            for (const unsigned char *ch = (const unsigned char *)text; *ch; ch++)
+                if ((*ch & 0xc0u) != 0x80u) units += *ch < 0x80u ? 1u : 2u;
+            unsigned lines = (units + 23u) / 24u;
+            if (!lines) lines = 1;
+            ok = label(s, 34, 131 + y, 322, 20, IW_PRODUCT_SECONDARY, 0, false, iw_product_texts[IW_TEXT_NAME + i]) &&
+                 add(s, 34, 146 + y, 322, (int)lines * 28 + 12, 168 + y, 22, IW_PRODUCT_WHITE, 0, 0, 0, 0, false, false,
+                     text);
+            if (ok) s->nodes[s->count - 1].multiline = true;
+            y += 93 + ((int)lines - 1) * 28;
+        }
+        break;
+    }
+    default:
+        return false;
+    }
+    if (m->message < IW_TEXT_COUNT)
+        ok = ok && label(s, 18, id == IW_PAGE_TIME ? 448 : 438, 354, 20, IW_PRODUCT_WARNING, 1, true,
+                         iw_product_texts[m->message]);
+    s->content_height += 24;
+    return ok;
+}
+
+int iw_product_scene_scroll_limit(const iw_product_scene_t *s) {
+    return s && s->content_height > s->clip_bottom ? s->content_height - s->clip_bottom : 0;
+}
+
+int iw_product_scene_hit(const iw_product_scene_t *s, int x, int y, int scroll_y) {
+    if (!s) return -1;
+    for (int i = (int)s->count - 1; i >= 0; i--) {
+        const iw_product_node_t *n = &s->nodes[i];
+        if (!n->action || n->disabled || (!n->fixed && (y < s->clip_top || y >= s->clip_bottom))) continue;
+        int ny = n->y - (n->fixed ? 0 : scroll_y);
+        if (x >= n->x && x < n->x + n->width && y >= ny && y < ny + n->height) return i;
+    }
+    return -1;
+}

@@ -71,6 +71,9 @@ if ($LASTEXITCODE -ne 0) { Get-Content $buildLog -Tail 80; throw 'tiny_ttf 主�
 & $PythonPath (Join-Path $testsDir 'd07_tiny_ttf_oom\run_oom_matrix.py') `
     --executable (Join-Path $resolvedBuild 'test_tiny_ttf_oom.exe') --font $fontPath --repeat 1000
 if ($LASTEXITCODE -ne 0) { throw 'tiny_ttf 内存故障矩阵失败。' }
+& $PythonPath (Join-Path $testsDir 'd07_tiny_ttf_oom\run_product_matrix.py') `
+    --executable (Join-Path $resolvedBuild 'test_tiny_ttf_oom.exe') --font $fontPath
+if ($LASTEXITCODE -ne 0) { throw 'D10 页面与全局结果客户端回归失败。' }
 
 Push-Location $repositoryRoot
 try {

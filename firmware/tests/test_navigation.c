@@ -118,7 +118,7 @@ static void test_navigator(void)
     actual.busy = true;
     assert(iw_nav_begin(&nav, IW_NAV_PUSH, diagnostic(1), &actual, 7) == IW_NAV_BUSY);
     actual.busy = false;
-    assert(iw_nav_begin(&nav, IW_NAV_PUSH, (iw_route_t){IW_PAGE_BRIGHTNESS, 0}, &actual, 7) == IW_NAV_UNAVAILABLE);
+    assert(iw_nav_begin(&nav, IW_NAV_PUSH, (iw_route_t){IW_PAGE_LOCALE, 0}, &actual, 7) == IW_NAV_UNAVAILABLE);
     assert(iw_nav_begin(&nav, IW_NAV_PUSH, (iw_route_t){IW_PAGE_CONTROL_CENTER, 0}, &actual, 7) == IW_NAV_UNAVAILABLE);
     assert(iw_nav_begin(&nav, IW_NAV_PUSH, (iw_route_t){0xffff, 0}, &actual, 7) == IW_NAV_INVALID);
     for (unsigned i = 0; i < 1000; i++) {

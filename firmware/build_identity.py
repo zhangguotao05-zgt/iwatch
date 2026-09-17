@@ -109,17 +109,36 @@ def save(path, value):
     path.write_text(json.dumps(value, ensure_ascii=False, indent=2)+'\n', encoding='utf-8')
 
 
+def embedded_tag(record):
+    """显示提交与实际输入摘要；未提交源码也不会冒充该提交的原始镜像。"""
+    digest = hashlib.sha256(json.dumps(record['inputs'], sort_keys=True,
+                                      ensure_ascii=True).encode('ascii')).hexdigest()
+    return f"{record['git_head'][:12]} / {digest[:12]} / {record['compiler']['name']}"
+
+
+def verify_embedded_tag(record, build):
+    if 'embedded_tag' not in record:
+        return
+    if record['embedded_tag'] != embedded_tag(record):
+        raise ValueError('embedded identity does not match build inputs')
+    if record['embedded_tag'].encode('ascii') + b'\0' not in (build/'main.bin').read_bytes():
+        raise ValueError('main image is missing the embedded identity')
+
+
 def verify_artifacts(record, build):
     required = {'rtconfig.h', 'sftool_param.json', 'main.map', 'main.bin',
                 'bootloader/bootloader.bin', 'ftab/ftab.bin'}
     if record.get('inputs', {}).get('sdk_mode') == 'patched':
         required.add('resource_budget.json')
+    if 'embedded_tag' in record:
+        required.add('iw_build_info.h')
     if not required.issubset(record['artifacts']):
         raise ValueError('incomplete artifact identity')
     for rel, digest in record['artifacts'].items():
         path = (build/rel).resolve()
         if not path.is_relative_to(build.resolve()) or sha(path) != digest:
             raise ValueError(f'artifact changed or escaped build directory: {rel}')
+    verify_embedded_tag(record, build)
 
 
 def validate_resource_budget(report, record, build, toolchain):
@@ -200,9 +219,15 @@ def run(args):
         regions = [r for b in table if b['mem'] == 'flash4' for r in b['regions'] if r.get('img') == 'main']
         if len(regions) != 1 or check_layout.number(regions[0]['max_size']) != profile['main_slot_bytes']:
             raise ValueError('profile main budget differs from actual partition table')
-        save(args.state, {'profile': args.profile, 'inputs': snapshot, 'compiler': compiler,
+        record = {'profile': args.profile, 'inputs': snapshot, 'compiler': compiler,
                           'started_utc': datetime.now(timezone.utc).isoformat(),
-                          'git_head': git(ROOT, 'rev-parse', 'HEAD')})
+                          'git_head': git(ROOT, 'rev-parse', 'HEAD')}
+        record['embedded_tag'] = embedded_tag(record)
+        save(args.state, record)
+        build.mkdir(parents=True, exist_ok=True)
+        (build/'iw_build_info.h').write_text(
+            '/* 构建包装脚本生成，禁止手动修改。 */\n#define IW_BUILD_TAG "' +
+            record['embedded_tag'] + '"\n', encoding='utf-8')
         # 不允许失败的构建留下可误认成当前结果的身份文件。
         identity = build/'build_identity.json'
         if identity.exists():
@@ -262,6 +287,9 @@ def run(args):
         artifacts[rel] = sha(path)
     for rel in ['rtconfig.h', 'sftool_param.json', 'main.map']:
         artifacts[rel] = sha(build/rel)
+    if 'embedded_tag' in before:
+        verify_embedded_tag(before, build)
+        artifacts['iw_build_info.h'] = sha(build/'iw_build_info.h')
     budget = image_budget((build/'main.bin').stat().st_size, profile)
     object_rel = 'src/gui_apps/watch_demo.o'
     comment = require_object_compiler(build/object_rel, config['toolchains'][args.toolchain])

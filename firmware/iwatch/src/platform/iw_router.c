@@ -7,6 +7,7 @@
 #include "iw_gui_port.h"
 #include "iw_service_runtime.h"
 #include "iw_router_text.h"
+#include "iw_product_controller.h"
 #include "gui_app_fwk.h"
 #include <rtthread.h>
 #include <rthw.h>
@@ -15,11 +16,12 @@
 
 enum { ROUTE_SLOTS = IW_NAV_MAX_APPS * IW_NAV_MAX_DEPTH };
 typedef enum { REQUEST_NONE, REQUEST_OPEN, REQUEST_STAT, REQUEST_BURST } request_kind_t;
-typedef struct { request_kind_t kind; uint32_t argument; } route_request_t;
+typedef struct { request_kind_t kind; uint32_t argument; uint16_t page_id; } route_request_t;
 typedef struct {
     iw_scope_t scope;
     iw_route_t route;
     iw_component_t frame, description, next_button, back_button;
+    iw_product_page_t *product;
     char sdk_name[16];
     int32_t scroll_y;
     bool started, resumed, stopped, failed, callbacks_enabled;
@@ -35,6 +37,7 @@ static const char *home_target;
 static uint8_t home_attempts;
 static uint8_t rollback_failures;
 static uint32_t generation, next_argument;
+static uint32_t product_wait=UINT32_MAX;
 
 extern void iw_gui_cancel_input(void);
 
@@ -58,7 +61,19 @@ static route_page_t *find_page(void *identity)
 static iw_route_t root_route(const char *app)
 {
     return (iw_route_t){(uint16_t)(!strcmp(app, "Main") ? IW_PAGE_LAUNCHER_GRID :
-                                 !strcmp(app, "clock") ? IW_PAGE_FACE : 0), 0};
+                                 !strcmp(app, "clock") || !strcmp(app,"iwface") ? IW_PAGE_FACE :
+                                 !strcmp(app,"iwlist") ? IW_PAGE_LAUNCHER_LIST : 0), 0};
+}
+
+static route_page_t *snapshot_page(const gui_app_route_snapshot_t *s,bool back)
+{
+    route_page_t *p=find_page(back ? s->back_user_data : s->user_data);
+    if (p) return p;
+    if (strcmp(back ? s->back_page_id : s->page_id,"root")) return NULL;
+    uint16_t id=root_route(s->app_id).page_id;
+    for (unsigned i=0;i<ROUTE_SLOTS;i++)
+        if (pages[i] && !pages[i]->stopped && pages[i]->route.page_id==id && !strcmp(pages[i]->sdk_name,"root")) return pages[i];
+    return NULL;
 }
 
 static iw_route_t observed_route(const gui_app_route_snapshot_t *snapshot, bool back)
@@ -87,8 +102,32 @@ static void action(uint16_t id, void *context)
     else if (next_argument != UINT32_MAX) (void)request((route_request_t){REQUEST_OPEN, ++next_argument}, false);
 }
 
+bool iw_router_open(uint16_t id)
+{
+    if (!initialized || !iw_font_port_is_owner()) return false;
+    return request((route_request_t){.kind=REQUEST_OPEN,.page_id=id},false);
+}
+
+static void product_action(uint16_t id,void *context)
+{
+    route_page_t *p=context;
+    if (!p->scope.alive || !p->scope.visible) return;
+    if (id==IW_ACTION_BACK) (void)request((route_request_t){0},true);
+    else (void)iw_router_open(id);
+}
+
 static bool create_view(route_page_t *page)
 {
+    if (page->route.page_id!=IW_PAGE_DIAGNOSTICS) {
+        page->product=rt_calloc(1,sizeof(*page->product));
+        if (!page->product) return false;
+        gui_app_route_snapshot_t snapshot;
+        (void)gui_app_get_route_snapshot(&snapshot);
+        bool back=page->route.page_id!=IW_PAGE_FACE && page->route.page_id!=IW_PAGE_LAUNCHER_LIST &&
+            !(page->route.page_id==IW_PAGE_SETTINGS && !strcmp(snapshot.app_id,"iwlist"));
+        return iw_product_create(page->product,page->route.page_id,page->scope.token.generation,
+            back,product_action,quiesce,page);
+    }
     char title[48], detail[96];
     (void)snprintf(title, sizeof(title), iw_router_texts[0], (unsigned long)page->route.argument);
     (void)snprintf(detail, sizeof(detail), iw_router_texts[1],
@@ -110,10 +149,24 @@ static bool create_view(route_page_t *page)
     return iw_scope_add(&page->scope, IW_SCOPE_CALLBACK, &page->callbacks_enabled, disable_callbacks, NULL, NULL);
 }
 
-static void page_message(gui_app_msg_type_t message, void *parameter)
+static bool restore_root(route_page_t *page)
 {
-    (void)parameter;
-    route_page_t *page = find_page(gui_app_this_page_userdata());
+    if (!page || !page->failed || strcmp(page->sdk_name,"root")) return true;
+    if (iw_gui_fault_pending() || !iw_font_port_render_idle() || generation==UINT32_MAX) return false;
+    if (page->product) {
+        if (!iw_product_destroy(page->product)) return false;
+        rt_free(page->product); page->product=NULL;
+    }
+    iw_scope_stop(&page->scope);
+    if (!iw_scope_init(&page->scope,page->route.page_id,++generation)) return false;
+    page->failed=!create_view(page);
+    if (page->failed) { iw_gui_fault_raise(); return false; }
+    iw_scope_resume(&page->scope); iw_product_resume(page->product,true);
+    return true;
+}
+
+static void dispatch_page(route_page_t *page,gui_app_msg_type_t message)
+{
     if (!page) return;
     switch (message) {
     case GUI_APP_MSG_ONSTART:
@@ -126,32 +179,65 @@ static void page_message(gui_app_msg_type_t message, void *parameter)
         break;
     case GUI_APP_MSG_ONRESUME:
         page->resumed = true;
+        (void)restore_root(page);
         if (!page->failed && page->scope.alive) {
             const iw_page_resume_t *resume = iw_nav_resume_find(&navigator, page->route);
             if (resume) page->scroll_y = resume->scroll_y;
-            lv_obj_t *content = iw_screen_frame_content(&page->frame);
-            if (content) lv_obj_scroll_to_y(content, page->scroll_y, LV_ANIM_OFF);
+            if (page->product) {
+                page->product->view.scroll_y=(int16_t)page->scroll_y;
+                iw_product_resume(page->product,true);
+            } else {
+                lv_obj_t *content = iw_screen_frame_content(&page->frame);
+                if (content) lv_obj_scroll_to_y(content, page->scroll_y, LV_ANIM_OFF);
+            }
             iw_scope_resume(&page->scope);
             iw_nav_resumed(&navigator, navigator.sequence, page->route);
         }
         break;
     case GUI_APP_MSG_ONPAUSE:
         page->resumed = false;
-        if (page->frame.object) page->scroll_y = lv_obj_get_scroll_y(iw_screen_frame_content(&page->frame));
+        if (page->product) { page->scroll_y=page->product->view.scroll_y; iw_product_resume(page->product,false); }
+        else if (page->frame.object) page->scroll_y = lv_obj_get_scroll_y(iw_screen_frame_content(&page->frame));
         iw_scope_pause(&page->scope);
         iw_gui_cancel_input();
         break;
     case GUI_APP_MSG_ONSTOP:
         page->stopped = true;
         iw_scope_stop(&page->scope);
-        (void)iw_component_destroy(&page->frame);
+        if (page->product) (void)iw_product_destroy(page->product);
+        else (void)iw_component_destroy(&page->frame);
         /* SDK 随后删除自己的屏幕；状态内存到安全点再释放，避免回调使用已释放句柄。 */
         break;
     default: break;
     }
-    rt_kprintf("nav lifecycle page=%lu generation=%lu event=%u failed=%u\n",
+    rt_kprintf("nav lifecycle page=%lu generation=%lu event=%u failed=%u id=%04x\n",
         (unsigned long)page->route.argument, (unsigned long)page->scope.token.generation,
-        (unsigned)message, (unsigned)page->failed);
+        (unsigned)message, (unsigned)page->failed, (unsigned)page->route.page_id);
+}
+
+static void page_message(gui_app_msg_type_t message,void *parameter)
+{
+    (void)parameter;
+    dispatch_page(find_page(gui_app_this_page_userdata()),message);
+}
+
+void iw_router_root_event(uint16_t id,unsigned message)
+{
+    if (!iw_font_port_is_owner() || (id!=IW_PAGE_FACE && id!=IW_PAGE_LAUNCHER_LIST)) return;
+    route_page_t *page=NULL;
+    for (unsigned i=0;i<ROUTE_SLOTS;i++)
+        if (pages[i] && !pages[i]->stopped && pages[i]->route.page_id==id && !strcmp(pages[i]->sdk_name,"root")) { page=pages[i]; break; }
+    if (!page && message==GUI_APP_MSG_ONSTART) {
+        unsigned i=0; while (i<ROUTE_SLOTS && pages[i]) i++;
+        if (i==ROUTE_SLOTS || generation==UINT32_MAX) { iw_gui_fault_raise(); return; }
+        page=rt_calloc(1,sizeof(*page));
+        if (!page) { iw_gui_fault_raise(); return; }
+        pages[i]=page; page->route=(iw_route_t){id,0};
+        (void)iw_scope_init(&page->scope,id,++generation);
+        memcpy(page->sdk_name,"root",5);
+    }
+    dispatch_page(page,(gui_app_msg_type_t)message);
+    if (page && page->failed) iw_gui_fault_raise();
 }
 
 static void release_page(route_page_t *page)
@@ -159,7 +245,10 @@ static void release_page(route_page_t *page)
     if (!page) return;
     page->stopped = true;
     iw_scope_stop(&page->scope);
-    if (iw_component_destroy(&page->frame) == IW_COMPONENT_BUSY) return;
+    if (page->product) {
+        if (!iw_product_destroy(page->product)) return;
+        rt_free(page->product); page->product=NULL;
+    } else if (iw_component_destroy(&page->frame) == IW_COMPONENT_BUSY) return;
     for (unsigned i = 0; i < ROUTE_SLOTS; i++) if (pages[i] == page) pages[i] = NULL;
     if (candidate == page) candidate = NULL;
     rt_free(page);
@@ -183,28 +272,28 @@ static uint32_t capabilities(void)
     return available;
 }
 
-static void begin_request(iw_nav_action_t action_kind, uint32_t argument, const gui_app_route_snapshot_t *snapshot)
+static void begin_request(iw_nav_action_t action_kind, uint32_t argument, uint16_t target_id,const gui_app_route_snapshot_t *snapshot)
 {
     iw_nav_observation_t actual = {.current = observed_route(snapshot, false),
         .back = snapshot->back_valid ? observed_route(snapshot, true) : (iw_route_t){0},
         .running_apps = snapshot->running_apps, .depth = snapshot->page_count,
         .busy = snapshot->busy};
-    iw_nav_result_t result = iw_nav_begin(&navigator, action_kind, (iw_route_t){IW_PAGE_DIAGNOSTICS, argument},
+    iw_nav_result_t result = iw_nav_begin(&navigator, action_kind, (iw_route_t){target_id ? target_id : IW_PAGE_DIAGNOSTICS, argument},
                                          &actual, action_kind == IW_NAV_PUSH ? capabilities() : 0);
     rt_kprintf("nav request action=%u arg=%lu result=%u seq=%lu\n", (unsigned)action_kind,
         (unsigned long)argument, (unsigned)result, (unsigned long)navigator.sequence);
     if (result != IW_NAV_OK) return;
     if (action_kind == IW_NAV_PUSH && argument > next_argument) next_argument = argument;
-    route_page_t *leaving = find_page(snapshot->user_data);
-    if (leaving && leaving->frame.object) {
+    route_page_t *leaving = snapshot_page(snapshot,false);
+    if (leaving && (leaving->frame.object || leaving->product)) {
         iw_page_resume_t resume = {.route = leaving->route,
-            .scroll_y = lv_obj_get_scroll_y(iw_screen_frame_content(&leaving->frame))};
+            .scroll_y = leaving->product ? leaving->product->view.scroll_y : lv_obj_get_scroll_y(iw_screen_frame_content(&leaving->frame))};
         (void)iw_nav_save_leaving(&navigator, &resume);
     }
     candidate = NULL;
     int admitted;
     if (action_kind == IW_NAV_BACK) {
-        candidate = find_page(snapshot->back_user_data);
+        candidate = snapshot_page(snapshot,true);
         admitted = gui_app_goback();
     } else {
         unsigned slot = 0;
@@ -278,7 +367,9 @@ static bool home_request(bool recovery)
     gui_app_route_snapshot_t snapshot;
     (void)gui_app_get_route_snapshot(&snapshot);
     /* 锁定绝对目标，重复按键不会在转场完成前反向切换。 */
-    home_target = !recovery && !snapshot.busy && snapshot.page_count == 1 && !strcmp(snapshot.app_id, "Main") ? "clock" : "Main";
+    bool product=!strcmp(snapshot.app_id,"iwface") || !strcmp(snapshot.app_id,"iwlist");
+    if (product) home_target=!recovery && !snapshot.busy && snapshot.page_count==1 && !strcmp(snapshot.app_id,"iwlist") ? "iwface" : "iwlist";
+    else home_target = !recovery && !snapshot.busy && snapshot.page_count == 1 && !strcmp(snapshot.app_id, "Main") ? "clock" : "Main";
     home_attempts = 0;
     recovery_blocked = false;
     rollback_failures = 0;
@@ -295,7 +386,8 @@ bool iw_router_rotate(int32_t steps)
     if (!initialized || !iw_font_port_is_owner() || home_target || iw_gui_fault_pending()) return false;
     gui_app_route_snapshot_t snapshot;
     (void)gui_app_get_route_snapshot(&snapshot);
-    route_page_t *page = find_page(snapshot.user_data);
+    route_page_t *page = snapshot_page(&snapshot,false);
+    if (!snapshot.busy && page && page->product) return iw_product_rotate(page->product,steps);
     if (snapshot.busy || !page || !page->scope.alive || !page->scope.visible || !page->frame.object) return false;
     if (steps > 32) steps = 32;
     if (steps < -32) steps = -32;
@@ -309,6 +401,7 @@ static void home_process(const gui_app_route_snapshot_t *snapshot)
     if (!home_target || snapshot->busy || navigator.state != IW_NAV_IDLE || rolling_back || fault_unwind) return;
     bool same_app = !strcmp(snapshot->app_id, home_target);
     if (same_app && !strcmp(snapshot->page_id, "root") && snapshot->resumed) {
+        if (!restore_root(snapshot_page(snapshot,false))) return;
         rt_kprintf("nav home target=%s confirmed\n", home_target);
         home_target = NULL;
         return;
@@ -329,6 +422,7 @@ static void home_process(const gui_app_route_snapshot_t *snapshot)
 bool iw_router_process(void)
 {
     if (!initialized || !iw_font_port_is_owner()) return false;
+    product_wait=iw_product_process();
     gui_app_route_snapshot_t snapshot;
     (void)gui_app_get_route_snapshot(&snapshot);
     rt_base_t level = rt_hw_interrupt_disable();
@@ -369,11 +463,14 @@ bool iw_router_process(void)
     if (command.kind == REQUEST_STAT) print_stat(&snapshot);
     else if (!fault_unwind && !rolling_back &&
              (command.kind == REQUEST_OPEN || command.kind == REQUEST_BURST)) {
-        begin_request(IW_NAV_PUSH, command.argument, &snapshot);
+        begin_request(IW_NAV_PUSH, command.argument,command.page_id, &snapshot);
         if (command.kind == REQUEST_BURST) back = true;
     }
     if (iw_nav_take_back(&navigator)) back = true;
-    if (back && !fault_unwind && !rolling_back) begin_request(IW_NAV_BACK, 0, &snapshot);
+    if (back && !fault_unwind && !rolling_back) {
+        route_page_t *current=snapshot_page(&snapshot,false);
+        if (!current || !current->product || !iw_product_back(current->product)) begin_request(IW_NAV_BACK,0,0,&snapshot);
+    }
 
     /* 公开的单次推进不会主动打断播放中的动画；观察空闲也覆盖无动画和跳过分支。 */
     (void)gui_app_get_route_snapshot(&snapshot);
@@ -411,6 +508,8 @@ bool iw_router_process(void)
     return (home_target && !snapshot.busy) || (fault_unwind && !recovery_blocked && !snapshot.busy);
 }
 
+uint32_t iw_router_wait_ms(void) { return product_wait; }
+
 static bool parse_argument(const char *text, uint32_t *value)
 {
     if (!text || !*text) return false;
@@ -429,9 +528,11 @@ static void iw_nav(int argc, char **argv)
     uint32_t argument;
     if (argc == 2 && !strcmp(argv[1], "back")) accepted = request((route_request_t){0}, true);
     else if (argc == 2 && !strcmp(argv[1], "stat")) accepted = request((route_request_t){REQUEST_STAT, 0}, false);
+    else if (argc == 3 && !strcmp(argv[1], "page") && parse_argument(argv[2], &argument) && argument <= UINT16_MAX)
+        accepted = request((route_request_t){.kind=REQUEST_OPEN,.page_id=(uint16_t)argument},false);
     else if (argc == 3 && (!strcmp(argv[1], "open") || !strcmp(argv[1], "burst")) && parse_argument(argv[2], &argument))
         accepted = request((route_request_t){!strcmp(argv[1], "open") ? REQUEST_OPEN : REQUEST_BURST, argument}, false);
-    else { rt_kprintf("iw_nav open <id> | burst <id> | back | stat\n"); return; }
+    else { rt_kprintf("iw_nav open <id> | burst <id> | page <page_id> | back | stat\n"); return; }
     rt_kprintf("nav queued=%u\n", (unsigned)accepted);
 }
 MSH_CMD_EXPORT(iw_nav, D08 navigation diagnostics);
