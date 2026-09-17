@@ -145,6 +145,24 @@ class ResourceBudgetTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "differs from build identity"):
                 budget.verify_identity(build, "gcc")
 
+    def test_report_evidence_does_not_hash_the_mutable_identity_file(self):
+        expected = {"main.map", "main.bin", "main.elf"}
+        with tempfile.TemporaryDirectory() as directory:
+            build = Path(directory)
+            make_elf(build / "main.elf")
+            (build / "main.map").write_text(gcc_map(), encoding="utf-8")
+            (build / "main.bin").write_bytes(b"main")
+            artifacts = {name: hashlib.sha256((build / name).read_bytes()).hexdigest()
+                         for name in expected}
+            (build / "build_identity.json").write_text(json.dumps({
+                "compiler": {"name": "gcc"}, "actual_map_toolchain": "gcc",
+                "profile": "DEV_A128_NAND", "git_head": "abc",
+                "inputs": {"sdk_commit": "sdk", "sdk_patch": {"sha256": "a" * 64}},
+                "artifacts": artifacts,
+            }), encoding="utf-8")
+            report = budget.build_report(build, "gcc")
+            self.assertEqual(expected, set(report["evidence"]))
+
     def test_current_archives_have_expected_pre_a1_baseline(self):
         base = FIRMWARE / "iwatch/project/artifacts/DEV_A128_NAND"
         if not (base / "gcc/build_identity.json").is_file():

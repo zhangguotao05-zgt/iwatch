@@ -109,12 +109,38 @@ def save(path, value):
 def verify_artifacts(record, build):
     required = {'rtconfig.h', 'sftool_param.json', 'main.map', 'main.bin',
                 'bootloader/bootloader.bin', 'ftab/ftab.bin'}
+    if record.get('inputs', {}).get('sdk_mode') == 'patched':
+        required.add('resource_budget.json')
     if not required.issubset(record['artifacts']):
         raise ValueError('incomplete artifact identity')
     for rel, digest in record['artifacts'].items():
         path = (build/rel).resolve()
         if not path.is_relative_to(build.resolve()) or sha(path) != digest:
             raise ValueError(f'artifact changed or escaped build directory: {rel}')
+
+
+def validate_resource_budget(report, record, build, toolchain):
+    """确认预算报告绑定当前核心产物，随后才能写入最终构建身份。"""
+    extension = 'elf' if toolchain == 'gcc' else 'axf'
+    executable = f'main.{extension}'
+    expected_patch = record.get('inputs', {}).get('sdk_patch')
+    if report.get('schema') != 1 or not report.get('passed'):
+        raise ValueError('resource budget is missing or exceeds a hard limit')
+    if (report.get('toolchain') != toolchain or
+            report.get('profile') != record.get('profile') or
+            report.get('git_head') != record.get('git_head') or
+            report.get('sdk_commit') != record.get('inputs', {}).get('sdk_commit') or
+            report.get('sdk_patch') != expected_patch):
+        raise ValueError('resource budget belongs to different build inputs')
+    expected_evidence = {
+        'main.map': sha(build/'main.map'),
+        'main.bin': sha(build/'main.bin'),
+        executable: sha(build/executable),
+    }
+    if report.get('evidence') != expected_evidence:
+        raise ValueError('resource budget evidence differs from current artifacts')
+    if report.get('resources', {}).get('main_bin_bytes') != (build/'main.bin').stat().st_size:
+        raise ValueError('resource budget main size differs from current image')
 
 
 def object_compiler_comment(path):
@@ -178,11 +204,37 @@ def run(args):
         identity = build/'build_identity.json'
         if identity.exists():
             identity.unlink()
+        archive = build.parent/'artifacts'/args.profile/args.toolchain
+        archive_parent = (build.parent/'artifacts'/args.profile).resolve()
+        if archive.exists():
+            if archive.resolve().parent != archive_parent:
+                raise ValueError('archive cleanup path escaped the selected profile')
+            shutil.rmtree(archive)
         print(f'BUILD INPUTS OK: {args.profile}, {args.toolchain}, SDK {snapshot["sdk_commit"]}')
         return
     before = json.loads(args.state.read_text(encoding='utf-8'))
     if before['profile'] != args.profile or before['inputs'] != snapshot or before['compiler'] != compiler:
         raise ValueError('source/config/toolchain changed during build')
+    if args.phase == 'attach-budget':
+        identity_path = build/'build_identity.json'
+        report_path = build/'resource_budget.json'
+        record = json.loads(identity_path.read_text(encoding='utf-8'))
+        if (record['profile'] != args.profile or record['inputs'] != snapshot or
+                record['compiler'] != compiler):
+            raise ValueError('core identity belongs to another source or toolchain')
+        if snapshot.get('sdk_mode') != 'patched':
+            raise ValueError('D07 resource budget requires the verified patched SDK')
+        report = json.loads(report_path.read_text(encoding='utf-8'))
+        validate_resource_budget(report, record, build, args.toolchain)
+        record['artifacts']['resource_budget.json'] = sha(report_path)
+        save(identity_path, record)
+        archive = build.parent/'artifacts'/args.profile/args.toolchain
+        for rel in [*record['artifacts'], 'build_identity.json']:
+            target = archive/rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(build/rel, target)
+        print(f'BUILD RESOURCE BUDGET ATTACHED: {report_path}; archive {archive}')
+        return
     if args.phase == 'verify':
         record = json.loads((build/'build_identity.json').read_text(encoding='utf-8'))
         if record['profile'] != args.profile or record['inputs'] != snapshot or record['compiler'] != compiler:
@@ -224,17 +276,19 @@ def run(args):
     save(build/'build_identity.json', before)
     # 各工具链独立归档；共享 SCons 输出受到外层文件锁保护。
     archive = build.parent/'artifacts'/args.profile/args.toolchain
-    for rel in [*artifacts, 'build_identity.json']:
-        target = archive/rel
-        target.parent.mkdir(parents=True, exist_ok=True)
-        shutil.copy2(build/rel, target)
+    if snapshot.get('sdk_mode') == 'base':
+        for rel in [*artifacts, 'build_identity.json']:
+            target = archive/rel
+            target.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(build/rel, target)
+    destination = archive if snapshot.get('sdk_mode') == 'base' else '等待资源预算绑定'
     print(f'BUILD {"WARNING" if budget["warning"] else "OK"}: main {budget["used_percent"]}% '
-          f'({budget["bytes"]} B), free {budget["free_bytes"]} B; archive {archive}')
+          f'({budget["bytes"]} B), free {budget["free_bytes"]} B; {destination}')
 
 
 def main():
     parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('phase', choices=('begin', 'finish', 'verify'))
+    parser.add_argument('phase', choices=('begin', 'finish', 'attach-budget', 'verify'))
     parser.add_argument('--profile', default='DEV_A128_NAND')
     parser.add_argument('--sdk', type=Path, required=True)
     parser.add_argument('--toolchain', choices=('gcc', 'keil'), required=True)

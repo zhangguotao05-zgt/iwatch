@@ -1,6 +1,6 @@
 {
   "schema": 1,
-  "source_font": "firmware/iwatch/src/resource/fonts/DroidSansFallback.ttf",
+  "source_font": "firmware/iwatch/src/resource/fonts/DroidSansFallback.source.ttf",
   "fonttools_version": "4.65.0",
   "ascii_ranges": [
     [32, 126]

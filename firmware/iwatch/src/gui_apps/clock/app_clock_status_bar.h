@@ -9,3 +9,6 @@
 
 extern bool app_clock_main_status_bar_init(lv_obj_t *par, lv_obj_t *clock_tileview);
 extern void app_clock_main_status_bar_deinit(void);
+extern bool app_clock_main_status_bar_take_font_fault(void);
+extern void app_clock_main_status_bar_note_fallback(void);
+extern void app_clock_main_process_font_fault(void);

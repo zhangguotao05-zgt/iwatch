@@ -24,6 +24,7 @@
 #include "iw_recovery.h"
 #include "iw_boot.h"
 #include "iw_service_runtime.h"
+#include "clock/app_clock_status_bar.h"
 #include <string.h>
 #ifdef BSP_USING_PM
     #include "bf0_pm.h"
@@ -1001,6 +1002,8 @@ void app_watch_entry(void *parameter)
         rt_pm_request(PM_SLEEP_MODE_IDLE);
         ms = lv_timer_handler();
         rt_pm_release(PM_SLEEP_MODE_IDLE);
+        /* 绘制结束后再处理字体故障，避免在 LVGL 回调中删除或切换对象。 */
+        app_clock_main_process_font_fault();
         display_recover_if_faulted();
 
 #ifdef BSP_USING_PM

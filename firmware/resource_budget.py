@@ -248,7 +248,6 @@ def build_report(build_dir, toolchain):
         "checks": checks,
         "passed": all(item["passed"] for item in checks.values()),
         "evidence": {
-            "build_identity.json": sha256(identity_path),
             "main.map": sha256(map_path),
             "main.bin": sha256(build_dir / "main.bin"),
             executable.name: sha256(executable),

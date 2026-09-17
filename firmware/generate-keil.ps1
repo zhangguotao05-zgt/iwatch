@@ -35,6 +35,9 @@ if (-not (Test-Path -LiteralPath (Join-Path $KeilPath 'ARM\ARMCLANG\bin\armclang
 
 $repositoryRoot = Split-Path -Parent $PSScriptRoot
 . (Join-Path $PSScriptRoot 'build-common.ps1')
+$sdkPatchScript = Join-Path $PSScriptRoot 'sdk_patch.py'
+& python $sdkPatchScript 'verify-derived' '--sdk' $SdkPath
+if ($LASTEXITCODE -ne 0) { throw 'D07-A1 只允许使用验证通过的派生 SDK。' }
 $buildRoot = Get-IwatchBuildRoot -RepositoryRoot $repositoryRoot -SdkPath $SdkPath
 $firmwareRoot = Join-Path $buildRoot 'firmware'
 $projectDir = Join-Path $firmwareRoot 'iwatch\project'
@@ -54,6 +57,7 @@ $env:PATH = (Join-Path $KeilPath 'ARM\ARMCLANG\bin') + [IO.Path]::PathSeparator 
 $compiler = Join-Path $KeilPath 'ARM\ARMCLANG\bin\armclang.exe'
 $buildDir = Join-Path $projectDir 'build_iwatch_sf32lb58_a128_qspi_hcpu'
 $identityScript = Join-Path $firmwareRoot 'build_identity.py'
+$resourceBudgetScript = Join-Path $firmwareRoot 'resource_budget.py'
 $identityArgs = @('--profile', $BuildProfile, '--sdk', $SdkPath, '--toolchain', 'keil',
     '--compiler', $compiler, '--build-dir', $buildDir, '--state', (Join-Path $projectDir '.iwatch-build-state.json'))
 $buildLock = Enter-IwatchBuildLock -ProjectDir $projectDir
@@ -147,6 +151,10 @@ try {
 
     & python $identityScript 'finish' @identityArgs
     if ($LASTEXITCODE -ne 0) { throw '构建后配置、镜像或来源校验失败，产物不可发布。' }
+    & python $resourceBudgetScript '--build-dir' $buildDir '--toolchain' 'keil' '--output' (Join-Path $buildDir 'resource_budget.json')
+    if ($LASTEXITCODE -ne 0) { throw '资源预算超限，产物不归档、不可烧录。' }
+    & python $identityScript 'attach-budget' @identityArgs
+    if ($LASTEXITCODE -ne 0) { throw '资源预算无法绑定当前构建身份。' }
     & python $identityScript 'verify' @identityArgs
     if ($LASTEXITCODE -ne 0) { throw '构建产物身份复核失败。' }
 }

@@ -491,6 +491,14 @@ void app_clock_reset_time(void)
 
 static void on_stop(void);
 
+void app_clock_main_process_font_fault(void)
+{
+    if (!app_clock_main_status_bar_take_font_fault()) return;
+    iw_gui_cancel_input();
+    app_clock_main_status_bar_note_fallback();
+    iw_recovery_show(APP_ID);
+}
+
 static void on_start(void)
 {
     if (p_app_clock_main) return;

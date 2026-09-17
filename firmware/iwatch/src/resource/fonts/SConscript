@@ -1,18 +1,29 @@
 from building import *
+import hashlib
+import json
 import os
 font_objs = []
 
 cwd = GetCurrentDir()
 font_file = os.path.join(cwd, 'DroidSansFallback.ttf')
+manifest_file = os.path.join(cwd, 'DroidSansFallback.subset.json')
 
+if not os.path.exists(font_file) or not os.path.exists(manifest_file):
+    raise RuntimeError('字体子集或清单不存在，请先运行 generate_font_subset.py')
 
-if not os.path.exists(font_file):
-    print(f"Whether memory allocation is dynamic: Warning: Font file does not exist: {font_file}")
-    font_objs = []
-else:
-    print(f"Font file path: {font_file}")
-    font_objs = Env.ConvertFont(font_file, 'DroidSansFallback')
-    font_objs = DefineGroup('resource', font_objs, depend = ['PKG_USING_LITTLEVGL2RTT'])
+with open(manifest_file, 'r', encoding='utf-8') as stream:
+    manifest = json.load(stream)
+with open(font_file, 'rb') as stream:
+    font_data = stream.read()
+
+actual_hash = hashlib.sha256(font_data).hexdigest()
+expected = manifest.get('output', {})
+if len(font_data) != expected.get('bytes') or actual_hash != expected.get('sha256'):
+    raise RuntimeError('字体子集与受版本控制的清单不一致')
+
+print(f"Font subset: {font_file} ({len(font_data)} bytes, {actual_hash})")
+font_objs = Env.ConvertFont(font_file, 'DroidSansFallback')
+font_objs = DefineGroup('resource', font_objs, depend = ['PKG_USING_LITTLEVGL2RTT'])
 
 
 

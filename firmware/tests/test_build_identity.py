@@ -57,6 +57,51 @@ class BuildIdentityTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, 'artifact changed'):
                 identity.verify_artifacts(record, build)
 
+    def test_patched_package_requires_bound_resource_budget(self):
+        with tempfile.TemporaryDirectory() as directory:
+            build = Path(directory)
+            artifacts = {}
+            required = ['rtconfig.h', 'sftool_param.json', 'main.map', 'main.bin',
+                        'bootloader/bootloader.bin', 'ftab/ftab.bin']
+            for rel in required:
+                path = build/rel
+                path.parent.mkdir(exist_ok=True)
+                path.write_bytes(b'original')
+                artifacts[rel] = identity.sha(path)
+            record = {'inputs': {'sdk_mode': 'patched'}, 'artifacts': artifacts}
+            with self.assertRaisesRegex(ValueError, 'incomplete'):
+                identity.verify_artifacts(record, build)
+            report = build/'resource_budget.json'
+            report.write_text('{}', encoding='utf-8')
+            artifacts['resource_budget.json'] = identity.sha(report)
+            identity.verify_artifacts(record, build)
+
+    def test_resource_budget_binding_rejects_other_artifacts(self):
+        with tempfile.TemporaryDirectory() as directory:
+            build = Path(directory)
+            for name in ('main.map', 'main.bin', 'main.elf'):
+                (build/name).write_bytes(name.encode('ascii'))
+            patch = {'sha256': 'a' * 64, 'files': {}}
+            record = {
+                'profile': 'DEV_A128_NAND', 'git_head': 'abc',
+                'inputs': {'sdk_commit': 'sdk', 'sdk_patch': patch},
+            }
+            report = {
+                'schema': 1, 'passed': True, 'toolchain': 'gcc',
+                'profile': 'DEV_A128_NAND', 'git_head': 'abc',
+                'sdk_commit': 'sdk', 'sdk_patch': patch,
+                'resources': {'main_bin_bytes': len(b'main.bin')},
+                'evidence': {
+                    'main.map': identity.sha(build/'main.map'),
+                    'main.bin': identity.sha(build/'main.bin'),
+                    'main.elf': identity.sha(build/'main.elf'),
+                },
+            }
+            identity.validate_resource_budget(report, record, build, 'gcc')
+            report['evidence']['main.bin'] = '0' * 64
+            with self.assertRaisesRegex(ValueError, 'evidence differs'):
+                identity.validate_resource_budget(report, record, build, 'gcc')
+
     def test_gcc_object_cannot_be_labelled_keil(self):
         with tempfile.TemporaryDirectory() as directory:
             path = Path(directory)/'source.o'

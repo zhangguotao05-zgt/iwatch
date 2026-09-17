@@ -192,6 +192,10 @@ typedef struct { lv_color_t color;int align; } lv_draw_label_dsc_t;
 static font_cache_t font_cache[10];
 static unsigned font_count;
 static lv_font_t *chinese_font;
+typedef struct { uint32_t ttf_heap_baseline,ttf_last_idle_delta; } font_runtime_stats_t;
+static font_runtime_stats_t font_stats;
+static uint32_t font_ttf_heap_used(void) { return 0; }
+static void lv_tiny_ttf_set_oom_cb(void *cb,void *data) { (void)cb;(void)data; }
 static lv_obj_t *app_clock_main_status_bar,*status_bar_area_up,*status_bar_area_down,*app_clock_tileview;
 static lv_opa_t *last_mask;
 static lv_opa_t *app_cache_alloc(size_t size,int pool) { (void)pool;last_mask=test_calloc(1,size);return last_mask; }
@@ -221,7 +225,8 @@ int main(void) {
     for(int i=0;i<100;i++) {
         app_clock_main_status_bar=lv_obj_create(&roots[0]);status_bar_area_up=lv_obj_create(&roots[1]);status_bar_area_down=lv_obj_create(&roots[2]);
         font_count=10;for(int f=0;f<10;f++)font_cache[f].font=test_calloc(1,sizeof(lv_font_t));
-        app_clock_main_status_bar_deinit();app_clock_main_status_bar_deinit();assert(live==0 && !font_count);
+        app_clock_main_status_bar_deinit();app_clock_main_status_bar_deinit();
+        assert(live==0 && !font_count && font_stats.ttf_last_idle_delta==0);
     }
     puts("Status font ownership and gradient OOM tests passed");return 0;
 }

@@ -45,8 +45,20 @@ class FontSubsetTests(unittest.TestCase):
             flattened.extend((item["title"], item["content"]))
         self.assertEqual(self.config["notification_source"]["expected_strings"], flattened)
         self.assertEqual(self.config["legacy_sizes_px"], baseline["legacy_sizes_px"])
-        source = ROOT / baseline["source"]["path"]
-        self.assertEqual(baseline["source"]["sha256"], subset.sha256_file(source))
+        self.assertEqual("1b3ae9ed61fc7415a9938589285041f96269604825f105bee09c96e09096f517",
+                         baseline["source"]["sha256"])
+
+    def test_firmware_links_the_versioned_subset(self):
+        font_dir = FIRMWARE / "iwatch/src/resource/fonts"
+        linked = font_dir / "DroidSansFallback.ttf"
+        source = font_dir / "DroidSansFallback.source.ttf"
+        manifest = json.loads((font_dir / "DroidSansFallback.subset.json").read_text(
+            encoding="utf-8"))
+        self.assertEqual(self.config["expected"]["source_font_bytes"], source.stat().st_size)
+        self.assertEqual(self.config["expected"]["source_font_sha256"], subset.sha256_file(source))
+        self.assertEqual(manifest["output"]["bytes"], linked.stat().st_size)
+        self.assertEqual(manifest["output"]["sha256"], subset.sha256_file(linked))
+        self.assertEqual(self.config["expected"]["subset_font_sha256"], subset.sha256_file(linked))
 
     def test_two_independent_generations_are_identical(self):
         try:
