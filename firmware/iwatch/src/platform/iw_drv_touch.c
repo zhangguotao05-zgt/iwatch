@@ -11,6 +11,7 @@
 
 #include "rtconfig.h"
 #include "drv_touch.h"
+#include "iw_touch.h"
 #include "bf0_hal.h"
 #include <string.h>
 #include "drv_io.h"
@@ -72,6 +73,7 @@ static int8_t pos_rec_beg = 0;//The record that NOT be readed.
 static int8_t pos_rec_end = 0;//The record that can be write into.
 
 static struct touch_message last_rec = {0, 0, TOUCH_EVENT_UP};
+static iw_touch_stats_t touch_stats;
 #if (DBG_LEVEL == DBG_LOG)
     static bool enable_tp_buf_log = true;
 #else
@@ -80,6 +82,39 @@ static struct touch_message last_rec = {0, 0, TOUCH_EVENT_UP};
 
 static bool rotate_180 = false;
 static struct rt_device_rect_info rotate_rect;
+
+static void touch_count_add(uint32_t *value, uint32_t amount)
+{
+    *value = amount > UINT32_MAX - *value ? UINT32_MAX : *value + amount;
+}
+
+static uint8_t touch_queued(void)
+{
+    return (uint8_t)((pos_rec_end - pos_rec_beg) & (MAX_TOUCH_REC - 1));
+}
+
+bool iw_touch_stats_get(iw_touch_stats_t *out)
+{
+    if (!out || !more_data_lock) return false;
+    rt_mutex_take(more_data_lock, RT_WAITING_FOREVER);
+    *out = touch_stats;
+    out->queued = touch_queued();
+    out->physical_down = last_rec.event != TOUCH_EVENT_UP;
+    rt_mutex_release(more_data_lock);
+    return true;
+}
+
+void iw_touch_cancel(void)
+{
+    if (!more_data_lock) return;
+    rt_mutex_take(more_data_lock, RT_WAITING_FOREVER);
+    touch_count_add(&touch_stats.discarded, touch_queued());
+    touch_count_add(&touch_stats.cancellations, 1);
+    pos_rec_beg = pos_rec_end = 0;
+    touch_stats.cancel_pending = false;
+    touch_stats.wait_release = true;
+    rt_mutex_release(more_data_lock);
+}
 
 static void touch_write_more(rt_uint8_t  event, rt_uint16_t x, rt_uint16_t  y)
 {
@@ -96,45 +131,37 @@ static void touch_write_more(rt_uint8_t  event, rt_uint16_t x, rt_uint16_t  y)
         }
     }
 
-    if (last_rec.event == event && last_rec.x == x && last_rec.y == y)
+    rt_mutex_take(more_data_lock, RT_WAITING_FOREVER);
+    if (touch_stats.wait_release)
     {
+        /* 隔离期仍采集真实状态；松手后立刻再按也不能绕过 GUI 的释放确认。 */
+        touch_count_add(&touch_stats.discarded, 1);
+        send_indicate = event == TOUCH_EVENT_UP;
+    }
+    else if (last_rec.event == event && last_rec.x == x && last_rec.y == y)
+    {
+        rt_mutex_release(more_data_lock);
         return;
     }
-
-    rt_mutex_take(more_data_lock, RT_WAITING_FOREVER);
-
-    if (REC_BUF_FULL())
+    else if (REC_BUF_FULL())
     {
-        static uint8_t g_touch_full  = 0;
-        g_touch_full++;
-        if (g_touch_full == 1)
-        {
-            LOG_W("touch buffer overwrite[%d, %d %d] with [%d, %d %d]\n",
-                  pos_rec[pos_rec_end].event,
-                  pos_rec[pos_rec_end].x,
-                  pos_rec[pos_rec_end].y,
-                  event, x, y);
-        }
-    }
-    else if (enable_tp_buf_log)
-    {
-        LOG_I("touch buffer in[%d][%d, %d %d]\n", pos_rec_end, event, x, y);
-    }
-
-    pos_rec[pos_rec_end].event = event;
-    pos_rec[pos_rec_end].x = x;
-    pos_rec[pos_rec_end].y = y;
-    last_rec = pos_rec[pos_rec_end];
-
-    if (!REC_BUF_FULL())
-    {
-        pos_rec_end = (pos_rec_end + 1) & (MAX_TOUCH_REC - 1);
+        /* 不覆盖边沿。整批样本失去可信顺序后，清空并请求 GUI 取消当前手势。 */
+        touch_count_add(&touch_stats.overflows, 1);
+        touch_count_add(&touch_stats.discarded, touch_queued() + 1u);
+        pos_rec_beg = pos_rec_end = 0;
+        touch_stats.cancel_pending = true;
+        touch_stats.wait_release = true;
         send_indicate = RT_TRUE;
     }
     else
     {
-        send_indicate = RT_FALSE; //Overwrite touch data, not to send indicate
+        pos_rec[pos_rec_end] = (struct touch_message){x, y, event};
+        pos_rec_end = (pos_rec_end + 1) & (MAX_TOUCH_REC - 1);
+        uint8_t queued = touch_queued();
+        if (queued > touch_stats.high_water) touch_stats.high_water = queued;
+        send_indicate = RT_TRUE;
     }
+    last_rec = (struct touch_message){x, y, event};
     rt_mutex_release(more_data_lock);
 
     if (send_indicate && g_touch_device.rx_indicate)
@@ -754,12 +781,24 @@ static rt_err_t touch_close(struct rt_device *dev)
 */
 static rt_size_t touch_read(struct rt_device *dev, rt_off_t pos, void *buffer, rt_size_t size)
 {
+    (void)dev; (void)pos;
+    if (!buffer || !size) return 0;
     rt_size_t    read_size = 0;
     touch_msg_t  p_touch_data = (touch_msg_t) buffer;
 
     rt_mutex_take(more_data_lock, RT_WAITING_FOREVER);
 
-    if (REC_BUF_EMPTY())
+    if (touch_stats.wait_release)
+    {
+        /* UP 只用于已取消手势的静默状态；驱动仍隔离按压，直到真实 UP 被消费。 */
+        *p_touch_data = (struct touch_message){last_rec.x, last_rec.y, TOUCH_EVENT_UP};
+        if (!touch_stats.cancel_pending && last_rec.event == TOUCH_EVENT_UP)
+        {
+            touch_stats.wait_release = false;
+            touch_count_add(&touch_stats.recoveries, 1);
+        }
+    }
+    else if (REC_BUF_EMPTY())
     {
         p_touch_data->event   = last_rec.event;
         p_touch_data->x = last_rec.x;
@@ -916,6 +955,18 @@ INIT_BOARD_EXPORT(rt_touch_driver_init);
 
 #ifdef FINSH_USING_MSH
 #include <finsh.h>
+static void iw_touch_stat(void)
+{
+    iw_touch_stats_t stats;
+    if (!iw_touch_stats_get(&stats)) { rt_kprintf("touch not ready\n"); return; }
+    rt_kprintf("touch overflow=%lu discarded=%lu cancel=%lu recovery=%lu queued=%u high=%u pending=%u wait=%u down=%u\n",
+        (unsigned long)stats.overflows, (unsigned long)stats.discarded,
+        (unsigned long)stats.cancellations, (unsigned long)stats.recoveries,
+        (unsigned)stats.queued, (unsigned)stats.high_water, (unsigned)stats.cancel_pending,
+        (unsigned)stats.wait_release, (unsigned)stats.physical_down);
+}
+MSH_CMD_EXPORT(iw_touch_stat, Touch queue overflow and cancellation counters);
+
 static rt_err_t en_drvtp_log(int argc, char **argv)
 {
     if (current_driver)

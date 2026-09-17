@@ -447,7 +447,8 @@ static void component_event(const lv_obj_class_t *class_p, lv_event_t *event)
     }
     if (lv_obj_event_base(&component_class, event) != LV_RESULT_OK) return;
     if (code == LV_EVENT_PRESSED && interactive(component)) press_to(component, true);
-    else if (code == LV_EVENT_PRESS_LOST || code == LV_EVENT_RELEASED) press_to(component, false);
+    else if (code == LV_EVENT_PRESS_LOST || code == LV_EVENT_RELEASED || code == LV_EVENT_INDEV_RESET)
+        press_to(component, false);
     else if (code == LV_EVENT_CLICKED && interactive(component) && !iw_gui_fault_pending()) {
         if (component->config.on_action) component->config.on_action(component->config.action, component->config.context);
         /* 回调可能更新等待态或请求离开；此后不再访问 component。 */

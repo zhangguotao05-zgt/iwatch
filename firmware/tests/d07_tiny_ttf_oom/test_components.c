@@ -21,6 +21,7 @@ extern void test_font_owner(bool owner, bool idle);
 extern int test_component_navigation(size_t loops);
 extern int test_component_gallery(size_t loops);
 extern int test_component_gallery_render(lv_display_t *display, unsigned variant);
+extern int test_touch_input(size_t loops);
 
 static unsigned cancellations, recoveries, quiesced, actions;
 static bool recovery_visible;
@@ -153,8 +154,13 @@ static void state_matrix(lv_display_t *display)
                         assert(lv_area_get_width(&layer.draw_task_head->area) == width - (options.reduced_motion ? 0 : 10));
                         assert(lv_obj_get_width(item.object) == width && lv_obj_get_height(item.object) == height);
                         finish_tasks(display, &layer);
-                        assert(lv_obj_send_event(item.object, LV_EVENT_PRESS_LOST, NULL) == LV_RESULT_OK);
+                        /* 输入取消必须同时还原 LVGL 按下状态和组件自己的缩放动效。 */
+                        assert(lv_obj_send_event(item.object, LV_EVENT_INDEV_RESET, NULL) == LV_RESULT_OK);
                         lv_tick_inc(80); assert(!iw_components_tick());
+                        assert(!lv_obj_has_state(item.object, LV_STATE_PRESSED));
+                        paint(item.object, &layer);
+                        assert(layer.draw_task_head && lv_area_get_width(&layer.draw_task_head->area) == width);
+                        finish_tasks(display, &layer);
                     }
                 }
             }
@@ -487,6 +493,7 @@ int test_components(const void *data, size_t size, const char *stage, size_t num
     lv_obj_delete(warmup);
     int result;
     if (!strcmp(stage, "component_navigation")) result = test_component_navigation(number);
+    else if (!strcmp(stage, "component_touch")) result = test_touch_input(number);
     else if (!strcmp(stage, "component_gallery")) result = test_component_gallery(number);
     else if (!strcmp(stage, "component_gallery_render")) result = test_component_gallery_render(display, (unsigned)number);
     else if (!strcmp(stage, "component_fill")) result = fill_oom_case(false, number);

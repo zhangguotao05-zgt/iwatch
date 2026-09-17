@@ -417,6 +417,11 @@ int test_components(const void *data, size_t size, const char *stage, size_t num
 
 int main(int argc, char ** argv)
 {
+#ifdef _MSC_VER
+    /* 自动回归失败时立即输出并退出，避免断言对话框阻塞构建。 */
+    _set_error_mode(_OUT_TO_STDERR);
+    _set_abort_behavior(0, _WRITE_ABORT_MSG | _CALL_REPORTFAULT);
+#endif
     if(argc != 4) {
         fprintf(stderr, "usage: test_tiny_ttf_oom <font.ttf> <create|metadata|bitmap|epic|repeat|evict|pixels|compat|registry|registry_oom|registry_epic> <number>\n");
         return 64;

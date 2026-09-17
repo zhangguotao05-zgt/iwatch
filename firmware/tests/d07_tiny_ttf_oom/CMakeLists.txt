@@ -49,11 +49,33 @@ math(EXPR FRAME_LENGTH "${FRAME_END} + 2")
 string(SUBSTRING "${FRAME_REST}" 0 ${FRAME_LENGTH} FRAME_FUNCTION)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/gui_frame_under_test.inc" "${FRAME_FUNCTION}")
 
-add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c test_epic_glyph.c test_font_service.c test_components.c test_component_navigation.c
+# 原样提取触摸生产队列和 GUI 取消函数；测试仅替换 RTOS/设备边界。
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform/iw_drv_touch.c" TOUCH_DRIVER)
+string(FIND "${TOUCH_DRIVER}" "#define MAX_TOUCH_REC" TOUCH_START)
+string(FIND "${TOUCH_DRIVER}" "static rt_list_t driver_list;" TOUCH_END)
+math(EXPR TOUCH_LENGTH "${TOUCH_END} - ${TOUCH_START}")
+string(SUBSTRING "${TOUCH_DRIVER}" ${TOUCH_START} ${TOUCH_LENGTH} TOUCH_QUEUE)
+string(FIND "${TOUCH_DRIVER}" "static rt_size_t touch_read(" TOUCH_READ_START)
+string(FIND "${TOUCH_DRIVER}" "static rt_err_t control(" TOUCH_READ_END)
+math(EXPR TOUCH_READ_LENGTH "${TOUCH_READ_END} - ${TOUCH_READ_START}")
+string(SUBSTRING "${TOUCH_DRIVER}" ${TOUCH_READ_START} ${TOUCH_READ_LENGTH} TOUCH_READ)
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/touch_driver_under_test.inc" "${TOUCH_QUEUE}\n${TOUCH_READ}")
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform/iw_touch_input.c" TOUCH_INPUT)
+string(REGEX REPLACE "#include [^\n]*" "" TOUCH_INPUT "${TOUCH_INPUT}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/touch_input_under_test.inc" "${TOUCH_INPUT}")
+string(FIND "${WATCH_DEMO}" "static void input_cancel_lvgl(void)" CANCEL_START)
+string(SUBSTRING "${WATCH_DEMO}" ${CANCEL_START} -1 CANCEL_REST)
+string(FIND "${CANCEL_REST}" "\n}" CANCEL_END)
+math(EXPR CANCEL_LENGTH "${CANCEL_END} + 2")
+string(SUBSTRING "${CANCEL_REST}" 0 ${CANCEL_LENGTH} CANCEL_FUNCTION)
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/input_cancel_under_test.inc" "${CANCEL_FUNCTION}")
+
+add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c test_epic_glyph.c test_font_service.c test_components.c test_component_navigation.c test_touch_input.c
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_components.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_gui_owner.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_theme.c")
 target_include_directories(test_tiny_ttf_oom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core")
+target_include_directories(test_tiny_ttf_oom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform")
 target_include_directories(test_tiny_ttf_oom PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_features(test_tiny_ttf_oom PRIVATE c_std_11)
 if(MSVC)

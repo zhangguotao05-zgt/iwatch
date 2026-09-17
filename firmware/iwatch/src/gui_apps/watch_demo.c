@@ -21,6 +21,8 @@
 #include "iw_input_queue.h"
 #include "iw_display_guard.h"
 #include "iw_gui_port.h"
+#include "iw_touch.h"
+#include "iw_touch_input.h"
 #include "iw_recovery.h"
 #include "iw_font.h"
 #include "iw_gui_owner.h"
@@ -503,12 +505,19 @@ static void input_cancel_lvgl(void)
         lv_timer_t *timer = lv_indev_get_read_timer(indev);
         if (timer) lv_timer_ready(timer);
     }
+#ifndef _WIN32
+    /* 全局取消同时丢弃设备旧样本，避免切页后重放先前的按压。 */
+    iw_touch_cancel();
+#endif
 }
 
 static void input_service(void)
 {
     uint32_t started = (uint32_t)rt_tick_get();
     bool activity = false;
+#ifndef _WIN32
+    (void)iw_touch_input_service();
+#endif
     if (iw_gui_take_cancel())
     {
         rt_base_t level = rt_hw_interrupt_disable();
@@ -981,6 +990,13 @@ void app_watch_entry(void *parameter)
         rt_err_t r = littlevgl2rtt_init(LCD_DEVICE_NAME);
         RT_ASSERT(RT_EOK == r);
     }
+#ifndef _WIN32
+    if (!iw_touch_input_init())
+    {
+        LOG_E("touch input safety initialization failed; GUI startup stopped");
+        return;
+    }
+#endif
     iw_display_wake_gate_init(&display_wake_gate);
 #ifndef _WIN32
     /* CO5300 没有 SDK 的 TimeoutReset 回调；模式 2 先保住系统，再由项目层重新探测。 */
