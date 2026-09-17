@@ -1,0 +1,45 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D07-D 组件展示与综合验收 · iwatch</title><link rel="stylesheet" href="../assets/engineering.css"></head>
+<body><header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D07-D 综合验收</span></header>
+<div class="page-shell"><nav class="toc"><ul><li><a href="#status">当前状态</a></li><li><a href="#entry">展示入口</a></li><li><a href="#text">长文案边界</a></li><li><a href="#host">主机验证</a></li><li><a href="#target">目标构建</a></li><li><a href="#board">实屏验证</a></li><li><a href="#remaining">保留问题</a></li></ul></nav>
+<main class="doc-main"><h1>D07-D 组件展示与综合验收记录</h1>
+<p class="doc-meta">2026-09-17 · C 审批基线 <code>c8392a9</code> · <a href="D07_资源预算与共享组件设计方案_v2.html">批准方案 v2</a> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">Issue #7</a></p>
+<section id="status"><h2>当前状态</h2>
+<p><strong>D07-C 已通过架构阶段验收。D07-D 已完成展示入口与主机回归，目标构建和实屏验收正在进行；D07 整体未收口，Issue #7 保持打开。</strong></p>
+<p>本轮集中检查五类组件在完整状态、最长字段、Q0/Q1、减弱动态效果及故障重入下的行为。保留 C 的公共组件、字体服务和主题契约；展示代码迁至 <code>gui_apps/component_gallery</code>，不接入产品桌面和 D08 导航。</p></section>
+<section id="entry"><h2>展示入口与覆盖表</h2>
+<p><code>iw_demo 0–6</code> 保留原义：关闭、Q0、Q1、64/80/96 px 和清理诊断。新增 <code>iw_gallery &lt;页:0–7&gt; &lt;质量:0–1&gt; &lt;减弱动效:0–1&gt;</code>，例如 <code>iw_gallery 1 1 0</code> 打开 Q1、正常动效的按钮状态组。标题中的 M0/M1 分别表示正常/减弱动效。全屏页不显示标题，组合身份从串口记录核对。</p>
+<table><thead><tr><th>页</th><th>内容</th><th>验收重点</th></tr></thead><tbody>
+<tr><td>0</td><td>ListRow：常用、按下、禁用</td><td>说明与右值分区；禁用不触发动作；触摸区域稳定。</td></tr>
+<tr><td>1</td><td>PillButton：常用、按下、禁用、等待、危险</td><td>常用/按下/危险按钮点击后变为省略号；重复点击、等待和禁用不再回调。</td></tr>
+<tr><td>2</td><td>StatePanel：加载中、暂无数据、错误、不可用</td><td>状态切换不改变占位；上下滚动可查看第四项。</td></tr>
+<tr><td>3</td><td>StatusBanner：内容、成功、提醒、危险</td><td>分别对应信息、成功、警告、危险；色条与文字同时表达状态。</td></tr>
+<tr><td>4</td><td>127 B 标题、255 B 正文、47 B 右值</td><td>完整正文有独立多行高度；长标题和右值按已批准的一行区域裁剪，不覆盖邻项。</td></tr>
+<tr><td>5 / 6 / 7</td><td>64 / 80 / 96 px 的 12:45</td><td>分别覆盖普通/全屏/滚动框架。中文说明、数字基线和返回正常。</td></tr>
+</tbody></table>
+<p>8 页 × 2 档质量 × 2 档动效，共 32 种展示组合。状态矩阵另覆盖 4 种组件 × 全部 12 个枚举值 × 4 种质量/动效组合；无效组合须拒绝且保留旧状态。Q0/Q1 与减弱动效保持相同字号、布局和命中区，减弱动效不缩放、不持续调度按压动画。</p>
+<p>串口线程只校验三个单字符参数并投递固定邮箱；所有创建、更新和销毁仍由 GUI 线程执行。邮箱保留“最新请求覆盖旧请求”的原契约，测试命令须等待对应结果再发送下一条。关闭或切页请求排空 GPU/LCD 后执行；不在绘制回调删除对象。页面不创建独立线程、定时器或业务订阅。</p></section>
+<section id="text"><h2>长文案与字体边界</h2>
+<p>字段上限按 UTF-8 字节计数，不按汉字个数计数。展示样本准确达到 127/255/47 B；超出一个字节必须返回 INVALID，三个字段都保持原值。最大字段可安全保存与屏幕上可完整阅读是两项独立检查：标题和右值只占一行，不能把裁剪称为完整显示；需要阅读完整内容时使用多行 StatePanel 或后续详情页。</p>
+<p>255 B 的混合中英文正文使用 410 px 内容高度，页面纵向滚动，不挤压标题或邻接卡片。文本自正式通知文案和已冻结字符集中取用。正式字体仍为 336 字符、56,804 B，SHA-256 为 <code>4f69f4ba565598e217501e7985bfdc7ccfd68d0bed472325218d01e89bbe284f</code>；字体二进制未变化，manifest 已绑定新增文案输入。</p>
+<p>主机分别检查最大字段、超限拒绝、异步绘制持有原文案快照，以及裁剪区域不越出组件。生成顶部/底部图像供视觉核对。主机软件渲染不能代替目标 EPIC、LCD 和实屏触摸验证。</p></section>
+<section id="host"><h2>主机回归</h2>
+<p>入口仍为 <code>firmware/tests/run-core-tests.ps1</code> 和 <code>firmware/tests/run-d07-a0-tests.ps1</code>，后者保留历史文件名，现覆盖 A–D。FontTools 使用 <code>logs/fonttools-venv/Scripts/python.exe</code> 中固定的 4.65.0；基础 SDK 保持干净，派生 SDK 的 23 个受控文件及补丁哈希未变化。</p>
+<table><thead><tr><th>范围</th><th>已执行结果</th></tr></thead><tbody>
+<tr><td>既有安全链</td><td>157 个逐分配点失败、1000 轮字体共享/回收、1000 轮组件及多页面回收、1000 轮关闭排空通过；4046 次 EPIC 字形提交像素对照无差异。</td></tr>
+<tr><td>D 展示与综合故障</td><td>32 组合循环共 1000 轮；实际 TinyTTF 元数据或 EPIC 字形分配失败时，同时持有展示页、第二页面及待处理关闭请求。忙碌期间不清理，空闲后引用释放、重复退出与重新进入通过；每轮主机分配器回到起始字节数和块数。</td></tr>
+<tr><td>状态与输入</td><td>Q0/Q1 × 正常/减弱动效的合法/非法状态、点击门控、按压动画收敛、稳定命中区和非法命令参数通过。</td></tr>
+<tr><td>长文案与图像</td><td>三个精确字节边界、失败无副作用和在途文本快照通过；32 组合顶部/底部共 64 张 RGB565 图像已生成供视觉检查。</td></tr>
+<tr><td>构建门槛</td><td>36 项专项 Python 测试通过。核心 44 项中 43 项通过，1 项全局环境缺少 FontTools 跳过；同一字体检查在专项固定版本环境完整通过。</td></tr>
+</tbody></table>
+<p>本地完整输出：<code>logs/d07-d-core.log</code>、<code>logs/d07-d-host.log</code>。主机内存失败是真实入口注入，但硬件边界为替身；不可称为实机耗尽。两类实际目标堆须在下方单独采集。</p></section>
+<section id="target"><h2>目标构建与身份</h2><p>待完成 GCC/Keil 干净构建、资源分项预算、源码身份复核和 COM255 DryRun 后填入镜像大小、哈希及源码提交。只有通过上述门槛的 GCC 三件套允许经 COM9 写入。</p></section>
+<section id="board"><h2>实屏与运行时内存</h2><p>待新镜像烧录并复验。计划采集：冷启动桌面基线；32 组合逐项打开/关闭；正常/减弱动效下按钮触摸和 KEY1 返回；最大数字及长文案滚动；clock 与展示页同时存活时清理、应急返回和重入；旧通知 20%/80% 亮度回归；主堆、PSRAM 字形池、栈与输入统计。用户直接文字确认，不要求重复拍照。</p>
+<p><code>iw_demo 6</code> 仅锁存清理请求，不分配失败。因此实机应急返回成功只能证明清理通路，不能替代主机 OOM 测试，也不能写成真实内存耗尽或显示故障恢复。</p></section>
+<section id="remaining"><h2>保留问题与收口条件</h2>
+<ul><li>C 原始记录中的长文队列 P95≥100 ms、最大114 ms、一次触摸缓冲覆盖继续保留；本轮补测不能覆盖历史，输入队列延迟也不能代替刷新性能数据。全面性能优化按已批准安排延后，不增加30 FPS放行门槛。</li>
+<li>D15 的 <code>flash1</code>、持久化和外部资源读取，以及 D16 的永久渲染忙、真实显示故障确认/重试/最终受控重启仍未实现。</li>
+<li>完成本轮目标与实屏证据后申请 D07 总体验收；获得审批前保持 Issue #7 打开，不进入 D08 产品导航实现。</li></ul></section>
+</main></div></body></html>

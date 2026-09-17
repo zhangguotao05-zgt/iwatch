@@ -35,7 +35,7 @@ string(SUBSTRING "${EPIC_DRIVER}" ${EPIC_START} ${EPIC_LENGTH} EPIC_BLEND)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/epic_driver_under_test.inc" "${EPIC_BLEND}")
 
 # 诊断邮箱与主循环排空顺序直接取生产代码，只替换RTOS和硬件时序边界。
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_components_demo.c" COMPONENT_DEMO)
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_apps/component_gallery/iw_components_demo.c" COMPONENT_DEMO)
 string(REGEX REPLACE "#include [^\n]*" "" COMPONENT_DEMO "${COMPONENT_DEMO}")
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/component_demo_under_test.inc" "${COMPONENT_DEMO}")
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_apps/watch_demo.c" WATCH_DEMO)

@@ -7,7 +7,7 @@
 <main class="doc-main"><h1>D07-C 共享组件与页面回收实施记录</h1>
 <p class="doc-meta">2026-09-17 · B 审批基线 7dfd90d · <a href="D07_资源预算与共享组件设计方案_v2.html">批准方案 v2</a> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">Issue #7</a></p>
 <section id="status"><h2>阶段状态</h2>
-<p><strong>B 已通过阶段审批。C 五类组件及多页面清理已实现；初版实屏发现的退出延迟已修正，修正版主机回归、双工具链、身份与GCC实机复验完成，提交架构复核。C 尚不记为架构验收通过，D07-D及整体验收未完成，Issue #7保持打开。</strong></p>
+<p><strong>C 已通过架构阶段验收，审查基线 c8392a9，允许进入 <a href="D07-D_组件展示与综合验收记录.html">D07-D</a>。本页保留 C 的修正与实机原始证据；D07 整体及 Issue #7 仍未收口。</strong></p>
 <p>保留 B 首轮按键队列 P95≥100 ms、最大121 ms及一次触摸缓冲覆盖；独立补测46 ms不能覆盖首轮。这里的队列延迟也不代表 GUI 帧率。长文全面优化仍在主要页面成型后进行。C 的诊断入口供组件验证使用，D 的完整状态展示、综合故障和实屏验收仍单独执行。</p></section>
 <section id="components"><h2>组件契约</h2>
 <p><code>gui_core/iw_components</code>只依赖字体服务、主题和 LVGL，不调用时间、亮度或其他业务服务。五类组件使用同一受控对象类，父对象拥有子树；组件自身没有业务线程、定时器或订阅。只有 GUI 主循环推进75 ms按压效果，减弱动态效果时直接使用最终状态。</p>

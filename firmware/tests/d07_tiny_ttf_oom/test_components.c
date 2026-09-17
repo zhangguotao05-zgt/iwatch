@@ -19,6 +19,8 @@ extern size_t test_font_allocation_sequence(void);
 extern unsigned test_font_assert_count(void);
 extern void test_font_owner(bool owner, bool idle);
 extern int test_component_navigation(size_t loops);
+extern int test_component_gallery(size_t loops);
+extern int test_component_gallery_render(lv_display_t *display, unsigned variant);
 
 static unsigned cancellations, recoveries, quiesced, actions;
 static bool recovery_visible;
@@ -112,35 +114,57 @@ static void state_matrix(lv_display_t *display)
 {
     iw_component_t frame = {0}, item = {0};
     assert(make(&frame, lv_screen_active(), IW_SCREEN_FRAME) == IW_COMPONENT_OK);
-    for (unsigned kind = IW_LIST_ROW; kind < IW_COMPONENT_KIND_COUNT; kind++) {
-        assert(make(&item, iw_screen_frame_content(&frame), (iw_component_kind_t)kind) == IW_COMPONENT_OK);
-        lv_obj_update_layout(item.object);
-        int32_t width = lv_obj_get_width(item.object), height = lv_obj_get_height(item.object);
-        for (unsigned state = 0; state < IW_COMPONENT_STATE_COUNT; state++) {
-            iw_component_view_t model = view((iw_component_kind_t)kind);
-            model.state = (iw_component_state_t)state;
-            bool valid = kind == IW_LIST_ROW ? state <= IW_DISABLED :
-                kind == IW_PILL_BUTTON ? state <= IW_DANGER :
-                kind == IW_STATE_PANEL ? state >= IW_LOADING && state <= IW_UNAVAILABLE :
-                state == IW_DANGER || state >= IW_INFO;
-            size_t before = test_font_allocation_sequence();
-            assert(iw_component_update(&item, &model) == (valid ? IW_COMPONENT_OK : IW_COMPONENT_INVALID));
-            assert(before == test_font_allocation_sequence());
-            assert(lv_obj_get_width(item.object) == width && lv_obj_get_height(item.object) == height);
-            if (valid) {
-                unsigned previous = actions;
-                assert(lv_obj_send_event(item.object, LV_EVENT_CLICKED, NULL) == LV_RESULT_OK);
-                bool expected_action = kind <= IW_PILL_BUTTON && state != IW_DISABLED && state != IW_WAITING;
-                assert(actions == previous + (expected_action ? 1u : 0u));
-                lv_layer_t layer; paint(item.object, &layer); finish_tasks(display, &layer);
+    for (unsigned profile = 0; profile < 4; profile++) {
+        for (unsigned kind = IW_LIST_ROW; kind < IW_COMPONENT_KIND_COUNT; kind++) {
+            iw_component_config_t options = config();
+            options.quality = (iw_theme_quality_t)(profile / 2);
+            options.reduced_motion = (profile % 2) != 0;
+            if (kind == IW_PILL_BUTTON) options.height = 60;
+            iw_component_view_t initial = view((iw_component_kind_t)kind);
+            assert(iw_component_create(&item, iw_screen_frame_content(&frame), (iw_component_kind_t)kind, &options, &initial) == IW_COMPONENT_OK);
+            lv_obj_update_layout(item.object);
+            int32_t width = lv_obj_get_width(item.object), height = lv_obj_get_height(item.object);
+            for (unsigned state = 0; state < IW_COMPONENT_STATE_COUNT; state++) {
+                iw_component_view_t model = view((iw_component_kind_t)kind);
+                model.state = (iw_component_state_t)state;
+                bool valid = kind == IW_LIST_ROW ? state <= IW_DISABLED :
+                    kind == IW_PILL_BUTTON ? state <= IW_DANGER :
+                    kind == IW_STATE_PANEL ? state >= IW_LOADING && state <= IW_UNAVAILABLE :
+                    state == IW_DANGER || state >= IW_INFO;
+                size_t before = test_font_allocation_sequence();
+                assert(iw_component_update(&item, &model) == (valid ? IW_COMPONENT_OK : IW_COMPONENT_INVALID));
+                assert(before == test_font_allocation_sequence());
+                assert(lv_obj_get_width(item.object) == width && lv_obj_get_height(item.object) == height);
+                if (valid) {
+                    unsigned previous = actions;
+                    assert(lv_obj_send_event(item.object, LV_EVENT_CLICKED, NULL) == LV_RESULT_OK);
+                    bool expected_action = kind <= IW_PILL_BUTTON && state != IW_DISABLED && state != IW_WAITING;
+                    assert(actions == previous + (expected_action ? 1u : 0u));
+                    lv_layer_t layer; paint(item.object, &layer); finish_tasks(display, &layer);
+                    if (expected_action) {
+                        assert(lv_obj_send_event(item.object, LV_EVENT_PRESS_LOST, NULL) == LV_RESULT_OK);
+                        lv_tick_inc(80); assert(!iw_components_tick());
+                        assert(lv_obj_send_event(item.object, LV_EVENT_PRESSED, NULL) == LV_RESULT_OK);
+                        assert(iw_components_tick() == !options.reduced_motion);
+                        lv_tick_inc(80); assert(!iw_components_tick());
+                        paint(item.object, &layer);
+                        assert(layer.draw_task_head);
+                        /* 只缩绘制区域；正常/减弱动效的点击区域必须完全一致。 */
+                        assert(lv_area_get_width(&layer.draw_task_head->area) == width - (options.reduced_motion ? 0 : 10));
+                        assert(lv_obj_get_width(item.object) == width && lv_obj_get_height(item.object) == height);
+                        finish_tasks(display, &layer);
+                        assert(lv_obj_send_event(item.object, LV_EVENT_PRESS_LOST, NULL) == LV_RESULT_OK);
+                        lv_tick_inc(80); assert(!iw_components_tick());
+                    }
+                }
             }
+            test_font_owner(false, true);
+            assert(iw_component_destroy(&item) == IW_COMPONENT_BUSY && !iw_screen_frame_content(&frame));
+            test_font_owner(true, false);
+            assert(iw_component_destroy(&item) == IW_COMPONENT_BUSY && item.object);
+            test_font_owner(true, true);
+            assert(iw_component_destroy(&item) == IW_COMPONENT_OK);
         }
-        test_font_owner(false, true);
-        assert(iw_component_destroy(&item) == IW_COMPONENT_BUSY && !iw_screen_frame_content(&frame));
-        test_font_owner(true, false);
-        assert(iw_component_destroy(&item) == IW_COMPONENT_BUSY && item.object);
-        test_font_owner(true, true);
-        assert(iw_component_destroy(&item) == IW_COMPONENT_OK);
     }
     iw_component_config_t options = config(); options.height = 60;
     iw_component_view_t model = view(IW_LIST_ROW);
@@ -148,6 +172,45 @@ static void state_matrix(lv_display_t *display)
     assert(!item.object);
     assert(iw_component_destroy(&frame) == IW_COMPONENT_OK && iw_font_collect());
     actions = 0;
+}
+
+static void text_boundaries(lv_display_t *display)
+{
+    iw_component_t frame = {0}, item = {0};
+    assert(make(&frame, lv_screen_active(), IW_SCREEN_FRAME) == IW_COMPONENT_OK);
+    iw_component_config_t options = config(); options.height = 410;
+    iw_component_view_t model = {IW_NORMAL, demo_texts[LONG_TITLE], demo_texts[LONG_DETAIL], demo_texts[LONG_VALUE]};
+    assert(iw_component_create(&item, iw_screen_frame_content(&frame), IW_LIST_ROW, &options, &model) == IW_COMPONENT_OK);
+    lv_obj_update_layout(frame.object);
+    for (unsigned field = 0; field < 3; field++) {
+        const char *original = field == 0 ? model.title : field == 1 ? model.detail : model.value;
+        char excess[258];
+        size_t length = strlen(original);
+        memcpy(excess, original, length); excess[length] = 'X'; excess[length + 1] = 0;
+        iw_component_view_t invalid = model;
+        if (field == 0) invalid.title = excess;
+        else if (field == 1) invalid.detail = excess;
+        else invalid.value = excess;
+        size_t before = test_font_allocation_sequence();
+        assert(iw_component_update(&item, &invalid) == IW_COMPONENT_INVALID);
+        assert(test_font_allocation_sequence() == before);
+        /* 非法更新保持三个字段，已提交绘制的字符串也不能被后续更新改写。 */
+        lv_layer_t layer; paint(item.object, &layer);
+        iw_component_view_t next = view(IW_LIST_ROW);
+        assert(iw_component_update(&item, &next) == IW_COMPONENT_OK);
+        unsigned labels = 0;
+        for (lv_draw_task_t *task = layer.draw_task_head; task; task = task->next) {
+            if (task->type != LV_DRAW_TASK_TYPE_LABEL) continue;
+            const char *text = ((lv_draw_label_dsc_t *)task->draw_dsc)->text;
+            assert(!strcmp(text, model.title) || !strcmp(text, model.detail) || !strcmp(text, model.value));
+            assert(task->clip_area.x1 >= item.object->coords.x1 && task->clip_area.x2 <= item.object->coords.x2);
+            labels++;
+        }
+        assert(labels == 3);
+        finish_tasks(display, &layer);
+        assert(iw_component_update(&item, &model) == IW_COMPONENT_OK);
+    }
+    assert(iw_component_destroy(&frame) == IW_COMPONENT_OK && iw_font_collect());
 }
 
 static int failure_case(lv_display_t *display, iw_component_kind_t kind, bool draw, size_t point)
@@ -236,6 +299,7 @@ static int lifecycle(lv_display_t *display, size_t repeat)
     size_t blocks = test_font_live_blocks(), bytes = test_font_live_bytes();
     owner_boundaries();
     state_matrix(display);
+    text_boundaries(display);
     require_baseline(blocks, bytes);
     for (size_t cycle = 0; cycle < repeat; cycle++) {
         iw_component_t frame = {0}, items[4] = {0}, other = {0}, other_item = {0};
@@ -343,6 +407,30 @@ static void render_flush(lv_display_t *display, const lv_area_t *area, uint8_t *
     lv_display_flush_ready(display);
 }
 
+void test_component_capture(lv_display_t *display, lv_obj_t *content, unsigned variant)
+{
+    lv_display_set_color_format(display, LV_COLOR_FORMAT_RGB565);
+    lv_display_set_buffers(display, render_buffer, NULL, sizeof(render_buffer), LV_DISPLAY_RENDER_MODE_FULL);
+    lv_display_set_flush_cb(display, render_flush);
+    for (unsigned bottom = 0; bottom < 2; bottom++) {
+        lv_obj_update_layout(content);
+        if (bottom) lv_obj_scroll_to_y(content, LV_COORD_MAX, LV_ANIM_OFF);
+        lv_obj_invalidate(content);
+        lv_refr_now(display);
+        assert(flushes && !iw_gui_fault_pending() && !test_font_assert_count());
+        char filename[160];
+        snprintf(filename, sizeof(filename), "firmware/tests/build/d07-a0/gallery-%02u-%u.rgb565", variant, bottom);
+        FILE *file = NULL;
+#ifdef _WIN32
+        assert(fopen_s(&file, filename, "wb") == 0);
+#else
+        file = fopen(filename, "wb");
+#endif
+        assert(file && fwrite(render_buffer, 1, sizeof(render_buffer), file) == sizeof(render_buffer));
+        fclose(file);
+    }
+}
+
 static int render_case(lv_display_t *display, unsigned mode)
 {
     iw_component_t frame = {0}, items[4] = {0};
@@ -399,6 +487,8 @@ int test_components(const void *data, size_t size, const char *stage, size_t num
     lv_obj_delete(warmup);
     int result;
     if (!strcmp(stage, "component_navigation")) result = test_component_navigation(number);
+    else if (!strcmp(stage, "component_gallery")) result = test_component_gallery(number);
+    else if (!strcmp(stage, "component_gallery_render")) result = test_component_gallery_render(display, (unsigned)number);
     else if (!strcmp(stage, "component_fill")) result = fill_oom_case(false, number);
     else if (!strcmp(stage, "component_fill_busy")) result = fill_oom_case(true, number);
     else if (!strcmp(stage, "component_render")) result = render_case(display, (unsigned)number);

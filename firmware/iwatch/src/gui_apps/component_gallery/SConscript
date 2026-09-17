@@ -1,0 +1,5 @@
+from building import *
+
+# 组件展示只通过诊断命令进入，不注册产品桌面或页面路由。
+group = DefineGroup('App_component_gallery', Glob('*.c'), depend=['PKG_USING_LITTLEVGL2RTT'])
+Return('group')

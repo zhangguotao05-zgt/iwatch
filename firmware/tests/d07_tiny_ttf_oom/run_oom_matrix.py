@@ -65,8 +65,11 @@ def run_matrix(executable, font, repeat_count):
         fill_points += count
     print("ROUNDED FILL OOM OK: {} real renderer failure points".format(fill_points))
     print(run_case(executable, font, "component_navigation", repeat_count, timeout=60))
+    print(run_case(executable, font, "component_gallery", repeat_count, timeout=60))
     for mode in range(5):
         print(run_case(executable, font, "component_render", mode))
+    for variant in range(32):
+        print(run_case(executable, font, "component_gallery_render", variant))
 
 
 def main():
