@@ -66,9 +66,9 @@ static uint32_t font_ttf_heap_used(void)
 
 static void font_memory_baseline_capture(void)
 {
-    uint32_t total;
-    uint32_t used;
-    uint32_t maximum;
+    rt_uint32_t total;
+    rt_uint32_t used;
+    rt_uint32_t maximum;
 
     rt_memory_info(&total, &used, &maximum);
     font_stats.main_heap_baseline = used;
@@ -104,9 +104,9 @@ void app_clock_main_status_bar_note_fallback(void)
 
 static void iw_font_stat(void)
 {
-    uint32_t total;
-    uint32_t used;
-    uint32_t maximum;
+    rt_uint32_t total;
+    rt_uint32_t used;
+    rt_uint32_t maximum;
     uint32_t ttf_used = font_ttf_heap_used();
     uint32_t ttf_peak = 0;
 
