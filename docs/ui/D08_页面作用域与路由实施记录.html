@@ -10,13 +10,14 @@
 <li><a href="#board-results">实机结果</a></li><li><a href="#display-incident">未关闭的显示异常</a></li>
 <li><a href="#commands">操作步骤</a></li><li><a href="#limits">边界与后续</a></li></ul></nav>
 <main class="doc-main"><h1>D08 页面作用域与路由实施记录</h1>
-<p class="doc-meta">2026-09-17 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/9">Issue #9</a> · 前置审批：D07 / 9088f52 · 接续基线 78ed9d6</p>
+<p class="doc-meta">2026-09-17 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/9">Issue #9</a> · 前置审批：D07 / 9088f52 · 接续基线 78ed9d6 · 验收基线 <code>5c51f54</code> · 固件源码 <code>82ab706</code></p>
 <section id="status"><h2>交付状态</h2>
-<p>页面作用域、注册表、单笔导航事务与 SiFli 适配已实现。修正版源码为 <code>82ab706</code>，主机回归、GCC/Keil 身份、预算与 DryRun 通过，GCC 三件套已写入并校验。本轮已完成路由进退、容量边界、多使用方清理及 20%/80% 旧通知页面复验；这些功能路径正常，但首轮曾出现半黑半白，原因尚未确定。D08 整体待架构复核，显示问题不关闭，Issue #9 保持打开，D09 尚未开始。</p>
+<p>页面作用域、注册表、单笔导航事务与 SiFli 适配已实现。修正版源码为 <code>82ab706</code>，主机回归、GCC/Keil 身份、预算与 DryRun 通过，GCC 三件套已写入并校验。本轮已完成路由进退、容量边界、多使用方清理及 20%/80% 旧通知页面复验；这些功能路径正常，但首轮曾出现半黑半白，原因尚未确定。D08 已按“接受已知风险”批准收口：基础实现及已验证功能通过，负责人同意将显示异常独立转入 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/10">Issue #10</a> 跟踪，允许继续 D09。显示异常仍为未定位、后续未复现；此决定不代表异常已修复或产品发布验收通过。性能遗留继续由 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/8">Issue #8</a> 跟踪。</p>
 <table><thead><tr><th>层次</th><th>当前结论</th></tr></thead><tbody>
 <tr><td>主机</td><td>纯 C 策略、真实 LVGL 页面、生产 SDK 函数摘录和既有字体/输入回归通过；具体替身边界见下文。</td></tr>
 <tr><td>目标构建</td><td>GCC / Keil 均通过；绑定 82ab706。COM255 DryRun 通过。</td></tr>
-<tr><td>实机</td><td>GCC 已完成写后校验及下述功能复验；原始串口、命令时间线和用户反馈已封存。首轮显示异常未定位，不能据后续正常宣称整体验收通过。Keil 本轮只做构建和 DryRun，未上板；历史 D07 证据不替代本轮证据。</td></tr>
+<tr><td>实机</td><td>GCC 已完成写后校验及下述功能复验；原始串口、命令时间线和用户反馈已封存。首轮显示异常未定位，后续正常不构成修复证据；阶段放行采用下述风险接受决定。Keil 本轮只做构建和 DryRun，未上板；历史 D07 证据不替代本轮证据。</td></tr>
+<tr><td>阶段审批</td><td>2026-09-17，按验收基线 5c51f54、固件源码 82ab706 接受已知风险收口。Issue #9 在本记录推送成功后以 completed 关闭；#8、#10 保持打开。此次只更新文档，没有新增固件修改、构建或烧录。</td></tr>
 </tbody></table></section>
 <section id="ownership"><h2>所有权与接口</h2>
 <table><thead><tr><th>模块</th><th>责任及边界</th></tr></thead><tbody>
@@ -88,7 +89,7 @@
 <p>用户复位后，从表盘单次打开 Page 1 显示正常；随后重新执行桌面 10 次进退、八级/第九级边界和 5 次在途返回，再打开 Page 1，用户确认画面正常。第二轮 recovery=0，GUI 栈峰值 31%、LCD 栈峰值 44%。尚未稳定复现，不能将第二轮正常写成修复通过；未据此修改屏幕参数、缓存同步或断言设置。</p>
 <p>复现准备阶段，app_run Main 后主堆为 59,400 B，第一次进退降为 59,388 B，严格相等检查因此停止；该记录保留。再次从 59,388 B 开始的完整流程保持稳定，字形池均为 72 B。两组采样条件分开记录，不掩盖第一次检查结果。</p>
 <p>用户推测可能是屏幕接触原因，但尚无验证支持该归因。其后手动 Next/KEY1、应急返回及两档亮度通知页复验均正常。本轮没有据此修改固件；“复位恢复”和“后续未复现”不等于根因修复。</p>
-<p>问题记录为 <code>logs/board-validation-20260917-d08-r2/display-incident.json</code>，状态为未定位、后续未复现。原始日志已经封存。如果再次出现，优先保留画面，在复位之前采集路由、线程、输入和显示状态。D08 整体仍待架构复核，显示问题未关闭，Issue #9 不关闭，D09 尚未开始。</p>
+<p>问题记录为 <code>logs/board-validation-20260917-d08-r2/display-incident.json</code>，状态为未定位、后续未复现。原始日志已经封存，首次异常、采集缺口和用户反馈全部保留；封存摘要中的待审状态反映采集当时的结论，本节单独记录后续风险接受决定，不改写历史证据。异常已转入 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/10">显示异常 #10</a>，保持未定位、后续未复现。如果再次出现，先保存画面、时间点和操作步骤，在复位之前采集路由、线程、输入和显示状态，再重新评估影响；不能因 D08 已收口而忽略。</p>
 </section>
 <section id="commands"><h2>诊断操作与实机验收</h2>
 <pre><code>iw_nav open 1
@@ -108,5 +109,5 @@ list_thread</code></pre>
 </section>
 <section id="limits"><h2>边界与后续</h2>
 <p>本轮实现导航基础及诊断页，不代表正式七页界面已完成。全局双键/表冠语义在 D09，新版顶栏、七页布局、53 个新增字符在 D10。长文历史最大 215 ms 和溢出频率继续由 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/8">性能待办 #8</a> 跟踪，不宣称全面性能达标。联网、持久化与自研板定版不在本轮范围。</p>
-<p>实机验收和架构复核通过后才能申请 D08 收口；此记录保留主机策略、真实目标构建和实际硬件证据的分别结论。</p></section>
+<p>D08 基础实现及已验证功能已按“接受已知风险”批准收口，允许开始 D09 输入开发；显示异常 #10 和性能遗留 #8 继续独立跟踪。本记录保留主机策略、真实目标构建和实际硬件证据的分别结论，不把阶段放行写成产品发布验收通过。</p></section>
 </main></div></body></html>
