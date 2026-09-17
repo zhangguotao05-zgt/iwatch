@@ -11,7 +11,7 @@
 <h1>D07-B 字体服务与主题实施记录</h1>
 <p class="doc-meta">2026-09-17 · A1 审批基线 e064686 · 实施依据：<a href="D07_资源预算与共享组件设计方案_v2.html">批准方案 v2</a></p>
 <section id="status"><h2>阶段状态</h2>
-<p><strong>A1 已审批收口。B 字体服务、通知页接入和主题接口已实现，主机回归通过；新固件目标构建与实机结果待补。C 共享组件与 D 展示页尚未开始。</strong></p>
+<p><strong>A1 已审批收口。B 字体服务、通知页接入和主题接口已实现；主机回归、GCC/Keil 构建、预算、身份与 DryRun 通过，等待开发板复位进入下载模式。B 新固件尚未烧录，C 共享组件与 D 展示页尚未开始。</strong></p>
 <p>B 将通知页私有字体缓存移到 GUI 公共服务，并保留现有通知字符串、七个旧字号与布局。主题只提供后续组件使用的静态参数，本阶段不把旧页面改成新的视觉样式。A1 已验收的十二文件 SDK 补丁不变，字距缓存继续为 0。</p>
 <p>阶段对应 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">Issue #7</a>。B 新镜像不能继承 <a href="D07-A1_安全整改与复验记录.html">A1 正常实机结果</a>；D07 整体保持打开。</p></section>
 <section id="font"><h2>字体注册表与所有权</h2>
@@ -51,6 +51,14 @@
 </tbody></table>
 <p>复现入口：<code>firmware/tests/run-core-tests.ps1</code> 与 <code>firmware/tests/run-d07-a0-tests.ps1 -PythonPath logs/fonttools-venv/Scripts/python.exe -PatchedSdkPath work/sdk-d07-a0</code>。新增服务和主题回归接入既有入口。本地全文：<code>logs/d07-b-core.log</code>、<code>logs/d07-b-host.log</code>。</p></section>
 <section id="target"><h2>目标构建与实机复验</h2>
-<p>GCC/Keil 目标构建、当前身份与预算、三件套DryRun：待执行。B新镜像的中文通知、长文滑动、20%/80%亮度、按键返回、反复进出与两类堆稳定样本：待执行。未烧录本阶段新固件。</p>
+<p>实现提交 <code>97bb8ec</code>，Keil 类型适配修复及最终构建源码 <code>7249ae37ca882dd77aefa0947a470f9f80be3c2a</code>。固定 SDK 仍为 <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code>，十二文件补丁 SHA-256 为 <code>b1cea431099d2c247c563c1e6643468b88b01a799416d72ebf460d025d17db64</code>。完成 Keil→GCC 干净切换后，两套独立归档重新验证通过，COM255 三件套 DryRun 通过，未访问真实下载串口。</p>
+<table><thead><tr><th>工具链</th><th>main / 6 MiB 槽</th><th>SHA-256</th></tr></thead><tbody>
+<tr><td>GCC</td><td>1,864,964 B / 29.643%</td><td><code>ffcd92095f14dd0941d44df977bc9da665152085a592b38c13a08c18a30badcd</code></td></tr>
+<tr><td>Keil</td><td>1,792,200 B / 28.486%</td><td><code>9e2592602968086f01cc27fd44ca3700dc1908dae509a08744aee58fa18351be</code></td></tr>
+</tbody></table>
+<p>两套 TTF 56,804 B、内置位图字库51,335 B、图片866,577 B，均通过批准预算；GCC 比 A1 最终镜像增加896 B，Keil增加840 B。GCC map SHA-256：<code>a7998b0fea3bb7b7d0609ffbae3e4a021f43a961ff0c8d32c7c17175b5711923</code>；Keil map：<code>7d31b13c38147049fe090fd6d31a8f6c0326a88967661eb4384b7c6a2626b1f6</code>，结构和工具链来源分别验证。</p>
+<p>首次Keil编译发现 <code>rt_memory_info</code> 的参数类型不同：Keil的 <code>rt_uint32_t</code> 为unsigned long，不能把uint32_t指针直接传入。适配层改用RTOS原生局部变量接收，再按值转换；没有强转指针。修复后完整重建两套固件，失败日志保留为 <code>logs/d07-b-keil-initial-failed.log</code>。主机RTOS替身不覆盖该编译器差异，因此以真实Keil目标编译作为这项修复的验证。</p>
+<p>本地归档：<code>logs/board-validation-20260917-d07-b/</code>，包含两套完整产物、主机及构建全文、身份复核、DryRun、生成的Keil工程和构建检查清单。首次归档辅助程序调用Windows PowerShell 5时因环境未加载Get-FileHash失败，未访问串口；改用当前PowerShell 7后两套DryRun通过，原始失败输出也保留。</p>
+<p><strong>实机状态：尚未烧录B固件。</strong>已识别CH342的COM9/COM10，COM10采集已准备；等待用户安装Mode跳帽并复位。后续验证中文通知、长文滑动、20%/80%亮度、按键返回、反复进出与两类堆稳定样本。没有操作J-Link。</p>
 <p>旧通知使用七个旧字号；大号64/80/96目前只有主机绘制覆盖，目标大数字和主题外观在后续展示页验证。长文全面性能优化按A1审批安排留到主要UI成型后；不以输入队列延迟代替完整GUI刷新性能。</p>
 </section></main></div></body></html>
