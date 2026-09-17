@@ -6,7 +6,14 @@
 
 static rt_device_t touch_device;
 static rt_thread_t gui_thread;
+static bool input_enabled = true;
 static void touch_input_read(lv_indev_t *indev, lv_indev_data_t *data);
+
+void iw_touch_input_set_enabled(bool enabled)
+{
+    if (touch_device) RT_ASSERT(rt_thread_self() == gui_thread);
+    input_enabled = enabled;
+}
 
 bool iw_touch_input_service(void)
 {
@@ -30,6 +37,14 @@ static void touch_input_read(lv_indev_t *indev, lv_indev_data_t *data)
 {
     (void)indev;
     struct touch_message sample = {0, 0, TOUCH_EVENT_UP};
+    /* SDK 调度钩子会启用设备；业务锁在真实读取入口兜底并丢弃积压样本。 */
+    if (!input_enabled) {
+        iw_touch_cancel();
+        data->state = LV_INDEV_STATE_RELEASED;
+        data->point.x = data->point.y = 0;
+        data->continue_reading = false;
+        return;
+    }
     (void)rt_device_read(touch_device, 0, &sample, 1);
     /* 溢出也可能发生在本轮 LVGL 连续读取中，不能只等下一轮主循环取消。 */
     if (iw_touch_input_service()) sample.event = TOUCH_EVENT_UP;

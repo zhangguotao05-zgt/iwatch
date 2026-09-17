@@ -7,5 +7,7 @@
 bool iw_touch_input_init(void);
 /* 读回调和主循环共用取消入口；返回是否执行了溢出取消。 */
 bool iw_touch_input_service(void);
+/* GUI 所有者设置业务输入权限；不受 SDK 临时启用 LVGL 设备影响。 */
+void iw_touch_input_set_enabled(bool enabled);
 
 #endif

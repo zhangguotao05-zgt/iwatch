@@ -442,6 +442,9 @@ static void input_cancel_lvgl(void)
     iw_key_feedback_cancel();
     iw_input_context_t context = iw_key_port_context();
     bool allow_touch = context != IW_INPUT_WATER && context != IW_INPUT_LOCKED;
+#ifndef _WIN32
+    iw_touch_input_set_enabled(allow_touch);
+#endif
     for (lv_indev_t *indev = lv_indev_get_next(NULL); indev; indev = lv_indev_get_next(indev)) {
         lv_indev_reset(indev, NULL);
         if (lv_indev_get_type(indev) == LV_INDEV_TYPE_POINTER) {

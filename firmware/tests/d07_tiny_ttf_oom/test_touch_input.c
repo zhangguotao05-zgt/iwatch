@@ -259,20 +259,34 @@ int test_touch_input(size_t loops)
     /* 水锁期间吞掉触摸；解除后旧按压仍不能触发点击。 */
     iw_component_t locked_frame = {0}, locked_button = {0};
     create_page(&locked_frame, &locked_button);
-    actions = presses = resets = 0;
-    touch_context = IW_INPUT_WATER; input_cancel_lvgl();
-    write_sample(TOUCH_EVENT_DOWN, 150); pointer_read(pointer);
-    assert(!actions && !presses);
-    touch_context = IW_INPUT_NORMAL; input_cancel_lvgl();
-    write_sample(TOUCH_EVENT_DOWN, 150); pointer_read(pointer);
-    assert(!actions && !presses);
-    write_sample(TOUCH_EVENT_UP, 150); pointer_read(pointer);
-    write_sample(TOUCH_EVENT_DOWN, 150); pointer_read(pointer);
-    write_sample(TOUCH_EVENT_UP, 150); pointer_read(pointer);
-    assert(actions == 1);
+    for (size_t loop = 0; loop < loops; loop++) {
+        actions = presses = resets = 0;
+        touch_context = loop % 2 ? IW_INPUT_LOCKED : IW_INPUT_WATER;
+        input_cancel_lvgl();
+        /* SDK 空闲钩子会重新启用设备；业务锁必须继续拦截完整的新手势。 */
+        for (unsigned click = 0; click < 3; click++) {
+            lv_indev_enable(pointer, true);
+            write_sample(TOUCH_EVENT_UP, 150); pointer_read(pointer);
+            write_sample(TOUCH_EVENT_DOWN, 150); pointer_read(pointer);
+            assert(!actions && !presses && !snapshot().queued);
+        }
+        /* 锁定期持续到达的样本不积压到解锁后。 */
+        for (unsigned sample = 0; sample < 32; sample++)
+            write_sample(TOUCH_EVENT_DOWN, (uint16_t)(140 + sample));
+        write_sample(TOUCH_EVENT_UP, 154);
+        pointer_read(pointer);
+        assert(!actions && !presses && !snapshot().queued);
+        touch_context = IW_INPUT_NORMAL; input_cancel_lvgl();
+        write_sample(TOUCH_EVENT_DOWN, 150); pointer_read(pointer);
+        assert(!actions && !presses);
+        write_sample(TOUCH_EVENT_UP, 150); pointer_read(pointer);
+        write_sample(TOUCH_EVENT_DOWN, 150); pointer_read(pointer);
+        write_sample(TOUCH_EVENT_UP, 150); pointer_read(pointer);
+        assert(actions == 1);
+    }
     input_cancel_lvgl(); close_page(&locked_frame);
     lv_indev_delete(pointer);
     assert(!mutex_depth && !test_font_assert_count() && wakes);
-    printf("touch_input queue_wrap=100 overflow_cycles=300 counter_saturation=ok cross_page_loops=%zu asserts=0 result=ok\n", loops);
+    printf("touch_input queue_wrap=100 overflow_cycles=300 counter_saturation=ok cross_page_loops=%zu lock_reenable_loops=%zu asserts=0 result=ok\n", loops, loops);
     return 0;
 }
