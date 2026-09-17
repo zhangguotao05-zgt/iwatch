@@ -1,20 +1,32 @@
 diff --git a/external/lvgl_v9/src/core/lv_obj_class.c b/external/lvgl_v9/src/core/lv_obj_class.c
-index cb5a396b..3430e1c3 100644
+index cb5a396b..fd8d9ec6 100644
 --- a/external/lvgl_v9/src/core/lv_obj_class.c
 +++ b/external/lvgl_v9/src/core/lv_obj_class.c
-@@ -101,6 +101,41 @@ lv_obj_t * lv_obj_class_create_obj(const lv_obj_class_t * class_p, lv_obj_t * pa
+@@ -101,6 +101,53 @@ lv_obj_t * lv_obj_class_create_obj(const lv_obj_class_t * class_p, lv_obj_t * pa
      return obj;
  }
  
-+/* 有父对象的受控构造：全部申请成功后才提交父子关系，失败不改变父对象。 */
++/* 受控构造：全部申请成功后才提交屏幕表或父子关系，失败保留原表。 */
 +lv_obj_t * lv_obj_class_create_obj_checked(const lv_obj_class_t * class_p, lv_obj_t * parent)
 +{
-+    if(!class_p || !parent) return NULL;
-+    LV_ASSERT_OBJ(parent, MY_CLASS);
++    if(!class_p) return NULL;
++    if(parent) LV_ASSERT_OBJ(parent, MY_CLASS);
 +    uint32_t size = get_instance_size(class_p);
 +    if(size < sizeof(lv_obj_t)) return NULL;
 +    lv_obj_t * obj = lv_malloc_zeroed(size);
 +    if(!obj) return NULL;
++    if(!parent) {
++        lv_display_t * disp = lv_display_get_default();
++        if(!disp || disp->screen_cnt == UINT32_MAX / sizeof(lv_obj_t *)) { lv_free(obj); return NULL; }
++        lv_obj_t ** screens = lv_realloc(disp->screens, sizeof(*screens) * (disp->screen_cnt + 1));
++        if(!screens) { lv_free(obj); return NULL; }
++        obj->class_p = class_p;
++        obj->coords.x2 = lv_display_get_horizontal_resolution(disp) - 1;
++        obj->coords.y2 = lv_display_get_vertical_resolution(disp) - 1;
++        disp->screens = screens;
++        disp->screens[disp->screen_cnt++] = obj;
++        return obj;
++    }
 +    lv_obj_spec_attr_t * attr = parent->spec_attr;
 +    if(!attr) {
 +        attr = lv_malloc_zeroed(sizeof(*attr));
@@ -45,14 +57,14 @@ index cb5a396b..3430e1c3 100644
  {
      if(obj == NULL) return;
 diff --git a/external/lvgl_v9/src/core/lv_obj_class.h b/external/lvgl_v9/src/core/lv_obj_class.h
-index 4c3bdcb2..0a5a010c 100644
+index 4c3bdcb2..7539d0d3 100644
 --- a/external/lvgl_v9/src/core/lv_obj_class.h
 +++ b/external/lvgl_v9/src/core/lv_obj_class.h
 @@ -55,6 +55,9 @@ typedef void (*lv_obj_class_event_cb_t)(lv_obj_class_t * class_p, lv_event_t * e
   */
  lv_obj_t * lv_obj_class_create_obj(const lv_obj_class_t * class_p, lv_obj_t * parent);
  
-+/* 仅创建子对象；失败无父子关系副作用，成功后仍须初始化。 */
++/* 创建子对象或屏幕；失败不改变父子关系或屏幕表，成功后仍须初始化。 */
 +lv_obj_t * lv_obj_class_create_obj_checked(const lv_obj_class_t * class_p, lv_obj_t * parent);
 +
  void lv_obj_class_init_obj(lv_obj_t * obj);
@@ -75,6 +87,37 @@ index 95396c49..23f0e02a 100644
      }
  
      /*Free the object itself*/
+diff --git a/external/lvgl_v9/src/display/lv_display.c b/external/lvgl_v9/src/display/lv_display.c
+index 0a261f3e..cd3811ec 100644
+--- a/external/lvgl_v9/src/display/lv_display.c
++++ b/external/lvgl_v9/src/display/lv_display.c
+@@ -735,7 +735,8 @@ void lv_screen_load_anim(lv_obj_t * new_scr, lv_screen_load_anim_t anim_type, ui
+      *make target screen loaded immediately. */
+     if(d->scr_to_load && act_scr != d->scr_to_load) {
+         lv_anim_delete(d->scr_to_load, NULL);
+-        lv_obj_set_pos(d->scr_to_load, 0, 0);
++        if(lv_obj_get_style_x(d->scr_to_load, 0) != 0) lv_obj_set_x(d->scr_to_load, 0);
++        if(lv_obj_get_style_y(d->scr_to_load, 0) != 0) lv_obj_set_y(d->scr_to_load, 0);
+         lv_obj_remove_local_style_prop(d->scr_to_load, LV_STYLE_OPA, 0);
+ 
+         d->prev_scr = d->act_scr;
+@@ -756,9 +757,13 @@ void lv_screen_load_anim(lv_obj_t * new_scr, lv_screen_load_anim_t anim_type, ui
+     lv_anim_delete(new_scr, NULL);
+     if(act_scr) lv_anim_delete(act_scr, NULL);
+ 
+-    /*Be sure both screens are in a normal position*/
+-    lv_obj_set_pos(new_scr, 0, 0);
+-    if(act_scr) lv_obj_set_pos(act_scr, 0, 0);
++    /* 坐标已为零时不创建局部样式，使无动画切屏不再隐式分配内存。 */
++    if(lv_obj_get_style_x(new_scr, 0) != 0) lv_obj_set_x(new_scr, 0);
++    if(lv_obj_get_style_y(new_scr, 0) != 0) lv_obj_set_y(new_scr, 0);
++    if(act_scr) {
++        if(lv_obj_get_style_x(act_scr, 0) != 0) lv_obj_set_x(act_scr, 0);
++        if(lv_obj_get_style_y(act_scr, 0) != 0) lv_obj_set_y(act_scr, 0);
++    }
+     lv_obj_remove_local_style_prop(new_scr, LV_STYLE_OPA, 0);
+     if(act_scr) lv_obj_remove_local_style_prop(act_scr, LV_STYLE_OPA, 0);
+ 
 diff --git a/external/lvgl_v9/src/draw/lv_draw.c b/external/lvgl_v9/src/draw/lv_draw.c
 index 30f6a9b9..9be6be74 100644
 --- a/external/lvgl_v9/src/draw/lv_draw.c
@@ -1257,6 +1300,327 @@ index bec0a788..7398630f 100644
  lv_rb_node_t * lv_rb_find(lv_rb_t * tree, const void * key);
  void * lv_rb_remove_node(lv_rb_t * tree, lv_rb_node_t * node);
  void * lv_rb_remove(lv_rb_t * tree, const void * key);
+diff --git a/middleware/app_fwk/app_schedule.c b/middleware/app_fwk/app_schedule.c
+index 86a5cb8a..962cb129 100644
+--- a/middleware/app_fwk/app_schedule.c
++++ b/middleware/app_fwk/app_schedule.c
+@@ -226,6 +226,44 @@ gui_runing_app_t *app_schedule_is_app_running(const char *id)
+     return NULL;
+ }
+ 
++void app_schedule_route_snapshot(gui_app_route_snapshot_t *snapshot)
++{
++    memset(snapshot, 0, sizeof(*snapshot));
++    snapshot->running_apps = (uint16_t)rt_list_len(&running_app_list);
++    snapshot->busy = scheduler_loop_st || suspend_task || (task_msg_mbx && task_msg_mbx->entry);
++#ifdef TRANS_ANIMATION
++    snapshot->busy = snapshot->busy || trans_anim_playing;
++    snapshot->transitioning = trans_anim_playing;
++#endif
++    rt_list_t *app_node, *page_node;
++    rt_list_for_each(app_node, &running_app_list)
++    {
++        gui_runing_app_t *app = rt_list_entry(app_node, gui_runing_app_t, node);
++        if (app->state != app->target_state) snapshot->busy = true;
++        rt_list_for_each(page_node, &app->page_list)
++        {
++            subpage_node_t *page = rt_list_entry(page_node, subpage_node_t, node);
++            if (page->state != page->target_state) snapshot->busy = true;
++        }
++    }
++    if (!actived_app) return;
++    gui_runing_app_t *app = rt_list_entry(actived_app, gui_runing_app_t, node);
++    rt_strncpy(snapshot->app_id, app->id, sizeof(snapshot->app_id) - 1);
++    snapshot->page_count = (uint16_t)rt_list_len(&app->page_list);
++    if (!snapshot->page_count) return;
++    subpage_node_t *page = rt_list_first_entry(&app->page_list, subpage_node_t, node);
++    rt_strncpy(snapshot->page_id, page->name, sizeof(snapshot->page_id) - 1);
++    snapshot->user_data = page->user_data;
++    snapshot->resumed = page->state == page_st_resumed;
++    if (snapshot->page_count > 1)
++    {
++        page = rt_list_entry(page->node.next, subpage_node_t, node);
++        rt_strncpy(snapshot->back_page_id, page->name, sizeof(snapshot->back_page_id) - 1);
++        snapshot->back_user_data = page->user_data;
++        snapshot->back_valid = true;
++    }
++}
++
+ uint32_t app_schedule_get_running_apps(void)
+ {
+     return rt_list_len(&running_app_list);
+@@ -1217,11 +1255,16 @@ static rt_err_t app_goback(rt_list_t *app_node)
+ static rt_err_t app_create_page(rt_list_t *app_node, const char *page_id, gui_page_msg_cb_t page_handler, void *usr_data, uint32_t mem_size)
+ {
+     if (NULL == app_node) return RT_EEMPTY;
++    if (!page_id || !page_handler || mem_size > UINT32_MAX - RT_ALIGN(sizeof(struct _subpage_node), RT_ALIGN_SIZE))
++        return -RT_EINVAL;
+ 
+     //get current page
+     gui_runing_app_t *run_app = rt_list_entry(app_node, gui_runing_app_t, node);
+ 
+ 
++    /* 深度上限在真实框架栈上检查；异步拒绝不暂停旧页。 */
++    if (rt_list_len(&run_app->page_list) >= 8u) return -RT_EFULL;
++
+     //stack current page to a history list
+     subpage_node_t *p_new_page = (subpage_node_t *) app_sche_malloc(RT_ALIGN(sizeof(struct _subpage_node), RT_ALIGN_SIZE) + mem_size);
+ 
+@@ -1233,6 +1276,13 @@ static rt_err_t app_create_page(rt_list_t *app_node, const char *page_id, gui_pa
+ 
+     app_sche_d("app[%s] create page[%s] %x", run_app->id, page_id, p_new_page);
+     memset(p_new_page, 0, RT_ALIGN(sizeof(struct _subpage_node), RT_ALIGN_SIZE) + mem_size);
++    /* 在改变任何旧页状态前准备 SDK 屏幕；失败只回收新节点。 */
++    p_new_page->scr = port_app_sche_create_scr();
++    if (!p_new_page->scr)
++    {
++        app_sche_free(p_new_page);
++        return -RT_ENOMEM;
++    }
+     if (mem_size)
+         p_new_page->mem_ptr = (void *)((uint8_t *)p_new_page + RT_ALIGN(sizeof(struct _subpage_node), RT_ALIGN_SIZE));
+ 
+@@ -1687,7 +1737,6 @@ static uint32_t schedule_subpage(void)
+ 
+                     /*create new scr and load it,and app can create ui in function onstart*/
+                     old_scr = port_app_sche_get_act_scr();
+-                    cur_page->scr = port_app_sche_create_scr();
+                     port_app_sche_load_scr(cur_page->scr);
+                     app_subpage_do(cur_app, cur_page, GUI_APP_MSG_ONSTART);
+                     /*
+@@ -2006,6 +2055,8 @@ static void check_duplicated_apps(void)
+ static uint32_t app_scheduler_new(void)
+ {
+     uint32_t ret_v;
++    /* GPU/LCD 尚在读取对象时保留生命周期请求，等 GUI 主循环排空绘制。 */
++    if (!gui_app_resources_ready()) return 0;
+     check_duplicated_apps();
+     check_duplicated_subpage();
+     ret_v = schedule_apps();
+@@ -2024,6 +2075,7 @@ void app_schedule_task(rt_mailbox_t msg_mbx)
+ 
+     task_msg_mbx = msg_mbx;
+ 
++    if (!gui_app_resources_ready()) return;
+     if (scheduler_suspended == suspend_task)  return;
+ 
+     app_sche_lock();
+@@ -2674,5 +2726,3 @@ subpage_node_t *gui_app_page_trav(gui_runing_app_t *app, rt_list_t **list)
+ 
+     return NULL;
+ }
+-
+-
+diff --git a/middleware/app_fwk/app_schedule_port.c b/middleware/app_fwk/app_schedule_port.c
+index a16ca5a8..f81b3075 100644
+--- a/middleware/app_fwk/app_schedule_port.c
++++ b/middleware/app_fwk/app_schedule_port.c
+@@ -10,13 +10,55 @@
+ #include "gui_app_int.h"
+ #include "bf0_lib.h"
+ 
++#if !defined(DISABLE_LVGL_V9)
++#include "src/core/lv_obj_private.h"
++#include "src/core/lv_obj_class_private.h"
++#include "src/core/lv_obj_style_private.h"
++
++/* 屏幕初始化使用固定样式；三处申请均可返回失败，不触发主题的隐式扩容。 */
++static const lv_obj_class_t route_screen_class = {
++    .base_class = &lv_obj_class, .instance_size = sizeof(lv_obj_t),
++    .theme_inheritable = LV_OBJ_CLASS_THEME_INHERITABLE_FALSE,
++    .group_def = LV_OBJ_CLASS_GROUP_DEF_FALSE, .name = "sdk_screen"
++};
++static const lv_style_const_prop_t route_screen_props[] = {
++    {LV_STYLE_BG_COLOR, {.color = {0, 0, 0}}},
++    {LV_STYLE_BG_OPA, {.num = LV_OPA_COVER}},
++    {LV_STYLE_BORDER_WIDTH, {.num = 0}},
++    LV_STYLE_CONST_PROPS_END
++};
++static LV_STYLE_CONST_INIT(route_screen_style, route_screen_props);
++
++static lv_obj_t *route_screen_create(void)
++{
++    lv_obj_style_t *styles = lv_malloc_zeroed(sizeof(*styles));
++    if (!styles) return NULL;
++    lv_obj_t *screen = lv_obj_class_create_obj_checked(&route_screen_class, NULL);
++    if (!screen) { lv_free(styles); return NULL; }
++    /* 屏幕主题即使 class 禁止继承仍会扩容样式；只构造基类，再装入固定样式。 */
++    lv_obj_class.constructor_cb(&route_screen_class, screen);
++    styles->style = &route_screen_style;
++    screen->styles = styles;
++    screen->style_cnt = 1;
++#if LV_OBJ_STYLE_CACHE
++    screen->style_main_prop_is_set = UINT32_MAX;
++#endif
++    lv_obj_remove_flag(screen, LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE);
++    lv_obj_refresh_style(screen, LV_PART_MAIN, LV_STYLE_PROP_ANY);
++    return screen;
++}
++#endif
++
+ #ifdef PKG_USING_LITTLEVGL2RTT
+ screen_t port_app_sche_create_scr(void)
+ {
+ #if defined(DISABLE_LVGL_V8)&&defined(DISABLE_LVGL_V9)
+     return (screen_t) lv_obj_create(NULL, NULL);
++#elif !defined(DISABLE_LVGL_V9)
++    return (screen_t)route_screen_create();
+ #else
+     lv_obj_t *scr = lv_obj_create(NULL);
++    if (!scr) return NULL;
+     lv_obj_remove_style_all(scr);
+     lv_obj_set_pos(scr, 0, 0);
+     lv_obj_set_style_border_width(scr, 0, LV_STATE_DEFAULT);
+@@ -139,4 +181,3 @@ void port_app_sche_enable_indev(bool enable, bool expect_tp)
+ }
+ 
+ #endif /* PKG_USING_LITTLEVGL2RTT */
+-
+diff --git a/middleware/app_fwk/gui_app_fwk.c b/middleware/app_fwk/gui_app_fwk.c
+index f78829cd..2a0b8083 100644
+--- a/middleware/app_fwk/gui_app_fwk.c
++++ b/middleware/app_fwk/gui_app_fwk.c
+@@ -165,53 +165,56 @@ char *fwk_msg_to_name(gui_app_frmmsg_type_t msg)
+ 
+ static rt_err_t send_msg_to_gui_app_task(gui_app_msg_t *msg)
+ {
+-    rt_err_t err;
+-    uint32_t *p_msg;
+-
+-    //Disable input device in case of mailbox overflow at corner case.
++    /* 失败不改变输入开关；消息入队后才移交所有权。GUI 调度与调用者在同一线程。 */
++    gui_app_msg_t *copy = (gui_app_msg_t *)rt_malloc(sizeof(*copy));
++    if (!copy) return -RT_ENOMEM;
++    msg->tick = rt_tick_get();
++    rt_memcpy(copy, msg, sizeof(*copy));
++    rt_err_t result = rt_mb_send(&gui_app_mbx, (rt_ubase_t)copy);
++    if (result != RT_EOK)
++    {
++        rt_free(copy);
++        return result;
++    }
+     if (GUI_APP_MSG_MANUAL_GOBACK_ANIM != msg->msg_id)
+         gui_app_enable_input_device(false);
+     else
+         gui_app_enable_input_device_except_tp(false);
++    return RT_EOK;
++}
+ 
+ 
+-    //Restore msg to allocated memmory
+-    p_msg = (uint32_t *) rt_malloc(sizeof(gui_app_msg_t));
+-    if (NULL == p_msg)
+-    {
+-        LOG_I("Malloc msg fail.");
+-        RT_ASSERT(0);
+-    }
+-    else
+-    {
+-        msg->tick = rt_tick_get();
+-        rt_memcpy(p_msg, msg, sizeof(gui_app_msg_t));
+-    }
++int gui_app_get_route_snapshot(gui_app_route_snapshot_t *snapshot)
++{
++    CHECK_CUR_RTOS_TASK();
++    if (!snapshot) return -RT_EINVAL;
++    app_schedule_route_snapshot(snapshot);
++    /* 首笔请求尚未进入调度器时，task_msg_mbx 仍可能为空。 */
++    snapshot->busy = snapshot->busy || gui_app_mbx.entry != 0;
++    return RT_EOK;
++}
+ 
+-    //Send to mailbox
+-    err = rt_mb_send(&gui_app_mbx, (rt_uint32_t) p_msg);
++static bool (*resources_ready_cb)(void);
+ 
+-    if (err != RT_EOK)
+-    {
+-        LOG_I("send to gui_app_mbx err:%d", err);
+-        RT_ASSERT(0);
+-    }
+-    else
+-    {
+-        if (GUI_APP_MSG_RUN_APP == msg->msg_id)
+-        {
+-            LOG_D("send msg[%s] [%s] to gui_app_mbx tick:%d.", fwk_msg_to_name(msg->msg_id), msg->content.cmd, msg->tick);
+-            printf_intent(&msg->content.intnt);
+-        }
+-        else if (GUI_APP_MSG_OPEN_PAGE_FOR_APP == msg->msg_id)
+-            LOG_D("send msg[%s] [0x%x] to gui_app_mbx tick:%d.", fwk_msg_to_name(msg->msg_id), msg->content.page4app.msg_handler, msg->tick);
+-        else
+-            LOG_D("send msg[%s] [0x%x] to gui_app_mbx tick:%d.", fwk_msg_to_name(msg->msg_id), msg->handler, msg->tick);
+-    }
++void gui_app_set_resources_ready(bool (*ready)(void))
++{
++    CHECK_CUR_RTOS_TASK();
++    resources_ready_cb = ready;
++}
+ 
+-    return err;
++bool gui_app_resources_ready(void)
++{
++    return !resources_ready_cb || resources_ready_cb();
+ }
+ 
++void gui_app_process_pending(void)
++{
++    CHECK_CUR_RTOS_TASK();
++    gui_app_route_snapshot_t snapshot;
++    (void)gui_app_get_route_snapshot(&snapshot);
++    /* 不向播放中的转场再投消息，也不主动中断它。 */
++    if (!snapshot.transitioning && gui_app_resources_ready()) app_schedule_task(&gui_app_mbx);
++}
+ 
+ static void sche_task(task_t h)
+ {
+@@ -1426,4 +1429,3 @@ RTM_EXPORT(gui_app_self_exit);
+ RTM_EXPORT(gui_app_regist_msg_handler_ext);
+ RTM_EXPORT(gui_app_create_page_ext);
+ 
+-
+diff --git a/middleware/app_fwk/gui_app_int.h b/middleware/app_fwk/gui_app_int.h
+index 5cb4180e..35ebc4a8 100644
+--- a/middleware/app_fwk/gui_app_int.h
++++ b/middleware/app_fwk/gui_app_int.h
+@@ -274,6 +274,7 @@ gui_runing_app_t *app_schedule_get_this(void);
+ gui_runing_app_t *app_schedule_is_app_running(const char *id);
+ subpage_node_t *app_schedule_get_this_page(void);
+ uint32_t app_schedule_get_running_apps(void);
++void app_schedule_route_snapshot(gui_app_route_snapshot_t *snapshot);
+ subpage_node_t *app_schedule_get_page_in_app(gui_runing_app_t *app, const char *page_id);
+ rt_err_t list_schedule_app(void);
+ void app_schedule_set_idle_hook(app_sche_hook_func idle_hook);
+diff --git a/middleware/include/gui_app_fwk2.h b/middleware/include/gui_app_fwk2.h
+index c9e3b890..b7129486 100644
+--- a/middleware/include/gui_app_fwk2.h
++++ b/middleware/include/gui_app_fwk2.h
+@@ -71,6 +71,21 @@ typedef enum
+  */
+ void gui_app_init(uint16_t style);
+ 
++/* GUI owner 的只读快照；实际页面栈仍由框架持有。指针仅供身份匹配，不转移所有权。 */
++typedef struct {
++    char app_id[16], page_id[16], back_page_id[16];
++    void *user_data, *back_user_data;
++    uint16_t running_apps, page_count;
++    bool busy, back_valid, resumed, transitioning;
++} gui_app_route_snapshot_t;
++int gui_app_get_route_snapshot(gui_app_route_snapshot_t *snapshot);
++/* GUI 主循环在绘制空闲时推进；不在回调内重入，也不拥有页面或导航策略。 */
++void gui_app_process_pending(void);
++void gui_app_set_resources_ready(bool (*ready)(void));
++bool gui_app_resources_ready(void);
++
++
++
+ /**
+     @brief run an app
+     @param[in] cmd application command - format:[app_id] [param0] [param1] [param2] ...
+@@ -273,4 +288,3 @@ int gui_app_is_active(const char *app);
+ }
+ #endif
+ #endif
+-
 diff --git a/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c b/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c
 index 3d5323e9..4f02fcb4 100644
 --- a/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c

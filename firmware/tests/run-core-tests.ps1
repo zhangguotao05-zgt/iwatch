@@ -56,6 +56,11 @@ try {
     if ($LASTEXITCODE -ne 0) { throw '启动协调失败注入测试编译失败。' }
     & ./test_boot.exe
     if ($LASTEXITCODE -ne 0) { throw '启动协调失败注入测试失败。' }
+    $guiCoreDir = Join-Path $firmwareDir 'iwatch/src/gui_core'
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$guiCoreDir" /Fetest_navigation.exe (Join-Path $PSScriptRoot 'test_navigation.c') (Join-Path $guiCoreDir 'iw_scope.c') (Join-Path $guiCoreDir 'iw_routes.c') (Join-Path $guiCoreDir 'iw_navigator.c')
+    if ($LASTEXITCODE -ne 0) { throw 'D08 作用域与导航测试编译失败。' }
+    & ./test_navigation.exe
+    if ($LASTEXITCODE -ne 0) { throw 'D08 作用域与导航测试失败。' }
     & py -3 (Join-Path $PSScriptRoot 'generate_lifecycle_test.py')
     if ($LASTEXITCODE -ne 0) { throw '生命周期测试生成失败。' }
     foreach ($page in @('clock', 'menu', 'status', 'simple', 'dial', 'rotate_bg')) {

@@ -89,6 +89,10 @@
     {
       "path": "firmware/iwatch/src/gui_core/iw_components_demo_text.h",
       "array": "demo_texts"
+    },
+    {
+      "path": "firmware/iwatch/src/gui_core/iw_router_text.h",
+      "array": "iw_router_texts"
     }
   ]
 }

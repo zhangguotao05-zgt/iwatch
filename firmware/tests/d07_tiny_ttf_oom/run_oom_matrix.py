@@ -67,6 +67,13 @@ def run_matrix(executable, font, repeat_count):
     print(run_case(executable, font, "component_navigation", repeat_count, timeout=60))
     print(run_case(executable, font, "component_gallery", repeat_count, timeout=60))
     print(run_case(executable, font, "component_touch", repeat_count, timeout=60))
+    print(run_case(executable, font, "component_sdk_nav", 0))
+    probe = run_case(executable, font, "component_router_oom", 0)
+    router_points = int(re.search(r"\ballocations=(\d+)\b", probe).group(1))
+    for point in range(1, router_points + 1):
+        run_case(executable, font, "component_router_oom", point)
+    print("D08 ROUTER OOM OK: {} allocation failure points".format(router_points))
+    print(run_case(executable, font, "component_router", repeat_count, timeout=60))
     for mode in range(5):
         print(run_case(executable, font, "component_render", mode))
     for variant in range(32):

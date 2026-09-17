@@ -1,0 +1,266 @@
+#include "iw_router.h"
+#include "iw_navigator.h"
+#include "iw_scope.h"
+#include "iw_components.h"
+#include "iw_font_port.h"
+#include "iw_gui_owner.h"
+#include "iw_service.h"
+#include "iw_router_text.h"
+#include "src/core/lv_obj_private.h"
+#include "src/core/lv_obj_class_private.h"
+#include "src/core/lv_obj_style_private.h"
+#include <assert.h>
+#include <stdio.h>
+#include <string.h>
+
+extern void test_font_owner(bool owner, bool idle);
+extern void test_font_arm_failure(size_t index);
+extern size_t test_font_live_bytes(void);
+extern size_t test_font_live_blocks(void);
+extern size_t test_font_allocation_sequence(void);
+extern unsigned test_font_assert_count(void);
+extern void iw_gui_cancel_input(void);
+
+typedef enum { GUI_APP_MSG_ONSTART, GUI_APP_MSG_ONRESUME, GUI_APP_MSG_ONPAUSE, GUI_APP_MSG_ONSTOP } gui_app_msg_type_t;
+typedef void (*gui_page_msg_cb_t)(gui_app_msg_type_t, void *);
+typedef struct {
+    char app_id[16], page_id[16], back_page_id[16];
+    void *user_data, *back_user_data;
+    uint16_t running_apps, page_count;
+    bool busy, back_valid, resumed, transitioning;
+} gui_app_route_snapshot_t;
+enum { RT_EOK = 0, LV_SWITCHANIM_NONE = 0, LV_SWITCHANIM_PRIOR_HIGHEST = 4, IW_GUI_WAKE_STATE = 2 };
+typedef unsigned rt_base_t;
+static unsigned irq_depth;
+static rt_base_t rt_hw_interrupt_disable(void) { return irq_depth++; }
+static void rt_hw_interrupt_enable(rt_base_t old) { assert(irq_depth == old + 1); irq_depth = old; }
+static void iw_gui_wake(unsigned reason) { assert(!irq_depth && reason == IW_GUI_WAKE_STATE); }
+static void *rt_calloc(size_t n, size_t size) { assert(!irq_depth); return lv_malloc_zeroed(n * size); }
+static void rt_free(void *pointer) { assert(!irq_depth); lv_free(pointer); }
+static int rt_kprintf(const char *format, ...) { (void)format; return 0; }
+#define MSH_CMD_EXPORT(function, description)
+
+/* 真正的 SDK 屏幕构造函数；只替换 RTOS 的消息/生命周期调度边界。 */
+#include "route_screen_under_test.inc"
+typedef struct {
+    lv_obj_t *screen;
+    void *data;
+    gui_page_msg_cb_t handler;
+    char name[16];
+} fake_page_t;
+static fake_page_t stack[8];
+static unsigned depth, dispatch_index;
+static int queued;
+static fake_page_t queued_page;
+static bool held_transition, hold_after_resume, reject_send, reject_page;
+static unsigned reject_back;
+static bool display_available = true;
+static bool (*ready_callback)(void);
+
+static void notify_page(unsigned index, gui_app_msg_type_t event)
+{
+    dispatch_index = index;
+    if (stack[index].handler) stack[index].handler(event, NULL);
+}
+static void *gui_app_this_page_userdata(void) { return stack[dispatch_index].data; }
+static void gui_app_set_enter_anim_type(unsigned major, unsigned minor, unsigned aux)
+{ assert(major == LV_SWITCHANIM_NONE && !minor && !aux); }
+static void gui_app_set_exit_anim_type(unsigned major, unsigned minor, unsigned aux)
+{ assert(major == LV_SWITCHANIM_NONE && !minor && !aux); }
+static void gui_app_set_anim_prior(int enter, int exit)
+{ assert(enter == LV_SWITCHANIM_PRIOR_HIGHEST && exit == LV_SWITCHANIM_PRIOR_HIGHEST); }
+static void gui_app_set_resources_ready(bool (*ready)(void)) { ready_callback = ready; }
+static int gui_app_create_page_ext(const char *name, gui_page_msg_cb_t handler, void *data)
+{
+    if (reject_send) { reject_send = false; return -1; }
+    assert(!queued && strlen(name) < sizeof(queued_page.name));
+    queued_page = (fake_page_t){.data = data, .handler = handler};
+    memcpy(queued_page.name, name, strlen(name) + 1);
+    queued = 1;
+    return RT_EOK;
+}
+static int gui_app_goback(void)
+{
+    assert(!queued);
+    if (reject_back) { reject_back--; return -1; }
+    if (depth <= 1) return -1;
+    queued = 2;
+    return RT_EOK;
+}
+static int gui_app_goback_to_page(const char *name)
+{
+    assert(!strcmp(name, "root") && !queued);
+    if (reject_back) { reject_back--; return -1; }
+    queued = 3;
+    return RT_EOK;
+}
+
+static iw_snapshot_status_t iw_snapshot_read(iw_snapshot_topic_t topic, void *output, size_t capacity, size_t *required)
+{
+    assert(topic == IW_SNAPSHOT_CAPABILITIES && !required);
+    struct { iw_snapshot_header_t header; iw_capability_snapshot_t model; } snapshot = {0};
+    snapshot.model.count = 1;
+    snapshot.model.entries[0].capability_id = IW_CAP_DISPLAY;
+    snapshot.model.entries[0].state = display_available ? IW_CAP_STATE_AVAILABLE : IW_CAP_STATE_FAULT;
+    assert(capacity == sizeof(snapshot)); memcpy(output, &snapshot, sizeof(snapshot));
+    return IW_SNAPSHOT_OK;
+}
+static int gui_app_get_route_snapshot(gui_app_route_snapshot_t *value)
+{
+    memset(value, 0, sizeof(*value));
+    memcpy(value->app_id, "Main", 5);
+    memcpy(value->page_id, stack[depth - 1].name, sizeof(value->page_id));
+    value->user_data = stack[depth - 1].data;
+    value->running_apps = 1; value->page_count = (uint16_t)depth;
+    value->resumed = true;
+    value->busy = queued != 0 || held_transition;
+    value->transitioning = held_transition;
+    if (depth > 1) {
+        memcpy(value->back_page_id, stack[depth - 2].name, sizeof(value->back_page_id));
+        value->back_user_data = stack[depth - 2].data;
+        value->back_valid = true;
+    }
+    return RT_EOK;
+}
+static void gui_app_process_pending(void)
+{
+    if (!queued || !ready_callback() || held_transition) return;
+    int operation = queued;
+    queued = 0;
+    if (operation == 1) {
+        if (reject_page) { reject_page = false; return; }
+        assert(depth < 8);
+        lv_obj_t *screen = route_screen_create();
+        if (!screen) return;
+        notify_page(depth - 1, GUI_APP_MSG_ONPAUSE);
+        stack[depth] = queued_page; stack[depth].screen = screen;
+        lv_scr_load(screen);
+        notify_page(depth, GUI_APP_MSG_ONSTART);
+        notify_page(depth, GUI_APP_MSG_ONRESUME);
+        depth++;
+        if (hold_after_resume) { held_transition = true; hold_after_resume = false; }
+    } else {
+        unsigned target = operation == 3 ? 0 : depth - 2;
+        notify_page(depth - 1, GUI_APP_MSG_ONPAUSE);
+        lv_scr_load(stack[target].screen);
+        notify_page(target, GUI_APP_MSG_ONRESUME);
+        while (depth > target + 1) {
+            notify_page(depth - 1, GUI_APP_MSG_ONSTOP);
+            lv_obj_delete(stack[depth - 1].screen);
+            memset(&stack[--depth], 0, sizeof(stack[0]));
+        }
+    }
+}
+
+#include "router_under_test.inc"
+
+static void process(void)
+{
+    for (unsigned i = 0; i < 5; i++) {
+        assert(!iw_gui_fault_process());
+        (void)iw_router_process();
+    }
+}
+static void command(const char *verb, uint32_t argument)
+{
+    char number[16];
+    (void)snprintf(number, sizeof(number), "%lu", (unsigned long)argument);
+    char *args[] = {"iw_nav", (char *)verb, number};
+    iw_nav(argument ? 3 : 2, args);
+}
+static void return_root(void)
+{
+    held_transition = false;
+    process();
+    while (depth > 1) { assert(iw_router_back()); process(); }
+    process();
+    assert(navigator.state == IW_NAV_IDLE && !candidate && !rolling_back && !fault_unwind);
+    for (unsigned i = 0; i < ROUTE_SLOTS; i++) assert(!pages[i]);
+    assert(iw_font_collect());
+}
+
+int test_router(lv_display_t *display, size_t number, bool failure)
+{
+    test_font_owner(true, true);
+    stack[0] = (fake_page_t){.screen = lv_display_get_screen_active(display)};
+    memcpy(stack[0].name, "root", 5); depth = 1;
+    iw_router_init();
+    command("open", 1); process(); assert(depth == 2); return_root();
+    size_t bytes = test_font_live_bytes(), blocks = test_font_live_blocks();
+    if (failure) {
+        size_t before = test_font_allocation_sequence();
+        test_font_arm_failure(number);
+        command("open", 2); process();
+        test_font_arm_failure(0);
+        size_t allocations = test_font_allocation_sequence() - before;
+        return_root();
+        assert(test_font_live_bytes() == bytes && test_font_live_blocks() == blocks);
+        assert(!test_font_assert_count());
+        printf("component_router_oom point=%zu allocations=%zu asserts=0 result=ok\n", number, allocations);
+        return 0;
+    }
+    for (size_t loop = 0; loop < number; loop++) {
+        display_available = false;
+        command("open", 99); process(); assert(depth == 1);
+        display_available = true;
+        reject_send = true;
+        command("open", 100); process(); assert(depth == 1); return_root();
+        reject_page = true;
+        command("open", 101); process(); assert(depth == 1); return_root();
+        command("burst", 200); process(); assert(depth == 1); return_root();
+        /* 生命周期先到、转场仍在途：普通请求拒绝，重复返回只保留一笔。 */
+        hold_after_resume = true;
+        command("open", 201); process();
+        assert(navigator.state == IW_NAV_TRANSITIONING && navigator.resumed && depth == 2);
+        uint32_t committed = navigator.committed;
+        command("open", 203); process(); assert(depth == 2 && navigator.committed == committed);
+        for (unsigned n = 0; n < 20; n++) { assert(iw_router_back()); process(); }
+        assert(depth == 2 && navigator.pending_back);
+        held_transition = false;
+        display_available = false;
+        process(); assert(depth == 1 && navigator.committed == committed + 2);
+        display_available = true;
+        return_root();
+        for (unsigned i = 1; i < 8; i++) { command("open", i); process(); assert(depth == i + 1); }
+        command("open", 9); process(); assert(depth == 8);
+        assert(navigator.history_count == 2);
+        if (loop & 1) {
+            /* 全局故障先回收七个使用方，再由 SDK 退回根页；不留下悬空 userdata。 */
+            iw_gui_fault_raise(); process();
+            assert(depth == 1);
+            iw_gui_fault_dismiss();
+        }
+        return_root();
+        /* 持续回退受理失败有限重试；应急层保留 SDK 对象，按键可重新发起恢复。 */
+        command("open", 400); process();
+        reject_back = 3;
+        iw_gui_fault_raise(); process();
+        assert(recovery_blocked && fault_unwind && depth == 2 && !reject_back);
+        assert(iw_router_back()); process(); assert(depth == 1 && !recovery_blocked);
+        iw_gui_fault_dismiss(); return_root();
+        command("open", 300);
+        test_font_owner(true, false);
+        for (unsigned i = 0; i < 50; i++) assert(iw_router_process() && depth == 1);
+        test_font_owner(true, true); process(); assert(depth == 2);
+        route_page_t *page = find_page(stack[1].data);
+        assert(page && page->callbacks_enabled && page->scope.visible);
+        lv_obj_t *content = iw_screen_frame_content(&page->frame);
+        lv_obj_update_layout(content);
+        lv_obj_scroll_to_y(content, 50, LV_ANIM_OFF);
+        action(1, page); process(); assert(depth == 3);
+        assert(!page->scope.visible);
+        action(1, page); process(); assert(depth == 3);
+        assert(iw_router_back()); process(); assert(depth == 2 && page->scope.visible);
+        assert(lv_obj_get_scroll_y(content) == 50);
+        return_root();
+        if (test_font_live_bytes() != bytes || test_font_live_blocks() != blocks)
+        {
+            fprintf(stderr, "router loop=%zu bytes=%zu/%zu blocks=%zu/%zu\n", loop,
+                test_font_live_bytes(), bytes, test_font_live_blocks(), blocks);
+        }
+        assert(test_font_live_bytes() == bytes && test_font_live_blocks() == blocks);
+    }
+    assert(!test_font_assert_count() && !irq_depth);
+    printf("component_router loops=%zu depth=8 overflow_rejected=1 asserts=0 result=ok\n", number);
+    return 0;
+}

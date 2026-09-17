@@ -1,0 +1,80 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D08 页面作用域与路由实施记录 · iwatch</title><link rel="stylesheet" href="../assets/engineering.css"></head>
+<body><header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D08 路由与页面资源</span></header>
+<div class="page-shell"><nav class="toc"><ul>
+<li><a href="#status">交付状态</a></li><li><a href="#ownership">所有权与接口</a></li>
+<li><a href="#transaction">导航事务</a></li><li><a href="#sdk">SDK 适配</a></li>
+<li><a href="#host">主机回归</a></li><li><a href="#target">构建及板测</a></li>
+<li><a href="#commands">操作步骤</a></li><li><a href="#limits">边界与后续</a></li></ul></nav>
+<main class="doc-main"><h1>D08 页面作用域与路由实施记录</h1>
+<p class="doc-meta">2026-09-17 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/9">Issue #9</a> · 前置审批：D07 / 9088f52 · 接续基线 78ed9d6</p>
+<section id="status"><h2>交付状态</h2>
+<p>页面作用域、注册表、单笔导航事务与 SiFli 适配已实现，主机回归通过。目标固件正在构建；新镜像尚未完成实机复验。D08 不提前收口，Issue #9 保持打开。旧通知布局和资源保持稳定，D10 再接入正式中文产品页面。</p>
+<table><thead><tr><th>层次</th><th>当前结论</th></tr></thead><tbody>
+<tr><td>主机</td><td>纯 C 策略、真实 LVGL 页面、生产 SDK 函数摘录和既有字体/输入回归通过；具体替身边界见下文。</td></tr>
+<tr><td>目标构建</td><td>待 GCC/Keil 构建、身份、预算及 COM255 DryRun 完成后填写。</td></tr>
+<tr><td>实机</td><td>待 COM9 写入、COM10 原始采集和用户操作确认；历史 D07 证据不作为本轮实机通过证据。</td></tr>
+</tbody></table></section>
+<section id="ownership"><h2>所有权与接口</h2>
+<table><thead><tr><th>模块</th><th>责任及边界</th></tr></thead><tbody>
+<tr><td><code>iw_scope</code></td><td>页面令牌由 page_id 与单调 generation 组成。固定登记 8 个定时器、8 个动画、16 个回调/订阅、16 个句柄。登记失败不移交所有权；重复停止安全。</td></tr>
+<tr><td><code>iw_routes</code></td><td>按 ID 排序的只读注册表。包含所属 App、父页、能力、恢复方式、状态、参数、资源、参考 ID 和测试编号。尚未实现的页面明确标 RESERVED，参数和资源不伪造为可用；正式页面接入时补齐其具体契约。</td></tr>
+<tr><td><code>iw_navigator</code></td><td>只持有已提交意图、候选目标和最近访问摘要；不复制 SDK 运行栈。返回目标、实际深度和运行 App 数来自框架快照。</td></tr>
+<tr><td><code>iw_router</code></td><td>GUI 线程中的适配器。串口仅投递有界请求并唤醒；页面创建、生命周期、输入取消、回收和 LVGL 操作全部在 app_watch 内完成。</td></tr>
+</tbody></table>
+<p>页面暂停时保存滚动位置、暂停 scope 中的可见活动并取消输入。页面退出先使令牌失效，再注销回调/订阅，停止定时器及动画，释放句柄和项目对象。SDK 随后删除自己的屏幕；页面状态内存等这一轮框架调度返回后才释放。对象与字体回收须先确认 GPU/LCD 已空闲。</p>
+<p>资源所有者登记上限从 D07 的 8 调整为 18：两个 App 各八页，另留两个全局使用方。登记是有界链表，不申请额外节点。没有引用的字体仍通过 D07 字体服务在安全点统一回收。</p>
+</section>
+<section id="transaction"><h2>导航事务、容量与失败回退</h2>
+<ol><li>检查当前实际页面、能力、参数、最多两个运行 App、单 App 八级深度。目标尚未实现、能力不可用或达到容量时保留当前页面；返回不因新发生的能力故障被禁止。</li>
+<li>进入 PREPARING，准备页面状态和作用域。SDK 返回成功仅说明请求已入队，随后进入 TRANSITIONING。</li>
+<li>收到目标 ONRESUME，同时确认实际框架完成转场并收敛后才 COMMITTED。事件先后次序不影响结果；重复事件和过期序列不重复提交。</li>
+<li>在途普通导航返回 BUSY；返回独占一个待处理位，连续返回合并一次，在下一安全点执行。</li>
+<li>SDK 未受理或异步建页失败时 ABORTED，当前页和历史不提交。目标组件构造失败时通过 SDK 返回原页；全局字体故障按所有使用方清理后退回该 App 根页。</li>
+<li>回退请求连续三次无法受理时停止自动重试，保留 SDK 对象所有权并显示应急层；KEY1 允许再发起恢复，不在回调内强删忙碌对象。</li></ol>
+<p>历史最多六个 App，每个只保留最近页面参数、滚动位置、选中项和不超过 64 B 的草稿；单份摘要编译期限制为不超过 128 B，不存 LVGL 指针。第七个 App 驱逐最旧条目。同一个 App 的子页跳转更新该 App 的摘要，不挤满六个槽。</p>
+<p>缩略图是独立的可选资源句柄。获取失败仍提交图标 ID 和名称；替换、驱逐及清空历史释放原句柄。D08 目标没有安装缩略图生产者，始终提供图标/名称模型；D13 再接图像生产与切换器画面。主机验证的是生产者失败后的历史策略，不宣称开发板已执行图片分配耗尽。</p>
+</section>
+<section id="sdk"><h2>受控 SDK 适配</h2>
+<p>基础 SDK 固定在 <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code> 并保持干净。派生补丁继续由 <code>sdk_patch_manifest.json</code> 管理，当前白名单 29 个文件；补丁及每个文件的 SHA-256 进入构建身份。D08 没有关闭全局断言或撤销字形缓存同步。</p>
+<ul><li>新增公开只读页面快照和一次调度推进入口。项目不包含 <code>gui_app_int.h</code>，不访问私有页面链表或调用私有转场中止函数。</li>
+<li>消息分配/邮箱发送失败可返回错误，失败不改变输入开关，发送成功后移交消息所有权。</li>
+<li>框架在改变原页状态前准备新节点和屏幕；节点、样式、屏幕与屏幕表分配失败均回收新资源。深度和附加内存整数溢出在分配之前检查。</li>
+<li>屏幕采用固定样式，避开初始化主题的隐式分配；根屏幕坐标已经为零时，LVGL 切屏不再重复创建局部样式。主机曾捕获该处分配失败崩溃，现已纳入真实入口故障注入。</li>
+<li>框架生命周期处理前确认绘制资源空闲。跳过动画或无动画的路径用“真实栈已恢复且框架空闲”确认完成，不依赖不存在的动画完成回调。</li></ul>
+<p>诊断页固定使用无快照转场和 Q0。现有其他页面的视觉动效没有扩展为可中断转场；D14 再验收这一能力。本轮主机的两个事件次序不等于实机已经测试任意动画中断。</p>
+</section>
+<section id="host"><h2>主机回归</h2>
+<table><thead><tr><th>检查</th><th>覆盖与结果</th></tr></thead><tbody>
+<tr><td>纯 C scope / navigator</td><td>1000 轮满容量资源登记/暂停/停止，1000 轮导航两种完成顺序、过期与重复事件、返回合并、八级/第九级、六 App/第七 App、缩略图返回空句柄及释放边界，通过。</td></tr>
+<tr><td>真实 LVGL 适配器</td><td>40 个页面进入分配失败点、1000 轮页面/返回/滚动恢复/多使用方故障回收，精确比较活跃内存字节与块数，无持续增长、无断言。RTOS 和 SDK 生命周期分发使用替身，不当作真实板上调度证据。</td></tr>
+<tr><td>生产 SDK 函数摘录</td><td>直接编译消息发送、app_create_page 和实际链表快照函数。节点/样式/屏幕/屏幕表四处失败、消息分配失败、邮箱满、真实八级边界、忙态和返回目标，通过。链表与 RTOS 内存/邮箱边界为测试替身。</td></tr>
+<tr><td>既有 D07 回归</td><td>字体/组件/绘制失败矩阵、生命周期与故障回收、4046 次像素提交对照、触摸溢出取消及跨页输入回归，通过。未用队列延迟替代帧率测量。</td></tr>
+</tbody></table>
+<p>入口：<code>firmware/tests/run-core-tests.ps1</code>、<code>firmware/tests/run-d07-a0-tests.ps1</code>。记录：<code>logs/d08-core.log</code>、<code>logs/d08-gui.log</code>。诊断页编译文案加入正式字体输入清单；字体内容仍为 336 字符、56,804 B，SHA-256 未变。文案和清单过期仍阻止构建。</p>
+</section>
+<section id="target"><h2>双工具链与实机证据</h2>
+<p>本节待本轮构建与板测填写。三件套继续使用已批准分区与地址：Bootloader 0x1C020000、main 0x69000000、FTab 0x1C000000，FTab 最后写入。仅使用此开发板的 COM9/COM10。</p>
+</section>
+<section id="commands"><h2>诊断操作与实机验收</h2>
+<pre><code>iw_nav open 1
+iw_nav stat
+iw_nav back
+iw_nav burst 2
+iw_font_stat
+iw_touch_stat
+iw_input_stat
+list_thread</code></pre>
+<p><code>open</code> 在当前 SDK App 中打开 D08 诊断子页，数字只作为按值传递的页面实例参数。Next 新建下一页；Back 与 KEY1 返回一级。<code>burst</code> 在同一请求窗口追加返回意图，用于确认在途合并。串口打印 queued 只表示请求进入项目邮箱，最终状态以生命周期和 stat 为准。</p>
+<ol><li>启动后先停在图标桌面，记录构建身份、主堆、字形池、线程栈和输入计数。</li>
+<li>验证诊断页文字、触摸、Next、Back、KEY1 和滚动位置。加到八级后第九级应拒绝，已有页面仍可返回。</li>
+<li>重复进退及 burst，查看实际栈与导航提交计数，返回桌面后记录两类堆，不以单次残留阈值替代增长检查。</li>
+<li>执行已有全局故障清理诊断，核对所有路由使用方释放、应急返回、重新进入。该命令不等于真实 OOM。</li>
+<li>20% / 80% 下复验旧通知中文、长文滑动、快速松手再按和 KEY1 返回；保存原始串口及用户反馈。</li></ol>
+</section>
+<section id="limits"><h2>边界与后续</h2>
+<p>本轮实现导航基础及诊断页，不代表正式七页界面已完成。全局双键/表冠语义在 D09，新版顶栏、七页布局、53 个新增字符在 D10。长文历史最大 215 ms 和溢出频率继续由 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/8">性能待办 #8</a> 跟踪，不宣称全面性能达标。联网、持久化与自研板定版不在本轮范围。</p>
+<p>实机验收和架构复核通过后才能申请 D08 收口；此记录保留主机策略、真实目标构建和实际硬件证据的分别结论。</p></section>
+</main></div></body></html>

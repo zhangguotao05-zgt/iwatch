@@ -118,6 +118,7 @@ static void *clock_fonts;
 static bool menu_active;
 static unsigned menu_requests, clock_requests;
 static bool iw_components_demo_home(void) { return false; }
+static bool iw_router_back(void) { return false; }
 static bool gui_app_is_actived(const char *id) { assert(strcmp(id,"Main")==0);return menu_active; }
 static void gui_app_run(const char *id) {
     if(strcmp(id,"Main")==0) { menu_requests++;menu_active=true; }

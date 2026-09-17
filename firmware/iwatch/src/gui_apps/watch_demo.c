@@ -26,6 +26,7 @@
 #include "iw_recovery.h"
 #include "iw_font.h"
 #include "iw_gui_owner.h"
+#include "iw_router.h"
 #include "iw_components.h"
 #include "iw_components_demo.h"
 #include "iw_boot.h"
@@ -399,6 +400,7 @@ static int32_t default_keypad_handler(lv_key_t key, lv_indev_state_t event)
         {
             iw_gui_fault_dismiss();
             if (iw_components_demo_home()) return LV_BLOCK_EVENT;
+            if (iw_router_back()) return LV_BLOCK_EVENT;
             // rt_kprintf("default_keypad_handler2 %d,%d\n", key, event);
             if (gui_app_is_actived("Main"))
                 gui_app_run("clock");
@@ -421,9 +423,11 @@ static int32_t default_keypad_handler(lv_key_t key, lv_indev_state_t event)
 static uint32_t gui_process_frame(void)
 {
     if (app_clock_main_process_font_fault() || iw_components_demo_process()) return 1u;
+    if (iw_router_process()) return 1u;
     uint32_t wait_ms = lv_timer_handler();
     /* 输入回调可能刚投递关闭请求，绘制返回后再次检查。 */
     if (app_clock_main_process_font_fault() || iw_components_demo_process()) return 1u;
+    if (iw_router_process()) return 1u;
     if (iw_components_tick() && wait_ms > 16u) wait_ms = 16u;
     return wait_ms;
 }
@@ -1019,6 +1023,7 @@ void app_watch_entry(void *parameter)
     lv_ex_data_pool_init();
     resource_init();
     gui_app_init(1);
+    iw_router_init();
 
 #ifdef BSP_USING_PM
     button_event_task = lv_timer_create(button_event_task_entry, 30, 0);

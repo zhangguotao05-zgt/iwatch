@@ -3,17 +3,22 @@
     {
       "path": "external/lvgl_v9/src/core/lv_obj_class.c",
       "base_sha256": "5c33b982c91c13cd7a2baa26b5bb523af51f9c81ff18cd83c80828735eeb7e1f",
-      "patched_sha256": "f9ab14d8d27286cc4a6365f2a958e8b47cccc36d654216c0c717c5d171fcbb6f"
+      "patched_sha256": "0a63696a06a0c8a797c8ba5dcb167149763cc44da4f526a6c207ea12f9ad4e01"
     },
     {
       "path": "external/lvgl_v9/src/core/lv_obj_class.h",
       "base_sha256": "51448cfa46f8b0b3031bf3552a031e5c07ce0db5caf4a5f65ffc73ae8d929f27",
-      "patched_sha256": "9fad38c5e232eba19f046f9bbc8666b21ae0c257b31d8adf25d88ab48126a11a"
+      "patched_sha256": "4eaa7a6b24d846eb7d4ff9abe17865b452a05ed3eb64cc0c0b9f13c1fc434880"
     },
     {
       "path": "external/lvgl_v9/src/core/lv_obj_tree.c",
       "base_sha256": "ae99d2dd726d9e35594fcced3e6b2242db93d27d1ec25a22bf5b250631efafc2",
       "patched_sha256": "96cd0af4972faa47c6e18955f3469dc868f7071f7d6942ca918c09e2815a4607"
+    },
+    {
+      "path": "external/lvgl_v9/src/display/lv_display.c",
+      "base_sha256": "178f673b4b72ea3b54f4a3d09897c815a893a4fc5f2572d8a007ccd087557b43",
+      "patched_sha256": "56d7f7542f5144443a7f0a651dbb61ba69d108636e2a71a1175735aefe98ab8f"
     },
     {
       "path": "external/lvgl_v9/src/draw/lv_draw.c",
@@ -111,13 +116,38 @@
       "patched_sha256": "e47d5ca2475171eab1afa45e87d5cac7ecd414bececc1fba87e1f64bdc5d3461"
     },
     {
+      "path": "middleware/app_fwk/app_schedule.c",
+      "base_sha256": "ac0c5abfb64b822a7aa48969718de607ca2e27b77ce175e2e86e1eb727e36ab8",
+      "patched_sha256": "7ead4251077d51d1722c187f74e11d33bf587236efff4de8ebf2feeeedcc5efa"
+    },
+    {
+      "path": "middleware/app_fwk/app_schedule_port.c",
+      "base_sha256": "e28a3ed181933b934c1d15960ff28fa77a9de68f28627c4945c05e7e675fc86f",
+      "patched_sha256": "24963a91235362eee8438db7b2102a27b34d1d925c97455849cbb211da805143"
+    },
+    {
+      "path": "middleware/app_fwk/gui_app_fwk.c",
+      "base_sha256": "46f4ac9ca72cd6a7f3d31fe5d898274c423435fd9a1e66ecc1a83dffb8bf73de",
+      "patched_sha256": "80f631031b0d6177fc64a01ed4147b44c4bf8726e94ca5b8c134fbd45066d1c7"
+    },
+    {
+      "path": "middleware/app_fwk/gui_app_int.h",
+      "base_sha256": "c7776cbe378cd9c7994463c738897c3af06abcc915aa2091a7fab62fd2bb0ab8",
+      "patched_sha256": "9033187f32d95b8af29ab1a7584d3873ba1a62883a39e0905c23d5c87e428f5b"
+    },
+    {
+      "path": "middleware/include/gui_app_fwk2.h",
+      "base_sha256": "8472fab61505f9be91fa63924b60e5de39c41fa0d0472ed14f74f3f4069ff699",
+      "patched_sha256": "f45b670a68b90435e9d050ccbeba9cc20a733feb3d7a563efee1e2d2fd1133ed"
+    },
+    {
       "path": "middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c",
       "base_sha256": "d27462afb03b4a0443b90c64406941229a2cc9a711db42a3f28570a26fb3f4d6",
       "patched_sha256": "2f3b9687539f362b9423e8b3e8d315c6e3b17a8eac2369fe79e916376f127da6"
     }
   ],
   "patch_file": "firmware/patches/lvgl-v9-tiny-ttf-oom.patch",
-  "patch_sha256": "d25af094c54f1618753c0401e679a15ee78190121d2846fea79049d70aba799d",
+  "patch_sha256": "12a68b87de9a00016e8430565f8f76932d45e68790b5e1dcd15a163173896c55",
   "schema": 1,
   "sdk_commit": "421126d9f476ed8e2a6f0b0ca28a9f241c182e65"
 }

@@ -70,12 +70,43 @@ math(EXPR CANCEL_LENGTH "${CANCEL_END} + 2")
 string(SUBSTRING "${CANCEL_REST}" 0 ${CANCEL_LENGTH} CANCEL_FUNCTION)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/input_cancel_under_test.inc" "${CANCEL_FUNCTION}")
 
-add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c test_epic_glyph.c test_font_service.c test_components.c test_component_navigation.c test_touch_input.c
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform/iw_router.c" ROUTER)
+string(REGEX REPLACE "#include [^\n]*" "" ROUTER "${ROUTER}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/router_under_test.inc" "${ROUTER}")
+file(READ "${SDK_ROOT}/middleware/app_fwk/app_schedule_port.c" ROUTE_SCREEN)
+string(FIND "${ROUTE_SCREEN}" "static const lv_obj_class_t route_screen_class" SCREEN_START)
+string(FIND "${ROUTE_SCREEN}" "\n#endif\n\n#ifdef PKG_USING_LITTLEVGL2RTT" SCREEN_END)
+math(EXPR SCREEN_LENGTH "${SCREEN_END} - ${SCREEN_START}")
+string(SUBSTRING "${ROUTE_SCREEN}" ${SCREEN_START} ${SCREEN_LENGTH} SCREEN_FUNCTION)
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/route_screen_under_test.inc" "${SCREEN_FUNCTION}")
+
+# SDK 受理、真实栈和快照直接编译生产函数；不复制其分支逻辑。
+function(extract_sdk_function source marker output)
+    file(READ "${SDK_ROOT}/${source}" text)
+    string(FIND "${text}" "${marker}" begin)
+    if(begin LESS 0)
+        message(FATAL_ERROR "Missing SDK function: ${marker}")
+    endif()
+    string(SUBSTRING "${text}" ${begin} -1 rest)
+    string(FIND "${rest}" "\n}" end)
+    math(EXPR length "${end} + 2")
+    string(SUBSTRING "${rest}" 0 ${length} body)
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${output}" "${body}")
+endfunction()
+extract_sdk_function("middleware/app_fwk/gui_app_fwk.c" "static rt_err_t send_msg_to_gui_app_task(" "sdk_send_under_test.inc")
+extract_sdk_function("middleware/app_fwk/app_schedule.c" "static rt_err_t app_create_page(" "sdk_create_under_test.inc")
+extract_sdk_function("middleware/app_fwk/app_schedule.c" "void app_schedule_route_snapshot(" "sdk_snapshot_under_test.inc")
+
+add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c test_epic_glyph.c test_font_service.c test_components.c test_component_navigation.c test_touch_input.c test_router.c test_sdk_navigation.c
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_components.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_gui_owner.c"
-    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_theme.c")
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_theme.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_scope.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_routes.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_navigator.c")
 target_include_directories(test_tiny_ttf_oom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core")
 target_include_directories(test_tiny_ttf_oom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform")
+target_include_directories(test_tiny_ttf_oom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/services" "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core")
 target_include_directories(test_tiny_ttf_oom PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_features(test_tiny_ttf_oom PRIVATE c_std_11)
 if(MSVC)

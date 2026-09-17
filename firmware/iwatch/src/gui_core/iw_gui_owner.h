@@ -4,6 +4,9 @@
 #include <stdbool.h>
 #include <stdint.h>
 
+/* 两个 App 各八页，另留两个全局展示/应急使用方；链表本身不动态扩容。 */
+enum { IW_GUI_OWNER_LIMIT = 18 };
+
 /* 页面持有稳定地址的零初始化节点；回调先停定时器/订阅，再删对象并释放字体。 */
 typedef struct iw_gui_owner {
     struct iw_gui_owner *next;

@@ -3,7 +3,6 @@
 #include "iw_font_port.h"
 #include "iw_recovery.h"
 
-#define IW_GUI_OWNER_LIMIT 8u
 static iw_gui_owner_t *owners;
 static unsigned owner_count;
 static bool drawing_fault, cleaning;

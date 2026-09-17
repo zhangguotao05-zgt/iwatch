@@ -22,6 +22,7 @@
 - [D07-B 字体服务与主题实施记录](docs/ui/D07-B_字体服务与主题实施记录.html)
 - [D07-C 共享组件与页面回收实施记录](docs/ui/D07-C_共享组件与页面回收实施记录.html)
 - [D07-D 组件展示与综合验收记录](docs/ui/D07-D_组件展示与综合验收记录.html)
+- [D08 页面作用域与路由实施记录](docs/ui/D08_页面作用域与路由实施记录.html)
 - [Series 11 界面覆盖计划](docs/UI复刻计划_watchOS26.html)
 - [固件构建与调试](firmware/README.html)
 - [硬件原理图 v0.3](hardware/原理图_v0.3_封装与接口完善/阅读说明.html)
