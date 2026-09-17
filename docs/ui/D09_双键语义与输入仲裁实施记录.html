@@ -2,11 +2,15 @@
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>D09 双键语义与输入仲裁实施记录 · iwatch</title><link rel="stylesheet" href="../assets/engineering.css"></head>
 <body><header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D09 输入与导航</span></header>
-<div class="page-shell"><nav class="toc"><ul><li><a href="#status">状态</a></li><li><a href="#design">实现</a></li><li><a href="#contract">时序及取消</a></li><li><a href="#tests">验证</a></li><li><a href="#board">实机步骤</a></li><li><a href="#limits">边界</a></li></ul></nav>
+<div class="page-shell"><nav class="toc"><ul><li><a href="#status">状态</a></li><li><a href="#design">实现</a></li><li><a href="#contract">时序及取消</a></li><li><a href="#tests">验证</a></li><li><a href="#board">实机步骤</a></li><li><a href="#results">本轮结果</a></li><li><a href="#limits">边界</a></li></ul></nav>
 <main class="doc-main"><h1>D09 双键语义与输入仲裁实施记录</h1>
 <p class="doc-meta">2026-09-17 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/11">Issue #11</a> · 接续 D08 收口提交 e5f8e41</p>
-<section id="status"><h2>状态</h2><p>D09 已进入本地实现及回归阶段，Issue #11 保持打开。D08 的基础实现按已知风险接受放行；显示异常 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/10">#10</a> 仍未定位，性能 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/8">#8</a> 继续跟踪，历史最大 215 ms 不被本轮采样替代。</p>
-<table><thead><tr><th>层次</th><th>结论</th></tr></thead><tbody><tr><td>主机</td><td>双键纯 C 与真实生产适配入口的 1000 轮测试通过；真实 LVGL、字体/组件/路由最终回归通过；44 项 Python 测试通过（1 项按环境跳过），下节记录覆盖范围。</td></tr><tr><td>目标</td><td>GCC / Keil 构建、独立身份、预算及 COM255 DryRun 通过，源码 cd32432；main 分别为 1,885,400 B（29.968%）与 1,811,024 B（28.785%）。</td></tr><tr><td>实机</td><td>初版 cd32432 写后校验及启动正常，但 KEY1 切表盘后动画停住，用户报告卡死。原始日志保存在 logs/board-validation-20260917-d09，快照为 clock/root、busy=1，串口及按键事件仍工作。定位到 Home pending 无条件暂停 LVGL 导致动画无法结束；修正版允许在框架动画忙且渲染资源空闲时继续推进 LVGL，并补生产函数回归。修正版待重新构建及实机复验，初版不得作为通过证据。</td></tr><tr><td>审批</td><td>未申请最终收口，不进入 D10 实现。</td></tr></tbody></table></section>
+<section id="status"><h2>状态</h2><p>D09 实现及本轮工程复验完成，等待架构审批；<a href="https://github.com/zhangguotao05-zgt/iwatch/issues/11">Issue #11</a> 保持打开，不进入 D10。固件源码基线为 <code>05fb667</code>。性能 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/8">#8</a> 和显示异常 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/10">#10</a> 继续跟踪。</p>
+<table><thead><tr><th>层次</th><th>结果</th></tr></thead><tbody>
+<tr><td>主机</td><td>双键、生产适配入口、路由各 1000 轮通过；新增水锁/输入锁与 SDK 重新启用设备交替 1000 轮通过。59 个字体失败点、4046 次 EPIC 像素对照、组件生命周期与回收、40 个路由 OOM 点通过。核心回归 44 项 Python 测试通过（1 项环境跳过），GUI 脚本的 36 项 Python 检查与之有重叠，不相加计数。</td></tr>
+<tr><td>目标</td><td>GCC / Keil 构建、独立身份、布局、预算与 COM255 DryRun 通过；GCC main 1,885,520 B（约 29.97%），Keil main 1,811,128 B（28.787%）。两套绑定同一源码，分区不变。</td></tr>
+<tr><td>实机</td><td>同一 GCC 三件套经 COM9 写入并校验。复位启动、双键实体操作、水锁阻断/解锁、Home、软件旋转、覆盖层、应急返回及 20%/80% 通知页通过。原始 COM10 记录连续 118,780 B；主堆存在 28 B 小幅波动，无本轮重复开关持续增长，字形池回到 72 B、字体引用清零。</td></tr>
+<tr><td>审批</td><td>工程复验通过，尚未取得架构师最终签字；不关闭 #11。cd32432 的动画停住和 8db61e4 的水锁穿透均保留失败证据，不能作为通过版本。</td></tr></tbody></table></section>
 <section id="design"><h2>实现与所有权</h2><table><thead><tr><th>模块</th><th>责任</th></tr></thead><tbody>
 <tr><td>iw_keys</td><td>无堆分配的纯 C 识别器，两个独立状态槽。一次调用最多输出三个语义；无符号时间差支持节拍回绕，间隔限制为半周期以内。</td></tr>
 <tr><td>iw_key_port</td><td>SDK 回调只采集 PRESS / RELEASE，在短 IRQ 临界区排入固定 16 项队列并唤醒；忽略 SDK CLICK / LONG。GUI 每轮最多消费八项或 2 ms，统一到期结算、上下文切换和有符号旋转合并。GPIO 读取在 IRQ 临界区外。</td></tr>
@@ -27,7 +31,7 @@
 <section id="tests"><h2>主机覆盖与证据边界</h2><table><thead><tr><th>测试</th><th>覆盖</th></tr></thead><tbody>
 <tr><td>test_keys.c</td><td>1000 轮：单/双击边界、第二击释放超窗、长按与单击互斥、两键独立、重复边沿、uint32 回绕、过期边沿取消、稳定释放、上下文矩阵及旋转整数极值。</td></tr>
 <tr><td>test_key_port.c</td><td>编译真实 iw_key_port.c，仅替换 RTOS/GPIO。1000 轮硬件回调与期限、满队列丢边沿、跨页同批取消、水锁解锁、旋转与触摸竞争；另测注册失败回滚重试、SDK 合成动作过滤、采样期间入队和诊断参数边界。</td></tr>
-<tr><td>真实 LVGL</td><td>保留字体 59 个失败点、4046 次 EPIC 像素对照、组件/路由 OOM 和生命周期。路由新增 1000 轮 Home 与 Back 区分、转场中合并、三次失败、应急返回及旋转；触摸覆盖原 300 次溢出、1000 次跨页取消，并补水锁解除无穿透和常驻按下反馈。</td></tr>
+<tr><td>真实 LVGL</td><td>保留字体 59 个失败点、4046 次 EPIC 像素对照、组件/路由 OOM 和生命周期。路由新增 1000 轮 Home 与 Back 区分、转场中合并、三次失败、应急返回及旋转；触摸覆盖原 300 次溢出、1000 次跨页取消，并补水锁解除无穿透和常驻按下反馈。新增 1000 轮水锁/输入锁交替回归，每轮模拟 SDK 反复重新启用设备、完整点击和连续样本，确认零穿透；解锁后必须松手再开始新手势。旧实现被同一生产入口测试判定失败。</td></tr>
 </tbody></table><p>上述属于主机验证；SDK 页面调度及 RTOS/GPIO 用替身，真实页面对象、字体和资源回收参与测试。目标构建、实际 KEY2 连线、实际按压节拍、GPU/LCD 与页面观感必须独立实测。队列 P95 是入队到消费延迟，不包括刻意等待双击的 280 ms，也不是首帧/刷新性能。</p></section>
 <section id="board"><h2>实机复验步骤</h2><ol>
 <li>使用同一 GCC 归档的 Bootloader / main / FTab，经 COM9 写入并校验，保存完整烧录输出；取下 Mode 后复位，COM10 连续采集原始串口与命令时间线。</li>
@@ -38,5 +42,35 @@
 <li>20%/80% 各三轮旧通知页长文滚动、松手再按、KEY1 返回；最终停在图标桌面采样，比较两类堆是否回到新固件基线。物理按键与软件注入不得混用同一手势。</li>
 <li>若再次半黑半白，先保留画面、操作步骤、时间和诊断日志，再复位，关联 #10 并重新评估，不按正常样本覆盖。</li>
 </ol></section>
+<section id="board-fixes"><h2>实机发现与修正记录</h2>
+<table><thead><tr><th>版本</th><th>实机发现</th><th>修正及证据边界</th></tr></thead><tbody>
+<tr><td>cd32432</td><td>KEY1 进入表盘后动画不再推进；串口仍响应。</td><td>8db61e4 允许忙碌转场继续执行 LVGL 定时器。反证测试能拒绝旧等待条件；实体往返与五轮软件注入往返已正常。保留初版完整日志。</td></tr>
+<tr><td>8db61e4</td><td>水锁合并步骤最初人工回复“符合”，但日志显示解锁前有 Next 请求；分步复测确认锁定时仍可进入后续页面。</td><td>固定 SDK 的 app_scheduler_idle_hook 调用 gui_app_enable_input_device(true)，覆盖一次性禁用。05fb667 在项目触摸读取入口独立检查权限，丢弃锁定期样本；不修改 SDK。旧实现主机断言失败，修正后 1000 轮双锁交替、重复启用及解锁释放测试通过。05fb667 分步实测通过：锁定点击/滑动不切页、长按解锁、恢复触摸和 Home 返回正常。新增五轮软件注入往返的桌面采样均为 59,832 B／72 B／零引用；本轮其余复验已完成，结果以下节为准，不继承旧版通过项。</td></tr>
+</tbody></table>
+<p>8db61e4 的五轮自动往返采样均为主堆 59,832 B／字形池 72 B／零字体引用；水锁测试后回到 59,820 B／72 B。记录实际采样波动，不将任一单次值作为所有页面的固定内存预算。两套失败窗口分别保存在 logs/board-validation-20260917-d09 与 logs/board-validation-20260917-d09-r2，修正版另建 r3 窗口。</p></section>
+<section id="results"><h2>05fb667 实机结果与归档</h2>
+<table><thead><tr><th>项目</th><th>结果与边界</th></tr></thead><tbody>
+<tr><td>水锁分步</td><td>锁定后点击 Next 三次并滑动，页码和提交计数均不变；实体 KEY1 长按超过 2 秒后解除，松手后 Next 可进入下一页，KEY1 一次回 Main/root。先核对锁定，再测解锁，避免合并操作掩盖穿透。</td></tr>
+<tr><td>双键与 Home</td><td>当前镜像实体 KEY1 双击/长按、KEY2 单击/双击/长按均记录独立语义并留在桌面；KEY1 单击在水锁后与通知回归中完成返回。另完成五轮软件注入表盘/桌面往返、五种非 Home 语义注入。原始日志共 11 次 clock ONSTART 与 11 次 ONSTOP，包括五轮自动、六轮人工通知回归。</td></tr>
+<tr><td>软件旋转</td><td>Page 1 注入 +8 步后，用户确认内容滚动、Back 可见，并确认 KEY1 返回。触摸竞争、负向旋转与极值由主机回归覆盖；未接实体旋转编码器，不声称实体表冠完成。</td></tr>
+<tr><td>覆盖层与应急</td><td>Q1 确定进入等待态，KEY1 优先关闭覆盖层，不穿透为桌面 Home。两层路由页与组件叠加后，清理诊断释放 18 个字体引用；用户确认 UI unavailable、实体按键返回及重新进入正常。此为 owner cleanup 诊断，不是真实内存耗尽。</td></tr>
+<tr><td>通知与亮度</td><td>80% 和 20% 各三次旧通知页进出，长文滚动、快速松手再按及按住正文时 KEY1 返回均正常。亮度 desired/applied 分别为 80/80、20/20，结果 ACK 完成；断电保存不在本轮范围。</td></tr>
+<tr><td>内存</td><td>启动 59,820 B／72 B。五轮自动 Home 后均为 59,832 B／72 B；后续十轮覆盖层开关在 59,820／59,848 B 间交替，全部低于等于开关前已观测峰值，字形池均为 72 B、引用为零。最终 59,848 B／72 B。不写成“每次精确回到启动值”；28 B 波动的分配归因尚未单独定位。主堆本窗口 global_max 113,868 B、字形池 peak 35,328 B，不能代表所有正式页面峰值。</td></tr>
+<tr><td>性能与输入</td><td>80% 回归后 P95 15 ms、最大 133 ms；20% 回归后 P95 74 ms、最大 133 ms。追加自动操作及实体键后的最终累计 P95 57 ms，不能覆盖先前 74 ms。均为按键队列等待，不含 280 ms 单击窗口，也不是刷新率。累计六次触摸溢出，最终 queued/pending/wait/down 均为零；保留 #8 历史最大 215 ms。</td></tr>
+<tr><td>线程栈</td><td>app_watch 16,384 B，最高使用 32%；tpread 2,048 B，22%；lcd_task 2,048 B，47%；iw_service 4,096 B，9%。为该窗口诊断采样，不替代长期压力验证。</td></tr>
+</tbody></table>
+<p>自动覆盖层复验中保留两次工具断言：第一次误把识别器存储 context=0 当作分发后的 OVERLAY=2；实际 intent 已正确为 DISMISS。第二次要求单次主堆精确相等，记录 59,820→59,848 B。修正判定层级并观察十轮趋势后得到上述交替结果，未修改固件掩盖这些记录。</p>
+<p>本轮没有报告新的半黑半白，不能据此关闭 #10。使用的是取下 Mode 后人工复位，不新增“断电冷启动”结论。主机 OOM、目标构建与实际操作三类证据分开记录。</p>
+<ul>
+<li><a href="../../logs/board-validation-20260917-d09-r3/build-validation.json">构建与实机状态</a>、<a href="../../logs/board-validation-20260917-d09-r3/board-validation.json">采集连续性与结果摘要</a>、<a href="../../logs/board-validation-20260917-d09-r3/user-confirmations.jsonl">人工确认</a>。</li>
+<li><a href="../../logs/board-validation-20260917-d09-r3/serial.raw">原始 COM10 数据</a>、<a href="../../logs/board-validation-20260917-d09-r3/timeline.jsonl">命令/接收字节时间线</a>、<a href="../../logs/board-validation-20260917-d09-r3/board-checks.jsonl">逐项采样与自动检查</a>、<a href="../../logs/board-validation-20260917-d09-r3/flash-serial-full.log">完整烧录输出</a>。</li>
+<li><a href="../../logs/board-validation-20260917-d09-r3/SHA256SUMS.txt">本轮 54 项归档校验和</a>；<a href="../../logs/board-validation-20260917-d09/SHA256SUMS.txt">初版失败窗口</a>、<a href="../../logs/board-validation-20260917-d09-r2/SHA256SUMS.txt">水锁穿透失败窗口</a>均保留。本地 logs 归档未作为大文件提交远端，复核需使用本地归档。</li>
+</ul>
+<table><thead><tr><th>文件</th><th>SHA-256</th></tr></thead><tbody>
+<tr><td>GCC main.bin</td><td><code>522b9c886e02de4e9066d8ab0fe510862368f5a01a1a7f12f89fc4b26d31b861</code></td></tr>
+<tr><td>Keil main.bin</td><td><code>26ba2281c10484ecd1acae2de656dbe94d9e086516615bbf21b923530d99279a</code></td></tr>
+<tr><td>serial.raw</td><td><code>bc3e2343bfaacf80352e69f7d1e3f66ae8b58f8919abce578065511488564fdb</code></td></tr>
+<tr><td>timeline.jsonl</td><td><code>f7c433bb59b4f1aa7d4b1481ee19317201e21722e6224b55a85e63869f9d72f5</code></td></tr>
+</tbody></table></section>
 <section id="limits"><h2>仍未完成的能力</h2><p>DEV 当前未启用 BSP_USING_PM，低功耗唤醒不在本次验收范围。开发板无已确认的真实旋转编码器，旋转只验软件链路。水锁完整页面、解锁进度、控制中心、钱包、切换器和语音/关机能力不在 D09 伪装为完成；D10 接正式页面，D13 接完整系统覆盖层。性能 #8、显示异常 #10、D15 持久化与 D16 故障恢复继续保留。</p></section>
 </main></div></body></html>
