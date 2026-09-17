@@ -407,7 +407,8 @@ bool iw_router_process(void)
     }
     if (recovery_blocked) home_target = NULL;
     home_process(&snapshot);
-    return home_target || (fault_unwind && !recovery_blocked && !snapshot.busy);
+    /* SDK 动画由 LVGL 定时器推进；事务仍忙时必须让出绘制，不能等待自身停止的动画。 */
+    return (home_target && !snapshot.busy) || (fault_unwind && !recovery_blocked && !snapshot.busy);
 }
 
 static bool parse_argument(const char *text, uint32_t *value)

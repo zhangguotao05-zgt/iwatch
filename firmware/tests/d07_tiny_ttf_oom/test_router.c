@@ -271,6 +271,10 @@ int test_router(lv_display_t *display, size_t number, bool failure)
         command("open", 600); process();
         for (unsigned n = 0; n < 20; n++) { assert(iw_router_home()); process(); }
         assert(home_target && depth == 2);
+        /* 实机发现 Home 等待误停动画；资源空闲时必须允许 LVGL 继续推进。 */
+        assert(!iw_router_process());
+        test_font_owner(true, false); assert(iw_router_process());
+        test_font_owner(true, true); assert(!iw_router_process());
         held_transition = false; process(); process();
         assert(!home_target && depth == 1 && !strcmp(active_app, "Main"));
         assert(iw_router_home()); process(); assert(!strcmp(active_app, "clock") && !home_target);

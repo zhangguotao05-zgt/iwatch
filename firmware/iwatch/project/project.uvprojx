@@ -5665,6 +5665,13 @@
           </Files>
           <Files>
             <File>
+              <FileName>iw_keys.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\core\iw_keys.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
               <FileName>iw_time.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\src\core\iw_time.c</FilePath>
@@ -5716,6 +5723,13 @@
               <FileName>iw_gui_owner.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\src\gui_core\iw_gui_owner.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>iw_key_feedback.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\gui_core\iw_key_feedback.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -5782,6 +5796,13 @@
               <FileName>iw_gui_port.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\src\platform\iw_gui_port.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>iw_key_port.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\platform\iw_key_port.c</FilePath>
             </File>
           </Files>
           <Files>
