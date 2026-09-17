@@ -5,12 +5,12 @@
 <div class="page-shell"><nav class="toc"><ul><li><a href="#status">状态</a></li><li><a href="#design">实现</a></li><li><a href="#contract">时序及取消</a></li><li><a href="#tests">验证</a></li><li><a href="#board">实机步骤</a></li><li><a href="#results">本轮结果</a></li><li><a href="#limits">边界</a></li></ul></nav>
 <main class="doc-main"><h1>D09 双键语义与输入仲裁实施记录</h1>
 <p class="doc-meta">2026-09-17 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/11">Issue #11</a> · 接续 D08 收口提交 e5f8e41</p>
-<section id="status"><h2>状态</h2><p>D09 实现及本轮工程复验完成，等待架构审批；<a href="https://github.com/zhangguotao05-zgt/iwatch/issues/11">Issue #11</a> 保持打开，不进入 D10。固件源码基线为 <code>05fb667</code>。性能 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/8">#8</a> 和显示异常 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/10">#10</a> 继续跟踪。</p>
+<section id="status"><h2>状态</h2><p>D09 已获架构审批通过，审批基线 <code>042ba6f</code>，固件源码 <code>05fb667</code>；<a href="https://github.com/zhangguotao05-zgt/iwatch/issues/11">Issue #11</a> 按 completed 收口，允许进入 D10。固件源码基线为 <code>05fb667</code>。性能 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/8">#8</a> 和显示异常 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/10">#10</a> 继续跟踪。</p>
 <table><thead><tr><th>层次</th><th>结果</th></tr></thead><tbody>
 <tr><td>主机</td><td>双键、生产适配入口、路由各 1000 轮通过；新增水锁/输入锁与 SDK 重新启用设备交替 1000 轮通过。59 个字体失败点、4046 次 EPIC 像素对照、组件生命周期与回收、40 个路由 OOM 点通过。核心回归 44 项 Python 测试通过（1 项环境跳过），GUI 脚本的 36 项 Python 检查与之有重叠，不相加计数。</td></tr>
 <tr><td>目标</td><td>GCC / Keil 构建、独立身份、布局、预算与 COM255 DryRun 通过；GCC main 1,885,520 B（约 29.97%），Keil main 1,811,128 B（28.787%）。两套绑定同一源码，分区不变。</td></tr>
 <tr><td>实机</td><td>同一 GCC 三件套经 COM9 写入并校验。复位启动、双键实体操作、水锁阻断/解锁、Home、软件旋转、覆盖层、应急返回及 20%/80% 通知页通过。原始 COM10 记录连续 118,780 B；主堆存在 28 B 小幅波动，无本轮重复开关持续增长，字形池回到 72 B、字体引用清零。</td></tr>
-<tr><td>审批</td><td>工程复验通过，尚未取得架构师最终签字；不关闭 #11。cd32432 的动画停住和 8db61e4 的水锁穿透均保留失败证据，不能作为通过版本。</td></tr></tbody></table></section>
+<tr><td>审批</td><td>架构已批准按 042ba6f／05fb667 收口，允许进入 D10；此次审批仅更新文档与 Issue，不重新构建或烧录。cd32432 的动画停住和 8db61e4 的水锁穿透均保留失败证据，不能作为通过版本。</td></tr></tbody></table></section>
 <section id="design"><h2>实现与所有权</h2><table><thead><tr><th>模块</th><th>责任</th></tr></thead><tbody>
 <tr><td>iw_keys</td><td>无堆分配的纯 C 识别器，两个独立状态槽。一次调用最多输出三个语义；无符号时间差支持节拍回绕，间隔限制为半周期以内。</td></tr>
 <tr><td>iw_key_port</td><td>SDK 回调只采集 PRESS / RELEASE，在短 IRQ 临界区排入固定 16 项队列并唤醒；忽略 SDK CLICK / LONG。GUI 每轮最多消费八项或 2 ms，统一到期结算、上下文切换和有符号旋转合并。GPIO 读取在 IRQ 临界区外。</td></tr>
@@ -62,9 +62,9 @@
 <p>自动覆盖层复验中保留两次工具断言：第一次误把识别器存储 context=0 当作分发后的 OVERLAY=2；实际 intent 已正确为 DISMISS。第二次要求单次主堆精确相等，记录 59,820→59,848 B。修正判定层级并观察十轮趋势后得到上述交替结果，未修改固件掩盖这些记录。</p>
 <p>本轮没有报告新的半黑半白，不能据此关闭 #10。使用的是取下 Mode 后人工复位，不新增“断电冷启动”结论。主机 OOM、目标构建与实际操作三类证据分开记录。</p>
 <ul>
-<li><a href="../../logs/board-validation-20260917-d09-r3/build-validation.json">构建与实机状态</a>、<a href="../../logs/board-validation-20260917-d09-r3/board-validation.json">采集连续性与结果摘要</a>、<a href="../../logs/board-validation-20260917-d09-r3/user-confirmations.jsonl">人工确认</a>。</li>
-<li><a href="../../logs/board-validation-20260917-d09-r3/serial.raw">原始 COM10 数据</a>、<a href="../../logs/board-validation-20260917-d09-r3/timeline.jsonl">命令/接收字节时间线</a>、<a href="../../logs/board-validation-20260917-d09-r3/board-checks.jsonl">逐项采样与自动检查</a>、<a href="../../logs/board-validation-20260917-d09-r3/flash-serial-full.log">完整烧录输出</a>。</li>
-<li><a href="../../logs/board-validation-20260917-d09-r3/SHA256SUMS.txt">本轮 54 项归档校验和</a>；<a href="../../logs/board-validation-20260917-d09/SHA256SUMS.txt">初版失败窗口</a>、<a href="../../logs/board-validation-20260917-d09-r2/SHA256SUMS.txt">水锁穿透失败窗口</a>均保留。本地 logs 归档未作为大文件提交远端，复核需使用本地归档。</li>
+<li><a href="../../logs/board-validation-20260917-d09-r3/build-validation.json">构建与实机状态</a>（仅本地可用）、<a href="../../logs/board-validation-20260917-d09-r3/board-validation.json">采集连续性与结果摘要</a>（仅本地可用）、<a href="../../logs/board-validation-20260917-d09-r3/user-confirmations.jsonl">人工确认</a>（仅本地可用）。</li>
+<li><a href="../../logs/board-validation-20260917-d09-r3/serial.raw">原始 COM10 数据</a>（仅本地可用）、<a href="../../logs/board-validation-20260917-d09-r3/timeline.jsonl">命令/接收字节时间线</a>（仅本地可用）、<a href="../../logs/board-validation-20260917-d09-r3/board-checks.jsonl">逐项采样与自动检查</a>（仅本地可用）、<a href="../../logs/board-validation-20260917-d09-r3/flash-serial-full.log">完整烧录输出</a>（仅本地可用）。</li>
+<li><a href="../../logs/board-validation-20260917-d09-r3/SHA256SUMS.txt">本轮 54 项归档校验和</a>（仅本地可用）；<a href="../../logs/board-validation-20260917-d09/SHA256SUMS.txt">初版失败窗口</a>（仅本地可用）、<a href="../../logs/board-validation-20260917-d09-r2/SHA256SUMS.txt">水锁穿透失败窗口</a>（仅本地可用）均保留。本地 logs 归档未作为大文件提交远端，复核需使用本地归档。</li>
 </ul>
 <table><thead><tr><th>文件</th><th>SHA-256</th></tr></thead><tbody>
 <tr><td>GCC main.bin</td><td><code>522b9c886e02de4e9066d8ab0fe510862368f5a01a1a7f12f89fc4b26d31b861</code></td></tr>
@@ -72,5 +72,6 @@
 <tr><td>serial.raw</td><td><code>bc3e2343bfaacf80352e69f7d1e3f66ae8b58f8919abce578065511488564fdb</code></td></tr>
 <tr><td>timeline.jsonl</td><td><code>f7c433bb59b4f1aa7d4b1481ee19317201e21722e6224b55a85e63869f9d72f5</code></td></tr>
 </tbody></table></section>
+<section id="approval"><h2>架构审批与收口</h2><p>2026-09-17：架构师批准 D09 收口，审批基线 042ba6f、固件源码 05fb667。独立复核 1000 轮双键、适配层、路由及双锁回归、既有故障注入、44 项 Python 测试、双工具链身份/预算和 153 项校验和；原始表盘启动/退出 11/11 匹配。#11 以 completed 关闭，进入 D10。</p><p>主堆 59,820～59,848 B 交替，不宣称精确回到启动值；P95 74 ms、最大 133 ms、六次触摸溢出继续跟踪 #8，#10 保持打开。软件旋转不等于实体编码器验收，完整水锁页面仍属后续范围。本次审批未修改固件、未操作开发板。</p></section>
 <section id="limits"><h2>仍未完成的能力</h2><p>DEV 当前未启用 BSP_USING_PM，低功耗唤醒不在本次验收范围。开发板无已确认的真实旋转编码器，旋转只验软件链路。水锁完整页面、解锁进度、控制中心、钱包、切换器和语音/关机能力不在 D09 伪装为完成；D10 接正式页面，D13 接完整系统覆盖层。性能 #8、显示异常 #10、D15 持久化与 D16 故障恢复继续保留。</p></section>
 </main></div></body></html>
