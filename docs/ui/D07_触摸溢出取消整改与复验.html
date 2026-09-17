@@ -1,0 +1,62 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D07 触摸溢出取消整改与复验 · iwatch</title><link rel="stylesheet" href="../assets/engineering.css"></head>
+<body><header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D07 输入正确性整改</span></header>
+<div class="page-shell"><nav class="toc"><ul><li><a href="#status">状态</a></li><li><a href="#cause">根因</a></li><li><a href="#contract">取消契约</a></li><li><a href="#counters">诊断计数</a></li><li><a href="#host">主机回归</a></li><li><a href="#target">构建与板测</a></li><li><a href="#remaining">边界</a></li></ul></nav>
+<main class="doc-main"><h1>D07 触摸溢出取消整改与复验</h1>
+<p class="doc-meta">2026-09-17 · 固件源码 <code>5d66e582e10456dd2b5d5576763a3ec019219555</code> · <a href="D07-D_组件展示与综合验收记录.html">D07-D 原始阶段记录</a> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">Issue #7</a></p>
+<section id="status"><h2>状态</h2><p>D07-D 的组件、字体及回收部分已获架构认可。本轮触摸溢出整改已通过主机回归、双工具链检查和新 GCC 固件实机复验，提交架构复核。20% 与补测 80% 的完整采集窗口累计覆盖 9 次真实溢出，操作结束后均解除输入隔离。D07 整体仍待最终审批，Issue #7 保持打开。</p></section>
+<section id="cause"><h2>根因和复现</h2>
+<p>旧驱动队列共 16 个槽、可用 15 个。满队列仍写入尾部，但不推进可读边界；满队列后输入 UP、DOWN，消费端可能只看到 DOWN。旧告警使用 8 位计数，仅值为 1 时打印，不能据此推算溢出次数。</p>
+<p>从修改前生产文件原样提取队列写入和读取函数，仅替换 RTOS 边界：填满 15 个 DOWN，再写 UP、DOWN，连续读取 17 次。结果为 <code>full_writes=2 warnings=1 read_up=0 read_down=17 edge_lost=1</code>。历史复现源码与输出独立保存，不用新驱动覆盖。</p></section>
+<section id="contract"><h2>取消、隔离与重新接受输入</h2>
+<ol>
+<li>生产线程发现队列满，累加溢出与丢弃计数，清空旧队列，锁存取消请求并进入隔离态。之后继续记录真实触摸状态，不向 GUI 排入新的按压。</li>
+<li>设备通知只唤醒 GUI。GUI 主循环及物理指针读取回调共用取消入口，在 GUI 线程调用 <code>lv_indev_reset</code>、<code>lv_indev_wait_release</code>，随后确认驱动取消。持驱动互斥锁期间不调用 LVGL 或唤醒回调。</li>
+<li>隔离期间读取返回静默 UP，但只有 GUI 确认取消后、驱动实际采样为 UP 且被读取，才解除隔离。UP 后立即再按且未被 GUI 消费时仍保持隔离，宁可舍弃这一手势，也不把它接到上一手势。</li>
+<li>页面或字体故障触发全局输入取消时，同样清理驱动旧样本。旧页面剩余按压不能穿透到新页面。正常新手势需经过真实释放后重新按下。</li>
+<li>固定 SDK 的取消事件是 <code>LV_EVENT_INDEV_RESET</code>。公共组件补齐此事件的按压动效复位，恢复自身缩放和 LVGL 按下状态，不发出点击动作。</li>
+</ol>
+<p>项目物理指针适配层接管 SDK 的读取和接收通知回调，设备创建及生命期仍由原适配层管理。连续读取依据真实队列深度，不再使用 SDK 的未读通知计数；清空队列后不会因历史通知积压重复读样本。初始化要求目标只有一个物理指针设备。没有扩队列、动态分配、关中断访问设备或新增 SDK 补丁。</p>
+<p>源码入口：<code>platform/iw_drv_touch.c</code>、<code>iw_touch.h</code>、<code>iw_touch_input.c/.h</code>、<code>gui_apps/watch_demo.c</code> 和 <code>gui_core/iw_components.c</code>。</p></section>
+<section id="counters"><h2>可查询计数</h2>
+<p>串口命令 <code>iw_touch_stat</code> 输出以下快照；所有累计计数为 32 位饱和计数，仅重启清零。快照在驱动互斥锁内复制，打印在锁外执行。</p>
+<table><thead><tr><th>字段</th><th>含义</th></tr></thead><tbody>
+<tr><td>overflow</td><td>满队列进入隔离态的累计次数；进入隔离后已没有满队列，后续被抑制的采样计入 discarded。</td></tr>
+<tr><td>discarded</td><td>溢出时清掉的旧样本、触发该次溢出的样本、隔离期间采样，以及全局取消清掉的旧队列样本总数。</td></tr>
+<tr><td>cancel / recovery</td><td>GUI 已执行驱动取消确认次数／消费真实释放后解除隔离次数，包含页面全局取消，不仅是溢出。同一隔离期可收到多次全局取消，两个累计值不要求相等；是否仍隔离由 pending/wait/down 判断。</td></tr>
+<tr><td>queued / high</td><td>当前深度／启动以来最高深度，上限 15。</td></tr>
+<tr><td>pending / wait / down</td><td>待 GUI 取消／隔离等待释放／最新物理样本为按下。</td></tr>
+</tbody></table></section>
+<section id="host"><h2>主机回归</h2>
+<p>测试编译真实生产队列、读取函数、GUI 适配和全局取消函数，RTOS/设备由替身提供；按压、取消、点击和组件回收使用固定 SDK 的真实 LVGL。新增用例接入 <code>run-d07-a0-tests.ps1</code>，不是临时脚本单独通过。</p>
+<table><thead><tr><th>用例</th><th>结果</th></tr></thead><tbody>
+<tr><td>100 次环形队列回绕、正常 UP/DOWN 顺序</td><td>通过；通知在互斥锁外调用。</td></tr>
+<tr><td>满队列 UP→DOWN；隔离期同坐标再按、UP→DOWN；真实释放后新手势</td><td>通过；取消前不解除隔离，新手势恢复后能正常点击。</td></tr>
+<tr><td>300 次溢出与 UINT32_MAX 饱和</td><td>通过；不再有 8 位回绕或仅凭告警估算的问题。</td></tr>
+<tr><td>1000 轮真实 LVGL 取消和跨页</td><td>覆盖主循环取消、读回调内取消、读取 UP 后分发前生产端溢出、全局取消四条路径。无误点击，按下状态复位，旧样本不穿透新页，重复退出和内存回到基线通过。</td></tr>
+<tr><td>既有 D07 安全与显示回归</td><td>157 个分配失败点、1000 轮组件／字体／页面回收、4046 次像素提交对照通过；正常／减弱动效的输入重置后绘制区域恢复。</td></tr>
+<tr><td>Python 与脚本检查</td><td>核心 44 项中 43 项通过、1 项全局环境缺 FontTools 跳过；36 项专项在固定 FontTools 环境全部通过，覆盖该跳过项。布局、构建锁和 PowerShell 语法检查通过。</td></tr>
+</tbody></table></section>
+<section id="target"><h2>双工具链与新固件实机复验</h2>
+<p>两套均经包装脚本清理后构建，源码绑定 <code>5d66e58</code>，基础 SDK <code>421126d9</code> 及派生 SDK 23 文件补丁保持原值。字体 56,804 B、内置位图字库 51,335 B、图片 866,577 B 均未变化。</p>
+<table><thead><tr><th>工具链</th><th>main 大小／6 MiB 槽占用</th><th>SHA-256</th></tr></thead><tbody>
+<tr><td>GCC</td><td>1,873,016 B／29.771%</td><td><code>d05bd5aa6f89773cda4cab904c1ac4addfd2b1bb56b83a0636d48093dcf47a9f</code></td></tr>
+<tr><td>Keil</td><td>1,799,184 B／28.597%</td><td><code>ed5b4ace83110e79492bf9f9aa2c4cc9151cc1ca96bf1968877f5ded39dac09c</code></td></tr>
+</tbody></table>
+<p>身份、工具链 map 来源、预算和 COM255 DryRun 均通过。GCC 完整三件套已经 COM9 写入并校验，完整输出保存在 <code>logs/board-validation-20260917-d07-touch/flash-com9-full.log</code>。COM10 原始采集从烧录前开始；仅操作该板 COM9/COM10。</p>
+<p>取下 Mode 后复位启动，CO5300 和 FT6146 初始化正常。初始桌面主堆 59,660 B、字形池 72 B；触摸 overflow/cancel/recovery 均为 0。本轮只验证一次 Mode 移除后的复位启动，不写成断电冷启动。</p>
+<table><thead><tr><th>实机窗口</th><th>触摸累计计数</th><th>结果与证据边界</th></tr></thead><tbody>
+<tr><td>20% 长文、快速松手再按、KEY1 返回</td><td>overflow 0→3；discarded 0→80；cancel/recovery 15/15</td><td>用户确认正常；原始日志覆盖 4 次完整 clock START/DESTROY，结束 queued/pending/wait/down 均为 0。</td></tr>
+<tr><td>首次 80% 人工操作</td><td>恢复采集后 overflow=17、discarded=1017、cancel/recovery=44/43</td><td>用户确认正常，但终端采集进程中断，这一段缺少原始操作日志。14 次新增溢出只有累计差值，不能计作连续采集的恢复验证。缺口单独标注并补测。</td></tr>
+<tr><td>独立后台采集后的 80% 补测</td><td>overflow 17→23；discarded 1017→1984；cancel/recovery 62/54</td><td>原始日志覆盖另 4 次完整 clock START/DESTROY。用户确认快速抬手再按、按住正文用 KEY1 返回后松手均正常；结束 queued/pending/wait/down 均为 0。</td></tr>
+</tbody></table>
+<p>原始日志共覆盖 8 次完整进入／销毁；运行字体进入计数为 13，差值对应采集缺口，不把 13 次全部声称为原始日志验证。四个桌面采样主堆均 59,660 B，字形池均 72 B，live/pending/refs 均为 0；主堆峰值 113,800 B、字形池峰值 35,452 B，未观察到持续增长。最终栈水位：GUI 31%、触摸 27%（2048 B 栈）、LCD 46%。</p>
+<p>20% 按键窗口为 24 个样本、P95≥100 ms、最大 196 ms；80% 补测重置统计后为 30 个样本、P95≥100 ms、最大 171 ms。重置前 54 个累计样本最大 196 ms 另保留。以上是按键队列延迟，不是帧率。旧 D07-D 最大 215 ms 不被新样本覆盖；全面性能优化仍未完成。</p>
+<p>亮度 20%／80% 的结果及 ACK 均可在原始日志对应；结束 desired/applied 均为 80，error=0。采集覆盖段没有断言或硬件 fault 输出；既有 <code>flash1</code> 未注册提示仍保留。最终停在应用图标桌面 80%，采集进程已关闭，COM10 已释放。</p>
+<p>本地证据目录 <code>logs/board-validation-20260917-d07-touch/</code>：两套完整产物、身份／预算／DryRun、主机日志、旧驱动失败复现、64 张未改变渲染图的哈希、完整烧录输出、原始串口／命令字节时间线、采集缺口说明、用户确认、提取脚本和校验清单。</p>
+<p>串口原始文件 72,827 B，SHA-256 <code>d41e6c34673fb5eb5c7825bc4cf3450e5b7915da9065aeeefb7ad751962e033d</code>；字节偏移时间线覆盖全部已保存字节。完整烧录输出 SHA-256 <code>4215b245806d99d1cec5168d2b328f5d649e19f604a5003812611e6bfa6a3350</code>。字节时间线一致不意味着采集无缺口，缺口在 <code>capture-gap.json</code> 与首次 80% 行单列。</p></section>
+<section id="remaining"><h2>保留边界</h2>
+<ul><li>本轮目标是输入正确性；既有长文最大 215 ms 延迟保留，不宣称全面流畅度达标。</li><li>原 D07-D 的“一次覆盖告警”仅是告警文本次数，不能还原真实溢出次数，也不能证明当时没有丢失松手。</li><li>主机故障注入、目标构建、实机正常操作与实机故障注入分别记录，不互相替代。</li><li>新版顶栏、七页产品界面和新增缺字仍按 D10 落地；本轮不进入 D08，也不关闭 Issue #7。</li></ul></section>
+</main></div></body></html>
