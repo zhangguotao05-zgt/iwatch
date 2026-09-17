@@ -27,6 +27,7 @@ def main():
     print(run_case(executable, font, 'component_product_controller', 1000, timeout=60), flush=True)
     print(run_case(executable, font, 'component_product_router', 1000, timeout=60), flush=True)
     print(run_case(executable, font, 'component_product_input', 0), flush=True)
+    print(run_case(executable, font, 'component_product_boundaries', 0), flush=True)
     for variant in range(56):
         print(run_case(executable, font, 'component_product_render', variant), flush=True)
 

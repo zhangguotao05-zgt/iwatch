@@ -505,6 +505,7 @@ int test_components(const void *data, size_t size, const char *stage, size_t num
     else if (!strcmp(stage, "component_product_line_0")) result = test_product_view(display, number, 5);
     else if (!strcmp(stage, "component_product_line_1")) result = test_product_view(display, number, 6);
     else if (!strcmp(stage, "component_product_line_2")) result = test_product_view(display, number, 7);
+    else if (!strcmp(stage, "component_product_boundaries")) result = test_product_view(display, number, 8);
     else if (!strcmp(stage, "component_product")) result = test_product_view(display, number, 1);
     else if (!strcmp(stage, "component_product_render")) result = test_product_view(display, number, 2);
     else if (!strcmp(stage, "component_sdk_nav")) result = test_sdk_navigation();

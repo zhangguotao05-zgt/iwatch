@@ -11,7 +11,7 @@
 <tr><td>校时草稿、格式化、亮度数值映射</td><td>已接入真实服务，包含校时冲突重试、亮度预览合并与最终提交。</td></tr>
 <tr><td>七页文案与正式字体</td><td>已加入正式清单并生成，字体校验与既有绘制回归通过。</td></tr>
 <tr><td>七页 View、路由、命令结果</td><td>已实现。开机进入 iwlist，KEY1 在列表根页与数字表盘之间切换，列表只展示已接入的设置；新页面已登记全局故障回收。</td></tr>
-<tr><td>目标构建、实机与视觉验收</td><td>探索性 GCC 构建通过，main 为 1,908,852 B；之后新增画线保护和按压反馈，必须重新构建。最终双工具链、实机与视觉验收待执行。</td></tr>
+<tr><td>目标构建、实机与视觉验收</td><td>源码 062889f 的 GCC/Keil 构建、身份、预算和 COM255 DryRun 均通过。新固件尚未烧录；视觉与实机验收待执行。</td></tr>
 </tbody></table></section>
 <section id="model"><h2>编辑模型与所有权</h2>
 <p><a href="../../firmware/iwatch/src/gui_core/iw_settings_model.h">iw_settings_model</a> 是无堆分配的纯 C 模型；<a href="../../firmware/iwatch/src/gui_core/iw_product_scene.h">iw_product_scene</a> 使用固定 48 项节点并复制文本；<a href="../../firmware/iwatch/src/gui_core/iw_product_view.h">iw_product_view</a> 负责裁切、绘制、命中与滚动。<a href="../../firmware/iwatch/src/platform/iw_product_controller.h">iw_product_controller</a> 读取服务、维护草稿并发出导航请求。LVGL 操作仍限定在 app_watch 线程。</p>
@@ -47,9 +47,11 @@
 <tr><td>主机模型</td><td>146,100 次日期/时区往返、1000 轮编辑、命令 ACK/离页/session 回归通过；核心脚本 46 项 Python 检查，其中一项环境跳过。</td></tr>
 <tr><td>主机真实 View</td><td>37 个构造失败点、47 个绘制任务失败点、15 个实际画线分配失败点；1000 轮七页生命周期、1000 轮控制器、1000 轮路由/故障恢复通过。真实 pointer 单击、取消、拖动和最终提交通过。</td></tr>
 <tr><td>既有回归</td><td>字体、组件、输入溢出、SDK 路由及 4046 次像素对照通过。GUI 脚本 38 项 Python 与核心脚本有重叠，不相加。主机采用全量包装脚本，避免本机 Ninja 本地化依赖输出导致旧头文件对象混用。</td></tr>
-<tr><td>目标 / 实机</td><td>最终双工具链、预算、身份、DryRun 与板测待执行。</td></tr>
+<tr><td>目标</td><td>源码 062889f：GCC 1,909,772 B（30.355%）、Keil 1,834,800 B（29.163%）；两套身份/预算/DryRun 通过。TTF 65,752 B、位图字体 51,335 B、链接图片 866,577 B。</td></tr>
+<tr><td>实机</td><td>尚未写入 D10。COM10 采集已启动，读取到旧固件 Main/root；等待装好 Mode 跳帽并复位。预烧录串口内容不可算作 D10 板测。</td></tr>
 </tbody></table>
 <p>本地日志：<code>work/d10-core-final.log</code>、<code>work/d10-gui-sdk-final.log</code>（仅本地可用，尚未封存最终板测归档）。复现使用 <a href="../../firmware/tests/run-core-tests.ps1">核心脚本</a>与 <a href="../../firmware/tests/run-d07-a0-tests.ps1">GUI 全量脚本</a>，后者包含产品矩阵。</p>
+<p>待验收包位于 <code>logs/board-validation-20260918-d10</code>（仅本地），两套 main.bin SHA-256：GCC <code>982df25773e38574b563fb5f6f5fe2a69e9f189b209b70429fa5cb206812b062</code>；Keil <code>7abedd4b8b8532377c019cf01fbefea99578496e04754a06e72d4f5280a7b343</code>。源码提交为 <code>062889f1fe2a8d181845e030b632ad7ac20a8f3c</code>，未推送。</p>
 <p><a href="assets/d10-product/manifest.json">112 个同源样本与哈希</a>涵盖七页 × Q0/Q1 × 正常/减弱动效 × 正常/放大正文，另含校时六字段和关于页底部。固定数据 VIS-FIXTURE-01 只用于主机，不作为 RTC 或实屏证据。</p>
 <div style="display:flex;flex-wrap:wrap;gap:12px">
 <img width="195" height="225" src="assets/d10-product/product-114.png" alt="主机数字表盘">

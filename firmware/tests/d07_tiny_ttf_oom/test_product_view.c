@@ -6,6 +6,7 @@
 #include "src/core/lv_refr_private.h"
 #include <assert.h>
 #include <stdio.h>
+#include <string.h>
 
 extern void test_font_arm_failure(size_t index);
 extern size_t test_font_live_bytes(void);
@@ -142,13 +143,64 @@ static iw_product_model_t fixture(void) {
     return m;
 }
 
+static bool has_text(const iw_product_scene_t *scene, const char *text) {
+    for (unsigned i = 0; i < scene->count; i++)
+        if (!strcmp(scene->nodes[i].text, text)) return true;
+    return false;
+}
+
+static void scene_boundaries(iw_product_model_t *m) {
+    static iw_product_scene_t scene;
+    m->clock.valid = false;
+    assert(iw_product_scene_build(&scene, IW_PAGE_TIME, m));
+    assert(has_text(&scene, "--:--"));
+    m->clock.valid = true;
+    m->brightness.flags = 0;
+    m->display_available = false;
+    assert(iw_product_scene_build(&scene, IW_PAGE_BRIGHTNESS, m));
+    assert(has_text(&scene, "--%") && iw_product_scene_hit(&scene, 180, 310, 0) < 0);
+    m->display_available = true;
+    m->brightness.flags = IW_BRIGHTNESS_FLAG_APPLIED_VALID;
+    m->brightness.applied = 100;
+    assert(iw_product_scene_build(&scene, IW_PAGE_BRIGHTNESS, m));
+    assert(has_text(&scene, "100%") && iw_product_scene_hit(&scene, 180, 310, 0) >= 0);
+    m->pending = true;
+    m->brightness.desired = 5;
+    assert(iw_product_scene_build(&scene, IW_PAGE_BRIGHTNESS, m) && has_text(&scene, "5%"));
+    assert(iw_product_scene_build(&scene, IW_PAGE_TIME, m));
+    assert(iw_product_scene_hit(&scene, 260, 396, 0) < 0);
+    assert(iw_product_scene_hit(&scene, 48, 46, 0) >= 0);
+    m->pending = false;
+    m->time_available = false;
+    assert(iw_product_scene_build(&scene, IW_PAGE_TIME, m));
+    assert(iw_product_scene_hit(&scene, 60, 140, 0) < 0);
+    char longest[IW_PRODUCT_TEXT_BYTES];
+    memset(longest, 'A', sizeof(longest) - 1);
+    longest[sizeof(longest) - 1] = 0;
+    m->hardware = m->firmware = m->toolchain = longest;
+    assert(iw_product_scene_build(&scene, IW_PAGE_ABOUT, m));
+    assert(has_text(&scene, longest) && iw_product_scene_scroll_limit(&scene) > 500);
+    for (unsigned i = 0; i < scene.count; i++) {
+        const iw_product_node_t *node = &scene.nodes[i];
+        assert(node->x >= 0 && node->x + node->width <= 390);
+        if (node->fixed) assert(node->y >= 0 && node->y + node->height <= 450);
+    }
+    char too_long[IW_PRODUCT_TEXT_BYTES + 1];
+    memset(too_long, 'B', sizeof(too_long) - 1);
+    too_long[sizeof(too_long) - 1] = 0;
+    m->firmware = too_long;
+    assert(!iw_product_scene_build(&scene, IW_PAGE_ABOUT, m));
+}
+
 int test_product_view(lv_display_t *display, size_t number, unsigned mode) {
     iw_product_model_t m = fixture();
     /* 固定存储避免测试栈大小影响嵌入式页面状态的所有权。 */
     static iw_product_view_t view;
     size_t blocks = test_font_live_blocks(), bytes = test_font_live_bytes();
     size_t allocations = 0;
-    if (mode >= 5 && mode <= 7) {
+    if (mode == 8) {
+        scene_boundaries(&m);
+    } else if (mode >= 5 && mode <= 7) {
         allocations = line_case(display, mode - 5, number);
     } else if (mode == 4) {
         input_cases(&view, &m);
