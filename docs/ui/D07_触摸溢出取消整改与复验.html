@@ -6,7 +6,7 @@
 <div class="page-shell"><nav class="toc"><ul><li><a href="#status">状态</a></li><li><a href="#cause">根因</a></li><li><a href="#contract">取消契约</a></li><li><a href="#counters">诊断计数</a></li><li><a href="#host">主机回归</a></li><li><a href="#target">构建与板测</a></li><li><a href="#remaining">边界</a></li></ul></nav>
 <main class="doc-main"><h1>D07 触摸溢出取消整改与复验</h1>
 <p class="doc-meta">2026-09-17 · 固件源码 <code>5d66e582e10456dd2b5d5576763a3ec019219555</code> · <a href="D07-D_组件展示与综合验收记录.html">D07-D 原始阶段记录</a> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">Issue #7</a></p>
-<section id="status"><h2>状态</h2><p>D07-D 的组件、字体及回收部分已获架构认可。本轮触摸溢出整改已通过主机回归、双工具链检查和新 GCC 固件实机复验，提交架构复核。20% 与补测 80% 的完整采集窗口累计覆盖 9 次真实溢出，操作结束后均解除输入隔离。D07 整体仍待最终审批，Issue #7 保持打开。</p></section>
+<section id="status"><h2>状态</h2><p>D07-D 的组件、字体及回收部分已获架构认可。本轮触摸溢出整改已通过主机回归、双工具链检查和新 GCC 固件实机复验，已获架构复核批准（9088f52）。20% 与补测 80% 的完整采集窗口累计覆盖 9 次真实溢出，操作结束后均解除输入隔离。D07 整体审批通过；性能遗留已关联 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/8">Issue #8</a>，Issue #7 以完成状态关闭，允许进入 D08。</p></section>
 <section id="cause"><h2>根因和复现</h2>
 <p>旧驱动队列共 16 个槽、可用 15 个。满队列仍写入尾部，但不推进可读边界；满队列后输入 UP、DOWN，消费端可能只看到 DOWN。旧告警使用 8 位计数，仅值为 1 时打印，不能据此推算溢出次数。</p>
 <p>从修改前生产文件原样提取队列写入和读取函数，仅替换 RTOS 边界：填满 15 个 DOWN，再写 UP、DOWN，连续读取 17 次。结果为 <code>full_writes=2 warnings=1 read_up=0 read_down=17 edge_lost=1</code>。历史复现源码与输出独立保存，不用新驱动覆盖。</p></section>
@@ -58,5 +58,5 @@
 <p>本地证据目录 <code>logs/board-validation-20260917-d07-touch/</code>：两套完整产物、身份／预算／DryRun、主机日志、旧驱动失败复现、64 张未改变渲染图的哈希、完整烧录输出、原始串口／命令字节时间线、采集缺口说明、用户确认、提取脚本和校验清单。</p>
 <p>串口原始文件 72,827 B，SHA-256 <code>d41e6c34673fb5eb5c7825bc4cf3450e5b7915da9065aeeefb7ad751962e033d</code>；字节偏移时间线覆盖全部已保存字节。完整烧录输出 SHA-256 <code>4215b245806d99d1cec5168d2b328f5d649e19f604a5003812611e6bfa6a3350</code>。字节时间线一致不意味着采集无缺口，缺口在 <code>capture-gap.json</code> 与首次 80% 行单列。</p></section>
 <section id="remaining"><h2>保留边界</h2>
-<ul><li>本轮目标是输入正确性；既有长文最大 215 ms 延迟保留，不宣称全面流畅度达标。</li><li>原 D07-D 的“一次覆盖告警”仅是告警文本次数，不能还原真实溢出次数，也不能证明当时没有丢失松手。</li><li>主机故障注入、目标构建、实机正常操作与实机故障注入分别记录，不互相替代。</li><li>新版顶栏、七页产品界面和新增缺字仍按 D10 落地；本轮不进入 D08，也不关闭 Issue #7。</li></ul></section>
+<ul><li>本轮目标是输入正确性；既有长文最大 215 ms 延迟保留，不宣称全面流畅度达标。</li><li>原 D07-D 的“一次覆盖告警”仅是告警文本次数，不能还原真实溢出次数，也不能证明当时没有丢失松手。</li><li>主机故障注入、目标构建、实机正常操作与实机故障注入分别记录，不互相替代。</li><li>新版顶栏、七页产品界面和新增缺字仍按 D10 落地；这些后续视觉项不计入 D07 完成范围；D08 已建立 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/9">Issue #9</a>。</li></ul></section>
 </main></div></body></html>

@@ -11,6 +11,7 @@
 - [系统架构 v1.1](docs/ui/系统架构_v1.1.html)
 - [视觉与交互规范 v1](docs/ui/视觉与交互规范_v1.html)
 - [Apple Watch 设计指南研究与项目适配](docs/ui/Apple_Watch设计指南研究与项目适配_v1.html)
+- [Apple Watch 界面复刻定稿 v2（首批七页施工入口）](docs/ui/Apple_Watch界面复刻定稿_v2.html)
 - [实施与验收记录](docs/ui/实施与验收_v1.html)
 - [D01–D03 板上验收记录](docs/ui/D01-D03_实施记录.html)
 - [D04–D05 时间与最小服务实施记录](docs/ui/D04-D05_实施记录.html)
@@ -25,10 +26,10 @@
 - [固件构建与调试](firmware/README.html)
 - [硬件原理图 v0.3](hardware/原理图_v0.3_封装与接口完善/阅读说明.html)
 
-开发任务使用 [GitHub Issues](https://github.com/zhangguotao05-zgt/iwatch/issues) 跟踪。任务实际开始时才创建对应的 Dxx Issue；完成后补齐提交、主机测试、双工具链和开发板证据，再以 `completed` 关闭。D01–D05 已按此规则补录为 [#1–#5](https://github.com/zhangguotao05-zgt/iwatch/issues?q=is%3Aissue+is%3Aclosed+label%3Atask)；[D06 · #6](https://github.com/zhangguotao05-zgt/iwatch/issues/6) 已完成；[D07 · #7](https://github.com/zhangguotao05-zgt/iwatch/issues/7) 正在按 A0–D 分阶段实施。
+开发任务使用 [GitHub Issues](https://github.com/zhangguotao05-zgt/iwatch/issues) 跟踪。任务实际开始时才创建对应的 Dxx Issue；完成后补齐提交、主机测试、双工具链和开发板证据，再以 `completed` 关闭。D01–D05 已按此规则补录为 [#1–#5](https://github.com/zhangguotao05-zgt/iwatch/issues?q=is%3Aissue+is%3Aclosed+label%3Atask)；[D06 · #6](https://github.com/zhangguotao05-zgt/iwatch/issues/6) 已完成；[D07 · #7](https://github.com/zhangguotao05-zgt/iwatch/issues/7) 已通过并关闭。性能遗留项由 [#8](https://github.com/zhangguotao05-zgt/iwatch/issues/8) 独立跟踪，当前开发任务为 [D08 · #9](https://github.com/zhangguotao05-zgt/iwatch/issues/9)。
 
 D01–D03 已完成页面生命周期、BSP/分区/双工具链来源、GUI 等待/唤醒和输入取消实现，并在开发板上完成备份、三件套写入校验、冷启动、输入压力、显示超时恢复和黑屏触摸唤醒验收。D04/D05 已完成时间、启动协调、32 B 命令、48 B 结果、固定账本与快照，并通过主机、双工具链及开发板校时、软件复位和断电冷启动验收；断电后 RTC 正确失效，服务使用 TRNG 生成非零 31 位随机 session，该值只降低碰撞概率，不作为唯一性或安全保证。DEV_A128_NAND 的 main 位于 `0x69000000`，必须与同一归档的 Bootloader、FTab 成套烧录。
 
 D06 已实现 `SET_BRIGHTNESS`、目标/实际/持久状态、最新目标 mailbox 和 GUI owner 驱动确认；只有 LCD 状态、busy、写入后状态及亮度回读全部通过才返回 `OK_APPLIED`。首次显示、触摸 reassert 与故障恢复均读取当前目标，亮度 revision 饱和时失败无副作用。持久值仍明确为会话状态，真实 NAND 保存留 D15。最终 GCC main 为 5,745,568 B，双工具链身份、三件套写后校验、20%/80% 实屏变化、故障结果、软件复位和输入压力均已通过开发板复验。
 
-D07 v2 已以 `967483d` 为批准基线。D07-A1 已获架构审批通过，收口提交为 e064686。D07-B 已获架构阶段验收通过（审批基线 7dfd90d）。D07-C 已获架构阶段验收通过（审批基线 c8392a9）。D07-D 完整状态展示、长文案、质量/动效组合与综合故障回归、双工具链和新镜像实屏复验已完成，待架构整体复核。首次按键延迟超目标和触摸缓冲覆盖继续跟踪；D07-D 待最终审批，Issue #7 保持打开。 字体保持 336 字符、56,804 B。A1 最终整改镜像在 20%/80% 下文字与操作正常，8 次进出后的主堆和字形池均回到启动值；这条是 A1 历史证据。详见 [安全整改记录](docs/ui/D07-A1_安全整改与复验记录.html)。`flash1` 的 FAL 持久化、低功耗和长期测试仍未关闭。
+D07 v2 已以 `967483d` 为批准基线。D07-A1 已获架构审批通过，收口提交为 e064686。D07-B 已获架构阶段验收通过（审批基线 7dfd90d）。D07-C 已获架构阶段验收通过（审批基线 c8392a9）。D07 已获最终审批（基线 9088f52，固件源码 5d66e58），Issue #7 已关闭。触摸溢出取消整改通过；长文延迟与溢出频率转入独立性能待办 #8，历史最大 215 ms 保留，不宣称全面性能达标。D08 路由已建立 Issue #9，随后按 D09 输入、D10 正式界面推进。 字体保持 336 字符、56,804 B。A1 最终整改镜像在 20%/80% 下文字与操作正常，8 次进出后的主堆和字形池均回到启动值；这条是 A1 历史证据。详见 [安全整改记录](docs/ui/D07-A1_安全整改与复验记录.html)。`flash1` 的 FAL 持久化、低功耗和长期测试仍未关闭。

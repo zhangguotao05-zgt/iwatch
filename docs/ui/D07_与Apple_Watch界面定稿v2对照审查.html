@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D07 与 Apple Watch 界面定稿 v2 对照审查 · iwatch</title>
+<link rel="stylesheet" href="../assets/engineering.css">
+<style>code { overflow-wrap: anywhere; } td { vertical-align: top; } .review-note { padding: 16px 20px; border-left: 4px solid #6ab2ff; background: #142236; } pre { white-space: pre-wrap; overflow-wrap: anywhere; }</style>
+</head>
+<body>
+<header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D07 / IW-VISUAL-2.0 对照</span></header>
+<div class="page-shell"><nav class="toc"><ul>
+<li><a href="#conclusion">结论与审查范围</a></li><li><a href="#reuse">可保留的实现</a></li>
+<li><a href="#gaps">外观与交互差异</a></li><li><a href="#fonts">字体覆盖实查</a></li>
+<li><a href="#pages">七页对应关系</a></li><li><a href="#sequence">处理顺序与证据</a></li>
+</ul></nav><main>
+<h1>D07 实现与 Apple Watch<br>界面定稿 v2 对照审查</h1>
+<p class="doc-meta">2026-09-17 · 代码提交 a382b55 / 固件来源 7006425 · 设计目标 IW-VISUAL-2.0</p>
+<section id="conclusion"><h2>1. 结论与审查范围</h2>
+<div class="review-note"><p><strong>基础能力可复用；目前的组件展示与旧演示页面尚未达到新版七页的正式外观和导航要求。</strong>字体共享、GUI 所有权、安全点回收与资源预算继续保留。按 v2 第 9 节，在 D10 增量完善页面框架和专用控件，不必重做已经验证的内存与生命周期实现。</p></div>
+<p>审查对象为架构师本地更新的<a href="Apple_Watch界面复刻定稿_v2.html">《Apple Watch 界面复刻定稿 v2》</a>及配套规范、当前主题和五类组件源码、D07-D 已归档主机渲染图。v2 审查时为本地未提交文档，本次随 D07 收口交接一并入库；审查文件 SHA-256 为 <code>2cc5a60e225c140faf5b64cee741acd01c1ffee2d9155189135f6a3249acc32a</code>。本记录是代码、设计规格和资源覆盖对照，不是新固件的视觉验收。</p>
+<p>本对照完成时 D07-D 与整体 Issue #7 尚待复核；其后架构已按 9088f52 批准 D07 收口，性能项转入 Issue #8。本对照保留原检查范围，不替代新的产品页面验收。v2 明确把正式七页、AppRow、BrightnessControl、NumberPicker 与顶栏扩展放在 D10，这些未实现项不应追溯改写为 D07 的既有功能。</p>
+</section>
+<section id="reuse"><h2>2. 可保留的实现</h2>
+<table><thead><tr><th>范围</th><th>当前情况</th><th>判断</th></tr></thead><tbody>
+<tr><td>基础几何</td><td>390×450，横向 18 px；卡片圆角 24；胶囊按钮高 60、圆角 30；基础命中尺寸 56。</td><td>与 v2 通用值相容。场景行高、App 图标及表盘入口仍须单独定义。</td></tr>
+<tr><td>字体角色</td><td>20 / 22 / 26 / 30 / 64 / 80 / 96 px，以及旧通知兼容字号；使用同一 Regular 源字库。</td><td>角色和字体选择可沿用，不能因此推定新增文案已覆盖。</td></tr>
+<tr><td>状态与输入</td><td>等待、禁用阻止重复动作；取消按下；按压绘制不改变对象命中区；Q0/Q1 和减弱动效共用几何。</td><td>可复用基础行为，正式业务文案、超时与导航由页面和服务接入。</td></tr>
+<tr><td>资源所有权</td><td>GUI 线程操作对象；字体引用共享；GPU/LCD 空闲后统一回收多个使用方；应急层独立。</td><td>符合 v2 保留底层实现的要求；新控件必须继续登记同一 owner。</td></tr>
+<tr><td>容量</td><td>D07-D 已归档 GCC main 1,872,076 B，Keil 1,799,592 B；字体、图片分项有身份绑定。</td><td>有继续开发的空间。新增文案和图标须重新生成、计量和验证，不能直接继承旧预算结果。</td></tr>
+</tbody></table>
+<p>源码入口：<a href="../../firmware/iwatch/src/gui_core/iw_theme.c">iw_theme.c</a>、<a href="../../firmware/iwatch/src/gui_core/iw_font.c">iw_font.c</a>、<a href="../../firmware/iwatch/src/gui_core/iw_gui_owner.c">iw_gui_owner.c</a>。既有验证范围见<a href="D07-D_组件展示与综合验收记录.html">D07-D 记录</a>；本次没有重跑其全部测试。</p>
+</section>
+<section id="gaps"><h2>3. 外观与交互差异</h2>
+<table><thead><tr><th>编号 / 新版要求</th><th>当前实际实现与证据</th><th>落地处理</th></tr></thead><tbody>
+<tr><td>G01 · App 顶栏与固定操作区</td><td><code>iw_components.c:203–232、379–385</code> 只绘左对齐白色标题，内容从 y=70 开始。尚无右上时间、右对齐蓝色子标题、返回圆按钮和固定底部栏。v2 要求 App 正文从 y=104 开始，时间基线 42、标题基线 88。</td><td>D10 扩展 ScreenFrame 的明确布局参数：时间、Back、根/子标题、正文视口和底部操作区。表盘与应用列表用全屏模式。不能让各页面再叠一套临时顶栏。</td></tr>
+<tr><td>G02 · 设置行与应用行分开</td><td><code>iw_components.h:24–37</code> 的模型只有标题、说明和右值；<code>iw_components.c:377–425</code> 的 ListRow 总画圆角底，缺少图标/箭头槽位。v2 设置行要求 48 px 图标，桌面要求透明 88 px 行和 72 px 圆图标。</td><td>增加受约束的设置行外观和专用 AppRow，保留共同所有权与点击取消逻辑。不要把全局 <code>icon_size=48</code> 改成 72，影响所有普通控件。</td></tr>
+<tr><td>G03 · 颜色与材质</td><td><code>iw_theme.c:9–12、24–25</code> 使用内容面 #17181C、按下面 #25262D、警告黄 #FFD60A；Q1 内容面透明度 224。v2 要求设置内容面 #242426、按下面 #343438、状态橙 #FF9F0A、禁用说明 #91939D，列表内容不透明。普通 PillButton 当前仍为蓝底白字。</td><td>D10 集中增加场景语义色和材质角色。Q1 的局部高光用于指定控制层；设置列表不能统一套半透明。保留旧展示样本作为回归，新增版本单独验收。</td></tr>
+<tr><td>G04 · 等待态文案</td><td><code>iw_components.c:402</code> 把任何等待按钮直接画为 <code>...</code>；即使模型传入“设置中”，也会被替换。v2 校时提交要求显示“设置中”，失败恢复“设置”。</td><td>允许页面提供有界等待文本，并保留防重复提交。业务确认状态从服务模型读取，不让省略号承担业务语义。</td></tr>
+<tr><td>G05 · 自适应正文、大字与长身份字段</td><td><code>iw_components.c:186–200</code> 次级字体固定 22 px，仅检查最低一行高度；标题和右值在固定单行区域裁剪。右值最多 47 B，不能装下 64 字节完整哈希。v2 要求大字 30/26 重排、关于页身份完整换行。</td><td>增加按实际字体度量的行高/多行字段支持，次级角色可配置。长身份使用有界多行正文，不塞进右值，不取消容量上限或任意缩字。</td></tr>
+<tr><td>G06 · 按压效果按场景选择</td><td><code>iw_components.c:389–391</code> 对组件统一计算 0.97 的绘制区域内缩，随后文本布局区域随之内缩；字形本身没有被缩放。v2 列表只需变色，独立圆按钮才可缩放。</td><td>把“颜色反馈”和“允许缩放”分成明确的组件策略，保持实际命中区不变；减弱动效继续只保留颜色反馈。</td></tr>
+<tr><td>G07 · 滚动与位置恢复</td><td><code>iw_components.c:143–144、162–164</code> 关闭滚动条与惯性，Frame 只重新打开 SCROLLABLE。展示页没有按 page_id 保存滚动位置。v2 要求复用 LVGL 惯性、滚动时显示滚动条、按页恢复并限幅。</td><td>D10 页面 View 配合 D08 路由保存偏移；验证惯性、拖动取消、正文裁切及禁止跨页滚动链。不新增第二套速度积分。</td></tr>
+<tr><td>G08 · 业务控件与导航</td><td>五类基础组件中没有太阳亮度控件或数字选择器。<code>iw_components_demo_home()</code> 是诊断页关闭，未实现按来源 Back、App Home 或校时同页编辑子态。</td><td>D08/D09 先统一路由与输入；D10 增加 BrightnessControl、NumberPicker、双按钮栏及 View/Presenter。复用 D04–D06 时间/亮度服务，不改写已验证驱动。</td></tr>
+<tr><td>G09 · 表盘数字与资源</td><td>D07 大字号样本仅绘普通文本 <code>12:45</code>，没有“模块·本地”的五列数字、日期与真实状态槽位。v2 的原绘 SVG 图标仍在文档内，未形成正式固件资源。</td><td>按 v2 五个中心点、实际 glyph advance 实现固定数字列；提取图标为图元或构建时栅格资源，登记版本、尺寸、校验与 fallback，不在固件运行时解析 SVG。</td></tr>
+</tbody></table>
+<p>共同源码：<a href="../../firmware/iwatch/src/gui_core/iw_components.h">组件接口</a>、<a href="../../firmware/iwatch/src/gui_core/iw_components.c">组件实现</a>、<a href="../../firmware/iwatch/src/gui_apps/component_gallery/iw_components_demo.c">展示页</a>。行号对应本次审查的代码提交。以上是新目标的差异清单，不把展示页缺少产品能力记为本轮新引入的运行故障。</p>
+</section>
+<section id="fonts"><h2>4. 字体覆盖实查</h2>
+<p>使用固定 FontTools 环境，直接读取正式 <a href="../../firmware/iwatch/src/resource/fonts/DroidSansFallback.ttf">DroidSansFallback.ttf</a> 的 Unicode cmap，与 v2 第 7 节“首批静态文案”逐字符比较；忽略清单分隔用的空格和换行：</p>
+<table><thead><tr><th>项目</th><th>结果</th></tr></thead><tbody>
+<tr><td>新版清单的不重复可见字符</td><td>152</td></tr><tr><td>正式字体已有</td><td>99</td></tr><tr><td>正式字体缺少</td><td><strong>53</strong></td></tr>
+<tr><td>缺少的字符</td><td>与仅份准制力化变名向围固地多失小屏工已幕开忙情择接控效文期未本机来板果查滚演点版看硬称结节范观认详调败选链</td></tr>
+<tr><td>实例</td><td>“显示与亮度”缺“与”；“仅本次有效”缺“仅、本、效”；“工具链”缺“工、链”。</td></tr>
+<tr><td>现有正式文件</td><td>56,804 B；SHA-256 <code>4f69f4ba565598e217501e7985bfdc7ccfd68d0bed472325218d01e89bbe284f</code>。</td></tr>
+</tbody></table>
+<p><strong>53 只覆盖这一个静态清单，不代表 D10 全部动态文案的最终增量。</strong>SVG 中的其它字符串、实际格式化文案和错误原因还需纳入页面文案来源。新版 HTML 使用完整源字体，浏览器能显示不能证明正式固件有字。</p>
+<p>旧字体本身没有损坏：本次重新执行正式生成器的 <code>--check</code>，现有 336 字、字体与 manifest 一致。检查只覆盖已登记输入，v2 HTML 尚未登记为正式输入；所以“当前校验通过”和“缺少未来页面字符”可以同时成立。D10 应登记最终页面字符串并重新生成字体/清单，再做双工具链预算、旧通知和新页面回归，不手工绕过校验。</p>
+</section>
+<section id="pages"><h2>5. 七页对应关系</h2>
+<table><thead><tr><th>v2 页面</th><th>本次判定</th><th>还需完成</th></tr></thead><tbody>
+<tr><td>0x0001 数字表盘</td><td>已有时钟服务和大字号基础；新版 View 未完成。</td><td>五列数字、真实日期/有效性/时区、三个圆入口与来源返回。</td></tr>
+<tr><td>0x0002 应用列表</td><td>现有演示图标桌面不等于定稿列表。</td><td>透明行、72 px 图标、实际 App 注册表、空态和偏移恢复。</td></tr>
+<tr><td>0x0100 设置首页</td><td>通用 ListRow 可扩展；正式目录未完成。</td><td>时间顶栏、三行图标/文字/箭头、根页与快捷来源的 Back 差异。</td></tr>
+<tr><td>0x0101 显示与亮度</td><td>已有 D06 服务；新版页面与直接控制未完成。</td><td>分组、太阳轨道、详情入口、文字大小“未接入”、会话提示。</td></tr>
+<tr><td>0x0102 亮度详情</td><td>D07 样本中的 80% 是固定展示字符串。</td><td>真实 desired/applied、限频/FINAL、无能力与失败状态、返回后结果收敛。</td></tr>
+<tr><td>0x0103 时间与日期</td><td>D04/D05 时间/命令基础可复用；编辑 View 未完成。</td><td>草稿、字段子态、UTC 边界、revision 冲突、固定按钮与来源返回。</td></tr>
+<tr><td>0x0105 关于本机</td><td>旧通知“关于我们”是 SDK 演示文案，与本页不同。</td><td>真实板型/构建/资源身份、长字段多行、完整滚动与未知值说明。</td></tr>
+</tbody></table>
+</section>
+<section id="sequence"><h2>6. 处理顺序与验证边界</h2>
+<ol>
+<li>D07 已按原范围完成审批，Issue #7 已关闭；保留最新性能证据并由 Issue #8 跟踪，不把本对照当作 D10 视觉验收。</li>
+<li>D08/D09 实现统一路由、Back/Home、来源和输入取消。组件展示的串口入口继续只用于诊断。</li>
+<li>D10 先完成字体/图标清单、场景主题、Frame/AppRow 等扩展，再按七页施工规格接同一套 View 与真实服务。</li>
+<li>分别提交主机布局、双工具链、实机功能、官方参考/适配稿/固件输出的视觉对照，以及性能采样。旧 D07 “正常”反馈不替代新页面 V01–V08。</li>
+</ol>
+<p><strong>性能记录需同步最新值：</strong>v2 保留的 114 ms 是 C 阶段历史值；D07-D 已记录 20% 组 P95≥100 ms、最大 215 ms、一次触摸覆盖。不得因视觉稿更新或其它组低延迟而销项；也不据此新增 30 FPS 前置门槛。归因仍待受控对照，详见<a href="D07-D_组件展示与综合验收记录.html#remaining">D07-D 保留问题</a>。</p>
+<p>本次完成：文档/源码对照、既有主机图复看、正式 cmap 覆盖计算、正式字体校验与 HTML 检查。没有修改固件、重新构建目标、访问串口或烧录；未针对新版七页完成实机视觉验收。架构师的原文保持原样，本记录单独保存审查结果。</p>
+</section>
+</main></div></body></html>

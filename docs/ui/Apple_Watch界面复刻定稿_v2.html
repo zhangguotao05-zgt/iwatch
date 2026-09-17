@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch 首批七页高保真适配施工定稿：官方参考、390×450 页面图、坐标、字体图标、状态、导航、动效、资源预算与分项验收。">
+  <title>Apple Watch 界面复刻定稿 v2 · iwatch</title>
+  <link rel="stylesheet" href="../assets/engineering.css">
+  <style>
+    html { scroll-behavior: auto; }
+    @font-face { font-family: IWatchReference; src: url("../../firmware/iwatch/src/resource/fonts/DroidSansFallback.source.ttf") format("truetype"); font-style: normal; font-weight: 400; font-display: swap; }
+    .decision { padding: 18px 22px; border-left: 4px solid #6ab2ff; background: #142236; border-radius: 0 12px 12px 0; }
+    .decision p { margin: 6px 0; }
+    .small { color: var(--muted); font-size: 14px; }
+    .tag { display: inline-block; padding: 1px 8px; border: 1px solid #526177; border-radius: 5px; color: #cbdcf3; font-size: 12px; }
+    .screen-grid { display: grid; grid-template-columns: repeat(2,minmax(0,1fr)); gap: 28px 24px; margin: 24px 0; }
+    .screen-grid figure { margin: 0; min-width: 0; }
+    figure[id] { scroll-margin-top: 78px; }
+    .screen-grid figcaption { margin-top: 12px; font-size: 14px; line-height: 1.6; }
+    .watch-screen { display: block; width: 100%; max-width: 390px; margin: auto; aspect-ratio: 390/450; border: 1px solid #4b5360; border-radius: 42px; background: #000; font-family: IWatchReference,sans-serif; font-synthesis: none; font-weight: 400; }
+    .watch-screen text { fill: #fff; font-weight: 400; }
+    .watch-screen .secondary { fill: #b9bbc6; }
+    .watch-screen .accent { fill: #0a84ff; }
+    .watch-screen .muted { fill: #91939d; }
+    .watch-screen .surface { fill: #242426; }
+    .watch-screen .title { font-size: 30px; }
+    .watch-screen .body { font-size: 26px; }
+    .watch-screen .sub { font-size: 22px; }
+    .watch-screen .note { font-size: 20px; }
+    .watch-screen .digits { font-size: 80px; }
+    .symbols { position: absolute; width: 0; height: 0; overflow: hidden; }
+    .source-list li { margin: 14px 0; overflow-wrap: anywhere; }
+    .route { font-family: inherit; white-space: pre-wrap; }
+    .doc-table td { overflow-wrap: anywhere; }
+    table { min-width: 620px; }
+    p code, li code { overflow-wrap: anywhere; }
+    pre { white-space: pre-wrap; overflow-wrap: anywhere; }
+    @media (max-width: 620px) { .screen-grid { grid-template-columns: 1fr; } .screen-grid figure { max-width: 390px; width: 100%; margin: auto; } }
+    @media print { .decision { border-color: #35618a; background: #eef4fa; } .decision p { color: #172033; } .screen-grid figure { break-inside: avoid; } .tag { color: #233348; } .small { color: #414951; } }
+  </style>
+</head>
+<body>
+<header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">Apple Watch 界面复刻定稿 v2</span></header>
+<div class="page-shell">
+<nav class="toc" aria-label="文档目录"><ul>
+  <li><a href="#decision">1. 定稿结论与执行范围</a></li>
+  <li><a href="#reference">2. 冻结的参考资料集</a></li>
+  <li><a href="#geometry">3. 390×450 布局与主题</a></li>
+  <li><a href="#screens">4. 七页施工图与编辑子态</a></li>
+  <li><a href="#contracts">5. 逐页坐标与功能契约</a></li>
+  <li><a href="#states">6. 状态稿与固定测试数据</a></li>
+  <li><a href="#assets">7. 字体、图标与文案清单</a></li>
+  <li><a href="#motion">8. 导航与动效定稿</a></li>
+  <li><a href="#components">9. 组件与工程任务</a></li>
+  <li><a href="#acceptance">10. 视觉与工程分项验收</a></li>
+  <li><a href="#differences">11. 已知差异与后续范围</a></li>
+  <li><a href="#handoff">12. 工程师执行单与来源</a></li>
+</ul></nav>
+<main>
+<h1>Apple Watch 界面复刻<br>首批施工定稿 v2</h1>
+<p class="doc-meta">2026-09-17 · 设计版本 IW-VISUAL-2.0 · 文档基线 c8a3160 · SF32LB58 / 390×450 / LVGL</p>
+
+<section id="decision"><h2>1. 定稿结论与执行范围</h2>
+<div class="decision"><p><strong>批准按本文开展 D10 首批七页的项目适配实现。</strong>目标是尽量保持原版页面的结构、视觉层级和操作关系，不是只做一套泛化的“黑底卡片风格”。本文给出具体施工图、坐标、状态和验收要求，工程师不再自行猜测布局。</p><p><strong>定稿的是 390×450 项目设计，不是“原厂逐像素复刻已经通过”。</strong>部分官方页面仅有操作说明；公开指南配图也未标注具体系统小版本、截图日期或截图机型。没有证据的内容明确归类为项目适配，不能补写成已观察的原厂事实。</p></div>
+<p>本轮交付：数字表盘、应用列表、设置首页、显示与亮度、亮度详情、时间与日期、关于本机，共 7 个既有 page_id；另给出校时字段编辑子态，不新增页面 ID。其余页面按原有 <a href="../UI复刻计划_watchOS26.html">界面覆盖计划</a>继续分批定稿，不把七页完成当成全系统完成。</p>
+<table><thead><tr><th>规范职责</th><th>以什么为准</th></tr></thead><tbody>
+<tr><td>页面 ID、真实数据、回执、所有权</td><td><a href="功能逻辑与页面契约_v1.html">功能逻辑与页面契约</a>及<a href="模块接口与开发任务_v1.html">模块接口与任务</a>继续有效；本文只明确其视觉呈现与允许的导航入口。</td></tr>
+<tr><td>预算、字体引用、OOM、安全点回收</td><td><a href="D07_资源预算与共享组件设计方案_v2.html">已批准 D07 v2</a>继续有效，不因视觉定稿扩容、绕过 owner 或跳过故障验证。</td></tr>
+<tr><td>D10 七页尺寸、外观、差异</td><td>以本文为施工目标，替代旧规范的“工程初值”和研究 v1 的三张结构示意；未覆盖的后续页面仍按各自任务细化。</td></tr>
+<tr><td>官方设计原则</td><td><a href="Apple_Watch设计指南研究与项目适配_v1.html">研究 v1</a>保留为背景与来源索引，不再单独作为逐屏施工图。</td></tr>
+</tbody></table>
+<p>实施顺序不变：D07-D 收口 → D08 路由 / D09 输入 → D10 首批页面。参考资料整理和静态布局可并行准备；产品路由接入遵守既有依赖。全面帧率优化留到主要 UI 成型后，当前不得以新增 30 FPS 硬门槛阻止外观施工；卡死、错误导航、失去返回能力、输入丢失和持续内存增长仍是必须处理或明确追踪的缺陷。</p>
+</section>
+
+<section id="reference"><h2>2. 冻结的参考资料集</h2>
+<p>冻结资料集 <strong>REF-W26-ZH-R1</strong>：watchOS 26 简体中文官方用户指南、WWDC25/334、2026-09-17 查阅的 HIG 与设计资源入口；设备尺寸参考 Series 11 46 mm。<strong>不虚构 26.0 / 26.1 等小版本。</strong>工程师依据本次列出的资源 ID 和本地施工图实现，不能随官网首页更新切到 watchOS 27。</p>
+<table class="doc-table"><thead><tr><th>参考 ID / 来源</th><th>本轮实际可确认的内容</th><th>不能据此声称</th></tr></thead><tbody>
+<tr><td>R01 · <a href="https://support.apple.com/en-us/125093">Series 11 技术规格</a></td><td>46 mm 型号 416×496；本机 390×450 必须重排，不做整屏非等比拉伸。</td><td>壳体尺寸等于显示对角线；参考截图等于裸屏像素图。</td></tr>
+<tr><td>R02 · <a href="https://support.apple.com/zh-cn/guide/watch/apde9218b440/26/watchos/26">表盘与功能：模块</a><br><a href="https://help.apple.com/assets/692F45642C5AEF37BA06084A/692F4568B3C902EE690E2EBC/zh_CN/5ef6a3373500d5afb5115ebb07db9198.png">官方图 5ef6a337…9198</a></td><td>本轮目视的图为右上日期和大时间、左上圆形入口、中间复杂功能、底部圆形入口。本机采用“模块·本地”配置。</td><td>本地设备状态组件就是原厂计时器组件；指南文字、图片替代文本必然与当前图片每个槽位一致。</td></tr>
+<tr><td>R03 · <a href="https://support.apple.com/zh-cn/guide/watch/apd3cd8641c2/26/watchos/26">整理 App</a><br><a href="https://help.apple.com/assets/692F45642C5AEF37BA06084A/692F4568B3C902EE690E2EBC/zh_CN/d8971e893c0cd0d1a206b747c97efc60.png">官方图 d8971e89…fc60</a></td><td>黑底纵向列表，大圆形 App 图标与名称；没有把每项包成独立灰卡片。官方说明采用字母序。</td><td>本机已有原厂全部 App、已有蜂窝桌面或后台服务。</td></tr>
+<tr><td>R04 · <a href="https://support.apple.com/zh-cn/guide/watch/apd127ec93ac/26/watchos/26">显示与文字大小</a><br><a href="https://help.apple.com/assets/692F45642C5AEF37BA06084A/692F4568B3C902EE690E2EBC/zh_CN/34bc7bc162d158394deffc0f0661141e.png">官方图 34bc7bc1…141e</a></td><td>左上圆形返回、右上时间及右对齐蓝色标题；“外观”分组下有小太阳／亮度轨道／大太阳，再向下是文字大小、粗体文本。</td><td>官网图中滑块档位等于本机 5–100；本机已支持粗体或全局文字大小。</td></tr>
+<tr><td>R05 · <a href="https://support.apple.com/zh-cn/guide/watch/apdac6807516/26/watchos/26">获取设备信息</a></td><td>原厂路径为设置 → 通用 → 关于本机；提供名称、版本、型号等信息。</td><td>无完整页面图时已量测了原厂关于页坐标。本文精简直达路径属于项目适配。</td></tr>
+<tr><td>R06 · <a href="https://support.apple.com/zh-cn/guide/watch/apda6559ad78/26/watchos/26">时间提前</a></td><td>原厂最多提前 59 分钟，只影响表盘显示，不改变闹钟、通知、世界时钟。</td><td>本机实际写入 RTC 的“时间与日期”是同一功能；本机不得用提前量冒充校时。</td></tr>
+<tr><td>R07 · <a href="https://support.apple.com/zh-cn/guide/watch/apda1bf1a95b/26/watchos/26">打开与切换 App</a>、<a href="https://support.apple.com/zh-cn/guide/watch/apdb2c208edc/26/watchos/26">查看时间</a></td><td>Home 与 App 内 Back 分离；时间位于大多数 App 右上角。列表桌面不强制增加原图没有的标题或时钟。</td><td>KEY1 已等价完整表冠；每个页面都必须有统一大标题。</td></tr>
+<tr><td>R08 · <a href="https://developer.apple.com/videos/play/wwdc2025/334/">WWDC25/334</a>、<a href="https://developer.apple.com/design/resources/">设计资源</a></td><td>字幕 01:09 新设计体系，01:25 工具栏／控件，02:00 图标。资源页存在 watchOS 26 UI Kit 入口。</td><td>已逐层审查 UI Kit；SDK 自动应用系统样式的能力可直接搬到 LVGL。</td></tr>
+</tbody></table>
+<p class="small">三张官方图片实际包含手表外壳，文件画布为 439×487，并非 416×496 裸屏截图。本文未按图片外边框直接量取像素，也未把官方图片、字体包或图标包复制进仓库。公开指南可能复用较早的配图；因此冻结的是此资料集与下述项目适配稿，而不是未经证实的某小版本实机外观。以后补充原机证据时，登记差异并修订设计版本，不静默替换基线。</p>
+</section>
+
+<section id="geometry"><h2>3. 390×450 布局与主题</h2>
+<p>以下数值是<strong>本项目作出的设计决定</strong>，不是 Apple 内部参数或实机量测值。坐标原点为左上角；矩形写为 <code>x,y,w,h</code>；文字 y 为基线，固件通过真实 ascent / descent 换算，不能直接当作 LVGL 对象顶边。</p>
+<table><thead><tr><th>令牌 / 规则</th><th>本轮定稿</th><th>实现要求</th></tr></thead><tbody>
+<tr><td>画布与边缘</td><td>390×450；常规横向内容 18…372；主要操作底边 ≤426。</td><td>展示稿圆角 42 仅为观看遮罩，不冒充 CO5300 实际裁切曲线。板上边缘标尺若证明遮挡，调整 panel profile，不拉伸文字或圆形。</td></tr>
+<tr><td>App 标题区</td><td>0…104；返回命中区 (20,18,56,56)，视觉圆直径 48；时间右端 x=348、基线 42、22 px；子页标题右端 x=348、基线 88、30 px。</td><td>只在可 Back 的页面画返回。标题与右上时间分两行；根设置页标题左对齐 x=28；全屏表盘和桌面不用此 Frame。所有时间读取同一有效时钟快照，RTC 无效统一显示 --:--，不得保留样例 10:09。</td></tr>
+<tr><td>列表与卡片</td><td>系统设置行 x=18,w=354,r=24；单行 76，多行 88；行间 12。正文 26，次级 22，注释 20。</td><td>模板高度是正常字号稿；大字或多行按真实 line_height 增高，不截字。App 列表另用透明行高 88、App 图标 72。</td></tr>
+<tr><td>按钮与图标</td><td>主按钮 h=60,r=30；双按钮宽 170，x=18 / 202；普通图标 48，普通独立命中区≥56×56。</td><td>桌面图标 72、表盘圆入口 72 是明确的场景规格，不用扩大所有普通图标。相邻命中区不重叠，按压缩放不缩小命中区。</td></tr>
+<tr><td>背景与内容面</td><td>黑 #000000；设置内容面 #242426；按下面 #343438；文字 #FFFFFF / #B9BBC6。</td><td>后两色作为 D10 语义主题增量集中定义，不能散落各 App。D07 现有 #17181C 工程初值不自动改写为“已完成新外观”。</td></tr>
+<tr><td>强调与禁用</td><td>蓝 #0A84FF；状态橙 #FF9F0A；成功 #30D158；错误 #FF453A；禁用说明 #91939D。</td><td>蓝色用在黑底标题或图标，不默认用白色小字盖蓝色实底。禁用项同时写“未接入”，不只变灰。正常状态不得只靠红绿区分。</td></tr>
+<tr><td>材质</td><td>列表内容不透明；返回圆按钮可用 Q1 局部高光，Q0 保留同一轮廓；不做整页动态模糊。</td><td>图中平面颜色是几何／内容层参考；Q1 实际合成另验。不得为“玻璃”额外叠加未计入预算的全屏 RGBA 层。</td></tr>
+<tr><td>滚动</td><td>纵向连续滚动；内容底部至少 24 px 留白；每页记录自身偏移。顶栏固定，正文裁切在明确视口。</td><td>固定底部操作的校时页需额外预留操作区，末项能完整滚到按钮上方。滑动条仅滚动时出现，不覆盖文字。</td></tr>
+</tbody></table>
+<p>标题超长时先用批准的短标题，完整名称放正文；正文不任意缩到 20 px 以下。后续大字模式建议正文 30、次级 26，保持标题 30 并重排；本轮不把全局字号设置功能算入 D10 已实现能力。布局测试必须先覆盖这些放大样本。</p>
+</section>
+
+<section id="screens"><h2>4. 七页施工图与编辑子态</h2>
+<p>下图是<strong>正式项目布局目标</strong>，不是原厂截图或固件运行截图。坐标按 390×450；预览字体引用工程现有完整源字库，禁止浏览器合成粗体。这里允许完整源字体显示新文案，固件仍须重新生成并验证子集，不能据此声称 336 字已经覆盖。固定示例时间 2026-09-17 10:09，亮度 80；运行时必须由真实快照替换。</p>
+<svg class="symbols" aria-hidden="true" xmlns="http://www.w3.org/2000/svg"><defs>
+  <symbol id="icon-back" viewBox="0 0 48 48"><path d="M29 12 17 24 29 36" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-next" viewBox="0 0 24 24"><path d="m9 5 7 7-7 7" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></symbol>
+  <symbol id="icon-sun" viewBox="0 0 48 48"><circle cx="24" cy="24" r="9" fill="none" stroke="currentColor" stroke-width="3"/><path d="M24 3v5m0 32v5M3 24h5m32 0h5M9 9l4 4m22 22 4 4M9 39l4-4m22-22 4-4" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
+  <symbol id="icon-clock" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="none" stroke="currentColor" stroke-width="3"/><path d="M24 12v13l9 5" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
+  <symbol id="icon-info" viewBox="0 0 48 48"><circle cx="24" cy="24" r="18" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="24" cy="15" r="2.5" fill="currentColor"/><path d="M24 23v12" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round"/></symbol>
+  <symbol id="icon-settings" viewBox="0 0 48 48"><g fill="none" stroke="currentColor" stroke-width="3"><circle cx="24" cy="24" r="14"/><circle cx="24" cy="24" r="6"/><path d="M24 3v7m0 28v7M3 24h7m28 0h7M9 9l5 5m20 20 5 5M9 39l5-5m20-20 5-5"/></g></symbol>
+  <symbol id="back-control" viewBox="0 0 56 56"><circle cx="28" cy="28" r="24" fill="#242426" stroke="#46464b" stroke-width="1"/><use href="#icon-back" x="8" y="8" width="40" height="40" style="color:#fff"/></symbol>
+  <symbol id="brightness-control" viewBox="0 0 354 88"><rect width="354" height="88" rx="24" fill="#242426"/><path d="M80 0v88M274 0v88" stroke="#000" stroke-width="2"/><use href="#icon-sun" x="24" y="28" width="32" height="32" style="color:#fff"/><use href="#icon-sun" x="294" y="22" width="44" height="44" style="color:#fff"/><rect x="96" y="41" width="162" height="6" rx="3" fill="#164a26"/><rect x="96" y="41" width="128" height="6" rx="3" fill="#30d158"/></symbol>
+</defs></svg>
+<div class="screen-grid">
+<figure id="drawing-face"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-labelledby="face-title"><title id="face-title">模块·本地：日期时间、设置入口、真实时钟状态、显示和关于入口</title>
+  <text x="350" y="50" text-anchor="end" class="body" style="fill:#ff9f0a">17 周四</text><circle cx="64" cy="116" r="36" class="surface"/><use href="#icon-settings" x="40" y="92" width="48" height="48" style="color:#b9bbc6"/>
+  <g text-anchor="middle" class="digits"><text x="160" y="157">1</text><text x="208" y="157">0</text><text x="244" y="157">:</text><text x="280" y="157">0</text><text x="328" y="157">9</text></g><text x="30" y="214" class="sub" style="fill:#ff9f0a">本地时间</text><text x="30" y="258" class="body">时间已校准</text><text x="30" y="294" class="note secondary">来源 RTC · UTC+08:00</text>
+  <circle cx="66" cy="365" r="36" class="surface"/><use href="#icon-sun" x="42" y="341" width="48" height="48" style="color:#0a84ff"/><circle cx="324" cy="365" r="36" class="surface"/><use href="#icon-info" x="300" y="341" width="48" height="48" style="color:#0a84ff"/>
+  <text x="66" y="423" text-anchor="middle" class="note secondary">显示</text><text x="324" y="423" text-anchor="middle" class="note secondary">关于</text>
+</svg><figcaption><strong>01 · 模块·本地 / 0x0001</strong><br>R02 的模块化结构；槽位改为本机真实状态与可达入口，不画假天气、运动圆环或满电量。</figcaption></figure>
+<figure id="drawing-launcher"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-labelledby="launcher-title"><title id="launcher-title">应用列表视觉样例：透明行、大圆图标、左对齐名称；非产品全部可用清单</title>
+  <circle cx="64" cy="112" r="36" fill="#62636a"/><use href="#icon-settings" x="40" y="88" width="48" height="48" style="color:#fff"/><text x="118" y="123" class="body">设置</text>
+  <circle cx="64" cy="200" r="36" fill="#da7a06"/><use href="#icon-clock" x="40" y="176" width="48" height="48" style="color:#fff"/><text x="118" y="211" class="body">计时器</text>
+  <circle cx="64" cy="288" r="36" fill="#da7a06"/><use href="#icon-clock" x="40" y="264" width="48" height="48" style="color:#fff"/><text x="118" y="299" class="body">秒表</text>
+  <circle cx="64" cy="376" r="36" fill="#da7a06"/><use href="#icon-clock" x="40" y="352" width="48" height="48" style="color:#fff"/><text x="118" y="387" class="body">闹钟</text>
+</svg><figcaption><strong>02 · 应用列表 / 0x0002</strong><br>R03 的无卡片列表。此图为滚动布局测试清单；D10 产品只列已实现 App（至少“设置”）。其余三项仅在开发视觉样例中出现，不新增假业务入口。</figcaption></figure>
+<figure id="drawing-settings"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-labelledby="settings-title"><title id="settings-title">设置首页：显示与亮度、时间与日期、关于本机三个真实入口</title>
+  <text x="348" y="42" text-anchor="end" class="sub">10:09</text><text x="28" y="88" class="title accent">设置</text>
+  <rect x="18" y="112" width="354" height="76" rx="24" class="surface"/><use href="#icon-sun" x="34" y="126" width="48" height="48" style="color:#0a84ff"/><text x="98" y="160" class="body">显示与亮度</text><use href="#icon-next" x="334" y="138" width="24" height="24" style="color:#b9bbc6"/>
+  <rect x="18" y="200" width="354" height="76" rx="24" class="surface"/><use href="#icon-clock" x="34" y="214" width="48" height="48" style="color:#0a84ff"/><text x="98" y="248" class="body">时间与日期</text><use href="#icon-next" x="334" y="226" width="24" height="24" style="color:#b9bbc6"/>
+  <rect x="18" y="288" width="354" height="76" rx="24" class="surface"/><use href="#icon-info" x="34" y="302" width="48" height="48" style="color:#0a84ff"/><text x="98" y="336" class="body">关于本机</text><use href="#icon-next" x="334" y="314" width="24" height="24" style="color:#b9bbc6"/>
+</svg><figcaption><strong>03 · 设置首页 / 0x0100</strong><br>项目精简目录，非原厂菜单全量复刻。图标、名称、箭头分栏；没有给每行添加无必要的第二行说明。</figcaption></figure>
+<figure id="drawing-display"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-labelledby="display-title"><title id="display-title">显示与亮度：直接亮度控制、详情入口与未接入的文字能力</title>
+  <use href="#back-control" x="20" y="18" width="56" height="56"/><text x="348" y="42" text-anchor="end" class="sub">10:09</text><text x="348" y="88" text-anchor="end" class="title accent">显示与亮度</text>
+  <text x="34" y="127" class="note">外观</text><use href="#brightness-control" x="18" y="144" width="354" height="88"/>
+  <rect x="18" y="244" width="354" height="64" rx="24" class="surface"/><text x="34" y="284" class="body">亮度详情</text><text x="326" y="284" text-anchor="end" class="sub secondary">80%</text><use href="#icon-next" x="336" y="264" width="24" height="24" style="color:#b9bbc6"/>
+  <rect x="18" y="320" width="354" height="76" rx="24" class="surface"/><text x="34" y="366" class="body muted">文字大小</text><text x="348" y="366" text-anchor="end" class="note muted">未接入</text><text x="195" y="426" text-anchor="middle" class="note secondary">仅本次有效</text>
+</svg><figcaption><strong>04 · 显示与亮度 / 0x0101</strong><br>按 R04 保留直接亮度控制。额外的“亮度详情”维持既有 0x0102 路由；两个页面共用服务与控件。粗体开关尚未接入，不展示假的可用开关。</figcaption></figure>
+<figure id="drawing-brightness"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-labelledby="brightness-title"><title id="brightness-title">亮度详情：真实已应用百分比、太阳控件、会话状态</title>
+  <use href="#back-control" x="20" y="18" width="56" height="56"/><text x="348" y="42" text-anchor="end" class="sub">10:09</text><text x="348" y="88" text-anchor="end" class="title accent">亮度</text>
+  <text x="195" y="161" text-anchor="middle" class="sub secondary">已应用</text><text x="195" y="247" text-anchor="middle" class="digits">80%</text><use href="#brightness-control" x="18" y="276" width="354" height="88"/>
+  <text x="195" y="402" text-anchor="middle" class="note secondary">仅本次有效</text>
+</svg><figcaption><strong>05 · 亮度详情 / 0x0102</strong><br>项目扩展，不是原厂额外页面。调节立即走真实命令；没有多余“保存”按钮。返回不撤销已生效亮度。</figcaption></figure>
+<figure id="drawing-time"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-labelledby="time-title"><title id="time-title">时间与日期：年月日、时分、UTC偏移及取消设置按钮</title>
+  <use href="#back-control" x="20" y="18" width="56" height="56"/><text x="348" y="42" text-anchor="end" class="sub">10:09</text><text x="348" y="88" text-anchor="end" class="title accent">时间与日期</text>
+  <rect x="18" y="108" width="110" height="76" rx="20" class="surface"/><rect x="140" y="108" width="110" height="76" rx="20" class="surface"/><rect x="262" y="108" width="110" height="76" rx="20" class="surface"/>
+  <text x="73" y="132" text-anchor="middle" class="note secondary">年</text><text x="195" y="132" text-anchor="middle" class="note secondary">月</text><text x="317" y="132" text-anchor="middle" class="note secondary">日</text><text x="73" y="171" text-anchor="middle" class="title">2026</text><text x="195" y="171" text-anchor="middle" class="title">09</text><text x="317" y="171" text-anchor="middle" class="title">17</text>
+  <rect x="18" y="196" width="170" height="76" rx="20" class="surface"/><rect x="202" y="196" width="170" height="76" rx="20" class="surface"/><text x="103" y="220" text-anchor="middle" class="note secondary">时</text><text x="287" y="220" text-anchor="middle" class="note secondary">分</text><text x="103" y="259" text-anchor="middle" class="title">10</text><text x="287" y="259" text-anchor="middle" class="title">09</text>
+  <rect x="18" y="284" width="354" height="64" rx="20" class="surface"/><text x="34" y="324" class="sub">时区</text><text x="334" y="324" text-anchor="end" class="sub">UTC+08:00</text><use href="#icon-next" x="338" y="304" width="24" height="24" style="color:#b9bbc6"/>
+  <rect x="18" y="366" width="170" height="60" rx="30" class="surface"/><rect x="202" y="366" width="170" height="60" rx="30" fill="#164a26"/><text x="103" y="405" text-anchor="middle" class="body">取消</text><text x="287" y="405" text-anchor="middle" class="body">设置</text>
+</svg><figcaption><strong>06 · 时间与日期 / 0x0103</strong><br>项目真实 RTC 校准，不是原厂“时间提前”。点击字段进入同一 page_id 的编辑子态；“设置”才一次提交日期、时分及偏移。</figcaption></figure>
+<figure id="drawing-about"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-labelledby="about-title"><title id="about-title">关于本机：名称、实际硬件、实际构建身份</title>
+  <use href="#back-control" x="20" y="18" width="56" height="56"/><text x="348" y="42" text-anchor="end" class="sub">10:09</text><text x="348" y="88" text-anchor="end" class="title accent">关于本机</text>
+  <text x="34" y="131" class="note secondary">名称</text><text x="34" y="168" class="body">iwatch</text><path d="M34 191H356" stroke="#343438"/>
+  <text x="34" y="224" class="note secondary">硬件</text><text x="34" y="261" class="body">SF32LB58 开发板</text><path d="M34 284H356" stroke="#343438"/>
+  <text x="34" y="317" class="note secondary">固件版本</text><text x="34" y="354" class="sub">以实际构建身份为准</text><text x="34" y="402" class="note secondary">向下滚动查看更多</text>
+</svg><figcaption><strong>07 · 关于本机 / 0x0105</strong><br>R05 支持信息类别，图中排版为项目定稿。实际显示构建身份、资源版本和能力，不填 Apple 型号、虚构序列号或文档提交号冒充固件。</figcaption></figure>
+<figure id="drawing-picker"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-labelledby="picker-title"><title id="picker-title">校时月份编辑子态：滚动选择、取消或选定草稿</title>
+  <use href="#back-control" x="20" y="18" width="56" height="56"/><text x="348" y="42" text-anchor="end" class="sub">10:09</text><text x="348" y="88" text-anchor="end" class="title accent">选择月份</text>
+  <text x="195" y="164" text-anchor="middle" class="sub secondary">08</text><rect x="68" y="190" width="254" height="60" rx="20" class="surface"/><text x="195" y="230" text-anchor="middle" class="title">09</text><text x="195" y="296" text-anchor="middle" class="sub secondary">10</text>
+  <rect x="18" y="366" width="170" height="60" rx="30" class="surface"/><rect x="202" y="366" width="170" height="60" rx="30" fill="#164a26"/><text x="103" y="405" text-anchor="middle" class="body">取消</text><text x="287" y="405" text-anchor="middle" class="body">选定</text>
+</svg><figcaption><strong>编辑子态 · 仍为 0x0103</strong><br>触摸拖动或点前／后项选择；“选定”只更新草稿，“取消”只撤销本字段编辑。禁止在滚动每个数字时反复写 RTC。</figcaption></figure>
+</div>
+</section>
+
+<section id="contracts"><h2>5. 逐页坐标与功能契约</h2>
+<h3 id="page-face">0x0001 · FACE_DIGITAL：模块·本地</h3>
+<p>日期右端 (350,50)，26 px；主时间基线 157，80 px，最大排版区 (124,62,234,122)。数字四列各宽 48、冒号列宽 24，依次中心 x=160/208/244/280/328，字形居中，不拉伸；<code>00:00 / 10:09 / 23:59 / --:--</code> 外框不跳动。12 小时显示时，AM/PM 放在 x=30、基线 175 的独立 20 px 区域，不挤压时间数字。</p>
+<p>左上圆入口中心 (64,116)、直径 72，打开设置。中央区域 (30,188,330,122) 显示同一个时钟快照的有效性与时区，三行基线 214/258/294、字号 22/26/20；无效时显示“时间未校准”，整区可点入校时。左下圆入口 (66,365) 打开显示页，右下 (324,365) 打开关于；圆形入口命中为 80×80，与中央区域不重叠。通过表盘快捷入口进入的页面保存 return_to=FACE_DIGITAL，Back 返回表盘；内部再进子页按父级返回，Home 仍进入桌面。首批不显示无来源电量图标，不占用假健康槽位。</p>
+<h3 id="page-launcher">0x0002 · LAUNCHER_LIST</h3>
+<p>内容视口全屏；首行 (18,68,354,88)，圆图标中心 (64,112)、直径 72；名称起点 x=118，首行基线 123；后续行 y 每次加 88；尾留白 24。不增加“应用列表”大标题、不画每行灰底卡片。按下仅当前行背景用 #242426，拖动开始取消按下。</p>
+<p>产品列表使用已实现 App 的同一注册表，稳定按 app_id 排序；不需要中文字母／拼音排序依赖。D10 至少有设置一个入口，绝不为填满截图新增未完成产品入口。开发视觉样例使用图中的四项固定清单并明确标记演示，未实现项不可启动真实业务。模式切换入口到 D13/D14 再接入；当前不显示没有实际效果的“网格视图”按钮。重进恢复滚动偏移并限幅；空清单显示“暂无可用应用”，Home 仍可回表盘。</p>
+<h3 id="page-settings">0x0100 · SETTINGS_HOME</h3>
+<p>顶栏时间如通用规格，根标题 (28,88)；正文视口 (0,104,390,346)。三行矩形为 (18,112/200/288,354,76)，图标 48，x=34；文字 x=98、基线 160/248/336；箭头 (334,行顶+26,24,24)。真实目的地依次 0x0101、0x0103、0x0105。由桌面进入时根设置页不画伪 Back，Home 回桌面；由表盘快捷入口进入时增加通用 Back 回来源，标题仍在第二行。</p>
+<h3 id="page-display">0x0101 · SETTINGS_DISPLAY</h3>
+<p>标题“显示与亮度”，正文视口 (0,104,390,346)。分组标签 (34,127)；亮度控件 (18,144,354,88)；详情行 (18,244,354,64)；文字大小禁用行 (18,320,354,76)；会话状态基线 426。父页保留 R04 的直接亮度操作；详情行进入 0x0102，不替换既有 route。直接控制与详情共用同一 BrightnessControl / Presenter 逻辑和全局服务快照，不能保存两套 applied。</p>
+<p>字体大小设置未接入时该行禁用并写“未接入”，不压入未实现页面；粗体、自动亮屏、常亮后续按能力接入。处理或错误提示占用底部状态区，必要时换两行并使正文可滚动；禁用说明和错误原因不可互相覆盖。</p>
+<h3 id="page-brightness">0x0102 · SETTINGS_BRIGHTNESS</h3>
+<p>状态标题 (195,161)，22 px；主值居中基线 247，80 px；控制 (18,276,354,88)；状态说明从 y=386 起，最多两行 20 px。控制内部左右端按钮各 80×88，中段宽 194；轨道从相对 x=96 到 258。触摸轨道按 <code>5 + round(clamp((x-96)/162,0,1)×95)</code> 映射，百分比范围 5–100；端按钮每次 ±5，夹紧边界。表冠将来按每格 ±1 接入，不把软件注入算物理验证。</p>
+<p>预览最多 20 Hz，释放提交 FINAL；末值覆盖待发预览。拖动期间主值显示 desired，标题为“待应用”；稳定成功才显示 applied 与“已应用”。请求未受理保留旧值；超时先查结果账本，不擅自回滚硬件。退出页面不取消已受理命令，全局消费者仍回收 ACK，重进读快照。“仅本次有效”一直保留至真实持久化能力完成，不因调节成功消失。</p>
+<h3 id="page-time">0x0103 · SETTINGS_TIME</h3>
+<p>日期三列 (18/140/262,108,110,76)；时分两列 (18/202,196,170,76)；UTC 偏移行 (18,284,354,64)。固定双按钮 (18/202,366,170,60)。正文视口 (0,104,390,250)，行高增大、出现错误行时仅正文滚动，末项须能滚到 y=354 之上；按钮区域禁止被滚动内容覆盖。</p>
+<p>选中字段进入同页 NumberPicker 子态：可选区域 (18,116,354,210)，当前项 (68,190,254,60)；前／后项命中区各至少 56 高，点按和纵向拖动都可选择。数值到边界停止不循环，释放吸附一个值；年 1999…2100、月 1…12、日 1…31、时 0…23、分 0…59；UTC 偏移以 1 分钟步长提供 −840…+840 分钟，格式化为 UTC±HH:MM，完整保留既有 +08:07 等非整刻钟值。年份两端用于覆盖有效 UTC 换算到本地后的跨年边界，最终仍按下面的 UTC 范围校验。只复用当前及相邻可见项，不为 1,681 个偏移值创建 1,681 个对象。仅“选定”更新该字段草稿；不合法日期保留草稿并明确提示，禁止静默把 31 日变成其他日期。</p>
+<p>最终“设置”将本地日期时分及偏移转换为 UTC，一次提交，秒归零；先验证 UTC 落在 2000-01-01 00:00:00…2099-12-31 23:59:59，不能仅验证本地年份。默认 +08:00，不承诺自动夏令时。无效 RTC 首次草稿用 2026-01-01 00:00 +08:00 并标“请校准”；这只是编辑起点，不发布成有效时间。</p>
+<p>未提交取消或 Home 离开时丢弃全部草稿和未选定字段；重进从最新快照重新初始化，不恢复旧半成品。已受理后返回或 Home 只退出视图，不等于撤销校时。成功后按来源返回：表盘直达回表盘，设置入口回设置；失败或 revision 冲突留在本页并允许读取新快照重试。字段子态 Back 只取消该字段，不退出整个校时流程。</p>
+<h3 id="page-about">0x0105 · SETTINGS_ABOUT</h3>
+<p>正文视口 (0,104,390,346)；左右 34；标准字段块高 93，标签基线为 131+93n，值基线为 168+93n；分隔线 y=191+93n。值多行时向下增高，不截断关键身份。按顺序显示名称、实际 board_id、固件 git/build_id、构建工具链、资源包版本、屏幕尺寸和已接入能力。没有字段则写“未提供”，不使用固定样例冒充真值。默认不暴露设备私密唯一标识；需要的诊断信息留开发页。</p>
+</section>
+
+<section id="states"><h2>6. 状态稿与固定测试数据</h2>
+<p>状态稿采用“上图＋下面的确定性替换规则”，不是让工程师另外设计一套。未列的硬件故障继续使用既有独立应急层；下面的业务错误不得升级成全局 OOM 页面。</p>
+<table><thead><tr><th>页面／状态</th><th>画面与可用动作</th><th>稳定性规则</th></tr></thead><tbody>
+<tr><td>表盘 · 无效 RTC</td><td>日期改“日期未校准”，时间为 --:--；中区“时间未校准 / 点按设置时间”；入口坐标不变。</td><td>不显示旧日期为当前日期；设置成功才恢复正常稿。提醒标记只来自真实提醒账本。</td></tr>
+<tr><td>列表 · 缺图／空</td><td>缺图用同直径灰底原绘通用 App 符号，名称和命中不移位；空清单居中“暂无可用应用”。</td><td>不出现损坏纹理；空清单仍响应 Home；滚动后的点击只在可信新按下后生效。</td></tr>
+<tr><td>亮度 · 待应用</td><td>主值或详情行显示目标百分比，状态写“待应用”；保留实际 applied 供重进读取。</td><td>不创建无限命令队列；按钮不整页重建、不用整屏遮罩阻止返回。</td></tr>
+<tr><td>亮度 · BUSY／失败／超时</td><td>状态区分别写“系统忙，请重试”“调节失败，请重试”“正在确认结果”；保留最后可信值，重试复用原控件。</td><td>超过服务确认期限显示结果未确认并可返回，不能永久转圈；具体超时沿用服务契约，不额外编造 UI 独立时限。</td></tr>
+<tr><td>亮度 · 无能力</td><td>主值 --%，控件禁用，说明“显示控制未接入”；Back 保持可用。</td><td>不能显示 80% 样例，不能偷偷调用未注册驱动。</td></tr>
+<tr><td>校时 · 字段编辑</td><td>按第 4 章编辑子态；取消／选定只作用草稿。月份与年份改变后，非法日显示错误行并禁用最终“设置”。</td><td>NumberPicker 只编辑数据；不创建第二个 route，不把未确认值提交给 RTC。</td></tr>
+<tr><td>校时 · 提交／失败</td><td>按钮“设置”变“设置中”，防重复提交；失败恢复“设置”，正文顶部插入具体错误原因，自动滚到该行。</td><td>返回仍可用；旧回执不能更新新页面的控件；已受理操作在全局继续收敛。</td></tr>
+<tr><td>关于 · 长字段</td><td>值换行后增高，可完整滚到末行；版本、资源哈希不缩到不可读。</td><td>相同真实数据使用同一布局；复制／二维码能力本轮不新增。</td></tr>
+<tr><td>通用 · 按下／拖出／大字</td><td>按下色面变化，拖出和滚动取消按下；大字样本按 30/26 重排。</td><td>所有按钮的可触区域不随缩放缩小；无字形破损、叠字和跨页误触。</td></tr>
+</tbody></table>
+<p>视觉样例集固定为 <code>VIS-FIXTURE-01</code>：zh-CN、UTC+08:00、2026-09-17 周四、24 小时制、10:09:30、亮度 80、Q1、正常字号；另测 00:00 / 23:59 / --:--、5/20/80/100、UTC±14:00、2000/2099 UTC 边界、闰日、最长板型和构建字符串。开发固定数据必须进入独立演示命名空间，运行画面有演示标记；截图对照可明确屏蔽该标记区域，但不得把演示图归档成真实 RTC／传感器证据。</p>
+</section>
+
+<section id="assets"><h2>7. 字体、图标与文案清单</h2>
+<h3>字体选择已收敛，不把三套字重当成现成能力</h3>
+<p>D10 首批继续使用项目现有 <strong>DroidSansFallback Regular</strong> 子集，源码字体 SHA-256 为 <code>05d71b179ef97b82cf1bb91cef290c600a510f77f39b4964359e3ef88378c79d</code>。标题 30、正文 26、次级 22、注释 20、主数字 80；64/96 保留给已定义角色。中文与拉丁／数字都检查实际字形，不宣称该字体等同 SF Compact 或 Apple 中文字体。<strong>Regular 与原厂字重的差异登记为 V-DIFF-01；不采用假粗体。</strong>后续若引入 Medium/Semibold，应作为独立资源变更，附许可、子集哈希、真实渲染对照与预算，不以三份完整字库直接替换。</p>
+<p>数字列必须用实际 glyph advance 量测后固定列宽；禁止通过横向拉伸字形凑满宽度。80 px 的完整字符串若超出其指定区域，先核对字距和字体来源；仍无法满足则提交字体／布局差异，不临时混用浏览器 monospace。主时间按 5 个固定位置排版，百分比的 % 与数字不互相遮挡。</p>
+<table><thead><tr><th>资源 ID</th><th>首批规格与来源</th><th>输出／回退</th></tr></thead><tbody>
+<tr><td>I_BACK / I_NEXT</td><td>本文原绘几何；48 / 24 viewBox，圆角线端。箭头不是字体字符。</td><td>以矢量或构建时栅格化输出，运行时不解析 SVG；缺资源用内置基本线段。</td></tr>
+<tr><td>I_SETTINGS / I_SUN / I_CLOCK / I_INFO</td><td>本文原绘 48×48；普通有效线宽 3；小太阳 32 视觉版单独检查线重。</td><td>同一图形覆盖普通控件和圆形背景中的图标；不放大低分辨率贴图、不用 emoji。</td></tr>
+<tr><td>APP_SETTINGS</td><td>72 圆形视觉背景，48 内图；背景灰 #62636A。此为项目资产，不宣称原厂 App 图标。</td><td>产品只打包已开放 App；计时器／秒表／闹钟图只作开发排版样例，业务资产在 D11/D12 定稿。</td></tr>
+<tr><td>FONT_ZH_R / FONT_DIGITS_R</td><td>同一已批准源字库，语义角色不同；本次不新增固件字体文件。</td><td>页面静态文案进正式输入清单，重生成后保存新字符数、bytes、SHA-256；不把历史 336 / 56,804 当新结果。</td></tr>
+</tbody></table>
+<p>本文 SVG symbol 是图形施工源，固件资产需从该定义导出并保存资产版本、尺寸、像素格式、校验值、许可和 fallback。公开工程继续使用 iwatch 标识，不加入 Apple 商标、专有表盘画作或未获许可的 SF 字体／图标包。查看官方 UI Kit 不等于获得将其资源嵌入非 Apple 固件的许可。</p>
+<h3>首批静态文案</h3>
+<p>以下清单由工程师纳入正式字体输入；该清单不是对旧文案的删除授权。动态中文星期、错误原因和所有新字符串也必须自动扫描。</p>
+<pre><code>设置　显示与亮度　外观　亮度详情　亮度　文字大小　未接入
+时间与日期　关于本机　本地时间　时间已校准　来源　显示　关于
+时间未校准　日期未校准　点按设置时间　请校准　暂无可用应用
+已应用　待应用　仅本次有效　系统忙，请重试　调节失败，请重试
+正在确认结果　结果未确认　显示控制未接入
+年　月　日　时　分　时区　取消　设置中　选定
+选择年份　选择月份　选择日期　选择小时　选择分钟　选择时区
+日期无效　超出时间范围　设置失败，请重试　时间已变化，请重试
+名称　硬件　固件版本　工具链　资源版本　屏幕　已接入能力
+未提供　向下滚动查看更多　开发板　演示
+周一　周二　周三　周四　周五　周六　周日
+0123456789 : / - + % . _ ( ) A M P U T C R S F L B i w a t c h</code></pre>
+<h3>资源上限不变</h3>
+<p>沿用 D07 v2：TTF 子集 ≤131,072 B；位图字体 ≤65,536 B；实际链接图片 ≤1,048,576 B；main ≤4,194,304 B；字体运行时峰值增量 ≤524,288 B、稳定残留 ≤32,768 B。两张全屏 RGB565 为 702,000 B，快照预算 768 KiB。新增字形、图标或动画必须进入同一去重账本；超额先调整资源，不默许扩分区或扩大缓存。目标量测分别绑定 GCC ELF、Keil 身份一致的 map。</p>
+</section>
+
+<section id="motion"><h2>8. 导航与动效定稿</h2>
+<pre class="route">表盘 ──Home──→ 应用列表 ──设置──→ 设置首页
+设置首页 ──→ 显示与亮度 ──→ 亮度详情
+         ├─→ 时间与日期 ──字段──→ 同页编辑子态
+         └─→ 关于本机
+表盘圆入口可直达设置／显示／关于；未校准中区直达校时。
+Back：子态 → 草稿页；子页 → 父页；快捷直达页 → 记录的来源。
+Home：App → 应用列表；应用列表 → 表盘；不等同 Back。</pre>
+<p>上述入口只携带稳定 page_id、来源和有所有权的参数，不传控件指针。KEY1 在 D09 后映射为 Home 语义；工程诊断页的立即清理动作不能照搬到产品页。没有旋钮也必须用触摸完成页面内滚动、编辑和返回；跨 App 的 Home 在当前开发板由 KEY1 提供，不宣称整个系统已经可以纯触摸替代实体键。二键／旋转／触感未验证的能力继续单列。</p>
+<table><thead><tr><th>场景</th><th>项目动效参数与关键帧</th><th>中断／降级</th></tr></thead><tbody>
+<tr><td>普通按下</td><td>75 ms，当前表面变按下色；独立圆按钮可围绕自身中心由 1.00→0.97，释放恢复。列表整行不连带缩放文字。</td><td>拖出／开始滚动立即取消候选点击。减少动态效果只保留颜色反馈。</td></tr>
+<tr><td>设置子页进入</td><td>250 ms，位移进度 ease-out <code>1-(1-t)^3</code>；新页从 x=390 到 0，旧页从 0 到 −98；屏幕背景始终不透明。</td><td>返回走同一空间关系反向；转场中保留一个待返回请求，当前事务完成后执行，不另造并行路由。</td></tr>
+<tr><td>桌面打开 App</td><td>290 ms，缩放中心为选中图标中心；新页快照由 0.88→1.00 并从该中心过渡至屏幕中心；前 30% 进度新页透明度 0→1。</td><td>仅在 SDK 公开能力和快照预算满足时启用；否则沿用上行平移。fallback 必须登记，不能为实现动画拷贝第三张全屏图。</td></tr>
+<tr><td>列表滑动</td><td>先复用 LVGL 惯性，不新增第二套速度积分。记录初速度、停止距离与边缘行为；当前禁用跨页滚动链，边缘不暴露未初始化内容。</td><td>继续跟踪长文延迟与触摸覆盖；细调惯性曲线留统一性能阶段，不阻塞静态外观。</td></tr>
+<tr><td>字段吸附</td><td>190 ms，当前位置到最近选项，ease-out；已在目标位置则无动画。前／后值22，选中值30。</td><td>减弱动态效果直接到位；编辑失效取消动画，绝不回调已释放 page owner。</td></tr>
+<tr><td>异步结果</td><td>成功替换状态文字；失败保持控件位置并展示原因。不让“等待”动画驱动业务超时。</td><td>退出后的回执只更新模型；重新进入从模型恢复，不弹回旧页。</td></tr>
+</tbody></table>
+<p>这些曲线与时长是明确的项目实现目标，不是测得的 Apple 动画常数。若路由公开接口无法表达某效果，保留稳定转场并在差异单列出；D14 才评估中途反向。不要为视觉把已验证的生命周期、安全点等待或单线程 GUI 规则推倒。</p>
+</section>
+
+<section id="components"><h2>9. 组件与工程任务</h2>
+<table><thead><tr><th>能力</th><th>首批责任</th><th>落点与边界</th></tr></thead><tbody>
+<tr><td>ScreenFrame</td><td>普通／全屏两种布局；顶栏时间、右对齐子标题、返回圆按钮、固定底部操作区和正文裁切。</td><td>D07 基础不重做；D10 按明确布局扩展。不允许 App 自己画一个遮住标题的“伪工具栏”。</td></tr>
+<tr><td>ListRow / AppRow</td><td>设置图标＋文字＋右值／箭头；桌面透明行、大圆图标；允许行按内容增高。</td><td>复用资源 owner 与点击取消逻辑。AppRow 是专用外观，不强制所有列表使用同一卡片。</td></tr>
+<tr><td>BrightnessControl</td><td>太阳端按钮＋轨道，desired/applied/disabled/pending/error；父页与详情共用。</td><td>D10 消费 D06 服务，不重新写亮度驱动。回调只发语义，GUI owner 统一操作对象。</td></tr>
+<tr><td>NumberPicker / 双按钮栏</td><td>同页字段草稿编辑、触摸选择、吸附、取消／选定；底部按钮不被滚动遮挡。</td><td>D10 仅满足校时字段，不提前实现通用复杂 Sheet 平台。</td></tr>
+<tr><td>StatePanel / StatusBanner</td><td>空列表、无能力、业务结果。页面 Presenter 决定超时、限频和合并。</td><td>不假定 D07 组件已经自动处理所有服务订阅与超时。</td></tr>
+<tr><td>表盘插件</td><td>配置化日期时间区域、稳定入口槽位、真实数据状态；隐藏后停止无必要刷新。</td><td>沿用 create/resume/pause/destroy/apply_snapshot，不为这张表盘新增全局 UI 线程。</td></tr>
+</tbody></table>
+<p>文件组织沿用现有 gui_core / gui_apps / ui_port / services 与资源清单，按原模块目录逐步落地；本文不要求再整体搬目录。每个产品页由 View/Presenter 和资源 owner 配合，页面 ID、App 注册表、输入语义各保留单一来源；具体文件名以实施时现有重构为准，避免与正在进行的组件展示页整理互相覆盖。</p>
+</section>
+
+<section id="acceptance"><h2>10. 视觉与工程分项验收</h2>
+<p><strong>三方对照：</strong>官方参考用来核对原版结构；本文图及坐标是 390×450 工程目标；固件真实输出用于确认实现。不能直接把带外壳的官方图拉伸后逐像素比较，也不能只以“中文清晰、按钮能点”宣布高保真通过。</p>
+<ol>
+<li>固定 VIS-FIXTURE-01、主题与字体／图标资源版本。优先导出固件帧缓冲；若尚无导出能力，工程师可先用同资源主机渲染做布局检查，但状态必须写“主机布局”，不能改写成“实机视觉”。</li>
+<li>对照关键几何：非字形的主要边界／对齐点允许偏差 ±2 面板像素，主文字基线 ±2；命中区不得低于本文要求。边缘实际裁切用实屏标尺复核。此为项目验收容差，不是 Apple 标准。</li>
+<li>比较完整字号、换行、图标有效面积、页面结构、状态和层次；字体抗锯齿与 RGB565 不要求和浏览器逐像素相等。不同字体差异单独登记，不用任意“相似度 95%”替代问题清单。</li>
+<li>关键里程碑保留对照图或短录屏；普通重复功能复验仍可采用用户文字反馈＋原始串口，不强迫每轮拍照。实屏需检查文字边缘、低／高亮度、四角裁切和触控，主机图像不能证明这些结果。</li>
+<li>主机、构建、实机功能、视觉对照、性能分别记录。设计定稿可以先通过，其余列没有证据就写未验证；不能以 HTML 校验通过代替产品页面验收。</li>
+</ol>
+<table><thead><tr><th>用例</th><th>必须检查</th><th>关联工程用例</th></tr></thead><tbody>
+<tr><td>V01 · 七页外观</td><td>固定样例、主要坐标、字号、图标、圆角、行尾／底部留白；参考和目标间的每项差异有归属。</td><td>T12；逐页视觉记录</td></tr>
+<tr><td>V02 · 校时闭环</td><td>无效表盘→校时→取消仍无效；成功回有效表盘；设置入口成功回设置；UTC 边界、闰日、revision 冲突。</td><td>T07、T09、T10</td></tr>
+<tr><td>V03 · 亮度闭环</td><td>父页和详情均能调节；5/20/80/100；连续拖动→释放→返回→重进，actual/applied 一致，保留会话提示。</td><td>T11</td></tr>
+<tr><td>V04 · 异步异常</td><td>BUSY／失败／超时、提交后退出和重进；无无限等待、重复命令或旧 generation 更新控件。</td><td>T09–T11</td></tr>
+<tr><td>V05 · 导航与输入</td><td>Back/Home/子态取消/快捷来源不同；校时编辑中 Home 后重进无旧草稿；连续返回合并；滚动位置恢复；手指跨页不点击新页。</td><td>T13–T15</td></tr>
+<tr><td>V06 · 字体边界</td><td>正常和放大样本、长中文、长构建串、00:00/23:59/--:--、100%；不覆盖工具栏和命中区。</td><td>T12；正式字库校验</td></tr>
+<tr><td>V07 · 降级与能力</td><td>缺图 fallback、无显示控制、未知数据、Q0/Q1、减少动态效果；每种状态都能退出。</td><td>T12、T20</td></tr>
+<tr><td>V08 · 往返与性能记录</td><td>七页流程至少 10 次完整往返，字体／订阅／定时器及两类内存无持续增长；记录输入、首帧、帧间隔、最长停顿与采样开销。</td><td>T23；T22 本阶段采样归档</td></tr>
+</tbody></table>
+<p>T22 的平均 ≥30 FPS、P95 帧间隔 ≤40 ms、P99 ≤67 ms 保留为主要 UI 成型后的统一性能目标；D10 先完成可复现采样，不以未达到这些数值单独拒绝首批布局与功能交付。已有长文最大 114 ms、触摸覆盖等历史问题继续留追踪，不能凭换了新页面自动销项。</p>
+<p>V08 的 10 次往返是首批阶段检查，不替代 T23 的 1,000 次导航或 D18 长期压力。未运行完整 T23 时必须保持其独立状态为未完成。</p>
+<h3>每页交付记录模板</h3>
+<pre><code>page_id / 状态 / IW-VISUAL-2.0 / REF-W26-ZH-R1
+源码提交 / 实际镜像身份 / 工具链 / 主题版本 / 字体与图标哈希
+入口、来源、Back、Home、重进位置 / 样例数据或真实 Provider
+设计定稿：是；主机布局：未验证；GCC：未验证；Keil：未验证
+实机功能：未验证；视觉对照：未验证；性能：未采样
+证据路径 / 实际发现 / 接受差异编号 / 未解决问题 / 复测结果</code></pre>
+</section>
+
+<section id="differences"><h2>11. 已知差异与后续范围</h2>
+<table><thead><tr><th>编号</th><th>本次明确接受的项目差异</th><th>后续处理</th></tr></thead><tbody>
+<tr><td>V-DIFF-01</td><td>单 Regular 字体、原绘基础图标；不是 Apple 字体与 App 图标资产。首批字形／重量不能标“原厂一致”。</td><td>逐屏对照后若差异明显，单独做许可明确的字体／图标资源升级，仍遵守预算。</td></tr>
+<tr><td>V-DIFF-02</td><td>390×450 重排；模块·本地使用实际时钟和本地功能槽位，区别于官方例图的业务内容。</td><td>不承诺原尺寸逐像素一致；追加表盘时按命名表盘分别登记布局与素材。</td></tr>
+<tr><td>V-DIFF-03</td><td>桌面仅列已实现 App，稳定 app_id 顺序；暂不做原厂完整 App 集合、字母序和蜂窝模式。</td><td>D11/D12 增加真实 App；D13/D14 扩展桌面形态。</td></tr>
+<tr><td>V-DIFF-04</td><td>设置精简为三入口；关于本机直达、不经“通用”；关于页只展示 iwatch 实际信息。</td><td>增加通用设置前先扩页面契约，不静默更改返回层级。</td></tr>
+<tr><td>V-DIFF-05</td><td>亮度保留独立详情与项目 5–100 范围；全局文字大小／粗体没有假开关；当前只会话有效。</td><td>存储、辅助功能完成后再撤掉相应限制说明。</td></tr>
+<tr><td>V-DIFF-06</td><td>实际 RTC 年月日时分校准是项目扩展，不是 Apple 的表盘提前量功能。</td><td>保持独立文案与服务语义，不能为了视觉一致改错时间模型。</td></tr>
+<tr><td>V-DIFF-07</td><td>KEY1＋触摸、Q0/Q1 和完成转场后返回；未实现完整表冠、触感或实时折射。</td><td>D09／硬件任务分别验证输入；D14 再考虑转场增强，Q2 不作首批前置。</td></tr>
+</tbody></table>
+<p><strong>不接受的差异：</strong>把所有列表改成同一张灰卡片；临时随意缩字；缺图用 emoji；以假读数填满表盘；因为缺少服务就显示已保存／已连接；返回落点不确定；新增页面绕开字体 owner；不留对照证据就宣称高保真完成。</p>
+<p>原 12 页视觉参考批仍保留：本次覆盖数字表盘、列表桌面、设置和亮度；网格桌面、通知列表／详情、智能叠放、控制中心、切换器、锁屏、表盘选择在 D13/D14 等任务交各自定稿。计时器、秒表、提醒归 D11/D12，健康／运动与其他离线页面归后续能力任务。研究 v1 的计时器示意不作为这些后续页面的正式稿。</p>
+</section>
+
+<section id="handoff"><h2>12. 工程师执行单与来源</h2>
+<ol>
+<li><strong>先保住底座：</strong>完成 D07-D，D08/D09 统一路由和输入；不因 UI 定稿重新搬动已验收生命周期或改分区。</li>
+<li><strong>提取首批资源：</strong>将本文原绘图形、字体角色及静态文案纳入正式清单，确认子集覆盖与资源预算；源码文档保留，不拷入 Apple 专有素材。</li>
+<li><strong>做静态布局：</strong>按七页坐标和状态替换规则实现同一套 View；固定数据只进开发 Provider，不另建一套只供截图的产品界面。</li>
+<li><strong>接真实闭环：</strong>表盘→桌面→设置→显示→亮度→返回，校时与关于；两个亮度视图共用服务，快捷入口按来源返回。</li>
+<li><strong>提交可验收结果：</strong>V01–V08、七页对照、正式资源哈希、双工具链身份、实机原始记录及差异表。逐栏说明完成和未验证，不写“全部通过”掩盖未测视觉或性能。</li>
+<li><strong>再扩页面：</strong>每批沿用 page_id、来源和资源体系；主要 UI 成型后统一优化长文滑动、动画与带宽热点。先修稳定性缺陷，不提前堆复杂玻璃特效。</li>
+</ol>
+<div class="decision"><p><strong>本次交付状态：</strong>项目设计决策与施工规格已定稿；页面代码、构建、实机和视觉相似度由后续工程交付分别验收。本文不授权访问硬件、烧录、修改 GitHub Issue 或直接发布仓库。</p></div>
+<p class="small">本轮文档验证：执行 <code>python tools/docs/check_html.py</code>，39 份 HTML 的本地链接、唯一锚点与 90 项校验和通过；浏览器检查 8 张图中文字边界、桌面及 390 / 320 px 宽度排版，修复长哈希换行后无整页横向溢出。以上只证明文档可读和链接完整；本轮没有修改固件代码、运行目标构建或访问开发板。</p>
+<ul class="source-list">
+<li><a href="https://developer.apple.com/design/human-interface-guidelines/designing-for-watchos">Apple HIG：Designing for watchOS</a>；<a href="https://developer.apple.com/design/human-interface-guidelines/materials">Materials</a>。本轮读取其正文，确认快速读取、浅层导航与内容／控制材质分层。</li>
+<li><a href="https://developer.apple.com/videos/play/wwdc2025/334/">What’s new in watchOS 26</a>；<a href="https://developer.apple.com/design/resources/">Apple Design Resources</a>。作为 R08 设计方向来源，不替代原厂逐屏画面证据。</li>
+<li>逐页官方文字和三张实际目视图片均见<a href="#reference">参考资料集</a>，来源保留原始 URL 与资产 ID；读取日期 2026-09-17。未登录、未接受下载许可、未导入专有资源。</li>
+<li>本地依据：<a href="功能逻辑与页面契约_v1.html">页面契约</a>、<a href="视觉与交互规范_v1.html">原视觉规范</a>、<a href="模块接口与开发任务_v1.html">工程任务</a>、<a href="D07_资源预算与共享组件设计方案_v2.html">资源预算</a>、<a href="Apple_Watch设计指南研究与项目适配_v1.html">研究 v1</a>。</li>
+</ul>
+</section>
+</main></div>
+<footer class="site-footer">iwatch 工程文档 · IW-VISUAL-2.0 · 项目设计定稿不等于固件／实机验收</footer>
+<script src="../assets/engineering.js"></script>
+</body>
+</html>
