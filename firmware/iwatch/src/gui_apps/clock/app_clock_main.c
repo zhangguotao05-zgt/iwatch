@@ -14,6 +14,8 @@
 #if LV_USE_OS != LV_OS_NONE
     #error "iwatch font teardown requires synchronous LVGL rendering"
 #endif
+/* 固定 SDK 的 lv_lcd.c 提供此接口，但未在公共头文件中声明。 */
+extern bool lv_refreshing_done(void);
 // #include "lvsf.h"
 #ifdef RT_USING_XIP_MODULE
     #include "dlmodule.h"
