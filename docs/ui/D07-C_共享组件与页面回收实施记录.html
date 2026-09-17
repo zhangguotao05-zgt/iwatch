@@ -1,0 +1,44 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D07-C 共享组件与页面回收 · iwatch</title><link rel="stylesheet" href="../assets/engineering.css"></head>
+<body><header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D07-C 共享组件</span></header>
+<div class="page-shell"><nav class="toc"><ul><li><a href="#status">阶段状态</a></li><li><a href="#components">组件契约</a></li><li><a href="#ownership">所有权与故障</a></li><li><a href="#patch">受控补丁</a></li><li><a href="#tests">主机验证</a></li><li><a href="#target">目标构建</a></li><li><a href="#board">开发板复验</a></li></ul></nav>
+<main class="doc-main"><h1>D07-C 共享组件与页面回收实施记录</h1>
+<p class="doc-meta">2026-09-17 · B 审批基线 7dfd90d · <a href="D07_资源预算与共享组件设计方案_v2.html">批准方案 v2</a> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">Issue #7</a></p>
+<section id="status"><h2>阶段状态</h2>
+<p><strong>B 已通过阶段审批。C 五类共享组件、全局页面清理和开发诊断入口已在本地实现；主机回归通过。新目标构建与开发板复验待完成，C 尚不记为架构验收通过，D07 整体保持打开。</strong></p>
+<p>保留 B 首轮按键队列 P95≥100 ms、最大121 ms及一次触摸缓冲覆盖；独立补测46 ms不能覆盖首轮。这里的队列延迟也不代表 GUI 帧率。长文全面优化仍在主要页面成型后进行。C 的诊断入口供组件验证使用，D 的完整状态展示、综合故障和实屏验收仍单独执行。</p></section>
+<section id="components"><h2>组件契约</h2>
+<p><code>gui_core/iw_components</code>只依赖字体服务、主题和 LVGL，不调用时间、亮度或其他业务服务。五类组件使用同一受控对象类，父对象拥有子树；组件自身没有业务线程、定时器或订阅。只有 GUI 主循环推进75 ms按压效果，减弱动态效果时直接使用最终状态。</p>
+<table><thead><tr><th>组件</th><th>行为</th><th>布局</th></tr></thead><tbody>
+<tr><td>ScreenFrame</td><td>普通、纵向滚动、全屏；自动登记页面故障 owner。固定标题与内容视口分离。</td><td>390×450；普通/滚动视口宽354，标题横向18、纵向24。全屏去除标题及边距。</td></tr>
+<tr><td>ListRow</td><td>默认、按下、禁用；标题、次级说明和右值。点击只发语义 action。</td><td>最小行高60；双行按字体实际 line_height 校验，空间不足返回 INVALID。</td></tr>
+<tr><td>PillButton</td><td>正常、按下、等待、禁用、危险；等待显示省略号并阻止再次提交。</td><td>高度固定60、圆角30；命中范围不随按压缩放变化。</td></tr>
+<tr><td>StatePanel</td><td>加载、空、错误、外部不可用；文案由 Presenter 提供，不改变占位尺寸。</td><td>标题和说明使用明确字体角色，支持64/80/96数值；根据真实行高校验高度。</td></tr>
+<tr><td>StatusBanner</td><td>信息、成功、警告、危险，以静态色条和文案表达；自动消失和节流由后续 Presenter 管理。</td><td>沿用主题表面、圆角、正文及次级颜色。</td></tr></tbody></table>
+<p>Q0/Q1共享几何与语义。Q0不透明，Q1按主题使用透明度和按下渐变；动画只改变绘制区域，命中区稳定。标题127字节、说明255字节、右值47字节，均为UTF-8有效载荷上限，不截断多字节字符。非法UTF-8、超长或不适用字段拒绝更新且保留旧状态。长文字限定在分配区域内绘制；需要更多正文时由页面提供更高的滚动内容区域。</p>
+<p>view更新不分配文本、样式或字体，输入文案复制进对象内的固定缓冲。异步绘制任务另外保存文案快照，防止下一次更新改写在途任务；这部分仍有受控分配，不宣称整个绘制过程零分配。字体在构造时获取，字号和质量配置在对象存活期间固定。</p>
+<p>为避开普通控件内部不可恢复的构造分配，组件使用固定几何属性表和自绘内容。对固定SDK私有结构的依赖集中在组件实现内，外部通过句柄和view操作，不直接设置LVGL样式或复制句柄。真实LVGL构造、对象树、事件、绘制任务和软件渲染纳入主机测试。</p></section>
+<section id="ownership"><h2>页面所有权与故障回收</h2>
+<p><code>iw_gui_owner</code>使用最多8个页面节点，不申请堆内存。clock在启动前登记，ScreenFrame自动登记；普通组件必须位于ScreenFrame内容子树中。页面暂停后只要还持有字体，仍须保持登记。节点和组件句柄地址必须在页面存活期间稳定，父对象删除时自动清空句柄。</p>
+<ol><li>字体或组件绘制分配失败只锁存故障；回调不删除对象、不释放在途缓存。</li><li>GUI主循环暂停提交新的页面绘制，等待GPU/LCD空闲。永久忙的期限与受控重启仍属D16。</li><li>取消输入，先摘除owner节点，再执行页面停止。ScreenFrame在删除子对象前调用quiesce，停止页面定时器和订阅；组件清除动作回调和动画，然后删除对象、释放字体引用。</li><li>全部owner均清理后，字体服务回收零引用字体。仍有未登记的违规引用时拒绝确认，不强行释放。</li><li>确认成功后显示预创建的内置字体应急层。Home隐藏全局应急层并按既有导航返回；诊断页的Home关闭请求在GUI安全点处理。</li></ol>
+<p>正常退出也必须使用组件销毁接口并等待渲染空闲；BUSY表示句柄仍存活，调用者应在后续安全点重试。不要在绘制回调内销毁对象，或绕开该契约直接删除仍在渲染的外层父对象。重复销毁空句柄成功。字体统计中的fallback计数表示显示了应急层，可能来自字体或组件绘制失败；具体故障来源需结合日志。</p></section>
+<section id="patch"><h2>受控SDK补丁</h2>
+<p>基础SDK保持 <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code> 干净。派生SDK白名单从B的12个文件扩为23个，补丁SHA-256为 <code>d25af094c54f1618753c0401e679a15ee78190121d2846fea79049d70aba799d</code>；manifest、补丁与构建身份一起校验。</p>
+<ul><li>新增checked子对象构造：实例、父对象属性和子指针数组全部成功后才提交关系；拒绝16位子计数溢出。回收缩容失败保留剩余子指针。</li><li>新增checked绘制任务申请。原接口仍执行分配断言；新组件显式选择失败返回并锁存故障。</li><li>圆角填充实际走软件路径。组件填充描述符携带失败通知，覆盖行遮罩、圆角缓存、临时缓存项及垂直渐变分配；部分失败释放临时资源并保留有效旧缓存。</li><li>未关闭全局断言，未撤销A1的EPIC字形D-cache同步。普通调用继续保留断言行为；受控渐变入口仅开放当前使用的水平/垂直渐变。</li></ul>
+<p>补丁不保证所有SDK对象、所有硬件错误均能恢复。本阶段保护新组件实际使用的申请路径；真实显示故障确认和重试仍按D16处理。</p></section>
+<section id="tests"><h2>主机验证</h2>
+<table><thead><tr><th>范围</th><th>结果与边界</th></tr></thead><tbody>
+<tr><td>原有字体与绘字</td><td>59个失败点、1000次字体生命周期、11字号1000轮共享回收、4046次EPIC像素提交对照保留。</td></tr>
+<tr><td>五类组件</td><td>89个真实构造/绘制任务分配失败点；逐点检查失败返回、句柄清零、分配器回归及无断言。</td></tr>
+<tr><td>圆角与渐变</td><td>真实软件填充入口9个失败点，包括圆角缓存被占满的临时项。补丁前后完整正常场景RGB565输出一致。</td></tr>
+<tr><td>生命周期与全局故障</td><td>五类组件1000轮创建和回收；每轮两个页面，500轮真实TinyTTF失败、500轮组件故障锁存；忙时不释放、空闲后清除全部句柄、重复销毁和重新进入通过。持续耗尽时销毁多子对象的路径另测。</td></tr>
+<tr><td>状态与边界</td><td>合法/非法状态矩阵、等待与禁用不触发动作、错误owner、8个owner上限、子计数上限、UTF-8、超长、实际行高校验、异步文案快照和稳定命中几何。</td></tr>
+<tr><td>实际渲染</td><td>真实LVGL软件渲染390×450 Q0/Q1及64/80/96数值预览。发现并修正双行卡片截字，调整诊断页高度；此结果不代替目标EPIC及实屏。</td></tr>
+<tr><td>正式字体</td><td>组件实际编译文案也进入构建输入校验，修改文案使清单过期或引入缺字时阻止构建。字体仍为336字符、56,804 B，旧通知文案与布局未改。</td></tr></tbody></table>
+<p>回归入口：<code>firmware/tests/run-core-tests.ps1</code>、<code>firmware/tests/run-d07-a0-tests.ps1</code>。后者仍保留历史文件名，已覆盖A/B/C；专项Python36项，核心Python44项中43项通过、1项FontTools环境跳过由专项覆盖。本地日志：<code>logs/d07-c-core.log</code>、<code>logs/d07-c-host.log</code>。主机实际LVGL采用ASan；硬件边界使用替身，不声称在板上制造真实内存耗尽。</p></section>
+<section id="target"><h2>目标构建</h2><p>待本轮最终源码完成GCC、Keil干净构建、预算、身份与COM255 DryRun。B的归档和板测身份不能替代C。</p></section>
+<section id="board"><h2>开发板复验</h2><p>待新GCC镜像写入与原始日志采集。开发命令 <code>iw_demo 0..6</code> 分别为关闭、Q0、Q1、64/80/96字号和清理链路诊断。串口只投递邮箱，GUI线程在安全点处理；不加入产品桌面。</p>
+<p>计划覆盖旧中文通知、两档亮度、Q0/Q1、点击按钮进入等待态、Home返回、大字号、反复进出以及多页面清理。命令6仅人为锁存清理请求，不是实际堆耗尽或真实屏幕故障。保存原始串口、用户文字确认、主堆与PSRAM独立稳定样本和输入数据。完成后仍交架构复核，D07-D前不关闭Issue #7。</p></section>
+</main></div></body></html>

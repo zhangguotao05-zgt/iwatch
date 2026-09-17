@@ -80,6 +80,11 @@ def collect_charset(config):
         raise ValueError("notification strings changed; update and review font_charset.json")
     strings.extend(actual_notifications)
     strings.extend(config["planned_static_strings"])
+    # 新组件的实际编译文案也进入清单；字符集合或源码变化均须显式更新。
+    for source in config.get("c_string_sources", []):
+        path = resolve_inside_root(source["path"])
+        input_files.append(path)
+        strings.extend(parse_c_string_array(path, source["array"]))
 
     charset = "".join(sorted(set("".join(strings))))
     expected = config["expected"]

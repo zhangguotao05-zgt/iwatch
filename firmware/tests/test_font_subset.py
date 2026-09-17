@@ -54,6 +54,18 @@ class FontSubsetTests(unittest.TestCase):
             with self.assertRaisesRegex(ValueError, "notification strings changed"):
                 subset.verify_committed(self.config_path)
 
+    def test_component_text_source_is_bound_to_manifest(self):
+        manifest = subset.verify_committed(self.config_path)
+        for source in self.config["c_string_sources"]:
+            self.assertIn(source["path"], manifest["inputs"])
+        original = subset.parse_c_string_array
+        def changed(path, name):
+            values = original(path, name)
+            return values + ["龘"] if name == "demo_texts" else values
+        with mock.patch.object(subset, "parse_c_string_array", side_effect=changed):
+            with self.assertRaisesRegex(ValueError, "character count changed"):
+                subset.verify_committed(self.config_path)
+
     def test_approved_character_set_and_legacy_messages(self):
         charset, _ = subset.collect_charset(self.config)
         self.assertEqual(336, len(charset))

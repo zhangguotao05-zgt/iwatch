@@ -23,6 +23,9 @@
 #include "iw_gui_port.h"
 #include "iw_recovery.h"
 #include "iw_font.h"
+#include "iw_gui_owner.h"
+#include "iw_components.h"
+#include "iw_components_demo.h"
 #include "iw_boot.h"
 #include "iw_service_runtime.h"
 #include "clock/app_clock_status_bar.h"
@@ -392,6 +395,8 @@ static int32_t default_keypad_handler(lv_key_t key, lv_indev_state_t event)
 
         if ((LV_INDEV_STATE_PR == event) && (LV_KEY_HOME == key))
         {
+            iw_gui_fault_dismiss();
+            if (iw_components_demo_home()) return LV_BLOCK_EVENT;
             // rt_kprintf("default_keypad_handler2 %d,%d\n", key, event);
             if (gui_app_is_actived("Main"))
                 gui_app_run("clock");
@@ -1016,6 +1021,8 @@ void app_watch_entry(void *parameter)
         rt_pm_release(PM_SLEEP_MODE_IDLE);
         /* 绘制结束后再处理字体故障，避免在 LVGL 回调中删除或切换对象。 */
         if (app_clock_main_process_font_fault()) ms = 1u;
+        if (iw_components_tick() && ms > 16u) ms = 16u;
+        iw_components_demo_process();
         (void)iw_font_collect();
         if ((rt_tick_t)(rt_tick_get() - last_font_sample) >= rt_tick_from_millisecond(FONT_SAMPLE_PERIOD_MS))
         {

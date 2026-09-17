@@ -17,6 +17,7 @@ extern int test_epic_glyph(lv_font_glyph_dsc_t *glyph);
 extern unsigned test_epic_submissions(void);
 
 static bool test_owner = true, test_render_idle = true;
+void test_font_owner(bool owner, bool idle) { test_owner = owner; test_render_idle = idle; }
 static iw_font_stats_t snapshot;
 static uint32_t main_peak;
 

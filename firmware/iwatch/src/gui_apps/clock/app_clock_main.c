@@ -8,6 +8,7 @@
 #include "app_clock_main.h"
 #include "app_clock_status_bar.h"
 #include "iw_recovery.h"
+#include "iw_gui_owner.h"
 #include "iw_gui_port.h"
 #include "iw_service_runtime.h"
 #include "iw_font.h"
@@ -497,25 +498,25 @@ void app_clock_reset_time(void)
 
 
 static void on_stop(void);
+static iw_gui_owner_t clock_owner;
+static void clock_fault_stop(void *context)
+{
+    (void)context;
+    on_stop();
+}
 
 bool app_clock_main_process_font_fault(void)
 {
-    if (!iw_font_fault_pending()) return false;
-    /* 仅在 GUI 线程、LVGL 回调之外执行；GPU 和 LCD 排空前保持全部资源存活。 */
-    if (!lv_refreshing_done()) return true;
-    on_stop();
-    if (!iw_font_ack_fault()) return true;
-    iw_font_note_fallback();
-    iw_recovery_show(APP_ID);
-    return false;
+    return iw_gui_fault_process();
 }
 
 static void on_start(void)
 {
     if (p_app_clock_main) return;
+    if (!iw_gui_owner_add(&clock_owner, clock_fault_stop, NULL)) { iw_recovery_show(APP_ID); return; }
     /* 先建立管理器，再逐个注册；任何一步失败都统一回滚。 */
     p_app_clock_main = (app_clock_main_t *) rt_malloc(sizeof(app_clock_main_t));
-    if (!p_app_clock_main) { iw_recovery_show(APP_ID); return; }
+    if (!p_app_clock_main) { (void)iw_gui_owner_remove(&clock_owner); iw_recovery_show(APP_ID); return; }
     memset(p_app_clock_main, 0, sizeof(app_clock_main_t));
     rt_list_init(&p_app_clock_main->list);
 #if (LV_HOR_RES_MAX < 512)&&(LV_VER_RES_MAX < 512)
@@ -571,6 +572,7 @@ static void on_pause(void)
 static void on_stop(void)
 {
     app_clock_main_t *manager = p_app_clock_main;
+    (void)iw_gui_owner_remove(&clock_owner);
     iw_recovery_hide(APP_ID);
     if (!manager || manager->stopping) return;
     manager->stopping = true;

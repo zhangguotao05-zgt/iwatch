@@ -41,6 +41,30 @@ def run_matrix(executable, font, repeat_count):
     print("TINY_TTF OOM OK: {} failure points; {} lifecycle loops; {}; {}; {}; {}".format(
         total, repeat_count, compatibility, repeat, eviction, pixels))
     print("FONT REGISTRY AND THEME OK: " + registry)
+    component_points = 0
+    for kind in range(5):
+        for operation in ("create", "draw"):
+            stage = "component_{}_{}".format(operation, kind)
+            probe = run_case(executable, font, stage, 0)
+            count = int(re.search(r"\ballocations=(\d+)\b", probe).group(1))
+            if count <= 0:
+                raise ValueError("component probe has no allocation points: " + stage)
+            for point in range(1, count + 1):
+                run_case(executable, font, stage, point)
+            component_points += count
+            print("COMPONENT OOM OK: {} / {} points".format(stage, count))
+    components = run_case(executable, font, "components", repeat_count, timeout=60)
+    print("COMPONENTS OK: {} failure points; {}".format(component_points, components))
+    fill_points = 0
+    for stage in ("component_fill", "component_fill_busy"):
+        probe = run_case(executable, font, stage, 0)
+        count = int(re.search(r"\ballocations=(\d+)\b", probe).group(1))
+        for point in range(1, count + 1):
+            run_case(executable, font, stage, point)
+        fill_points += count
+    print("ROUNDED FILL OOM OK: {} real renderer failure points".format(fill_points))
+    for mode in range(5):
+        print(run_case(executable, font, "component_render", mode))
 
 
 def main():

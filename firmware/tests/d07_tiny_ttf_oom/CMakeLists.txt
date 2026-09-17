@@ -34,7 +34,9 @@ math(EXPR EPIC_LENGTH "${EPIC_END} - ${EPIC_START}")
 string(SUBSTRING "${EPIC_DRIVER}" ${EPIC_START} ${EPIC_LENGTH} EPIC_BLEND)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/epic_driver_under_test.inc" "${EPIC_BLEND}")
 
-add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c test_epic_glyph.c test_font_service.c
+add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c test_epic_glyph.c test_font_service.c test_components.c
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_components.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_gui_owner.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_theme.c")
 target_include_directories(test_tiny_ttf_oom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core")
 target_include_directories(test_tiny_ttf_oom PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")

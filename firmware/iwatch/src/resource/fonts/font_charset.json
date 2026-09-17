@@ -3,7 +3,10 @@
   "source_font": "firmware/iwatch/src/resource/fonts/DroidSansFallback.source.ttf",
   "fonttools_version": "4.65.0",
   "ascii_ranges": [
-    [32, 126]
+    [
+      32,
+      126
+    ]
   ],
   "json_value_sources": [
     "firmware/iwatch/src/resource/strings/zh_cn.json"
@@ -52,8 +55,21 @@
     "外部",
     "发生"
   ],
-  "legacy_sizes_px": [16, 18, 20, 22, 24, 26, 28],
-  "future_sizes_px": [30, 64, 80, 96],
+  "legacy_sizes_px": [
+    16,
+    18,
+    20,
+    22,
+    24,
+    26,
+    28
+  ],
+  "future_sizes_px": [
+    30,
+    64,
+    80,
+    96
+  ],
   "subset_options": [
     "--name-IDs=*",
     "--name-languages=*",
@@ -68,5 +84,11 @@
     "source_font_sha256": "05d71b179ef97b82cf1bb91cef290c600a510f77f39b4964359e3ef88378c79d",
     "subset_font_bytes": 56804,
     "subset_font_sha256": "4f69f4ba565598e217501e7985bfdc7ccfd68d0bed472325218d01e89bbe284f"
-  }
+  },
+  "c_string_sources": [
+    {
+      "path": "firmware/iwatch/src/gui_core/iw_components_demo_text.h",
+      "array": "demo_texts"
+    }
+  ]
 }

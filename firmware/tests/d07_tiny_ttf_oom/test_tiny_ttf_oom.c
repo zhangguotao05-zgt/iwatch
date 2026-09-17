@@ -15,6 +15,7 @@ typedef struct
 
 static size_t allocation_sequence;
 static size_t failure_sequence = SIZE_MAX;
+static bool failure_persistent;
 static size_t live_blocks;
 static size_t live_bytes;
 static unsigned assert_count;
@@ -24,15 +25,18 @@ static lv_tiny_ttf_oom_reason_t last_oom_reason;
 static void arm_failure(size_t relative_index)
 {
     failure_sequence = relative_index ? allocation_sequence + relative_index : SIZE_MAX;
+    failure_persistent = false;
 }
 
 static void disarm_failure(void)
 {
     failure_sequence = SIZE_MAX;
+    failure_persistent = false;
 }
 
 /* 字体服务测试复用同一分配器及实际 LVGL，避免另造一条简化分配路径。 */
 void test_font_arm_failure(size_t index) { arm_failure(index); }
+void test_font_fail_forever(void) { arm_failure(1); failure_persistent = true; }
 size_t test_font_live_bytes(void) { return live_bytes; }
 size_t test_font_live_blocks(void) { return live_blocks; }
 size_t test_font_allocation_sequence(void) { return allocation_sequence; }
@@ -67,7 +71,7 @@ void lv_mem_remove_pool(lv_mem_pool_t pool)
 void * lv_malloc_core(size_t size)
 {
     allocation_sequence++;
-    if(allocation_sequence == failure_sequence) return NULL;
+    if(allocation_sequence == failure_sequence || (failure_persistent && allocation_sequence > failure_sequence)) return NULL;
 
     test_memory_header_t * header = malloc(sizeof(*header) + size);
     if(header == NULL) return NULL;
@@ -86,7 +90,7 @@ void * lv_realloc_core(void * memory, size_t new_size)
     if(old_header->magic != TEST_MEMORY_MAGIC) abort();
 
     allocation_sequence++;
-    if(allocation_sequence == failure_sequence) return NULL;
+    if(allocation_sequence == failure_sequence || (failure_persistent && allocation_sequence > failure_sequence)) return NULL;
 
     size_t old_size = old_header->size;
     test_memory_header_t * new_header = realloc(old_header, sizeof(*new_header) + new_size);
@@ -409,6 +413,8 @@ static int run_draw_buf_compat(void)
     return ok ? 0 : 13;
 }
 
+int test_components(const void *data, size_t size, const char *stage, size_t number);
+
 int main(int argc, char ** argv)
 {
     if(argc != 4) {
@@ -440,6 +446,7 @@ int main(int argc, char ** argv)
     else if(strcmp(argv[2], "pixels") == 0) result = run_multi_font_evict(font_data, font_size, (size_t)parsed, true);
     else if(strcmp(argv[2], "compat") == 0) result = run_draw_buf_compat();
     else if(strncmp(argv[2], "registry", 8) == 0) result = test_font_service(font_data, font_size, argv[2], (size_t)parsed);
+    else if(strncmp(argv[2], "component", 9) == 0) result = test_components(font_data, font_size, argv[2], (size_t)parsed);
     else result = 67;
 
     lv_tiny_ttf_set_oom_cb(NULL, NULL);

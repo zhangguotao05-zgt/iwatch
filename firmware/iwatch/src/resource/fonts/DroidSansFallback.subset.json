@@ -342,8 +342,9 @@
   "fonttools_version": "4.65.0",
   "inputs": {
     "firmware/iwatch/src/gui_apps/clock/app_clock_status_bar.c": "1e97f21c5637e71c61d14acb697ca73a7c59f8cfb3ec619c4c057bfbda8d04dd",
+    "firmware/iwatch/src/gui_core/iw_components_demo_text.h": "cdca99edffc4588a1ac92ec84df0053696fa66ac4969f194fa8bb0411d52493d",
     "firmware/iwatch/src/resource/fonts/DroidSansFallback.source.ttf": "05d71b179ef97b82cf1bb91cef290c600a510f77f39b4964359e3ef88378c79d",
-    "firmware/iwatch/src/resource/fonts/font_charset.json": "86cbb5de1c6e0e2b37901cd5f1739d7f117d26713f4099a26d2f128d28fccfe3",
+    "firmware/iwatch/src/resource/fonts/font_charset.json": "c5e28e3a84aa60b5ea35b97fdd6dd448552d8014ae6abdb7c7ebb8c92fa0453a",
     "firmware/iwatch/src/resource/strings/zh_cn.json": "0be2beb9d2a2c03a4703b28385600bd56d26c26585db3d851bb44ee5e52846f8"
   },
   "output": {

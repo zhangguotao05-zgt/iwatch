@@ -1,5 +1,6 @@
 """将生产生命周期函数原样编入主机替身测试，避免复制被测实现。"""
 from pathlib import Path
+import re
 
 BASE = Path(__file__).resolve().parents[1] / 'iwatch/src/gui_apps'
 OUT = Path(__file__).resolve().parent / 'build'
@@ -116,6 +117,7 @@ static void *clock_fonts;
 #define LV_BLOCK_EVENT 1
 static bool menu_active;
 static unsigned menu_requests, clock_requests;
+static bool iw_components_demo_home(void) { return false; }
 static bool gui_app_is_actived(const char *id) { assert(strcmp(id,"Main")==0);return menu_active; }
 static void gui_app_run(const char *id) {
     if(strcmp(id,"Main")==0) { menu_requests++;menu_active=true; }
@@ -128,6 +130,13 @@ static bool iw_font_ack_fault(void) { if(clock_fonts || initialized_plugins)retu
 static void iw_font_note_fallback(void) { font_fallbacks++; }
 static void app_clock_main_status_bar_deinit(void) { assert(initialized_plugins==0); test_free(clock_fonts);clock_fonts=NULL; }
 '''
+# 将真实全局 owner 协调器编入同一测试；仅替换硬件 owner/渲染边界。
+owner_dir = BASE.parent / 'gui_core'
+clock_head += (owner_dir/'iw_gui_owner.h').read_text(encoding='utf-8')
+clock_head += "\nstatic bool iw_font_port_is_owner(void) { return true; }\nstatic bool iw_font_port_render_idle(void) { return lv_refreshing_done(); }\n"
+clock_head += re.sub(r'^#include.*$', '', (owner_dir/'iw_gui_owner.c').read_text(encoding='utf-8'), flags=re.M)
+clock_head += "\nstatic iw_gui_owner_t clock_owner;\nstatic void on_stop(void);\n"
+clock_head += function(clock, 'static void clock_fault_stop(void *context)') + "\n"
 clock_functions = '\n'.join(function(clock, sig) for sig in [
     'static void app_clock_change_state(app_clock_desc_t *p_clock, uint8_t new_state)',
     'static void on_stop(void)',
@@ -164,6 +173,7 @@ int main(void) {
         app_clock_desc_t *desc=rt_list_entry(p_app_clock_main->list.next,app_clock_desc_t,node);
         desc->parent=p_app_clock_main->tileview;app_clock_change_state(desc,STATE_ACTIVE);
         clock_fonts=rt_calloc(1,16);
+        assert(iw_gui_owner_add(&clock_owner,clock_fault_stop,NULL));
         font_fault_pending=true;rendering_idle=false;
         assert(app_clock_main_process_font_fault());
         if(!font_fault_pending || !p_app_clock_main || !clock_fonts || font_fallbacks!=(unsigned)cycle) {
