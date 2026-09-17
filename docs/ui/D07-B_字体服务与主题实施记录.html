@@ -6,12 +6,12 @@
 <header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D07-B 字体服务与主题</span></header>
 <div class="page-shell"><nav class="toc" aria-label="文档目录"><ul>
 <li><a href="#status">阶段状态</a></li><li><a href="#font">字体所有权</a></li><li><a href="#fault">故障与回收</a></li>
-<li><a href="#theme">只读主题</a></li><li><a href="#memory">内存计量</a></li><li><a href="#test">主机验证</a></li><li><a href="#target">目标与实机</a></li>
+<li><a href="#theme">只读主题</a></li><li><a href="#memory">内存计量</a></li><li><a href="#test">主机验证</a></li><li><a href="#target">目标构建</a></li><li><a href="#board">实机复验</a></li><li><a href="#performance">性能边界</a></li>
 </ul></nav><main class="doc-main">
 <h1>D07-B 字体服务与主题实施记录</h1>
 <p class="doc-meta">2026-09-17 · A1 审批基线 e064686 · 实施依据：<a href="D07_资源预算与共享组件设计方案_v2.html">批准方案 v2</a></p>
 <section id="status"><h2>阶段状态</h2>
-<p><strong>A1 已审批收口。B 字体服务、通知页接入和主题接口已实现；主机回归、GCC/Keil 构建、预算、身份与 DryRun 通过，等待开发板复位进入下载模式。B 新固件尚未烧录，C 共享组件与 D 展示页尚未开始。</strong></p>
+<p><strong>A1 已审批收口。B 字体服务、通知页接入和主题接口已实现；主机回归、GCC/Keil 构建、预算、身份与 DryRun 通过，B新固件已写入并校验，正常功能及内存实机复验完成；按键延迟首次未达目标、补测改善，性能边界单列。C 共享组件与 D 展示页尚未开始，D07整体未收口。</strong></p>
 <p>B 将通知页私有字体缓存移到 GUI 公共服务，并保留现有通知字符串、七个旧字号与布局。主题只提供后续组件使用的静态参数，本阶段不把旧页面改成新的视觉样式。A1 已验收的十二文件 SDK 补丁不变，字距缓存继续为 0。</p>
 <p>阶段对应 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">Issue #7</a>。B 新镜像不能继承 <a href="D07-A1_安全整改与复验记录.html">A1 正常实机结果</a>；D07 整体保持打开。</p></section>
 <section id="font"><h2>字体注册表与所有权</h2>
@@ -51,7 +51,7 @@
 </tbody></table>
 <p>复现入口：<code>firmware/tests/run-core-tests.ps1</code> 与 <code>firmware/tests/run-d07-a0-tests.ps1 -PythonPath logs/fonttools-venv/Scripts/python.exe -PatchedSdkPath work/sdk-d07-a0</code>。新增服务和主题回归接入既有入口。本地全文：<code>logs/d07-b-core.log</code>、<code>logs/d07-b-host.log</code>。</p></section>
 <section id="target"><h2>目标构建与实机复验</h2>
-<p>实现提交 <code>97bb8ec</code>，Keil 类型适配修复及最终构建源码 <code>7249ae37ca882dd77aefa0947a470f9f80be3c2a</code>。固定 SDK 仍为 <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code>，十二文件补丁 SHA-256 为 <code>b1cea431099d2c247c563c1e6643468b88b01a799416d72ebf460d025d17db64</code>。完成 Keil→GCC 干净切换后，两套独立归档重新验证通过，COM255 三件套 DryRun 通过，未访问真实下载串口。</p>
+<p>实现提交 <code>97bb8ec</code>，Keil 类型适配修复及最终构建源码 <code>7249ae37ca882dd77aefa0947a470f9f80be3c2a</code>。固定 SDK 仍为 <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code>，十二文件补丁 SHA-256 为 <code>b1cea431099d2c247c563c1e6643468b88b01a799416d72ebf460d025d17db64</code>。完成 Keil→GCC 干净切换后，两套独立归档重新验证通过，COM255 三件套 DryRun 通过，DryRun本身未访问真实下载串口；后续正式烧录见实机记录。</p>
 <table><thead><tr><th>工具链</th><th>main / 6 MiB 槽</th><th>SHA-256</th></tr></thead><tbody>
 <tr><td>GCC</td><td>1,864,964 B / 29.643%</td><td><code>ffcd92095f14dd0941d44df977bc9da665152085a592b38c13a08c18a30badcd</code></td></tr>
 <tr><td>Keil</td><td>1,792,200 B / 28.486%</td><td><code>9e2592602968086f01cc27fd44ca3700dc1908dae509a08744aee58fa18351be</code></td></tr>
@@ -59,6 +59,32 @@
 <p>两套 TTF 56,804 B、内置位图字库51,335 B、图片866,577 B，均通过批准预算；GCC 比 A1 最终镜像增加896 B，Keil增加840 B。GCC map SHA-256：<code>a7998b0fea3bb7b7d0609ffbae3e4a021f43a961ff0c8d32c7c17175b5711923</code>；Keil map：<code>7d31b13c38147049fe090fd6d31a8f6c0326a88967661eb4384b7c6a2626b1f6</code>，结构和工具链来源分别验证。</p>
 <p>首次Keil编译发现 <code>rt_memory_info</code> 的参数类型不同：Keil的 <code>rt_uint32_t</code> 为unsigned long，不能把uint32_t指针直接传入。适配层改用RTOS原生局部变量接收，再按值转换；没有强转指针。修复后完整重建两套固件，失败日志保留为 <code>logs/d07-b-keil-initial-failed.log</code>。主机RTOS替身不覆盖该编译器差异，因此以真实Keil目标编译作为这项修复的验证。</p>
 <p>本地归档：<code>logs/board-validation-20260917-d07-b/</code>，包含两套完整产物、主机及构建全文、身份复核、DryRun、生成的Keil工程和构建检查清单。首次归档辅助程序调用Windows PowerShell 5时因环境未加载Get-FileHash失败，未访问串口；改用当前PowerShell 7后两套DryRun通过，原始失败输出也保留。</p>
-<p><strong>实机状态：尚未烧录B固件。</strong>已识别CH342的COM9/COM10，COM10采集已准备；等待用户安装Mode跳帽并复位。后续验证中文通知、长文滑动、20%/80%亮度、按键返回、反复进出与两类堆稳定样本。没有操作J-Link。</p>
+<p>正式GCC烧录及正常路径复验已完成，原始记录与性能边界见下节；本地归档包含独立的主机、构建与实机结果。没有操作J-Link。</p>
 <p>旧通知使用七个旧字号；大号64/80/96目前只有主机绘制覆盖，目标大数字和主题外观在后续展示页验证。长文全面性能优化按A1审批安排留到主要UI成型后；不以输入队列延迟代替完整GUI刷新性能。</p>
-</section></main></div></body></html>
+</section>
+<section id="board"><h2>实机复验</h2>
+<p>2026-09-17 通过COM9写入同一GCC归档的Bootloader、main和FTab，写后校验通过，包装脚本退出码0。用户取下Mode后复位；本轮没有重新做断电冷启动或实机堆耗尽注入。COM10按1,000,000 baud记录，正常启动分析从原始文件偏移210开始；前210 B保留为烧录前旧固件输出及复位串口噪声，不计入新固件结果。</p>
+<table><thead><tr><th>项目</th><th>结果</th></tr></thead><tbody>
+<tr><td>启动与硬件</td><td>1次新固件启动；CO5300 ID 0x331100，FT6146 ID_H=0x64 / ID_L=0x56。没有断言、HardFault或操作中重启。</td></tr>
+<tr><td>中文与输入</td><td>20%下3次进出、80%下3次进出及长正文滚动，用户均确认“正常”；追加80%关闭临时刷新统计复测，用户再次确认“正常”。日志实际累计10次ONSTART、ONSTOP、DESTROY，不把请求的次数代替实际计数。</td></tr>
+<tr><td>亮度链路</td><td>request 1/2均terminal code=1、ACK=0；desired/applied为20/20及80/80，error=0。最终停在桌面，亮度80%；未启用断电保存。</td></tr>
+<tr><td>主堆</td><td>启动、第3次退出两次、第6次退出两次、第10次退出两次，共7个桌面样本均为59,660 B。峰值113,856 B，相对桌面增量54,196 B。</td></tr>
+<tr><td>PSRAM字形池</td><td>预留160,000 B，7个桌面样本均为72 B。峰值35,232 B，相对桌面增量35,160 B。所有桌面样本live/refs/pending为0，create/metadata/bitmap/fallback为0；旧页面同时存活字号峰值7。</td></tr>
+<tr><td>内存预算</td><td>两个独立峰值增量之和89,356 B，低于512 KiB；不是同时峰值。退出后两类堆各自无残留增长，不只判断残留是否小于32 KiB。字体服务会话基线不等于桌面基线，所以其诊断峰值不直接替代本表的桌面对照。</td></tr>
+<tr><td>线程栈</td><td>app_watch 16 KiB / 31%，tpread 2 KiB / 39%，lcd_task 2 KiB / 49%，iw_service 4 KiB / 9%。</td></tr>
+<tr><td>显示与已知日志</td><td>最终reassert=96、recovery=0、fault_pending=0。实机不声明注入恢复成功；1条触摸buffer overwrite保留跟踪。启动的3条flash1未找到日志仍属既有D15持久化问题。</td></tr>
+</tbody></table>
+<p>冻结原始串口85,832 B，SHA-256：<code>d2400ad4f11bd2fee4375c230c15cbdac4aa2154a2ef2ff1274d7eed4ebecdec</code>；命令与用户确认时间线：<code>b3e03991fe4cc72958bf80751dabc32ff2ebe978d0081207a7df5dea0c83d716</code>；完整烧录输出：<code>9789245610a708283191a9e1e5906a1aa5302a2b8efc8ded36af49d24a1b973b</code>。本地 <code>logs/board-validation-20260917-d07-b/</code> 的 <code>SHA256SUMS.txt</code> 覆盖完整产物、日志、时间线与提取脚本；串口已关闭，临时fps统计已关闭。二进制及原始日志保持本地归档，源码与工程文档提交到仓库。</p>
+</section>
+<section id="performance"><h2>性能边界与后续跟踪</h2>
+<p><strong>正常操作与内存回归通过，不宣称全部性能目标已达成。</strong>按键队列统计有两个独立窗口，保留所有结果，不用追加样本稀释首次偏高值。</p>
+<table><thead><tr><th>窗口</th><th>实际结果</th><th>解释</th></tr></thead><tbody>
+<tr><td>首3次，20%</td><td>18个消费样本，P95=67 ms，最大67 ms。</td><td>首次窗口中间快照。</td></tr>
+<tr><td>首6次累计，20%/80%</td><td>36个样本，P95落入≥100 ms末桶，最大121 ms；accepted=consumed=36，rejected/discarded/pending=0。</td><td>未达到P95&lt;100 ms目标。ge_100=1是P95落入末桶的布尔标志，不是只有1个超限样本，也不能把P95写成精确100 ms。</td></tr>
+<tr><td>独立补测，80%，临时fps日志关闭</td><td>重置统计后24个样本，P95=46 ms，最大72 ms；accepted=consumed=24，rejected/discarded/pending=0。</td><td>用户再次确认正常。手工操作轨迹及按键时机未严格控制，不能证明日志导致延迟，也不能据此擦除首轮结果或认定所有场景达标。</td></tr>
+</tbody></table>
+<p>该统计来自物理按键事件入队到GUI消费，不覆盖触摸采样到像素出现的端到端延迟。本轮未增加逐事件时序埋点，无法把121 ms样本精确归属到某次绘制或回收；不能宣称已经定位根因。后续主要UI成型时固定手势与按键时机，补队列、布局/绘制、提交与完成的关联计量。</p>
+<p>80%混合进出与长文滚动保存12个LCD完成统计窗口；首窗包含静止时间，为0次/秒，保留原值但不作纯滑动比较。其余11窗为6–27次/秒，flush总范围1–31 ms，驱动错误计数全为0。该值可能包括局部更新、导航与静止，不是完整GUI帧率；不新增30 FPS放行门槛。与A1一样，全面性能优化仍按批准方案安排在主要UI成型后。</p>
+<p>本阶段只完成字体服务、只读主题与旧页面接入；C五类共享组件、D展示页及其大字实屏/OOM验收仍待实施。外部资源和持久化仍属D15，真实显示故障确认与有限恢复属D16。</p>
+</section>
+</main></div></body></html>
