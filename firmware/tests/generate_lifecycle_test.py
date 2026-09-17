@@ -123,9 +123,9 @@ static void gui_app_run(const char *id) {
 }
 static void gui_app_goback(void) { gui_app_run("Main"); }
 static bool lv_refreshing_done(void) { return rendering_idle; }
-static bool app_clock_main_status_bar_font_fault_pending(void) { return font_fault_pending; }
-static bool app_clock_main_status_bar_take_font_fault(void) { bool pending=font_fault_pending; font_fault_pending=false; return pending; }
-static void app_clock_main_status_bar_note_fallback(void) { font_fallbacks++; }
+static bool iw_font_fault_pending(void) { return font_fault_pending; }
+static bool iw_font_ack_fault(void) { if(clock_fonts || initialized_plugins)return false;font_fault_pending=false;return true; }
+static void iw_font_note_fallback(void) { font_fallbacks++; }
 static void app_clock_main_status_bar_deinit(void) { assert(initialized_plugins==0); test_free(clock_fonts);clock_fonts=NULL; }
 '''
 clock_functions = '\n'.join(function(clock, sig) for sig in [
@@ -222,7 +222,7 @@ int main(void) {
 
 status_head=r'''
 typedef struct { int marker; } lv_font_t;
-typedef struct { uint8_t font_size;lv_font_t *font; } font_cache_t;
+typedef struct { const lv_font_t *font; } iw_font_ref_t;
 typedef uint8_t lv_opa_t;
 typedef int lv_color_t;
 typedef struct { lv_color_t color;int align; } lv_draw_label_dsc_t;
@@ -241,13 +241,9 @@ typedef struct { lv_color_t color;int align; } lv_draw_label_dsc_t;
 #define lv_obj_set_style_bg_grad_color(...) ((void)0)
 #define lv_obj_set_style_bg_grad_dir(...) ((void)0)
 #define lv_obj_set_style_radius(...) ((void)0)
-static font_cache_t font_cache[10];
-static unsigned font_count;
-static lv_font_t *chinese_font;
-typedef struct { uint32_t ttf_heap_baseline,ttf_last_idle_delta; } font_runtime_stats_t;
-static font_runtime_stats_t font_stats;
-static uint32_t font_ttf_heap_used(void) { return 0; }
-static void lv_tiny_ttf_set_oom_cb(void *cb,void *data) { (void)cb;(void)data; }
+#define IW_FONT_COUNT 11
+static iw_font_ref_t page_fonts[IW_FONT_COUNT];
+static const lv_font_t *chinese_font;
 static lv_obj_t *app_clock_main_status_bar,*status_bar_area_up,*status_bar_area_down,*app_clock_tileview;
 static lv_opa_t *last_mask;
 static lv_opa_t *app_cache_alloc(size_t size,int pool) { (void)pool;last_mask=test_calloc(1,size);return last_mask; }
@@ -258,7 +254,10 @@ static lv_color_t lv_color_white(void) { return 1; }
 static lv_color_t lv_color_hex(unsigned value) { return (lv_color_t)value; }
 static void lv_draw_label_dsc_init(lv_draw_label_dsc_t *dsc) { memset(dsc,0,sizeof(*dsc)); }
 static void add_mask_event_cb(lv_event_t *event) { (void)event; }
-static void lv_tiny_ttf_destroy(lv_font_t *font) { assert(!app_clock_main_status_bar && !status_bar_area_up && !status_bar_area_down);test_free(font); }
+static int iw_font_release(iw_font_ref_t *ref) {
+    assert(!app_clock_main_status_bar && !status_bar_area_up && !status_bar_area_down);
+    test_free((void*)ref->font);ref->font=NULL;return 0;
+}
 '''
 status_test=r'''
 int main(void) {
@@ -276,9 +275,10 @@ int main(void) {
     lv_obj_t roots[3]={0};
     for(int i=0;i<100;i++) {
         app_clock_main_status_bar=lv_obj_create(&roots[0]);status_bar_area_up=lv_obj_create(&roots[1]);status_bar_area_down=lv_obj_create(&roots[2]);
-        font_count=10;for(int f=0;f<10;f++)font_cache[f].font=test_calloc(1,sizeof(lv_font_t));
+        for(int f=0;f<IW_FONT_COUNT;f++)page_fonts[f].font=test_calloc(1,sizeof(lv_font_t));
         app_clock_main_status_bar_deinit();app_clock_main_status_bar_deinit();
-        assert(live==0 && !font_count && font_stats.ttf_last_idle_delta==0);
+        assert(live==0 && !chinese_font);
+        for(int f=0;f<IW_FONT_COUNT;f++)assert(!page_fonts[f].font);
     }
     puts("Status font ownership and gradient OOM tests passed");return 0;
 }

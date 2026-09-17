@@ -31,6 +31,14 @@ static void disarm_failure(void)
     failure_sequence = SIZE_MAX;
 }
 
+/* 字体服务测试复用同一分配器及实际 LVGL，避免另造一条简化分配路径。 */
+void test_font_arm_failure(size_t index) { arm_failure(index); }
+size_t test_font_live_bytes(void) { return live_bytes; }
+size_t test_font_live_blocks(void) { return live_blocks; }
+size_t test_font_allocation_sequence(void) { return allocation_sequence; }
+unsigned test_font_assert_count(void) { return assert_count; }
+int test_font_service(const void *data, size_t size, const char *stage, size_t number);
+
 void tiny_ttf_test_assert_handler(void)
 {
     assert_count++;
@@ -404,7 +412,7 @@ static int run_draw_buf_compat(void)
 int main(int argc, char ** argv)
 {
     if(argc != 4) {
-        fprintf(stderr, "usage: test_tiny_ttf_oom <font.ttf> <create|metadata|bitmap|epic|repeat|evict|pixels|compat> <number>\n");
+        fprintf(stderr, "usage: test_tiny_ttf_oom <font.ttf> <create|metadata|bitmap|epic|repeat|evict|pixels|compat|registry|registry_oom|registry_epic> <number>\n");
         return 64;
     }
 
@@ -431,6 +439,7 @@ int main(int argc, char ** argv)
     else if(strcmp(argv[2], "evict") == 0) result = run_multi_font_evict(font_data, font_size, (size_t)parsed, false);
     else if(strcmp(argv[2], "pixels") == 0) result = run_multi_font_evict(font_data, font_size, (size_t)parsed, true);
     else if(strcmp(argv[2], "compat") == 0) result = run_draw_buf_compat();
+    else if(strncmp(argv[2], "registry", 8) == 0) result = test_font_service(font_data, font_size, argv[2], (size_t)parsed);
     else result = 67;
 
     lv_tiny_ttf_set_oom_cb(NULL, NULL);

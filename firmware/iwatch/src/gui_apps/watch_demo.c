@@ -22,6 +22,7 @@
 #include "iw_display_guard.h"
 #include "iw_gui_port.h"
 #include "iw_recovery.h"
+#include "iw_font.h"
 #include "iw_boot.h"
 #include "iw_service_runtime.h"
 #include "clock/app_clock_status_bar.h"
@@ -39,6 +40,10 @@
 #define IDLE_TIME_LIMIT  (10000)
 #define DISPLAY_WAKE_MIN_MS (250u)
 #define DISPLAY_APPLY_WARN_MS (250u)
+#define FONT_SAMPLE_PERIOD_MS (250u)
+
+extern const unsigned char DroidSansFallback[];
+extern const int DroidSansFallback_size;
 
 typedef enum
 {
@@ -972,6 +977,11 @@ void app_watch_entry(void *parameter)
         LOG_E("recovery layer allocation failed; GUI startup stopped");
         return;
     }
+    if (!iw_font_init(DroidSansFallback, (uint32_t)DroidSansFallback_size))
+    {
+        LOG_E("font registry initialization failed");
+        return;
+    }
     (void)iw_display_runtime_set_available(lcd_device != RT_NULL,
                                            lcd_device ? 0 : -RT_ENOSYS);
     lv_ex_data_pool_init();
@@ -993,6 +1003,7 @@ void app_watch_entry(void *parameter)
     lv_disp_trig_activity(NULL);
 
 
+    rt_tick_t last_font_sample = rt_tick_get();
     while (1)
     {
         uint32_t ms;
@@ -1005,6 +1016,12 @@ void app_watch_entry(void *parameter)
         rt_pm_release(PM_SLEEP_MODE_IDLE);
         /* 绘制结束后再处理字体故障，避免在 LVGL 回调中删除或切换对象。 */
         if (app_clock_main_process_font_fault()) ms = 1u;
+        (void)iw_font_collect();
+        if ((rt_tick_t)(rt_tick_get() - last_font_sample) >= rt_tick_from_millisecond(FONT_SAMPLE_PERIOD_MS))
+        {
+            iw_font_sample();
+            last_font_sample = rt_tick_get();
+        }
         display_recover_if_faulted();
 
 #ifdef BSP_USING_PM

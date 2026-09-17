@@ -10,6 +10,7 @@
 #include "iw_recovery.h"
 #include "iw_gui_port.h"
 #include "iw_service_runtime.h"
+#include "iw_font.h"
 /* 字体故障回收要求所有 LVGL 绘制回调在 GUI 线程内同步完成。 */
 #if LV_USE_OS != LV_OS_NONE
     #error "iwatch font teardown requires synchronous LVGL rendering"
@@ -499,12 +500,12 @@ static void on_stop(void);
 
 bool app_clock_main_process_font_fault(void)
 {
-    if (!app_clock_main_status_bar_font_fault_pending()) return false;
+    if (!iw_font_fault_pending()) return false;
     /* 仅在 GUI 线程、LVGL 回调之外执行；GPU 和 LCD 排空前保持全部资源存活。 */
     if (!lv_refreshing_done()) return true;
-    if (!app_clock_main_status_bar_take_font_fault()) return false;
     on_stop();
-    app_clock_main_status_bar_note_fallback();
+    if (!iw_font_ack_fault()) return true;
+    iw_font_note_fallback();
     iw_recovery_show(APP_ID);
     return false;
 }

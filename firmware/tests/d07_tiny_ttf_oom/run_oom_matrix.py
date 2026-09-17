@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 
-STAGES = ("create", "metadata", "bitmap", "epic")
+STAGES = ("create", "metadata", "bitmap", "epic", "registry_oom", "registry_epic")
 
 
 def run_case(executable, font, stage, number, timeout=10):
@@ -37,8 +37,10 @@ def run_matrix(executable, font, repeat_count):
     repeat = run_case(executable, font, "repeat", repeat_count, timeout=60)
     eviction = run_case(executable, font, "evict", 10, timeout=30)
     pixels = run_case(executable, font, "pixels", 2, timeout=60)
+    registry = run_case(executable, font, "registry", repeat_count, timeout=60)
     print("TINY_TTF OOM OK: {} failure points; {} lifecycle loops; {}; {}; {}; {}".format(
         total, repeat_count, compatibility, repeat, eviction, pixels))
+    print("FONT REGISTRY AND THEME OK: " + registry)
 
 
 def main():

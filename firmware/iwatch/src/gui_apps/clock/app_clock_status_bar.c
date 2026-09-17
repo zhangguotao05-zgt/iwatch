@@ -5,7 +5,7 @@
  */
 #include "app_clock_status_bar.h"
 #include "app_mem.h"
-#include "lv_tiny_ttf.h"
+#include "iw_font.h"
 #include <stdint.h>
 typedef struct
 {
@@ -20,120 +20,8 @@ typedef struct
 
 
 
-typedef struct
-{
-    uint8_t font_size;
-    lv_font_t *font;
-} font_cache_t;
-
-#define MAX_FONTS 10
-#define FONT_GLYPH_CACHE_ENTRIES 16u
-static font_cache_t font_cache[MAX_FONTS];
-static uint8_t font_count = 0;
-
-typedef struct
-{
-    volatile uint32_t create_oom;
-    volatile uint32_t metadata_oom;
-    volatile uint32_t bitmap_oom;
-    volatile uint32_t fallback_shown;
-    volatile uint32_t pending;
-    uint32_t enter_count;
-    uint32_t main_heap_baseline;
-    uint32_t ttf_heap_baseline;
-    uint32_t ttf_last_idle_delta;
-} font_runtime_stats_t;
-
-static font_runtime_stats_t font_stats;
-
-#if defined(TINY_TTF_CACHE_IN_SRAM_STANDALONE) || defined(TINY_TTF_CACHE_IN_PSRAM)
-extern struct rt_memheap app_tiny_ttf_memheap;
-#endif
-
-static void font_count_saturating(volatile uint32_t *value)
-{
-    if (*value != UINT32_MAX) (*value)++;
-}
-
-static uint32_t font_ttf_heap_used(void)
-{
-#if defined(TINY_TTF_CACHE_IN_SRAM_STANDALONE) || defined(TINY_TTF_CACHE_IN_PSRAM)
-    return app_tiny_ttf_memheap.pool_size - app_tiny_ttf_memheap.available_size;
-#else
-    return 0;
-#endif
-}
-
-static void font_memory_baseline_capture(void)
-{
-    rt_uint32_t total;
-    rt_uint32_t used;
-    rt_uint32_t maximum;
-
-    rt_memory_info(&total, &used, &maximum);
-    font_stats.main_heap_baseline = used;
-    font_stats.ttf_heap_baseline = font_ttf_heap_used();
-    if (font_stats.enter_count != UINT32_MAX) font_stats.enter_count++;
-}
-
-static void font_oom_cb(lv_tiny_ttf_oom_reason_t reason, void *user_data)
-{
-    font_runtime_stats_t *stats = (font_runtime_stats_t *)user_data;
-
-    if (!stats) return;
-    if (reason <= LV_TINY_TTF_OOM_KERNING_CACHE)
-        font_count_saturating(&stats->create_oom);
-    else if (reason == LV_TINY_TTF_OOM_GLYPH_METADATA)
-        font_count_saturating(&stats->metadata_oom);
-    else
-        font_count_saturating(&stats->bitmap_oom);
-    stats->pending = 1;
-}
-
-bool app_clock_main_status_bar_font_fault_pending(void)
-{
-    return font_stats.pending != 0;
-}
-
-bool app_clock_main_status_bar_take_font_fault(void)
-{
-    if (!font_stats.pending) return false;
-    font_stats.pending = 0;
-    return true;
-}
-
-void app_clock_main_status_bar_note_fallback(void)
-{
-    font_count_saturating(&font_stats.fallback_shown);
-}
-
-static void iw_font_stat(void)
-{
-    rt_uint32_t total;
-    rt_uint32_t used;
-    rt_uint32_t maximum;
-    uint32_t ttf_used = font_ttf_heap_used();
-    uint32_t ttf_peak = 0;
-
-    rt_memory_info(&total, &used, &maximum);
-#if defined(TINY_TTF_CACHE_IN_SRAM_STANDALONE) || defined(TINY_TTF_CACHE_IN_PSRAM)
-    ttf_peak = app_tiny_ttf_memheap.max_used_size;
-#endif
-    rt_kprintf("font cache glyph=%u kerning=%u enters=%u live=%u pending=%u\n",
-               FONT_GLYPH_CACHE_ENTRIES, (unsigned)LV_TINY_TTF_CACHE_KERNING_CNT,
-               (unsigned)font_stats.enter_count, (unsigned)font_count,
-               (unsigned)font_stats.pending);
-    rt_kprintf("font oom create=%u metadata=%u bitmap=%u fallback=%u\n",
-               (unsigned)font_stats.create_oom, (unsigned)font_stats.metadata_oom,
-               (unsigned)font_stats.bitmap_oom, (unsigned)font_stats.fallback_shown);
-    rt_kprintf("font main base=%u used=%u global_max=%u total=%u\n",
-               (unsigned)font_stats.main_heap_baseline, (unsigned)used,
-               (unsigned)maximum, (unsigned)total);
-    rt_kprintf("font ttf base=%u used=%u peak=%u idle_delta=%u\n",
-               (unsigned)font_stats.ttf_heap_baseline, (unsigned)ttf_used,
-               (unsigned)ttf_peak, (unsigned)font_stats.ttf_last_idle_delta);
-}
-MSH_CMD_EXPORT(iw_font_stat, Show D07 font cache and memory statistics);
+/* 通知页每个字号持有一个引用，子控件借用；删除子树后统一释放。 */
+static iw_font_ref_t page_fonts[IW_FONT_COUNT];
 
 static lv_obj_t *app_clock_main_status_bar;
 static lv_obj_t *status_bar_area_up;
@@ -202,39 +90,12 @@ static const notification_msg_cntxt_t notify_msgs[] =
 };
 #define ARRAY_SIZE(arr) (sizeof(arr) / sizeof((arr)[0]))
 
-extern const unsigned char DroidSansFallback[];
-extern const int DroidSansFallback_size;
-
-static lv_font_t *app_clock_status_bar_get_font(uint8_t size)
+static const lv_font_t *app_clock_status_bar_get_font(uint8_t size)
 {
-    for (uint8_t i = 0; i < font_count; i++)
-    {
-        if (font_cache[i].font_size == size)
-        {
-            return font_cache[i].font;
-        }
-    }
-
-    if (font_count >= MAX_FONTS)
-    {
-        rt_kprintf("[clock_font] cache full, size=%u\n", size);
-        return NULL;
-    }
-
-    lv_font_t *font = lv_tiny_ttf_create_data_ex(DroidSansFallback, DroidSansFallback_size,
-                                                  size, LV_FONT_KERNING_NORMAL,
-                                                  FONT_GLYPH_CACHE_ENTRIES);
-    if (font == NULL)
-    {
-        rt_kprintf("[clock_font] create failed, size=%u\n", size);
-        return NULL;
-    }
-
-    font_cache[font_count].font_size = size;
-    font_cache[font_count].font = font;
-    font_count++;
-    rt_kprintf("[clock_font] create size=%u, cached=%u\n", size, font_count);
-    return font;
+    iw_font_id_t id = iw_font_find(size);
+    if (id == IW_FONT_COUNT) return NULL;
+    if (!page_fonts[id].font && iw_font_acquire(id, &page_fonts[id]) != IW_FONT_OK) return NULL;
+    return page_fonts[id].font;
 }
 
 #define PX_5mm LV_DPX(32) //160 is 1 inch(about 2.5cm)
@@ -472,11 +333,9 @@ static bool control_panel_content_init(lv_obj_t *par)
 /*
     drop down hidden msg list
 */
-static lv_font_t *chinese_font = NULL;
+static const lv_font_t *chinese_font = NULL;
 void app_clock_status_bar_init_font(void)
 {
-    font_memory_baseline_capture();
-    lv_tiny_ttf_set_oom_cb(font_oom_cb, &font_stats);
     chinese_font = app_clock_status_bar_get_font(24);
 
     for (uint32_t i = 0; i < ARRAY_SIZE(notify_msgs); i++)
@@ -504,7 +363,7 @@ static bool msg_list_content_init(lv_obj_t *par)
     align_base = label_header;
     for (uint32_t i = 0; i < sizeof(notify_msgs) / sizeof(notify_msgs[0]); i++)
     {
-        lv_font_t *title_font = app_clock_status_bar_get_font(notify_msgs[i].dynamic_title_font_size);
+        const lv_font_t *title_font = app_clock_status_bar_get_font(notify_msgs[i].dynamic_title_font_size);
 
         if (!title_font) return false;
         lv_obj_t *title_label = lv_label_create(par);
@@ -516,7 +375,7 @@ static bool msg_list_content_init(lv_obj_t *par)
         lv_label_set_text(title_label, notify_msgs[i].p_title);
         lv_obj_align_to(title_label, align_base, LV_ALIGN_OUT_BOTTOM_LEFT, 0, PX_5mm);
 
-        lv_font_t *content_font = app_clock_status_bar_get_font(notify_msgs[i].dynamic_content_font_size);
+        const lv_font_t *content_font = app_clock_status_bar_get_font(notify_msgs[i].dynamic_content_font_size);
 
         if (!content_font) return false;
         lv_obj_t *content_label_container = lv_obj_create(par);
@@ -624,18 +483,7 @@ void app_clock_main_status_bar_deinit(void)
     status_bar_area_up = NULL;
     status_bar_area_down = NULL;
     app_clock_tileview = NULL;
-    for (unsigned i = 0; i < font_count; i++)
-    {
-        if (font_cache[i].font) lv_tiny_ttf_destroy(font_cache[i].font);
-        font_cache[i].font = NULL;
-        font_cache[i].font_size = 0;
-    }
-    font_count = 0;
+    for (unsigned i = 0; i < IW_FONT_COUNT; ++i)
+        (void)iw_font_release(&page_fonts[i]);
     chinese_font = NULL;
-    {
-        uint32_t used = font_ttf_heap_used();
-        font_stats.ttf_last_idle_delta = used > font_stats.ttf_heap_baseline ?
-                                         used - font_stats.ttf_heap_baseline : 0;
-    }
-    lv_tiny_ttf_set_oom_cb(NULL, NULL);
 }

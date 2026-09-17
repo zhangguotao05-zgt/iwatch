@@ -1,0 +1,56 @@
+<!doctype html>
+<html lang="zh-CN">
+<head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D07-B 字体服务与主题实施记录 · iwatch</title><link rel="stylesheet" href="../assets/engineering.css"></head>
+<body>
+<header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D07-B 字体服务与主题</span></header>
+<div class="page-shell"><nav class="toc" aria-label="文档目录"><ul>
+<li><a href="#status">阶段状态</a></li><li><a href="#font">字体所有权</a></li><li><a href="#fault">故障与回收</a></li>
+<li><a href="#theme">只读主题</a></li><li><a href="#memory">内存计量</a></li><li><a href="#test">主机验证</a></li><li><a href="#target">目标与实机</a></li>
+</ul></nav><main class="doc-main">
+<h1>D07-B 字体服务与主题实施记录</h1>
+<p class="doc-meta">2026-09-17 · A1 审批基线 e064686 · 实施依据：<a href="D07_资源预算与共享组件设计方案_v2.html">批准方案 v2</a></p>
+<section id="status"><h2>阶段状态</h2>
+<p><strong>A1 已审批收口。B 字体服务、通知页接入和主题接口已实现，主机回归通过；新固件目标构建与实机结果待补。C 共享组件与 D 展示页尚未开始。</strong></p>
+<p>B 将通知页私有字体缓存移到 GUI 公共服务，并保留现有通知字符串、七个旧字号与布局。主题只提供后续组件使用的静态参数，本阶段不把旧页面改成新的视觉样式。A1 已验收的十二文件 SDK 补丁不变，字距缓存继续为 0。</p>
+<p>阶段对应 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">Issue #7</a>。B 新镜像不能继承 <a href="D07-A1_安全整改与复验记录.html">A1 正常实机结果</a>；D07 整体保持打开。</p></section>
+<section id="font"><h2>字体注册表与所有权</h2>
+<p>实现位于 <code>gui_core/iw_font.c</code> 与 <code>iw_font_port.c</code>。注册表为静态数组，共 11 项：16、18、20、22、24、26、28、30、64、80、96 px。16/18/24/28 标为兼容字号，新增组件使用主题定义的七个角色。普通字号保留 16 个字形缓存条目，大号 64/80/96 初始为 4 个，按批准预算控制 PSRAM 占用。</p>
+<table><thead><tr><th>接口</th><th>契约</th></tr></thead><tbody>
+<tr><td>iw_font_init</td><td>lv_init 后由 app_watch 绑定 GUI owner，一次注册全局 OOM 钩子，不分配字体。同一源数据与长度重复初始化成功，不允许运行中换源。源字节必须保持有效。</td></tr>
+<tr><td>iw_font_acquire</td><td>零初始化句柄，按显式 ID 延迟创建。相同 ID 共享字体，增加引用不再分配；未初始化、错误线程、非法参数、故障锁存、计数上限及创建失败返回不同结果。</td></tr>
+<tr><td>iw_font_release</td><td>调用者先删除全部引用字体的控件，再释放句柄。句柄不可复制或修改，每次 acquire 对应一次 release；释放成功将句柄清零，重复释放空句柄成功。仅减少引用，不在这里销毁字形。</td></tr>
+<tr><td>iw_font_collect</td><td>仅 GUI 主循环、LVGL 回调之外调用。零引用字体等待 GPU/LCD 空闲后才销毁；忙时返回 false 并保持字形有效。</td></tr>
+<tr><td>代际与上限</td><td>指针、ID、generation 一同验证，拒绝上一生命周期的失效句柄。单字号引用达到 UINT16_MAX 或 generation 无法再增长时先返回 LIMIT，不改变状态。不保证识别违反契约复制的同代句柄。</td></tr>
+</tbody></table>
+<p>通知页每个字号只持有一个句柄；页面内控件借用其只读字体指针。停止顺序保留为回调/定时器与插件停止、控件删除、页面字体引用释放，再由统一服务在安全点回收。主循环每 250 ms 采样一次，进入深度等待时不承诺该频率。</p></section>
+<section id="fault"><h2>故障锁存与应急层</h2>
+<p>生产 TinyTTF/EPIC 回调只增加饱和计数并锁存 pending，不打印、不删对象、不释放资源。pending 时拒绝新的字体 acquire。故障处理仍在 GUI 安全点等待渲染空闲，然后执行幂等页面停止，统一 collect 确认无存活字体后才能清除故障并显示预创建应急层。</p>
+<p>应急层继续使用独立内置位图字体；不依赖本服务重新分配。按键返回、重复退出、重新进入保持 A1 约定。确认接口不会强制销毁仍有引用的字体，也不能在其他页面仍持有字体时清除全局故障。B 当前只有通知页一个动态字体使用方；C/D 及后续路由必须在安全点释放全部相关页面使用方，不能把该确认接口当作跨页面自动回收器。</p>
+<p>LV_USE_OS_NONE 编译约束和缓存同步均保留；永久 GPU/LCD 忙导致的故障恢复期限、有限重试与受控重启仍属于 D16。</p></section>
+<section id="theme"><h2>只读主题</h2>
+<p><code>iw_theme_get()</code> 返回唯一静态只读主题；<code>iw_theme_effects()</code> 按 Q0/Q1、是否减弱动态效果选择只读参数，无堆分配或可变全局样式。非法质量等级返回空指针，非法字体角色返回 0，不静默替代字号。</p>
+<table><thead><tr><th>参数组</th><th>工程初值</th></tr></thead><tbody>
+<tr><td>几何</td><td>390×450 px，横向安全边距 18、纵向 24；间距 4/8/12/16/24；行高至少60；卡片圆角24、内边距16；按钮高60、圆角30；图标48、命中区56。</td></tr>
+<tr><td>字体角色</td><td>说明20、次级22、正文26、标题30；数值64/80/96。旧页面的16/18/24/28继续保留。</td></tr>
+<tr><td>颜色</td><td>背景000000，表面17181C，浮层25262D；正文FFFFFF，次级B9BBC6；强调0A84FF、成功30D158、警告FFD60A、错误FF453A。</td></tr>
+<tr><td>质量与动态</td><td>Q0 使用不透明表面和实色高亮；Q1 提供透明度与渐变标记。正常按下75 ms、导航250 ms、应用切换290 ms；减弱动态效果时所有时长为0，按压比例为1000‰。两档共享几何、字号和命中区。</td></tr>
+</tbody></table>
+<p>以上是本项目视觉规范的初值，不是 Apple 内部参数。B 仅冻结数据接口，C 负责实际绘制，D 展示页负责实屏对照。</p></section>
+<section id="memory"><h2>内存计量</h2>
+<p><code>iw_font_stat</code> 保留 A1 的四行诊断，并增加注册字号、总引用、存活峰值、大字缓存条目以及主堆/字形池峰值增量。字体文件56,804 B、内置位图字体、运行时主堆与预留160,000 B的PSRAM字形池分别计量。</p>
+<p>每轮从零引用进入时保存两类堆已用值；累积峰值使用系统全局堆高水位减基线的保守上界，包含其他GUI分配，不是字体独占内存，也不是同时峰值。GUI发布的计数快照在短临界区内复制；串口读取当前堆值用于稳定桌面样本，两类堆不是硬件原子联合采样。</p>
+<p>验收仍比较重复退出后的主堆和PSRAM各自稳定样本，并检查是否持续增长。残留≤32 KiB不能替代趋势检查；主机模拟的PSRAM统计只能验证通道，不能代替实物预算。</p></section>
+<section id="test"><h2>主机验证</h2>
+<table><thead><tr><th>范围</th><th>结果与边界</th></tr></thead><tbody>
+<tr><td>真实字体及EPIC故障</td><td>生产LVGL/TinyTTF与真实EPIC绘字入口，原A1的38点加注册服务创建5点、注册服务EPIC16点，共59个分配失败点通过。硬件提交与RTOS边界使用替身，保留普通分配接口断言语义。</td></tr>
+<tr><td>共享引用与回收</td><td>11个字号各两份引用，1000轮共享/释放/忙时延迟/空闲销毁/重新进入；循环末分配器回到基线。覆盖错误owner、未初始化、旧代句柄、计数上限和OOM计数饱和。首轮11个字号均经过真实EPIC数字绘制入口。</td></tr>
+<tr><td>既有页面与像素</td><td>原1000次字体生命周期、1000次正常页面和1000次故障回收/重新进入通过；4046次旧通知像素提交对照无差异。页面测试提取生产函数并替换框架边界，不等于完整主机交互UI。</td></tr>
+<tr><td>配置与工具</td><td>D07专项35项Python通过；核心43项中42项通过，1项全局Python缺少FontTools跳过，已在专项固定4.65.0环境通过。正式字体/清单检查、预算和身份防陈旧检查保留。</td></tr>
+<tr><td>主题</td><td>字号角色有效性、几何与命中区、非法枚举、Q0/Q1、减弱动态效果边界通过。未把参数测试写成主题实屏验收。</td></tr>
+</tbody></table>
+<p>复现入口：<code>firmware/tests/run-core-tests.ps1</code> 与 <code>firmware/tests/run-d07-a0-tests.ps1 -PythonPath logs/fonttools-venv/Scripts/python.exe -PatchedSdkPath work/sdk-d07-a0</code>。新增服务和主题回归接入既有入口。本地全文：<code>logs/d07-b-core.log</code>、<code>logs/d07-b-host.log</code>。</p></section>
+<section id="target"><h2>目标构建与实机复验</h2>
+<p>GCC/Keil 目标构建、当前身份与预算、三件套DryRun：待执行。B新镜像的中文通知、长文滑动、20%/80%亮度、按键返回、反复进出与两类堆稳定样本：待执行。未烧录本阶段新固件。</p>
+<p>旧通知使用七个旧字号；大号64/80/96目前只有主机绘制覆盖，目标大数字和主题外观在后续展示页验证。长文全面性能优化按A1审批安排留到主要UI成型后；不以输入队列延迟代替完整GUI刷新性能。</p>
+</section></main></div></body></html>
