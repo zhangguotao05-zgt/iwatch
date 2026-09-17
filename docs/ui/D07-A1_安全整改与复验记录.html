@@ -1,0 +1,85 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>D07-A1 安全整改与复验记录 · iwatch</title>
+  <link rel="stylesheet" href="../assets/engineering.css">
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D07-A1 安全整改与复验</span></header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录"><ul>
+      <li><a href="#status">当前状态</a></li><li><a href="#fixes">三项整改</a></li>
+      <li><a href="#host">主机回归</a></li><li><a href="#build">构建与身份</a></li>
+      <li><a href="#board">开发板复验</a></li><li><a href="#performance">长文滑动基线</a></li>
+      <li><a href="#limits">验收边界</a></li>
+    </ul></nav>
+    <main class="doc-main">
+      <h1>D07-A1 安全整改与复验记录</h1>
+      <p class="doc-meta">2026-09-17 · 审批对象 db665c8 的后续整改 · 修复源码 67a4e8e / 构建源码 5b10a24</p>
+      <section id="status"><h2>当前状态</h2>
+        <p><strong>三项整改已完成主机回归、GCC/Keil 构建、资源预算、身份检查和新 GCC 镜像实机正常路径复验，待架构复核。A1 尚未正式收口，B/C 未开始。</strong></p>
+        <p><a href="D07-A1_字体替换与渲染修复记录.html">上一轮记录</a>保留中文字形和正常使用停机的修复证据。该轮实机结果不能代替本次安全整改后的新镜像验证。</p>
+      </section>
+      <section id="fixes"><h2>三项整改</h2>
+        <h3>1. EPIC 临时字形缓冲</h3>
+        <p>生产 <code>_draw_epic_letter()</code> 原来使用普通 <code>lv_draw_buf_create()</code>。对真实入口注入第一次分配失败得到 <code>asserts=1, oom=0</code>，与审批发现一致。本次改为受控的 <code>lv_draw_buf_try_create_ex()</code>，覆盖描述符和像素缓冲两个分配分支；失败时不提交 GPU，并通过 <code>lv_tiny_ttf_report_draw_oom()</code> 通知字体 owner 锁存故障。接口先验证字体回调身份，避免把非 TinyTTF 的私有数据解释为 TinyTTF 描述符。</p>
+        <p>全局断言保持启用，普通缓冲接口的既有行为保持兼容。<code>foreground.data_size = mask_stride * glyph_height</code> 的缓存同步修复保留。SDK 变更仍纳入十二文件白名单补丁，固定 SDK 不修改。</p>
+        <h3>2. 绘制安全点回收</h3>
+        <p><code>app_clock_main_process_font_fault()</code> 只在 GUI 线程、LVGL 回调之外执行。故障待处理且 GPU/LCD 未空闲时返回等待状态，GUI 主循环保留输入采集和服务处理，但暂停 <code>lv_timer_handler()</code>，防止继续提交页面绘制。<code>lv_refreshing_done()</code> 确认空闲后才消费故障。</p>
+        <p>回收复用幂等 <code>on_stop()</code>：标记停止、取消输入、移除 tileview 回调、摘链并停止/反初始化表盘插件、删除状态栏控件、销毁字体缓存、删除 tileview、清除上下文并释放管理器，最后显示预创建应急层。不会在字体绘制或内存失败回调内删除对象。新增编译约束要求 <code>LV_USE_OS == LV_OS_NONE</code>，避免以后切到异步 LVGL 绘制线程后静默沿用当前回收假设。</p>
+        <p>应急层使用内置 Montserrat 20 位图字库，显示阶段不创建控件或替换文本。应用框架仍保留当前 clock 页面身份，既有 Home 按键路径可切回桌面，重复停止为空操作，重新进入重新建立页面和字体。故障锁存不是永久禁止进入。</p>
+        <h3>3. 正式字体输入门槛</h3>
+        <p>更新正式 <code>DroidSansFallback.subset.json</code>，绑定当前输入文案源文件哈希。<code>generate_font_subset.verify_committed()</code> 只读校验批准的源字体、实际十条通知字符串、规划字符、正式子集与正式清单。遗漏字符、文案变化、字体损坏或清单过期会报错，不自动刷新清单绕过检查。</p>
+        <p>GCC、Keil 共用的 <code>build_identity.source_snapshot()</code> 在构建开始、完成及归档复核时调用该门槛；正式回归先对仓库字体和清单执行确定性 <code>--check</code>，再测试临时产物。构建门槛不依赖 FontTools；可复现字体生成与逐字度量比较使用固定 FontTools 4.65.0。</p>
+      </section>
+      <section id="host"><h2>主机回归</h2>
+        <table><thead><tr><th>范围</th><th>方法和结果</th></tr></thead><tbody>
+          <tr><td>生产 EPIC OOM</td><td>编译实际 EPIC 绘字入口，模拟分配及硬件边界；新增 16 个绘字路径分配失败点。逐点验证故障锁存一次、失败字形不提交、再次绘制不重复报告、销毁后无残留。修复前第 1 点复现断言，修复后通过。</td></tr>
+          <tr><td>字体故障矩阵</td><td>总计 38 个失败点、1000 次字体创建销毁、10 轮旧通知缓存淘汰通过；ASan 同时覆盖 LVGL 与测试代码。</td></tr>
+          <tr><td>像素与兼容性</td><td>真实 EPIC 提交路径 4,046 次像素提交，CPU/GPU 视图不一致为 0；普通缓冲描述符分配失败仍触发原断言，未关闭全局检查。</td></tr>
+          <tr><td>页面回收与按键</td><td>提取生产故障处理、停止及 Home 按键函数，执行 1000 次正常生命周期和 1000 次延后故障回收/重新进入。忙时保留资源、空闲后回收、插件先停止、字体后释放、重复退出及再次进入全部通过。故障后 Home 返回桌面、重复按下只提交一次、释放再按请求进入 clock 均通过。GPU/LCD 空闲信号与应用框架消息边界由主机替身控制，不模拟完整 LVGL 框架。</td></tr>
+          <tr><td>正式字体及身份</td><td>D07 专项 35 项 Python 测试通过，含正式清单、过期输入、缺失/损坏字体、漏字和构建前置调用。核心回归 43 项中 42 项通过、1 项因全局 Python 未装 FontTools 跳过；同一 FontTools 检查已在专项虚拟环境完整通过。</td></tr>
+        </tbody></table>
+        <p>完整本地输出：<code>logs/d07-a1-review-before.log</code>、<code>logs/d07-a1-page-before.log</code>、<code>logs/d07-a1-formal-before.log</code>、<code>logs/d07-a1-review-host.log</code>、<code>logs/d07-a1-review-core.log</code>。主机注入不等价于在开发板上制造实际堆耗尽。</p>
+      </section>
+      <section id="build"><h2>构建与身份</h2>
+        <p>构建源码提交 <code>5b10a24</code>（包含 <code>67a4e8e</code> 三项整改及目标接口声明补齐）；固定 SDK 提交 <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code>；受控补丁 SHA-256 <code>b1cea431099d2c247c563c1e6643468b88b01a799416d72ebf460d025d17db64</code>。</p>
+        <p>正式 TTF 保持 56,804 B，SHA-256 <code>4f69f4ba565598e217501e7985bfdc7ccfd68d0bed472325218d01e89bbe284f</code>；内置位图字库、图片及主堆/PSRAM 字形池仍分别计量。</p>
+        <table><thead><tr><th>工具链</th><th>main / 6 MiB 槽占用</th><th>main SHA-256</th></tr></thead><tbody>
+          <tr><td>GCC</td><td>1,864,068 B / 29.629%</td><td><code>57e86cbb06344d122b3e514a2781f2b321b438b540fc6eeac9a0fcdfeb55976e</code></td></tr>
+          <tr><td>Keil</td><td>1,791,360 B / 28.473%</td><td><code>24b08080b7f1adeb63b66ff09a5389ef4bd894ea034d2f5a75a5b9f888e9b369</code></td></tr>
+        </tbody></table>
+        <p>GCC/Keil 构建、独立归档身份复核和 COM255 DryRun 均通过。内置位图字库为 51,335 B，图片为 866,577 B，两套结果一致。GCC map SHA-256 为 <code>cd9664251083202f68ce419e1034b172f870454af8b1b0e91a8f3c500a5acb20</code>；Keil 为 <code>88527a3d533efe72acc0d47cbc71cb25ec01e812fbd0dc76ca70e481ed7438a4</code>，文件首行及结构均符合相应工具链。</p>
+        <p>完整构建输出保存为 <code>logs/d07-a1-review-gcc.log</code>、<code>logs/d07-a1-review-keil.log</code>。首次 GCC 构建因 SDK 空闲探测接口缺少声明被阻止；补充与 SDK 定义一致的声明后从干净输出目录重建通过。失败日志保留为 <code>logs/d07-a1-review-gcc-initial-failed.log</code>，未烧录失败产物。</p>
+      </section>
+      <section id="board"><h2>开发板复验</h2>
+        <p>2026-09-17 11:49 通过 COM9 写入 GCC Bootloader、main、FTab，同一归档三件套启用写后校验，包装脚本退出码 0。用户取下 Mode 跳帽后复位；本轮不增加断电冷启动结论。COM10 按 1,000,000 baud 保存原始串口。没有操作 J-Link 或其他项目串口。</p>
+        <table><thead><tr><th>检查项</th><th>实际结果</th></tr></thead><tbody>
+          <tr><td>启动与驱动</td><td>启动记录 1 次；CO5300 ID 0x331100、FT6146 ID_H=0x64 / ID_L=0x56 有原始输出。没有断言、HardFault 或操作期间重启。</td></tr>
+          <tr><td>实屏与操作</td><td>20% 亮度下通知长文及 3 次进出、80% 下追加进出及长文上下滚动，用户均回复“正常”。按键返回桌面正常；原始日志实际记录 8 次 ONSTART/ONSTOP/DESTROY。</td></tr>
+          <tr><td>亮度结果</td><td>request 1/2 均 terminal code=1、ACK=0，desired/applied 为 20/20 和 80/80，error=0。</td></tr>
+          <tr><td>主堆</td><td>启动桌面 59,660 B；第 3 次退出后两次、第 8 次退出后两次均 59,660 B。峰值 113,828 B，相对桌面增加 54,168 B。</td></tr>
+          <tr><td>PSRAM 字形池</td><td>预留 160,000 B；上述五次桌面样本均已用 72 B。峰值 35,372 B，相对桌面增加 35,300 B。退出后存活字体、pending 和 idle_delta 均为 0，本轮无持续增长。</td></tr>
+          <tr><td>线程栈</td><td>app_watch 16 KiB / 31%；tpread 2 KiB / 39%；lcd_task 2 KiB / 44%。</td></tr>
+          <tr><td>输入与错误</td><td>51 个队列样本，P95=65 ms、最大 89 ms，accepted=consumed=51，rejected/discarded/pending=0。create/metadata/bitmap/fallback 全为 0；本轮没有在开发板上制造堆耗尽。</td></tr>
+        </tbody></table>
+        <p>两个独立堆峰值增量之和为 89,468 B，低于 512 KiB 门槛；不将独立峰值解释为同时发生的采样。实屏观察为用户文字确认，无新增照片。</p>
+        <p>本地证据目录 <code>logs/board-validation-20260917-d07-a1-safety/</code> 包含完整烧录输出、双工具链身份/预算、主机及构建全文、命令时间线、原始串口和结构化提取结果。原始串口 <code>com10-live.bin</code> 为 74,676 B，SHA-256 <code>570762b872353186a429146114bb65dd5fb112ac199b40e4da9f00e3716655aa</code>；时间线 SHA-256 <code>476c7b7bbb865a24fced6a598aa216ae8245de2cb3f6f490f33cc4e7a2a579f7</code>；烧录全文 SHA-256 <code>d8db3d2aef3302612c77957a9d9b870f347abb1a7a00da93af9b60cacc849e7e</code>。日志保存在本地，不随源码上传。</p>
+      </section>
+      <section id="performance"><h2>长文滑动基线</h2>
+        <p>固定场景为 SF32LB58 A128、390×450 QSPI AMOLED、当前 GCC 镜像、80% 亮度、通知页“我们是谁”长正文，上下往返滚动约 20 秒。记录首次进入和重复进入，区分滑动区间与首尾静止区间。</p>
+        <p>使用固定 SDK 现有 <code>lcd_ctrl fps 1</code> 打开统计，结束后执行 <code>lcd_ctrl fps 0</code>。驱动每个大于 2 秒的窗口输出 <code>fps</code>、<code>flush_time[min~max]</code> 和错误计数。此处 fps 是 LCD 绘制/传输完成次数率，可能包含局部更新，<strong>不等同于完整 GUI 帧率或 OLED 扫描率</strong>。flush_time 来自 <code>rt_tick_get()</code>，本配置 1000 tick/s，1 tick = 1 ms；窗口整数秒和静止间隔会影响显示值。</p>
+        <p>本轮保存传输侧原始窗口和现场交互描述，作为后续相同场景的可复现基线。没有增加 30 FPS 放行线；输入 P95 只报告队列延迟，不代替刷新指标。全面排版、分配、缓存和传输优化仍安排在主要 UI 页面成型后。</p>
+        <p><strong>本次基线：</strong>80% 亮度操作段取得 16 个驱动窗口。首个窗口包含此前静止间隔，速率为 0，保留原值但不用于滑动比较；其余 15 个窗口完成次数率为 6–31 次/秒，flush_time 总范围 1–32 ms，驱动错误计数均为 0。原始日志前缀从 GTimer 6,302,118 到 7,393,715，按 32,768 Hz 换算跨度约 33.31 秒。</p>
+        <p>这些窗口覆盖进入、导航、正文滑动及退出动画，未按触摸手势隔离纯正文的 20 秒片段，因此仅作为本次混合操作的传输基线，不据此计算纯正文平均 FPS 或单帧 P95。用户对文字、操作和停顿询问回复“正常”。统计已用 <code>lcd_ctrl fps 0</code> 关闭，后续专项优化应固定手势轨迹并补完整 GUI 帧完成计量。</p>
+      </section>
+      <section id="limits"><h2>验收边界</h2>
+        <p>主机注入、双工具链构建、实机验证分别记录。当前空闲等待保证不在 GPU/LCD 占用资源时回收；永久显示故障的有限重试和受控重启属于 D16。本次不宣称持续堆耗尽下任何绘制都保证成功，也不启用外部资源持久化、D15 亮度保存或 B/C 新组件。</p>
+        <p><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">Issue #7</a> 保持打开，待整改证据齐备后交架构复核。</p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>

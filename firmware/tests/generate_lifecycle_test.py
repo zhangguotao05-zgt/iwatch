@@ -14,6 +14,7 @@ def function(source, signature):
 clock = (BASE/'clock/app_clock_main.c').read_text(encoding='utf-8')
 menu = (BASE/'main/app_mainmenu.c').read_text(encoding='utf-8')
 bar = (BASE/'clock/app_clock_status_bar.c').read_text(encoding='utf-8')
+watch = (BASE/'watch_demo.c').read_text(encoding='utf-8')
 
 # 替身仅模拟所有权与失败返回，完整 LVGL 行为留给目标构建和板测。
 prefix = r'''
@@ -108,6 +109,19 @@ static void tileview_event_cb_t(lv_event_t *e) { (void)e; }
 static bool font_fault_pending, rendering_idle = true;
 static unsigned font_fallbacks;
 static void *clock_fonts;
+#define LV_INDEV_STATE_REL 0
+#define LV_INDEV_STATE_PR 1
+#define LV_KEY_HOME 2
+#define LV_KEY_ESC 3
+#define LV_BLOCK_EVENT 1
+static bool menu_active;
+static unsigned menu_requests, clock_requests;
+static bool gui_app_is_actived(const char *id) { assert(strcmp(id,"Main")==0);return menu_active; }
+static void gui_app_run(const char *id) {
+    if(strcmp(id,"Main")==0) { menu_requests++;menu_active=true; }
+    else { assert(strcmp(id,"clock")==0);clock_requests++;menu_active=false; }
+}
+static void gui_app_goback(void) { gui_app_run("Main"); }
 static bool lv_refreshing_done(void) { return rendering_idle; }
 static bool app_clock_main_status_bar_font_fault_pending(void) { return font_fault_pending; }
 static bool app_clock_main_status_bar_take_font_fault(void) { bool pending=font_fault_pending; font_fault_pending=false; return pending; }
@@ -119,6 +133,7 @@ clock_functions = '\n'.join(function(clock, sig) for sig in [
     'static void on_stop(void)',
     'bool app_clock_main_process_font_fault(void)',
     'int32_t app_clock_register(const char *id, const app_clock_ops_t *operations)'])
+clock_functions += '\n' + function(watch, 'static int32_t default_keypad_handler(lv_key_t key, lv_indev_state_t event)')
 clock_test = r'''
 int main(void) {
     for(int cycle=0;cycle<1000;cycle++) {
@@ -157,8 +172,17 @@ int main(void) {
         rendering_idle=true;assert(!app_clock_main_process_font_fault());
         assert(!p_app_clock_main && !clock_fonts && !screen.child && !initialized_plugins && live==0);
         assert(font_fallbacks==(unsigned)cycle+1);
+        /* 生产按键路由不依赖已回收的页面；重复按下只提交一次返回。 */
+        menu_active=false;
+        assert(default_keypad_handler(LV_KEY_HOME,LV_INDEV_STATE_PR)==LV_BLOCK_EVENT);
+        default_keypad_handler(LV_KEY_HOME,LV_INDEV_STATE_PR);
+        assert(menu_active && menu_requests==(unsigned)cycle+1);
+        default_keypad_handler(LV_KEY_HOME,LV_INDEV_STATE_REL);
         assert(!app_clock_main_process_font_fault());on_stop();on_stop();
         assert(!font_fault_pending && live==0);
+        default_keypad_handler(LV_KEY_HOME,LV_INDEV_STATE_PR);
+        default_keypad_handler(LV_KEY_HOME,LV_INDEV_STATE_REL);
+        assert(!menu_active && clock_requests==(unsigned)cycle+1);
     }
     puts("Clock teardown/failure tests passed (1000 normal + 1000 deferred font fault/reentry cycles)");return 0;
 }
