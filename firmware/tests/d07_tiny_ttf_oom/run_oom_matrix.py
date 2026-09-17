@@ -36,8 +36,9 @@ def run_matrix(executable, font, repeat_count):
             total += 1
     repeat = run_case(executable, font, "repeat", repeat_count, timeout=60)
     eviction = run_case(executable, font, "evict", 10, timeout=30)
-    print("TINY_TTF OOM OK: {} failure points; {} lifecycle loops; {}; {}; {}".format(
-        total, repeat_count, compatibility, repeat, eviction))
+    pixels = run_case(executable, font, "pixels", 2, timeout=60)
+    print("TINY_TTF OOM OK: {} failure points; {} lifecycle loops; {}; {}; {}; {}".format(
+        total, repeat_count, compatibility, repeat, eviction, pixels))
 
 
 def main():

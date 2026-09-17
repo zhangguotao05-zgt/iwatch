@@ -54,10 +54,15 @@
       "base_sha256": "b758d58da2016f02fd8503a747a362a0037e5adb11752caa86b9c2a0568970d1",
       "patched_sha256": "e47d5ca2475171eab1afa45e87d5cac7ecd414bececc1fba87e1f64bdc5d3461",
       "path": "external/lvgl_v9/src/misc/lv_rb.h"
+    },
+    {
+      "base_sha256": "d27462afb03b4a0443b90c64406941229a2cc9a711db42a3f28570a26fb3f4d6",
+      "patched_sha256": "6dd2049b6fc82cffe9577891c22da0096c6662ee4442f4757789aad87f4c8483",
+      "path": "middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c"
     }
   ],
   "patch_file": "firmware/patches/lvgl-v9-tiny-ttf-oom.patch",
-  "patch_sha256": "ac5eb8a5935e3d8e6b26ca845a2d6dbe28cc7ad4b46df48093afe91a0a7c233a",
+  "patch_sha256": "efb7e5489abd1dec9d61e396a6902bbe8f13ed049b208d6e7bbfbea3fc1e390c",
   "schema": 1,
   "sdk_commit": "421126d9f476ed8e2a6f0b0ca28a9f241c182e65"
 }

@@ -272,7 +272,10 @@ static uint32_t test_utf8_next(const char * text, uint32_t * offset)
     return codepoint;
 }
 
-static int run_multi_font_evict(const uint8_t * data, size_t size, size_t iterations)
+int test_epic_glyph(lv_font_glyph_dsc_t *glyph);
+int test_epic_result(void);
+
+static int run_multi_font_evict(const uint8_t * data, size_t size, size_t iterations, bool draw_pixels)
 {
     static const int32_t font_sizes[] = {16, 18, 20, 22, 24, 26, 28};
     static const char * texts[] = {
@@ -284,12 +287,17 @@ static int run_multi_font_evict(const uint8_t * data, size_t size, size_t iterat
         "思澈科技成立於2019年3月，總部位於上海張江高科技園區，在重慶、北京、深圳、蘇州均設有分子公司，團隊成員均來自於美國、中國的一線電晶體設計企業，包括Marvell、 Broadcom、Amazon、 紫光展銳、聯發科等，碩士以上學歷占比超過80%； 團隊骨幹具有豐富的產品定義->自主研發->大規模量產的全流程經驗，由這些骨幹成員主導研發的晶片累計出貨超過10億顆。"
     };
     lv_font_t * fonts[sizeof(font_sizes) / sizeof(font_sizes[0])] = {0};
+    lv_font_t * references[sizeof(font_sizes) / sizeof(font_sizes[0])] = {0};
     size_t initial_blocks = live_blocks;
     size_t initial_bytes = live_bytes;
 
     for(size_t i = 0; i < sizeof(fonts) / sizeof(fonts[0]); i++) {
         fonts[i] = create_font(data, size, font_sizes[i]);
         if(fonts[i] == NULL) return 14;
+        if(draw_pixels) {
+            references[i] = lv_tiny_ttf_create_data_ex(data, size, font_sizes[i], LV_FONT_KERNING_NORMAL, 0);
+            if(references[i] == NULL) return 17;
+        }
     }
 
     for(size_t pass = 0; pass < iterations; pass++) {
@@ -303,16 +311,37 @@ static int run_multi_font_evict(const uint8_t * data, size_t size, size_t iterat
                     lv_font_glyph_dsc_t glyph;
                     memset(&glyph, 0, sizeof(glyph));
                     if(!lv_font_get_glyph_dsc(fonts[i], &glyph, codepoint, next)) continue;
+                    if(draw_pixels && glyph.box_w && glyph.box_h) {
+                        /* 对比缓存字形与重新光栅化的字形，随后让真实 EPIC 适配层提交像素。 */
+                        lv_font_glyph_dsc_t reference = {0};
+                        if(!lv_font_get_glyph_dsc(references[i], &reference, codepoint, next)) return 18;
+                        const lv_draw_buf_t * actual = lv_font_get_glyph_bitmap(&glyph, NULL);
+                        const lv_draw_buf_t * expected = lv_font_get_glyph_bitmap(&reference, NULL);
+                        if(!actual || !expected || glyph.box_w != reference.box_w ||
+                           glyph.box_h != reference.box_h || glyph.adv_w != reference.adv_w) return 19;
+                        for(uint32_t row = 0; row < glyph.box_h; row++) {
+                            if(memcmp(actual->data + row * actual->header.stride,
+                                      expected->data + row * expected->header.stride, glyph.box_w)) return 20;
+                        }
+                        lv_font_glyph_release_draw_data(&reference);
+                        lv_font_glyph_release_draw_data(&glyph);
+                        (void)test_epic_glyph(&glyph);
+                    }
                 }
             }
         }
     }
 
-    for(size_t i = 0; i < sizeof(fonts) / sizeof(fonts[0]); i++) lv_tiny_ttf_destroy(fonts[i]);
+    for(size_t i = 0; i < sizeof(fonts) / sizeof(fonts[0]); i++) {
+        lv_tiny_ttf_destroy(fonts[i]);
+        if(references[i]) lv_tiny_ttf_destroy(references[i]);
+    }
     int ok = assert_count == 0 && oom_count == 0 &&
              live_blocks == initial_blocks && live_bytes == initial_bytes;
-    printf("stage=evict passes=%zu oom=%u asserts=%u live_blocks=%zu live_bytes=%zu result=%s\n",
-           iterations, oom_count, assert_count, live_blocks, live_bytes, ok ? "ok" : "failed");
+    if(draw_pixels && test_epic_result() != 0) ok = 0;
+    printf("stage=%s passes=%zu oom=%u asserts=%u live_blocks=%zu live_bytes=%zu result=%s\n",
+           draw_pixels ? "pixels" : "evict", iterations, oom_count, assert_count, live_blocks,
+           live_bytes, ok ? "ok" : "failed");
     return ok ? 0 : 16;
 }
 
@@ -345,7 +374,7 @@ static int run_draw_buf_compat(void)
 int main(int argc, char ** argv)
 {
     if(argc != 4) {
-        fprintf(stderr, "usage: test_tiny_ttf_oom <font.ttf> <create|metadata|bitmap|repeat|evict|compat> <number>\n");
+        fprintf(stderr, "usage: test_tiny_ttf_oom <font.ttf> <create|metadata|bitmap|repeat|evict|pixels|compat> <number>\n");
         return 64;
     }
 
@@ -368,7 +397,8 @@ int main(int argc, char ** argv)
     else if(strcmp(argv[2], "metadata") == 0) result = run_metadata(font_data, font_size, (size_t)parsed);
     else if(strcmp(argv[2], "bitmap") == 0) result = run_bitmap(font_data, font_size, (size_t)parsed);
     else if(strcmp(argv[2], "repeat") == 0) result = run_repeat(font_data, font_size, (size_t)parsed);
-    else if(strcmp(argv[2], "evict") == 0) result = run_multi_font_evict(font_data, font_size, (size_t)parsed);
+    else if(strcmp(argv[2], "evict") == 0) result = run_multi_font_evict(font_data, font_size, (size_t)parsed, false);
+    else if(strcmp(argv[2], "pixels") == 0) result = run_multi_font_evict(font_data, font_size, (size_t)parsed, true);
     else if(strcmp(argv[2], "compat") == 0) result = run_draw_buf_compat();
     else result = 67;
 

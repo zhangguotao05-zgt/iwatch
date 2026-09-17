@@ -794,3 +794,16 @@ index bec0a788f72804e4e3bfd3ad033e7c5eb4835a24..7398630f736d10a394252a7e6136c8ef
  lv_rb_node_t * lv_rb_find(lv_rb_t * tree, const void * key);
  void * lv_rb_remove_node(lv_rb_t * tree, lv_rb_node_t * node);
  void * lv_rb_remove(lv_rb_t * tree, const void * key);
+diff --git a/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c b/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c
+index 3d5323e92cc5f40a287815ec5ba645876149bac9..45e7845e2f42c69c0870bf5fd77cf03c8c428a01 100644
+--- a/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c
++++ b/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c
+@@ -342,6 +342,8 @@ void print_letter_map(uint32_t letter, const uint8_t *map_p, uint16_t box_w, uin
+                     input_layers[1].height = glyph_height;
+                     input_layers[1].color_mode = EPIC_INPUT_A8;
+                     input_layers[1].total_width = mask_stride;
++                    /* 连续绘制按此长度清理 D-cache；必须覆盖 A8 字形的全部行及填充。 */
++                    input_layers[1].data_size = mask_stride * glyph_height;
+ 
+                     LV_EPIC_LOG("glyph_draw_dsc->bitmap %p, color=%u, w=%u, h=%u, stride=%u",
+                                input_layers[1].data, lv_color_to_u32(glyph_draw_dsc->color),
