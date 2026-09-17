@@ -26,12 +26,21 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'Host input test compilation failed.' }
     & (Join-Path $outputDir 'test_input_queue.exe')
     if ($LASTEXITCODE -ne 0) { throw 'Host input tests failed.' }
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$coreDir" /Fetest_keys.exe (Join-Path $PSScriptRoot 'test_keys.c') (Join-Path $coreDir 'iw_keys.c')
+    if ($LASTEXITCODE -ne 0) { throw 'D09 双键状态机测试编译失败。' }
+    & ./test_keys.exe
+    if ($LASTEXITCODE -ne 0) { throw 'D09 双键状态机测试失败。' }
     & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$coreDir" /Fetest_gui_wait.exe (Join-Path $PSScriptRoot 'test_gui_wait.c') (Join-Path $coreDir 'iw_gui_wait.c') (Join-Path $coreDir 'iw_input_queue.c') (Join-Path $coreDir 'iw_display_guard.c')
     if ($LASTEXITCODE -ne 0) { throw 'GUI 等待测试编译失败。' }
     & ./test_gui_wait.exe
     if ($LASTEXITCODE -ne 0) { throw 'GUI 等待与恢复测试失败。' }
     $platformDir = Join-Path $firmwareDir 'iwatch/src/platform'
     $serviceDir = Join-Path $firmwareDir 'iwatch/src/services'
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$PSScriptRoot/key_port_mocks" "/I$coreDir" "/I$platformDir" /Fetest_key_port.exe (Join-Path $PSScriptRoot 'test_key_port.c') (Join-Path $coreDir 'iw_keys.c') (Join-Path $coreDir 'iw_input_queue.c')
+    if ($LASTEXITCODE -ne 0) { throw 'D09 实体键适配测试编译失败。' }
+    & ./test_key_port.exe
+    if ($LASTEXITCODE -ne 0) { throw 'D09 实体键适配测试失败。' }
+
     & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od "/I$coreDir" "/I$platformDir" "/I$PSScriptRoot/mocks" /Fetest_gui_port.exe (Join-Path $PSScriptRoot 'test_gui_port.c') (Join-Path $platformDir 'iw_gui_port.c') (Join-Path $coreDir 'iw_gui_wait.c')
     if ($LASTEXITCODE -ne 0) { throw 'GUI 事件适配测试编译失败。' }
     & ./test_gui_port.exe

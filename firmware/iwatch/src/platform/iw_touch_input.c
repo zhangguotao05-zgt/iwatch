@@ -64,5 +64,7 @@ bool iw_touch_input_init(void)
     gui_thread = rt_thread_self();
     touch_device = device;
     lv_indev_set_read_cb(pointer, touch_input_read);
+    lv_indev_set_long_press_time(pointer, 500);
+    lv_indev_set_scroll_limit(pointer, 12);
     return true;
 }

@@ -12,7 +12,9 @@ typedef enum
     IW_INPUT_RELEASE,
     IW_INPUT_LONG,
     IW_INPUT_CLICK,
-    IW_INPUT_CANCEL
+    IW_INPUT_CANCEL,
+    IW_INPUT_ROTATE,
+    IW_INPUT_CONTEXT
 } iw_input_action_t;
 
 typedef struct

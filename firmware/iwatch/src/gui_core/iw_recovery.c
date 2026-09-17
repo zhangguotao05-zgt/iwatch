@@ -54,3 +54,5 @@ void iw_recovery_hide(const char *owner)
         recovery_owner = NULL;
     }
 }
+
+bool iw_recovery_visible(void) { return recovery_owner != NULL; }

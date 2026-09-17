@@ -140,6 +140,7 @@ bool iw_components_demo_process(void)
         rt_kprintf("component demo injected=owner_cleanup_only\n");
         return true;
     }
+    iw_gui_cancel_input();
     iw_gui_fault_dismiss();
     (void)iw_component_destroy(&frame);
     if (command == DEMO_CLOSE) { rt_kprintf("component demo closed\n"); return false; }
@@ -178,3 +179,5 @@ static void iw_gallery(int argc, char **argv)
     request(GALLERY_BASE + (argv[1][0] - '0') * GALLERY_VARIANTS + (argv[2][0] - '0') * 2 + argv[3][0] - '0');
 }
 MSH_CMD_EXPORT(iw_gallery, Component state and motion gallery);
+
+bool iw_components_demo_active(void) { return frame.object != NULL; }

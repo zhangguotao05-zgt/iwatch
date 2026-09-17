@@ -118,12 +118,13 @@ static void *clock_fonts;
 static bool menu_active;
 static unsigned menu_requests, clock_requests;
 static bool iw_components_demo_home(void) { return false; }
-static bool iw_router_back(void) { return false; }
+
 static bool gui_app_is_actived(const char *id) { assert(strcmp(id,"Main")==0);return menu_active; }
 static void gui_app_run(const char *id) {
     if(strcmp(id,"Main")==0) { menu_requests++;menu_active=true; }
     else { assert(strcmp(id,"clock")==0);clock_requests++;menu_active=false; }
 }
+static bool iw_router_home(void) { gui_app_run(menu_active ? "clock" : "Main"); return true; }
 static void gui_app_goback(void) { gui_app_run("Main"); }
 static bool lv_refreshing_done(void) { return rendering_idle; }
 static bool iw_font_fault_pending(void) { return font_fault_pending; }

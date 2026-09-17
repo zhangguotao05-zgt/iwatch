@@ -83,8 +83,10 @@ static rt_size_t rt_device_read(rt_device_t device, rt_off_t pos, void *buffer, 
 }
 #include "touch_input_under_test.inc"
 
-static unsigned home_pending;
-static bool keypad_release_next;
+#include "iw_keys.h"
+#include "iw_key_feedback.h"
+static iw_input_context_t touch_context;
+static iw_input_context_t iw_key_port_context(void) { return touch_context; }
 /* 按目标固件条件编译真实全局取消函数，不走 Windows 模拟器分支。 */
 #ifdef _WIN32
 #undef _WIN32
@@ -197,6 +199,14 @@ static void pointer_read(lv_indev_t *pointer)
 int test_touch_input(size_t loops)
 {
     queue_cases();
+    assert(iw_key_feedback_init() && iw_key_feedback_init());
+    assert(lv_obj_get_child_count(lv_layer_top()) == 2);
+    lv_obj_t *indicator = lv_obj_get_child(lv_layer_top(), 0);
+    assert(lv_obj_has_flag(indicator, LV_OBJ_FLAG_HIDDEN));
+    iw_key_feedback_set(0, true);
+    assert(!lv_obj_has_flag(indicator, LV_OBJ_FLAG_HIDDEN));
+    iw_key_feedback_cancel();
+    assert(lv_obj_has_flag(indicator, LV_OBJ_FLAG_HIDDEN));
     test_font_owner(true, true);
     assert(!iw_touch_input_init());
     lv_indev_t *pointer = lv_indev_create();
@@ -224,8 +234,8 @@ int test_touch_input(size_t loops)
             pointer_read(pointer);
         }
         else {
-            fill_queue(); home_pending = 2; keypad_release_next = true;
-            input_cancel_lvgl(); assert(!home_pending && !keypad_release_next);
+            fill_queue();
+            input_cancel_lvgl();
             pointer_read(pointer);
         }
         /* 固定 SDK 用 INDEV_RESET 取消手势；还要验证实际按下样式和动作已清理。 */
@@ -246,6 +256,21 @@ int test_touch_input(size_t loops)
         input_cancel_lvgl(); pointer_read(pointer); close_page(&frame);
         assert(test_font_live_blocks() == blocks && test_font_live_bytes() == bytes);
     }
+    /* 水锁期间吞掉触摸；解除后旧按压仍不能触发点击。 */
+    iw_component_t locked_frame = {0}, locked_button = {0};
+    create_page(&locked_frame, &locked_button);
+    actions = presses = resets = 0;
+    touch_context = IW_INPUT_WATER; input_cancel_lvgl();
+    write_sample(TOUCH_EVENT_DOWN, 150); pointer_read(pointer);
+    assert(!actions && !presses);
+    touch_context = IW_INPUT_NORMAL; input_cancel_lvgl();
+    write_sample(TOUCH_EVENT_DOWN, 150); pointer_read(pointer);
+    assert(!actions && !presses);
+    write_sample(TOUCH_EVENT_UP, 150); pointer_read(pointer);
+    write_sample(TOUCH_EVENT_DOWN, 150); pointer_read(pointer);
+    write_sample(TOUCH_EVENT_UP, 150); pointer_read(pointer);
+    assert(actions == 1);
+    input_cancel_lvgl(); close_page(&locked_frame);
     lv_indev_delete(pointer);
     assert(!mutex_depth && !test_font_assert_count() && wakes);
     printf("touch_input queue_wrap=100 overflow_cycles=300 counter_saturation=ok cross_page_loops=%zu asserts=0 result=ok\n", loops);

@@ -13,7 +13,7 @@ void iw_input_queue_init(iw_input_queue_t *queue)
 
 bool iw_input_queue_push(iw_input_queue_t *queue, iw_input_event_t event)
 {
-    if ((unsigned)event.action > IW_INPUT_CLICK)
+    if ((unsigned)event.action > IW_INPUT_CONTEXT || event.action == IW_INPUT_CANCEL)
     {
         count_add(&queue->stats.rejected, 1);
         return false;

@@ -9,6 +9,7 @@
 #include <stdio.h>
 #include <string.h>
 
+extern void iw_gui_cancel_input(void);
 extern void test_font_owner(bool owner, bool idle);
 extern size_t test_font_live_bytes(void);
 extern size_t test_font_live_blocks(void);
@@ -37,6 +38,7 @@ static int rt_kprintf(const char *format, ...)
 static bool app_clock_main_process_font_fault(void) { return iw_gui_fault_process(); }
 /* 路由与真实框架的集成另由 D08 入口测试覆盖，本组只测原展示页调度。 */
 static bool iw_router_process(void) { return false; }
+static void input_service(void) { assert(!irq_depth); }
 static uint32_t simulated_frame(void)
 {
     submissions++;

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<title>D09 双键语义与输入仲裁实施记录 · iwatch</title><link rel="stylesheet" href="../assets/engineering.css"></head>
+<body><header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D09 输入与导航</span></header>
+<div class="page-shell"><nav class="toc"><ul><li><a href="#status">状态</a></li><li><a href="#design">实现</a></li><li><a href="#contract">时序及取消</a></li><li><a href="#tests">验证</a></li><li><a href="#board">实机步骤</a></li><li><a href="#limits">边界</a></li></ul></nav>
+<main class="doc-main"><h1>D09 双键语义与输入仲裁实施记录</h1>
+<p class="doc-meta">2026-09-17 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/11">Issue #11</a> · 接续 D08 收口提交 e5f8e41</p>
+<section id="status"><h2>状态</h2><p>D09 已进入本地实现及回归阶段，Issue #11 保持打开。D08 的基础实现按已知风险接受放行；显示异常 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/10">#10</a> 仍未定位，性能 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/8">#8</a> 继续跟踪，历史最大 215 ms 不被本轮采样替代。</p>
+<table><thead><tr><th>层次</th><th>结论</th></tr></thead><tbody><tr><td>主机</td><td>双键纯 C 与真实生产适配入口的 1000 轮测试通过；真实 LVGL、字体/组件/路由最终回归通过；44 项 Python 测试通过（1 项按环境跳过），下节记录覆盖范围。</td></tr><tr><td>目标</td><td>GCC / Keil 待构建及独立身份、预算、DryRun 校验。</td></tr><tr><td>实机</td><td>待本轮镜像写后校验与复验；不继承 D08 板测结论。</td></tr><tr><td>审批</td><td>未申请最终收口，不进入 D10 实现。</td></tr></tbody></table></section>
+<section id="design"><h2>实现与所有权</h2><table><thead><tr><th>模块</th><th>责任</th></tr></thead><tbody>
+<tr><td>iw_keys</td><td>无堆分配的纯 C 识别器，两个独立状态槽。一次调用最多输出三个语义；无符号时间差支持节拍回绕，间隔限制为半周期以内。</td></tr>
+<tr><td>iw_key_port</td><td>SDK 回调只采集 PRESS / RELEASE，在短 IRQ 临界区排入固定 16 项队列并唤醒；忽略 SDK CLICK / LONG。GUI 每轮最多消费八项或 2 ms，统一到期结算、上下文切换和有符号旋转合并。GPIO 读取在 IRQ 临界区外。</td></tr>
+<tr><td>watch_demo</td><td>GUI 所有者执行仲裁、触摸取消、唤醒和反馈。新页面进入 LVGL 读输入前再次兑现取消；监测 SDK app / page / userdata 及忙状态，旧页面未决组合不能带到新页。</td></tr>
+<tr><td>iw_router</td><td>Home 与 Back 分离。Home 锁定绝对目标，等待在途事务完成，再使用公开 SDK 入口切 app / 回 root，并通过快照确认。重复请求合并；受理或目标确认最多三次尝试，失败走应急层。应急返回固定去桌面。</td></tr>
+<tr><td>iw_key_feedback</td><td>启动时预创建两个无字体、无动画的小指示条；GUI 收到按下即显示，释放或取消隐藏。初始化对象分配失败时回滚并记录不可用，不在输入回调分配对象。</td></tr>
+</tbody></table><p>实体输入绑定 HCPU BSP 的 KEY1=150、KEY2=152，均按当前板级配置使用高电平有效。SDK 注册槽没有释放 API：初始化失败禁用已注册按键、禁止回调入队，保留句柄供同一 GUI 所有者重试。SDK 内部注册断言路径不在本轮补丁范围。</p></section>
+<section id="contract"><h2>时序、仲裁和取消</h2><ul>
+<li>消抖沿用 SDK 20 ms。首次释放后开启 280 ms 窗口；第二次按下必须严格早于截止，且完整释放后才确认双击。恰好到期按下按两次独立手势处理；若首个动作切页，后续按压等待释放后重新开始。</li>
+<li>表冠长按 800 ms、侧键长按 1500 ms、水锁表冠退出 2000 ms。长按一旦成立，松手不再发单击；第二击变成长按时，也不补发第一击单击。</li>
+<li>GUI 等待时间取 LVGL 期限与按键识别期限的较小值。无新边沿时仍能确认单击、长按；存在排队边沿时先按其时间顺序消费，不用当前轮询时刻跳过队列。</li>
+<li>队列溢出、切页、全局取消清理未决组合及旋转。等待 SDK 的真实释放边沿，或在队列排空后连续采样到稳定释放 20 ms 才恢复。原始释放与二次按下被丢弃时不能合并手势。第一次改变页面的语义产生后，同批其他结果取消。</li>
+<li>优先级：应急恢复 → 水锁 → 输入锁 → 关键提醒 → 普通覆盖层 → 编辑/滚动 → 全局。真实应急层和组件覆盖层已接入；其余上下文可通过诊断注入验证，完整页面留后续阶段。</li>
+<li>KEY1 单击：表盘/普通 App → 图标桌面；图标桌面根页 → 表盘；组件覆盖层优先关闭。KEY2 单击为控制中心语义，双击分别为切换器/钱包，长按分别为语音/电源；当前未实现目标明确返回 unavailable，不误触 Home。</li>
+<li>旋转一轮合并并限幅到 ±32 步，每步 24 px；仅当前 D08 诊断页滚动容器实际接入。触摸按压、积压样本或等待释放时丢弃旋转，不在松手后重放。普通页面焦点、数值编辑、表盘叠放在相应正式页面接入时实现。</li>
+<li>触摸长按设 500 ms、拖动阈值 12 px，分发由真实 LVGL 处理。水锁/输入锁禁用触摸读入并复位手势；水锁期间触摸溢出不会打断表冠解锁计时，解除后仍需释放再开始新手势。</li>
+</ul></section>
+<section id="tests"><h2>主机覆盖与证据边界</h2><table><thead><tr><th>测试</th><th>覆盖</th></tr></thead><tbody>
+<tr><td>test_keys.c</td><td>1000 轮：单/双击边界、第二击释放超窗、长按与单击互斥、两键独立、重复边沿、uint32 回绕、过期边沿取消、稳定释放、上下文矩阵及旋转整数极值。</td></tr>
+<tr><td>test_key_port.c</td><td>编译真实 iw_key_port.c，仅替换 RTOS/GPIO。1000 轮硬件回调与期限、满队列丢边沿、跨页同批取消、水锁解锁、旋转与触摸竞争；另测注册失败回滚重试、SDK 合成动作过滤、采样期间入队和诊断参数边界。</td></tr>
+<tr><td>真实 LVGL</td><td>保留字体 59 个失败点、4046 次 EPIC 像素对照、组件/路由 OOM 和生命周期。路由新增 1000 轮 Home 与 Back 区分、转场中合并、三次失败、应急返回及旋转；触摸覆盖原 300 次溢出、1000 次跨页取消，并补水锁解除无穿透和常驻按下反馈。</td></tr>
+</tbody></table><p>上述属于主机验证；SDK 页面调度及 RTOS/GPIO 用替身，真实页面对象、字体和资源回收参与测试。目标构建、实际 KEY2 连线、实际按压节拍、GPU/LCD 与页面观感必须独立实测。队列 P95 是入队到消费延迟，不包括刻意等待双击的 280 ms，也不是首帧/刷新性能。</p></section>
+<section id="board"><h2>实机复验步骤</h2><ol>
+<li>使用同一 GCC 归档的 Bootloader / main / FTab，经 COM9 写入并校验，保存完整烧录输出；取下 Mode 后复位，COM10 连续采集原始串口与命令时间线。</li>
+<li>停在图标桌面取主堆、字形池、线程栈及输入基线。KEY1 单击进入表盘，再单击回桌面；双击及长按应记录对应 unavailable，不先执行 Home。核对按下指示条及释放。</li>
+<li>验证 KEY2 单/双/长；若无实体键或未产生对应 GPIO 边沿，标记硬件未验证，软件注入不能替代。</li>
+<li>通过 iw_nav open 1 打开诊断页并进入第二层，KEY1 应一次回图标桌面；Back 按钮仅退一层。验证滚动注入、拖动时丢弃旋转，以及锁/覆盖层/恢复的优先级。</li>
+<li>软件诊断要求物理键已松开：iw_key edge 0 down / up；iw_key rotate 3；iw_key context 0..6，分别为正常、编辑、普通覆盖、关键提醒、输入锁、水锁、恢复。诊断只报告排队是否接受，不把 queued=1 当执行成功；由后续 semantic / intent / nav confirmed 与画面核对。</li>
+<li>20%/80% 各三轮旧通知页长文滚动、松手再按、KEY1 返回；最终停在图标桌面采样，比较两类堆是否回到新固件基线。物理按键与软件注入不得混用同一手势。</li>
+<li>若再次半黑半白，先保留画面、操作步骤、时间和诊断日志，再复位，关联 #10 并重新评估，不按正常样本覆盖。</li>
+</ol></section>
+<section id="limits"><h2>仍未完成的能力</h2><p>DEV 当前未启用 BSP_USING_PM，低功耗唤醒不在本次验收范围。开发板无已确认的真实旋转编码器，旋转只验软件链路。水锁完整页面、解锁进度、控制中心、钱包、切换器和语音/关机能力不在 D09 伪装为完成；D10 接正式页面，D13 接完整系统覆盖层。性能 #8、显示异常 #10、D15 持久化与 D16 故障恢复继续保留。</p></section>
+</main></div></body></html>

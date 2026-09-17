@@ -53,7 +53,8 @@ static unsigned depth, dispatch_index;
 static int queued;
 static fake_page_t queued_page;
 static bool held_transition, hold_after_resume, reject_send, reject_page;
-static unsigned reject_back;
+static unsigned reject_back, reject_home;
+static const char *active_app = "Main", *next_app;
 static bool display_available = true;
 static iw_service_t service;
 static iw_time_state_t service_time;
@@ -97,6 +98,14 @@ static int gui_app_goback_to_page(const char *name)
     return RT_EOK;
 }
 
+static int gui_app_run(const char *name)
+{
+    assert(!queued && (!strcmp(name, "Main") || !strcmp(name, "clock")));
+    if (reject_home) { reject_home--; return -1; }
+    next_app = name; queued = 4;
+    return RT_EOK;
+}
+
 static iw_snapshot_status_t iw_snapshot_read(iw_snapshot_topic_t topic, void *output, size_t capacity, size_t *required)
 {
     assert(topic == IW_SNAPSHOT_CAPABILITIES);
@@ -108,7 +117,7 @@ static iw_snapshot_status_t iw_snapshot_read(iw_snapshot_topic_t topic, void *ou
 static int gui_app_get_route_snapshot(gui_app_route_snapshot_t *value)
 {
     memset(value, 0, sizeof(*value));
-    memcpy(value->app_id, "Main", 5);
+    memcpy(value->app_id, active_app, strlen(active_app) + 1);
     memcpy(value->page_id, stack[depth - 1].name, sizeof(value->page_id));
     value->user_data = stack[depth - 1].data;
     value->running_apps = 1; value->page_count = (uint16_t)depth;
@@ -140,7 +149,8 @@ static void gui_app_process_pending(void)
         depth++;
         if (hold_after_resume) { held_transition = true; hold_after_resume = false; }
     } else {
-        unsigned target = operation == 3 ? 0 : depth - 2;
+        unsigned target = operation >= 3 ? 0 : depth - 2;
+        if (operation == 4) active_app = next_app;
         notify_page(depth - 1, GUI_APP_MSG_ONPAUSE);
         lv_scr_load(stack[target].screen);
         notify_page(target, GUI_APP_MSG_ONRESUME);
@@ -238,7 +248,8 @@ int test_router(lv_display_t *display, size_t number, bool failure)
         reject_back = 3;
         iw_gui_fault_raise(); process();
         assert(recovery_blocked && fault_unwind && depth == 2 && !reject_back);
-        assert(iw_router_back()); process(); assert(depth == 1 && !recovery_blocked);
+        assert(iw_router_recover()); process(); process();
+        assert(depth == 1 && !recovery_blocked && !home_target);
         iw_gui_fault_dismiss(); return_root();
         command("open", 300);
         test_font_owner(true, false);
@@ -254,6 +265,28 @@ int test_router(lv_display_t *display, size_t number, bool failure)
         action(1, page); process(); assert(depth == 3);
         assert(iw_router_back()); process(); assert(depth == 2 && page->scope.visible);
         assert(lv_obj_get_scroll_y(content) == 50);
+        return_root();
+        /* Home 不等于 Back：两层页面一次回桌面，重复请求不能再次进表盘。 */
+        hold_after_resume = true;
+        command("open", 600); process();
+        for (unsigned n = 0; n < 20; n++) { assert(iw_router_home()); process(); }
+        assert(home_target && depth == 2);
+        held_transition = false; process(); process();
+        assert(!home_target && depth == 1 && !strcmp(active_app, "Main"));
+        assert(iw_router_home()); process(); assert(!strcmp(active_app, "clock") && !home_target);
+        assert(iw_router_home()); process(); assert(!strcmp(active_app, "Main") && !home_target);
+        assert(iw_router_recover()); process(); assert(!strcmp(active_app, "Main") && !home_target);
+        reject_home = 3; assert(iw_router_home()); process();
+        assert(!reject_home && !home_target && !strcmp(active_app, "Main"));
+        iw_gui_fault_dismiss();
+        command("open", 601); process();
+        page = find_page(stack[1].data); content = iw_screen_frame_content(&page->frame);
+        lv_obj_update_layout(content);
+        assert(iw_router_rotate(INT32_MAX));
+        assert(lv_obj_get_scroll_y(content) > 0);
+        assert(iw_router_rotate(INT32_MIN));
+        assert(iw_router_home()); process(); process();
+        assert(!home_target && !iw_router_rotate(1));
         return_root();
         if (test_font_live_bytes() != bytes || test_font_live_blocks() != blocks)
         {

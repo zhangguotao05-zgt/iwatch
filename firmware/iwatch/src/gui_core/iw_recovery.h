@@ -8,4 +8,6 @@ bool iw_recovery_init(void);
 void iw_recovery_show(const char *owner);
 void iw_recovery_hide(const char *owner);
 
+/* GUI 线程读取当前应急层状态。 */
+bool iw_recovery_visible(void);
 #endif

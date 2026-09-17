@@ -31,6 +31,8 @@ static iw_navigator_t navigator;
 static route_request_t requested;
 static bool requested_back, initialized, rolling_back, fault_unwind;
 static bool recovery_blocked;
+static const char *home_target;
+static uint8_t home_attempts;
 static uint8_t rollback_failures;
 static uint32_t generation, next_argument;
 
@@ -269,13 +271,68 @@ bool iw_router_back(void)
     return request((route_request_t){0}, true);
 }
 
+static bool home_request(bool recovery)
+{
+    if (!initialized || !iw_font_port_is_owner()) return false;
+    if (home_target && !recovery) return true;
+    gui_app_route_snapshot_t snapshot;
+    (void)gui_app_get_route_snapshot(&snapshot);
+    /* 锁定绝对目标，重复按键不会在转场完成前反向切换。 */
+    home_target = !recovery && !snapshot.busy && snapshot.page_count == 1 && !strcmp(snapshot.app_id, "Main") ? "clock" : "Main";
+    home_attempts = 0;
+    recovery_blocked = false;
+    rollback_failures = 0;
+    iw_gui_cancel_input();
+    iw_gui_wake(IW_GUI_WAKE_STATE);
+    return true;
+}
+
+bool iw_router_home(void) { return home_request(false); }
+bool iw_router_recover(void) { return home_request(true); }
+
+bool iw_router_rotate(int32_t steps)
+{
+    if (!initialized || !iw_font_port_is_owner() || home_target || iw_gui_fault_pending()) return false;
+    gui_app_route_snapshot_t snapshot;
+    (void)gui_app_get_route_snapshot(&snapshot);
+    route_page_t *page = find_page(snapshot.user_data);
+    if (snapshot.busy || !page || !page->scope.alive || !page->scope.visible || !page->frame.object) return false;
+    if (steps > 32) steps = 32;
+    if (steps < -32) steps = -32;
+    /* 开发板没有旋转硬件，诊断注入只作用于当前有效的滚动容器。 */
+    lv_obj_scroll_by(iw_screen_frame_content(&page->frame), 0, -steps * 24, LV_ANIM_OFF);
+    return true;
+}
+
+static void home_process(const gui_app_route_snapshot_t *snapshot)
+{
+    if (!home_target || snapshot->busy || navigator.state != IW_NAV_IDLE || rolling_back || fault_unwind) return;
+    bool same_app = !strcmp(snapshot->app_id, home_target);
+    if (same_app && !strcmp(snapshot->page_id, "root") && snapshot->resumed) {
+        rt_kprintf("nav home target=%s confirmed\n", home_target);
+        home_target = NULL;
+        return;
+    }
+    if (home_attempts == 3u) {
+        rt_kprintf("nav home target=%s failed\n", home_target);
+        home_target = NULL;
+        iw_gui_fault_raise();
+        return;
+    }
+    home_attempts++;
+    /* 运行已存在的 app 只会恢复其顶页；随后必须显式回根页并检查快照。 */
+    int result = same_app ? gui_app_goback_to_page("root") : gui_app_run(home_target);
+    rt_kprintf("nav home target=%s attempt=%u admitted=%d\n", home_target, home_attempts, result);
+    iw_gui_cancel_input();
+}
+
 bool iw_router_process(void)
 {
     if (!initialized || !iw_font_port_is_owner()) return false;
     gui_app_route_snapshot_t snapshot;
     (void)gui_app_get_route_snapshot(&snapshot);
     rt_base_t level = rt_hw_interrupt_disable();
-    bool work = requested.kind != REQUEST_NONE || requested_back;
+    bool work = requested.kind != REQUEST_NONE || requested_back || home_target;
     rt_hw_interrupt_enable(level);
     if ((work || snapshot.busy || navigator.state != IW_NAV_IDLE || fault_unwind) && !iw_font_port_render_idle()) return true;
     if (!iw_font_port_render_idle()) return false;
@@ -299,6 +356,12 @@ bool iw_router_process(void)
     requested = (route_request_t){0};
     requested_back = false;
     rt_hw_interrupt_enable(level);
+    if (home_target) {
+        /* Home 优先于尚未启动的请求；已启动事务仍正常收尾。 */
+        if (command.kind != REQUEST_STAT) command = (route_request_t){0};
+        back = false;
+        navigator.pending_back = false;
+    }
     if (back && recovery_blocked) {
         recovery_blocked = false;
         rollback_failures = 0;
@@ -342,7 +405,9 @@ bool iw_router_process(void)
         navigator.current = observed_route(&snapshot, false);
         rolling_back = false;
     }
-    return fault_unwind && !recovery_blocked && !snapshot.busy;
+    if (recovery_blocked) home_target = NULL;
+    home_process(&snapshot);
+    return home_target || (fault_unwind && !recovery_blocked && !snapshot.busy);
 }
 
 static bool parse_argument(const char *text, uint32_t *value)
