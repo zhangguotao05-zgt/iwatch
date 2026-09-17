@@ -35,8 +35,9 @@ def run_matrix(executable, font, repeat_count):
                 raise ValueError("{}/{} did not latch OOM: {}".format(stage, failure_index, output))
             total += 1
     repeat = run_case(executable, font, "repeat", repeat_count, timeout=60)
-    print("TINY_TTF OOM OK: {} failure points; {} lifecycle loops; {}; {}".format(
-        total, repeat_count, compatibility, repeat))
+    eviction = run_case(executable, font, "evict", 10, timeout=30)
+    print("TINY_TTF OOM OK: {} failure points; {} lifecycle loops; {}; {}; {}".format(
+        total, repeat_count, compatibility, repeat, eviction))
 
 
 def main():

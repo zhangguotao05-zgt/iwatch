@@ -24,6 +24,7 @@ add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c)
 target_compile_features(test_tiny_ttf_oom PRIVATE c_std_11)
 if(MSVC)
     # LVGL 公共头存在固定的窄化转换告警；测试自身其余告警仍按错误处理。
-    target_compile_options(test_tiny_ttf_oom PRIVATE /utf-8 /W4 /WX /wd4244)
+    target_compile_options(test_tiny_ttf_oom PRIVATE /utf-8 /W4 /WX /wd4244 /fsanitize=address)
+    target_link_options(test_tiny_ttf_oom PRIVATE /fsanitize=address)
 endif()
 target_link_libraries(test_tiny_ttf_oom PRIVATE lvgl_host)

@@ -255,6 +255,67 @@ static int run_repeat(const uint8_t * data, size_t size, size_t iterations)
     return ok ? 0 : 12;
 }
 
+static uint32_t test_utf8_next(const char * text, uint32_t * offset)
+{
+    const uint8_t * bytes = (const uint8_t *)text;
+    uint32_t index = offset ? *offset : 0;
+    uint32_t codepoint = bytes[index++];
+    if(codepoint < 0x80) {
+        if(offset) *offset = index;
+        return codepoint;
+    }
+
+    unsigned trailing = codepoint < 0xe0 ? 1u : codepoint < 0xf0 ? 2u : 3u;
+    codepoint &= trailing == 1u ? 0x1fu : trailing == 2u ? 0x0fu : 0x07u;
+    while(trailing--) codepoint = (codepoint << 6) | (bytes[index++] & 0x3fu);
+    if(offset) *offset = index;
+    return codepoint;
+}
+
+static int run_multi_font_evict(const uint8_t * data, size_t size, size_t iterations)
+{
+    static const int32_t font_sizes[] = {16, 18, 20, 22, 24, 26, 28};
+    static const char * texts[] = {
+        "Notifications",
+        "思澈科技欢迎您",
+        "关于我们",
+        "思澈科技是一家专注于物联网技术的公司，提供一站式的物联网解决方案。最先提出嵌入式MCU+GPU的物联网解决方案，为客户提供更高性能、更低功耗的物联网产品。",
+        "我们是谁",
+        "思澈科技成立於2019年3月，總部位於上海張江高科技園區，在重慶、北京、深圳、蘇州均設有分子公司，團隊成員均來自於美國、中國的一線電晶體設計企業，包括Marvell、 Broadcom、Amazon、 紫光展銳、聯發科等，碩士以上學歷占比超過80%； 團隊骨幹具有豐富的產品定義->自主研發->大規模量產的全流程經驗，由這些骨幹成員主導研發的晶片累計出貨超過10億顆。"
+    };
+    lv_font_t * fonts[sizeof(font_sizes) / sizeof(font_sizes[0])] = {0};
+    size_t initial_blocks = live_blocks;
+    size_t initial_bytes = live_bytes;
+
+    for(size_t i = 0; i < sizeof(fonts) / sizeof(fonts[0]); i++) {
+        fonts[i] = create_font(data, size, font_sizes[i]);
+        if(fonts[i] == NULL) return 14;
+    }
+
+    for(size_t pass = 0; pass < iterations; pass++) {
+        for(size_t i = 0; i < sizeof(fonts) / sizeof(fonts[0]); i++) {
+            for(size_t text_index = 0; text_index < sizeof(texts) / sizeof(texts[0]); text_index++) {
+                uint32_t offset = 0;
+                while(texts[text_index][offset] != '\0') {
+                    uint32_t codepoint = test_utf8_next(texts[text_index], &offset);
+                    uint32_t next = texts[text_index][offset] != '\0' ?
+                                    test_utf8_next(&texts[text_index][offset], NULL) : 0;
+                    lv_font_glyph_dsc_t glyph;
+                    memset(&glyph, 0, sizeof(glyph));
+                    if(!lv_font_get_glyph_dsc(fonts[i], &glyph, codepoint, next)) continue;
+                }
+            }
+        }
+    }
+
+    for(size_t i = 0; i < sizeof(fonts) / sizeof(fonts[0]); i++) lv_tiny_ttf_destroy(fonts[i]);
+    int ok = assert_count == 0 && oom_count == 0 &&
+             live_blocks == initial_blocks && live_bytes == initial_bytes;
+    printf("stage=evict passes=%zu oom=%u asserts=%u live_blocks=%zu live_bytes=%zu result=%s\n",
+           iterations, oom_count, assert_count, live_blocks, live_bytes, ok ? "ok" : "failed");
+    return ok ? 0 : 16;
+}
+
 static int run_draw_buf_compat(void)
 {
     size_t initial_blocks = live_blocks;
@@ -284,7 +345,7 @@ static int run_draw_buf_compat(void)
 int main(int argc, char ** argv)
 {
     if(argc != 4) {
-        fprintf(stderr, "usage: test_tiny_ttf_oom <font.ttf> <create|metadata|bitmap|repeat|compat> <number>\n");
+        fprintf(stderr, "usage: test_tiny_ttf_oom <font.ttf> <create|metadata|bitmap|repeat|evict|compat> <number>\n");
         return 64;
     }
 
@@ -307,6 +368,7 @@ int main(int argc, char ** argv)
     else if(strcmp(argv[2], "metadata") == 0) result = run_metadata(font_data, font_size, (size_t)parsed);
     else if(strcmp(argv[2], "bitmap") == 0) result = run_bitmap(font_data, font_size, (size_t)parsed);
     else if(strcmp(argv[2], "repeat") == 0) result = run_repeat(font_data, font_size, (size_t)parsed);
+    else if(strcmp(argv[2], "evict") == 0) result = run_multi_font_evict(font_data, font_size, (size_t)parsed);
     else if(strcmp(argv[2], "compat") == 0) result = run_draw_buf_compat();
     else result = 67;
 
