@@ -54,6 +54,7 @@
 <tr><td>既有 D07 回归</td><td>字体/组件/绘制失败矩阵、生命周期与故障回收、4046 次像素提交对照、触摸溢出取消及跨页输入回归，通过。未用队列延迟替代帧率测量。</td></tr>
 </tbody></table>
 <p>入口：<code>firmware/tests/run-core-tests.ps1</code>、<code>firmware/tests/run-d07-a0-tests.ps1</code>。记录：<code>logs/d08-core.log</code>、<code>logs/d08-gui.log</code>。诊断页编译文案加入正式字体输入清单；字体内容仍为 336 字符、56,804 B，SHA-256 未变。文案和清单过期仍阻止构建。</p>
+<p>初版 <code>f6e401c</code> 在接口联查发现能力查询漏传必需的 required 指针，会拒绝打开诊断页。原测试快照替身未覆盖这一约束；现改为链接真实 <code>iw_service.c</code> 和 <code>iw_time.c</code>，只替换运行时互斥和采样。先复现旧调用失败，再修复长度参数和变长载荷检查，1000 轮导航及完整回归重新通过。初版构建、第一次写入记录单独保存，不作为最终板测镜像。</p>
 </section>
 <section id="target"><h2>双工具链与实机证据</h2>
 <p>本节待本轮构建与板测填写。三件套继续使用已批准分区与地址：Bootloader 0x1C020000、main 0x69000000、FTab 0x1C000000，FTab 最后写入。仅使用此开发板的 COM9/COM10。</p>

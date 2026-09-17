@@ -55,6 +55,8 @@ static fake_page_t queued_page;
 static bool held_transition, hold_after_resume, reject_send, reject_page;
 static unsigned reject_back;
 static bool display_available = true;
+static iw_service_t service;
+static iw_time_state_t service_time;
 static bool (*ready_callback)(void);
 
 static void notify_page(unsigned index, gui_app_msg_type_t event)
@@ -97,13 +99,11 @@ static int gui_app_goback_to_page(const char *name)
 
 static iw_snapshot_status_t iw_snapshot_read(iw_snapshot_topic_t topic, void *output, size_t capacity, size_t *required)
 {
-    assert(topic == IW_SNAPSHOT_CAPABILITIES && !required);
-    struct { iw_snapshot_header_t header; iw_capability_snapshot_t model; } snapshot = {0};
-    snapshot.model.count = 1;
-    snapshot.model.entries[0].capability_id = IW_CAP_DISPLAY;
-    snapshot.model.entries[0].state = display_available ? IW_CAP_STATE_AVAILABLE : IW_CAP_STATE_FAULT;
-    assert(capacity == sizeof(snapshot)); memcpy(output, &snapshot, sizeof(snapshot));
-    return IW_SNAPSHOT_OK;
+    assert(topic == IW_SNAPSHOT_CAPABILITIES);
+    assert(iw_service_set_capability(&service, IW_CAP_DISPLAY,
+        display_available ? IW_CAP_STATE_AVAILABLE : IW_CAP_STATE_FAULT, 0));
+    /* 真实服务序列化与调用约束参与回归，只替换运行时互斥及时间采样。 */
+    return iw_service_snapshot_read(&service, topic, output, capacity, required);
 }
 static int gui_app_get_route_snapshot(gui_app_route_snapshot_t *value)
 {
@@ -182,6 +182,8 @@ static void return_root(void)
 int test_router(lv_display_t *display, size_t number, bool failure)
 {
     test_font_owner(true, true);
+    assert(iw_time_init(&service_time, 0, 1000, 1704067200, 0, IW_TIME_SOURCE_RTC) == IW_TIME_OK);
+    assert(iw_service_init(&service, &service_time, 1));
     stack[0] = (fake_page_t){.screen = lv_display_get_screen_active(display)};
     memcpy(stack[0].name, "root", 5); depth = 1;
     iw_router_init();

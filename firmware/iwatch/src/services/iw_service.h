@@ -363,6 +363,7 @@ iw_result_lookup_t iw_service_result_get(const iw_service_t *service,
                                          iw_result_t *result);
 iw_ack_status_t iw_service_result_ack(iw_service_t *service, const iw_result_token_t *token);
 bool iw_result_matches_page(const iw_result_t *result, uint16_t page_id, uint32_t page_generation);
+/* required 必须非空；能力快照长度取决于当前能力条目数。 */
 iw_snapshot_status_t iw_service_snapshot_read(const iw_service_t *service,
                                               iw_snapshot_topic_t topic,
                                               void *output,

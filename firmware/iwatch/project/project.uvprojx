@@ -5720,9 +5720,30 @@
           </Files>
           <Files>
             <File>
+              <FileName>iw_navigator.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\gui_core\iw_navigator.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
               <FileName>iw_recovery.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\src\gui_core\iw_recovery.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>iw_routes.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\gui_core\iw_routes.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>iw_scope.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\gui_core\iw_scope.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -5761,6 +5782,13 @@
               <FileName>iw_gui_port.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\src\platform\iw_gui_port.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>iw_router.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\platform\iw_router.c</FilePath>
             </File>
           </Files>
           <Files>

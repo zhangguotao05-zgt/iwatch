@@ -11,6 +11,7 @@ uint32_t iw_service_current_session(void);
 iw_submit_status_t iw_command_submit(const iw_command_t *command);
 iw_result_lookup_t iw_result_get(uint32_t session_id, uint32_t request_id, iw_result_t *result);
 iw_ack_status_t iw_result_ack(const iw_result_token_t *token);
+/* required 必须非空；无论查询大小还是读取内容，均返回实际字节数。 */
 iw_snapshot_status_t iw_snapshot_read(iw_snapshot_topic_t topic,
                                       void *output,
                                       size_t capacity,

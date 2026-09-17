@@ -98,6 +98,8 @@ extract_sdk_function("middleware/app_fwk/app_schedule.c" "static rt_err_t app_cr
 extract_sdk_function("middleware/app_fwk/app_schedule.c" "void app_schedule_route_snapshot(" "sdk_snapshot_under_test.inc")
 
 add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c test_epic_glyph.c test_font_service.c test_components.c test_component_navigation.c test_touch_input.c test_router.c test_sdk_navigation.c
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/services/iw_service.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core/iw_time.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_components.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_gui_owner.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_theme.c"

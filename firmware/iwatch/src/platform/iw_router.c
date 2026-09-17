@@ -165,9 +165,12 @@ static void release_page(route_page_t *page)
 
 static uint32_t capabilities(void)
 {
-    struct { iw_snapshot_header_t header; iw_capability_snapshot_t model; } snapshot;
-    if (iw_snapshot_read(IW_SNAPSHOT_CAPABILITIES, &snapshot, sizeof(snapshot), NULL) != IW_SNAPSHOT_OK ||
-        snapshot.model.count > IW_CAPABILITY_CAPACITY) return 0;
+    struct { iw_snapshot_header_t header; iw_capability_snapshot_t model; } snapshot = {0};
+    size_t bytes = 0;
+    if (iw_snapshot_read(IW_SNAPSHOT_CAPABILITIES, &snapshot, sizeof(snapshot), &bytes) != IW_SNAPSHOT_OK ||
+        snapshot.model.count > IW_CAPABILITY_CAPACITY ||
+        bytes != sizeof(snapshot.header) + offsetof(iw_capability_snapshot_t, entries) +
+                 snapshot.model.count * sizeof(snapshot.model.entries[0])) return 0;
     uint32_t available = 0;
     for (unsigned i = 0; i < snapshot.model.count; i++) {
         const iw_capability_entry_t *entry = &snapshot.model.entries[i];
