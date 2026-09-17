@@ -31,7 +31,12 @@ bool iw_font_port_render_idle(void)
 
 void iw_font_port_memory(iw_font_memory_t *memory)
 {
-    rt_memory_info(&memory->main_total, &memory->main_used, &memory->main_peak);
+    /* Keil 的 rt_uint32_t 与 uint32_t 底层类型不同，按值转换，禁止强转指针。 */
+    rt_uint32_t total, used, peak;
+    rt_memory_info(&total, &used, &peak);
+    memory->main_total = (uint32_t)total;
+    memory->main_used = (uint32_t)used;
+    memory->main_peak = (uint32_t)peak;
 #if defined(TINY_TTF_CACHE_IN_SRAM_STANDALONE) || defined(TINY_TTF_CACHE_IN_PSRAM)
     memory->ttf_used = app_tiny_ttf_memheap.pool_size - app_tiny_ttf_memheap.available_size;
     memory->ttf_peak = app_tiny_ttf_memheap.max_used_size;
