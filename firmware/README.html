@@ -93,11 +93,11 @@
 </section>
 <section id="架构与基础测试" class="level2">
 <h2>架构与基础测试</h2>
-<p><a href="../docs/ui/系统架构_v1.1.html">系统架构</a>、<a href="../docs/ui/视觉与交互规范_v1.html">视觉规范</a> 和 <a href="../docs/ui/实施与验收_v1.html">实施记录</a> 定义后续开发边界。M0 与 M1.0 已闭环；D07 正在按 A0–D 实施，界面仍以原演示基线为主。A0 工具、安全补丁和替换前实屏缺陷见<a href="../docs/ui/D07-A0_工具与安全链实施记录.html">实施记录</a>。</p>
+<p><a href="../docs/ui/系统架构_v1.1.html">系统架构</a>、<a href="../docs/ui/视觉与交互规范_v1.html">视觉规范</a> 和 <a href="../docs/ui/实施与验收_v1.html">实施记录</a> 定义后续开发边界。M0 与 M1.0 已闭环；D07 当前在 A1，兼容字体子集已替换，中文渲染修复包待实屏复验，新组件尚未开始。详见<a href="../docs/ui/D07-A1_字体替换与渲染修复记录.html">A1 字体替换与渲染修复</a>；<a href="../docs/ui/D07-A0_工具与安全链实施记录.html">A0 记录</a>保留替换前的历史证据。</p>
 <p>开发前先读 <a href="../docs/ui/架构复审与开发基线_v1.1.html">复审问题</a>、<a href="../docs/ui/功能逻辑与页面契约_v1.html">功能契约</a> 和 <a href="../docs/ui/模块接口与开发任务_v1.html">模块接口与任务</a>。D04/D05 实现单调时间、RTC 有效性、启动协调、固定容量命令/结果账本和版本化快照；D06 已完成亮度命令、目标/实际状态、显示 mailbox、GUI owner 驱动回执及开发板验收。</p>
 <p>Windows 主机测试需要 Visual Studio C/C++ 工具和 Python 3.13；脚本同时在 Windows PowerShell 5.1 下进行语法解析，JSON 文件按 UTF-8 显式读取：</p>
 <pre class="powershell"><code>.\firmware\tests\run-core-tests.ps1</code></pre>
-<p>D07-A0 另需固定 FontTools 4.65.0 和受控派生 SDK。下面的入口验证字符输入、两次生成、GCC/Keil 预算解析、25 个字体内存失败点和 1,000 次生命周期；它不构建或烧录固件：</p>
+<p>D07 主机验证需固定 FontTools 4.65.0 和受控派生 SDK。下面的入口验证字符输入、两次生成、GCC/Keil 预算解析、当前 22 个字体内存失败点、1,000 次生命周期、长通知缓存淘汰及 4,046 次 EPIC 字形像素提交；它不构建或烧录固件：</p>
 <pre class="powershell"><code>python -m pip install -r firmware/requirements.txt
 python firmware/sdk_patch.py prepare --base-sdk &lt;fixed-sdk&gt; --output &lt;derived-sdk&gt; --init-submodules
 .\firmware\tests\run-d07-a0-tests.ps1 -PythonPath &lt;python.exe&gt; -PatchedSdkPath &lt;derived-sdk&gt;</code></pre>

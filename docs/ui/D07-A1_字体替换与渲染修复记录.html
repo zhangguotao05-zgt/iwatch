@@ -1,0 +1,59 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>D07-A1 字体替换与渲染修复记录 · iwatch</title>
+  <link rel="stylesheet" href="../assets/engineering.css">
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D07-A1 字体替换与渲染修复</span></header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录"><ul>
+      <li><a href="#status">状态与范围</a></li><li><a href="#font">字体与容量</a></li>
+      <li><a href="#failure">两类缺陷</a></li><li><a href="#tests">验证方法</a></li>
+      <li><a href="#board">实机复验</a></li>
+    </ul></nav>
+    <main>
+      <h1>D07-A1 字体替换与渲染修复记录</h1>
+      <p class="doc-meta">2026-09-17 · 方案基线 <code>967483d</code> · 渲染修复 <code>39c8607</code> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">D07 / #7</a></p>
+      <section id="status"><h2>状态与范围</h2>
+        <p><strong>A1 尚未验收，B/C 新组件仍未开始。</strong>字体子集已经替换并完成首次上板，但用户实屏观察确认长中文仍有破损；本轮修复 EPIC 连续绘制遗漏的缓存清理长度。主机复现与修复对照通过，目标构建和新镜像实屏复验分别记录，不能互相替代。</p>
+        <p><a href="D07-A0_工具与安全链实施记录.html">A0 记录</a>保留替换前的历史快照；本页记录 A1 后续状态。</p>
+      </section>
+      <section id="font"><h2>字体与容量</h2>
+        <p>完整 TTF 保留为 <code>DroidSansFallback.source.ttf</code>，固件只链接确定性子集 <code>DroidSansFallback.ttf</code>：336 字符，56,804 B，SHA-256 <code>4f69f4ba565598e217501e7985bfdc7ccfd68d0bed472325218d01e89bbe284f</code>。旧通知七种字号和十条字符串保持兼容。</p>
+        <p>已刷入的前一候选版 <code>be31c1b</code>：GCC main 1,863,828 B（29.625%），Keil main 1,789,824 B（28.448%）。内置位图字体 51,335 B、图片 866,577 B 单列计量。新渲染修复包以其自身构建身份为准。</p>
+        <table><thead><tr><th>39c8607 修复包</th><th>大小</th><th>main SHA-256</th></tr></thead><tbody>
+          <tr><td>GCC，29.625%</td><td>1,863,836 B</td><td><code>a844cb1d14bc5fe5c212fa2e17f0f1e9a0b3f6fb7145f667439e2e9df9777288</code></td></tr>
+          <tr><td>Keil，28.449%</td><td>1,789,832 B</td><td><code>0fed499fcf90719b50e471e96abafa176a578e33714d484b7fcc6e1f9c76c799</code></td></tr>
+        </tbody></table>
+        <p>两套 map 来源、构建身份和资源预算均通过。源码提交为 <code>39c86073e3dc9a18f480b83fc0fb9607b8c07c83</code>；SDK 补丁 SHA-256 为 <code>efb7e5489abd1dec9d61e396a6902bbe8f13ed049b208d6e7bbfbea3fc1e390c</code>。构建全文分别保存为 <code>logs/d07-epic-gcc-build.log</code>、<code>logs/d07-epic-keil-build.log</code>。</p>
+        <p>每个字体保留 16 个字形缓存项；字距结果直接计算，字距缓存为 0。PSRAM 字形池固定 160,000 B，主堆与字形池分开统计；字体文件缩小不等于字形运行内存缩小。</p>
+      </section>
+      <section id="failure"><h2>两类缺陷及修复边界</h2>
+        <table><thead><tr><th>现象</th><th>证据与原因</th><th>处理</th></tr></thead><tbody>
+          <tr><td>进入表盘时停机</td><td><code>rt_free</code> 检出重复释放；主机长通知字距缓存淘汰在 ASan 下复现。</td><td><code>be31c1b</code> 关闭字距缓存。后续原始日志记录两次正常进入，没有再次断言；这不代表文字显示通过。</td></tr>
+          <tr><td>中文笔画错乱，部分标题正常</td><td>TinyTTF 在 PSRAM 生成 A8 像素，字体 handler 没有 flush 回调；EPIC 标签层未设置 <code>data_size</code>。首次混合按几何尺寸清理缓存，后续混合按 0 B 清理，GPU 可读到旧内容。</td><td><code>39c8607</code> 将标签前景层长度设置为 <code>mask_stride * glyph_height</code>，覆盖行填充。保持原有 GPU、缓存容量及页面行为。</td></tr>
+        </tbody></table>
+        <p>渲染修复纳入原受控 SDK 补丁，白名单由 11 个文件扩展为 12 个，新增 <code>middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c</code>。固定 SDK 保持干净；派生 SDK、补丁文件及文件哈希均由构建身份验证。</p>
+      </section>
+      <section id="tests"><h2>主机验证方法与结果</h2>
+        <p>原淘汰测试只查询字形描述，没有验证像素。本轮补上缓存字形与无缓存重新光栅化的逐行比较，并直接编译生产 <code>_draw_epic_letter</code> 及 <code>drv_epic_cont_blend</code>，仅替换硬件边界。测试模型维护独立的 CPU/GPU 像素视图，按生产代码实际请求的清理范围同步。</p>
+        <table><thead><tr><th>对照</th><th>结果</th></tr></thead><tbody>
+          <tr><td>修复前，2 轮全部旧通知与 7 种字号</td><td>4,046 次提交，4,045 次 GPU 像素不一致；首个提交一致。缓存与重新光栅化的像素比较通过。</td></tr>
+          <tr><td>只补齐前景字形长度后</td><td>4,046 次提交，0 次像素不一致；主堆分配计数回到初始值，无 OOM 或断言。</td></tr>
+          <tr><td>内存安全</td><td>22 个分配失败点、1000 次创建销毁、10 轮长通知描述淘汰通过。ASan 同时覆盖 LVGL 库和测试代码。</td></tr>
+          <tr><td>目标一致性</td><td>主机启用与目标相同的 <code>LV_TINY_TTF_FILE_SUPPORT=1</code>，使用内存数据源的 stream 路径。</td></tr>
+        </tbody></table>
+        <p>主机模型验证缓存范围和像素契约，不模拟真实 EPIC 寄存器、总线时序及 OLED。修复前后完整输出位于本地 <code>logs/d07-pixels-before-fix.log</code>、<code>logs/d07-pixels-after-fix.log</code>。复现入口为 <code>firmware/tests/run-d07-a0-tests.ps1</code>。</p>
+      </section>
+      <section id="board"><h2>实机复验与剩余门槛</h2>
+        <p>前一候选 <code>be31c1b</code> 的原始串口位于 <code>logs/board-validation-20260917-d07-a1-fixed/com10-coldboot.bin</code>；文件名沿用采集命名，用户确认的是取下跳帽后复位，不能据此增加一次断电冷启动结论。CO5300 ID <code>0x331100</code>、FT6146 <code>0x64/0x56</code> 及 GUI 启动均有日志。</p>
+        <p>缺陷状态下已记录：字体进入 2 次、存活 7 个；create/metadata/bitmap/fallback 均为 0；主堆峰值 113,612 B，PSRAM 字形池峰值 35,524 B；9 个按键输入中最大延迟 117 ms、1 个 ≥100 ms 样本。这些只属于失败候选的诊断证据，不能写成新修复通过。</p>
+        <p><strong>新镜像实机状态：待烧录复验。</strong>需验证首次进入、全部中文通知滚动、反复进出后的文字完整性和按键触摸响应；同时记录亮度 20/80、两类堆的连续样本、线程栈及输入延迟。观察确认不要求新增照片。A1 实屏及资源门槛通过后再推进新组件。</p>
+      </section>
+    </main>
+  </div>
+</body>
+</html>
