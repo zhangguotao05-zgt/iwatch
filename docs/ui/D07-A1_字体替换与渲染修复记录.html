@@ -18,7 +18,7 @@
       <h1>D07-A1 字体替换与渲染修复记录</h1>
       <p class="doc-meta">2026-09-17 · 方案基线 <code>967483d</code> · 渲染修复 <code>39c8607</code> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">D07 / #7</a></p>
       <section id="status"><h2>状态与范围</h2>
-        <p><strong>A1 尚未验收，B/C 新组件仍未开始。</strong>字体子集已经替换并完成首次上板，但用户实屏观察确认长中文仍有破损；本轮修复 EPIC 连续绘制遗漏的缓存清理长度。主机复现与修复对照通过，目标构建和新镜像实屏复验分别记录，不能互相替代。</p>
+        <p><strong>A1 工程验证完成，待架构复核；B/C 新组件仍未开始。</strong>字体子集替换后暴露的进入停机与中文破损已分别修复。主机回归、双工具链构建和本轮 GCC 开发板复验通过：用户确认文字清晰、20%/80% 亮度及按键触摸正常，6 次进出后的两类堆均回到初始值。本结论仅覆盖 A1，不代表 D07 整体验收。</p>
         <p><a href="D07-A0_工具与安全链实施记录.html">A0 记录</a>保留替换前的历史快照；本页记录 A1 后续状态。</p>
       </section>
       <section id="font"><h2>字体与容量</h2>
@@ -48,10 +48,22 @@
         </tbody></table>
         <p>主机模型验证缓存范围和像素契约，不模拟真实 EPIC 寄存器、总线时序及 OLED。修复前后完整输出位于本地 <code>logs/d07-pixels-before-fix.log</code>、<code>logs/d07-pixels-after-fix.log</code>。复现入口为 <code>firmware/tests/run-d07-a0-tests.ps1</code>。</p>
       </section>
-      <section id="board"><h2>实机复验与剩余门槛</h2>
+      <section id="board"><h2>实机结果与复核边界</h2>
         <p>前一候选 <code>be31c1b</code> 的原始串口位于 <code>logs/board-validation-20260917-d07-a1-fixed/com10-coldboot.bin</code>；文件名沿用采集命名，用户确认的是取下跳帽后复位，不能据此增加一次断电冷启动结论。CO5300 ID <code>0x331100</code>、FT6146 <code>0x64/0x56</code> 及 GUI 启动均有日志。</p>
-        <p>缺陷状态下已记录：字体进入 2 次、存活 7 个；create/metadata/bitmap/fallback 均为 0；主堆峰值 113,612 B，PSRAM 字形池峰值 35,524 B；9 个按键输入中最大延迟 117 ms、1 个 ≥100 ms 样本。这些只属于失败候选的诊断证据，不能写成新修复通过。</p>
-        <p><strong>新镜像实机状态：待烧录复验。</strong>需验证首次进入、全部中文通知滚动、反复进出后的文字完整性和按键触摸响应；同时记录亮度 20/80、两类堆的连续样本、线程栈及输入延迟。观察确认不要求新增照片。A1 实屏及资源门槛通过后再推进新组件。</p>
+        <p>缺陷状态下已记录：字体进入 2 次、存活 7 个；create/metadata/bitmap/fallback 均为 0；主堆峰值 113,612 B，PSRAM 字形池峰值 35,524 B；9 个按键输入中最大延迟 117 ms，存在 ≥100 ms 样本。这些只属于失败候选的诊断证据，不能写成新修复通过。</p>
+        <p><strong>39c8607 新镜像已完成本轮开发板复验。</strong>2026-09-17 通过 COM9 写入同一 GCC 归档的 Bootloader、main 和 FTab，三件套均启用写后校验，脚本退出码为 0。COM10 以 1,000,000 baud 采集复位启动及操作全过程，记录 1 次启动、6 次 clock ONSTART/ONSTOP/DESTROY；没有断言、HardFault 或操作期间重启。用户执行的是取下 Mode 跳帽后复位，本轮没有增加断电冷启动结论。</p>
+        <table><thead><tr><th>检查</th><th>本轮证据</th><th>结果</th></tr></thead><tbody>
+          <tr><td>首次进入与文字</td><td>先查看“关于我们／我们是谁”并滚动，重复进入 3 次及按键返回；用户确认“文字清晰，进出和按键正常”。</td><td>现场观察通过。</td></tr>
+          <tr><td>20% / 80% 亮度</td><td>命令 request 1/2 均返回 terminal code=1、ACK=0；desired/applied 分别为 20/20、80/80，error=0。用户分别确认变暗/变亮，通知列表、长正文及按键触摸正常。</td><td>驱动结果与现场观察一致。</td></tr>
+          <tr><td>启动桌面基线</td><td>主堆已用 59,660 B；PSRAM 字形池已用 72 B；存活字体 0。</td><td>作为退出后比较基线。</td></tr>
+          <tr><td>第 4 / 6 次退出后的稳定样本</td><td>每组连续取两次：主堆均为 59,660 B，字形池均为 72 B，存活字体及 pending 均为 0。</td><td>本轮残留增量 0 B，未观察到随进出增长。</td></tr>
+          <tr><td>运行时峰值</td><td>主堆峰值 113,796 B，较启动桌面增加 54,136 B；字形池峰值 35,520 B，增加 35,448 B，预留池仍为 160,000 B。</td><td>两个独立峰值增量之和为 89,584 B，低于 512 KiB 门槛；不当作同一时刻采样值。</td></tr>
+          <tr><td>线程栈</td><td>app_watch：16 KiB / 31%；tpread：2 KiB / 40%；lcd_task：2 KiB / 43%。</td><td>GUI 栈峰值低于 75%。</td></tr>
+          <tr><td>输入与错误</td><td>输入队列 accepted=consumed=36，rejected/discarded/pending=0；P95=13 ms、max=13 ms。字体 create/metadata/bitmap/fallback 均为 0。</td><td>本轮无 ≥100 ms 队列延迟样本，无字体错误。</td></tr>
+        </tbody></table>
+        <p>现场记录目录为 <code>logs/board-validation-20260917-d07-a1-epic/</code>，包含原始 <code>com10-live.bin</code>（67,123 B）、命令及用户观察时间线 <code>command-timeline.jsonl</code>、完整捕获的烧录输出 <code>flash-20260917-102141.log</code>、烧录时的 <code>gcc-build_identity.json</code>、结构化摘要 <code>board-validation.json</code> 和 <code>SHA256SUMS.txt</code>。原始串口 SHA-256 为 <code>f49bbce6d87770ebc247ea75aafd7f45f8959bf594f7e1bd801f25e655181749</code>；命令时间线 SHA-256 为 <code>129af6e5531dda5e3fecaa4c408ed102cecd2f7883da455b0ba73b449617dc8a</code>。这些日志保存在本地，未随源码上传。</p>
+        <p>用户选择现场文字确认，不再要求新增照片。7 组字体内存快照包括启动、活动页、过渡动画及两组稳定退出样本；启动阶段命令未单独记录主机发送时间，保留原始串口字节，后续命令带主机时间与字节偏移。</p>
+        <p>验证边界：6 次进出是本轮板上回归，1000 次生命周期及内存失败注入是主机测试；输入数据衡量队列延迟，不代表触摸到显示的端到端延迟。原始日志另有 1 条触摸缓冲覆盖告警，未伴随本轮用户可见故障；已知 <code>flash1 is not found</code> 仍待 D15 前解决。真实显示故障恢复、断电持久化及长期压力没有在本轮重新验收，D15/D16 范围保持不变。</p>
       </section>
     </main>
   </div>
