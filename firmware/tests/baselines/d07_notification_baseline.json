@@ -53,8 +53,10 @@
     }
   ],
   "real_screen_capture": {
-    "status": "pending",
-    "required_before_a1_flash": true,
+    "status": "complete",
+    "captured_at": "2026-09-17T09:18:00+08:00",
+    "required_before_a1_flash": false,
+    "capture_method": "raw_com10_plus_manual_observation_and_one_photo",
     "required_views": [
       "通知页顶部及前三条短通知",
       "关于我们长文换行",
@@ -62,6 +64,52 @@
       "20% 亮度",
       "80% 亮度"
     ],
-    "evidence": []
+    "view_results": [
+      {
+        "view": "通知页顶部及前三条短通知",
+        "result": "第一次进入无法区分乱码或显示不清晰，第二次进入大部分正常"
+      },
+      {
+        "view": "关于我们长文换行",
+        "result": "人工滚动经过，未单独拍照"
+      },
+      {
+        "view": "我们是谁简繁体长文换行",
+        "result": "照片确认正文存在字形重叠、局部断裂和行间覆盖"
+      },
+      {
+        "view": "20% 亮度",
+        "result": "用户确认亮度变化正常，驱动目标与回读均为 20%"
+      },
+      {
+        "view": "80% 亮度",
+        "result": "采集前实屏操作并在采集后恢复，驱动目标与回读均为 80%"
+      }
+    ],
+    "known_issues": [
+      "替换前完整 TTF 在长中文正文中存在可见渲染质量波动；A1 必须消除或证明不再出现后才能通过字体替换门槛"
+    ],
+    "evidence": [
+      {
+        "path": "logs/board-validation-20260917-d07-a0-baseline/com10-raw.bin",
+        "bytes": 60724,
+        "sha256": "37c691cc0f82e70e883d7586999cb440084abe570d5549db4f057f0bf49a0190"
+      },
+      {
+        "path": "logs/board-validation-20260917-d07-a0-baseline/host-command-timeline.txt",
+        "bytes": 837,
+        "sha256": "a2391cd078ea8c477649d3682ad28d7d05b22aebc36a103313a479f60ffbf7af"
+      },
+      {
+        "path": "logs/board-validation-20260917-d07-a0-baseline/manual-observations.txt",
+        "bytes": 699,
+        "sha256": "d3a0285602abab6cd10dfef2be426e78805cea2a1bb2ff0581b8a9f8bd5e13ca"
+      },
+      {
+        "path": "logs/board-validation-20260917-d07-a0-baseline/d07-a0-pre-font-who-we-are-brightness-20.jpg",
+        "bytes": 382979,
+        "sha256": "91b97360f4b3842311aeca48ccee57583d8db59c2cbbe32cc12c25a6071e8187"
+      }
+    ]
   }
 }
