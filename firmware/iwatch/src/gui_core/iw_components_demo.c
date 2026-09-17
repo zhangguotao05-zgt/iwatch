@@ -56,26 +56,30 @@ static iw_component_result_t open_demo(int command)
     return result;
 }
 
-void iw_components_demo_process(void)
+bool iw_components_demo_process(void)
 {
-    if (!iw_font_port_render_idle() || iw_gui_fault_pending()) return;
     rt_base_t level = rt_hw_interrupt_disable();
     int command = requested;
+    rt_hw_interrupt_enable(level);
+    if (command == DEMO_IDLE) return false;
+    if (!iw_font_port_render_idle() || iw_gui_fault_pending()) return true;
+    level = rt_hw_interrupt_disable();
+    command = requested;
     requested = DEMO_IDLE;
     rt_hw_interrupt_enable(level);
-    if (command == DEMO_IDLE) return;
     if (command == DEMO_FAULT) {
         /* 诊断锁存用于验证退出路径，不伪装成实际堆耗尽或硬件故障。 */
         iw_gui_fault_raise();
         rt_kprintf("component demo injected=owner_cleanup_only\n");
-        return;
+        return true;
     }
     iw_gui_fault_dismiss();
     (void)iw_component_destroy(&frame);
-    if (command == DEMO_CLOSE) { rt_kprintf("component demo closed\n"); return; }
+    if (command == DEMO_CLOSE) { rt_kprintf("component demo closed\n"); return false; }
     iw_component_result_t result = open_demo(command);
     if (result != IW_COMPONENT_OK) iw_gui_fault_raise();
     rt_kprintf("component demo mode=%d result=%d\n", command, (int)result);
+    return iw_gui_fault_pending();
 }
 
 bool iw_components_demo_home(void)

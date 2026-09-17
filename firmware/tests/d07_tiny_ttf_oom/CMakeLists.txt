@@ -34,7 +34,22 @@ math(EXPR EPIC_LENGTH "${EPIC_END} - ${EPIC_START}")
 string(SUBSTRING "${EPIC_DRIVER}" ${EPIC_START} ${EPIC_LENGTH} EPIC_BLEND)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/epic_driver_under_test.inc" "${EPIC_BLEND}")
 
-add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c test_epic_glyph.c test_font_service.c test_components.c
+# 诊断邮箱与主循环排空顺序直接取生产代码，只替换RTOS和硬件时序边界。
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_components_demo.c" COMPONENT_DEMO)
+string(REGEX REPLACE "#include [^\n]*" "" COMPONENT_DEMO "${COMPONENT_DEMO}")
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/component_demo_under_test.inc" "${COMPONENT_DEMO}")
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_apps/watch_demo.c" WATCH_DEMO)
+string(FIND "${WATCH_DEMO}" "static uint32_t gui_process_frame(void)" FRAME_START)
+if(FRAME_START LESS 0)
+    message(FATAL_ERROR "Cannot locate production GUI frame coordinator")
+endif()
+string(SUBSTRING "${WATCH_DEMO}" ${FRAME_START} -1 FRAME_REST)
+string(FIND "${FRAME_REST}" "\n}" FRAME_END)
+math(EXPR FRAME_LENGTH "${FRAME_END} + 2")
+string(SUBSTRING "${FRAME_REST}" 0 ${FRAME_LENGTH} FRAME_FUNCTION)
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/gui_frame_under_test.inc" "${FRAME_FUNCTION}")
+
+add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c test_epic_glyph.c test_font_service.c test_components.c test_component_navigation.c
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_components.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_gui_owner.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_theme.c")

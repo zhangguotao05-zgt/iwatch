@@ -6,12 +6,13 @@ from pathlib import Path
 
 
 STAGES = ("create", "metadata", "bitmap", "epic", "registry_oom", "registry_epic")
+ROOT = Path(__file__).resolve().parents[3]
 
 
 def run_case(executable, font, stage, number, timeout=10):
     result = subprocess.run([str(executable), str(font), stage, str(number)],
                             stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
-                            text=True, encoding="utf-8", errors="replace", timeout=timeout)
+                            text=True, encoding="utf-8", errors="replace", timeout=timeout, cwd=ROOT)
     output = result.stdout.strip()
     if result.returncode:
         raise ValueError("{}/{} failed ({}): {}".format(stage, number, result.returncode, output))
@@ -63,6 +64,7 @@ def run_matrix(executable, font, repeat_count):
             run_case(executable, font, stage, point)
         fill_points += count
     print("ROUNDED FILL OOM OK: {} real renderer failure points".format(fill_points))
+    print(run_case(executable, font, "component_navigation", repeat_count, timeout=60))
     for mode in range(5):
         print(run_case(executable, font, "component_render", mode))
 

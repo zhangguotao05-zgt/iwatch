@@ -18,6 +18,7 @@ extern size_t test_font_live_blocks(void);
 extern size_t test_font_allocation_sequence(void);
 extern unsigned test_font_assert_count(void);
 extern void test_font_owner(bool owner, bool idle);
+extern int test_component_navigation(size_t loops);
 
 static unsigned cancellations, recoveries, quiesced, actions;
 static bool recovery_visible;
@@ -397,7 +398,8 @@ int test_components(const void *data, size_t size, const char *stage, size_t num
     lv_obj_t *warmup = lv_obj_create(lv_display_get_screen_active(display));
     lv_obj_delete(warmup);
     int result;
-    if (!strcmp(stage, "component_fill")) result = fill_oom_case(false, number);
+    if (!strcmp(stage, "component_navigation")) result = test_component_navigation(number);
+    else if (!strcmp(stage, "component_fill")) result = fill_oom_case(false, number);
     else if (!strcmp(stage, "component_fill_busy")) result = fill_oom_case(true, number);
     else if (!strcmp(stage, "component_render")) result = render_case(display, (unsigned)number);
     else if (!strcmp(stage, "components")) result = lifecycle(display, number);

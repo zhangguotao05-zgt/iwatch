@@ -415,6 +415,17 @@ static int32_t default_keypad_handler(lv_key_t key, lv_indev_state_t event)
     return LV_BLOCK_EVENT;
 }
 
+/* 页面开关与故障处理优先排空在途绘制，禁止边等待空闲边提交下一帧。 */
+static uint32_t gui_process_frame(void)
+{
+    if (app_clock_main_process_font_fault() || iw_components_demo_process()) return 1u;
+    uint32_t wait_ms = lv_timer_handler();
+    /* 输入回调可能刚投递关闭请求，绘制返回后再次检查。 */
+    if (app_clock_main_process_font_fault() || iw_components_demo_process()) return 1u;
+    if (iw_components_tick() && wait_ms > 16u) wait_ms = 16u;
+    return wait_ms;
+}
+
 
 #ifdef USING_BUTTON_LIB
 
@@ -1016,13 +1027,9 @@ void app_watch_entry(void *parameter)
         display_process_pending();
 
         rt_pm_request(PM_SLEEP_MODE_IDLE);
-        /* 故障排空期间保留服务和输入采集，只暂停提交新的页面绘制。 */
-        ms = app_clock_main_process_font_fault() ? 1u : lv_timer_handler();
+        /* 排空期间保留服务和输入采集，只暂停提交新的页面绘制。 */
+        ms = gui_process_frame();
         rt_pm_release(PM_SLEEP_MODE_IDLE);
-        /* 绘制结束后再处理字体故障，避免在 LVGL 回调中删除或切换对象。 */
-        if (app_clock_main_process_font_fault()) ms = 1u;
-        if (iw_components_tick() && ms > 16u) ms = 16u;
-        iw_components_demo_process();
         (void)iw_font_collect();
         if ((rt_tick_t)(rt_tick_get() - last_font_sample) >= rt_tick_from_millisecond(FONT_SAMPLE_PERIOD_MS))
         {
