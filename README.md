@@ -29,6 +29,8 @@
 
 开发任务使用 [GitHub Issues](https://github.com/zhangguotao05-zgt/iwatch/issues) 跟踪。任务实际开始时才创建对应的 Dxx Issue；完成后补齐提交、主机测试、双工具链和开发板证据，再以 `completed` 关闭。D01–D05 已按此规则补录为 [#1–#5](https://github.com/zhangguotao05-zgt/iwatch/issues?q=is%3Aissue+is%3Aclosed+label%3Atask)；[D06 · #6](https://github.com/zhangguotao05-zgt/iwatch/issues/6) 已完成；[D07 · #7](https://github.com/zhangguotao05-zgt/iwatch/issues/7) 已通过并关闭。性能遗留项由 [#8](https://github.com/zhangguotao05-zgt/iwatch/issues/8) 独立跟踪，当前开发任务为 [D08 · #9](https://github.com/zhangguotao05-zgt/iwatch/issues/9)。
 
+D08 已完成主机与双工具链检查，以及路由进退、资源清理和 20%/80% 旧通知页的实机功能复验，证据已封存。首轮曾出现半黑半白，复位后多轮正常但原因尚未确定；D08 整体待架构复核，Issue #9 保持打开，D09 尚未开始。
+
 D01–D03 已完成页面生命周期、BSP/分区/双工具链来源、GUI 等待/唤醒和输入取消实现，并在开发板上完成备份、三件套写入校验、冷启动、输入压力、显示超时恢复和黑屏触摸唤醒验收。D04/D05 已完成时间、启动协调、32 B 命令、48 B 结果、固定账本与快照，并通过主机、双工具链及开发板校时、软件复位和断电冷启动验收；断电后 RTC 正确失效，服务使用 TRNG 生成非零 31 位随机 session，该值只降低碰撞概率，不作为唯一性或安全保证。DEV_A128_NAND 的 main 位于 `0x69000000`，必须与同一归档的 Bootloader、FTab 成套烧录。
 
 D06 已实现 `SET_BRIGHTNESS`、目标/实际/持久状态、最新目标 mailbox 和 GUI owner 驱动确认；只有 LCD 状态、busy、写入后状态及亮度回读全部通过才返回 `OK_APPLIED`。首次显示、触摸 reassert 与故障恢复均读取当前目标，亮度 revision 饱和时失败无副作用。持久值仍明确为会话状态，真实 NAND 保存留 D15。最终 GCC main 为 5,745,568 B，双工具链身份、三件套写后校验、20%/80% 实屏变化、故障结果、软件复位和输入压力均已通过开发板复验。

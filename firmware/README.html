@@ -30,7 +30,7 @@
 <section id="iwatch-sf32lb58-固件" class="level1">
 <h1>iwatch SF32LB58 固件</h1>
 <p>这里保存本项目可修改、可提交的固件源码。基线来自 SiFli-SDK v2.5.1 的 <code>example/multimedia/lvgl/watch_v9</code>。当前验证平台为 <strong>SF32LB58-DevKit-LCD、A128R32N1、QSPI 屏接口、A1 修订</strong>，CO5300 + FT6146 模组已点亮。DEV_A128_NAND 的 D01–D06 已完成主机、双工具链和开发板验收；D06 的 GCC 三件套已写入并校验，真实亮度、会话复位和输入压力通过。证据见 <a href="../docs/ui/D01-D03_实施记录.html">D01–D03</a>、<a href="../docs/ui/D04-D05_实施记录.html">D04–D05</a> 与 <a href="../docs/ui/D06_显示目标与会话亮度实施记录.html">D06 实施记录</a>。</p>
-<p>D07 已按 9088f52 审批收口，性能遗留跟踪 Issue #8。当前 <a href="../docs/ui/D08_页面作用域与路由实施记录.html">D08 路由实施</a>已通过主机、双工具链及写后校验，新固件实机复验待完成。</p>
+<p>D07 已按 9088f52 审批收口，性能遗留跟踪 Issue #8。当前 <a href="../docs/ui/D08_页面作用域与路由实施记录.html">D08 路由实施</a>已通过主机、双工具链及写后校验；路由进退、资源清理和两档亮度的旧页面实机复验正常，原始证据已封存。首轮显示曾半黑半白，复位后未复现，原因未确定；整体待架构复核，Issue #9 保持打开。</p>
 <section id="目录" class="level2">
 <h2>目录</h2>
 <pre class="text"><code>firmware/
