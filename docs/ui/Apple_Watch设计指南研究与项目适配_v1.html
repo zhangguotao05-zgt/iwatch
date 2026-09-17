@@ -1,0 +1,295 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="Apple Watch 与 watchOS 设计指南研究：官方来源、新旧差异、390×450 布局、字体、导航、材质、状态反馈及 iwatch 实施建议。">
+  <title>Apple Watch 设计指南研究与项目适配 v1 · iwatch</title>
+  <link rel="stylesheet" href="../assets/engineering.css">
+  <style>
+    .research-meta { color: var(--muted); font-size: 14px; }
+    .research-note { padding: 16px 20px; border: 1px solid #355476; border-radius: 14px; background: #142236; }
+    .research-note p { margin: 6px 0; }
+    .research-tag { display: inline-block; margin-right: 6px; padding: 1px 7px; border: 1px solid #43546d; border-radius: 6px; color: #bcd9ff; font-size: 12px; vertical-align: middle; }
+    .research-source { color: var(--muted); font-size: 14px; }
+    .watch-studies { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 16px; margin: 24px 0; }
+    .watch-studies figure { min-width: 0; margin: 0; }
+    .watch-studies svg { display: block; width: 100%; height: auto; border: 1px solid #384254; border-radius: 34px; font-family: "Microsoft YaHei UI", sans-serif; }
+    .watch-studies figcaption { margin-top: 12px; color: var(--muted); font-size: 13px; line-height: 1.6; }
+    .research-swatches { display: flex; flex-wrap: wrap; gap: 10px; margin: 18px 0; }
+    .research-swatches span { padding: 8px 12px; border-radius: 9px; font-size: 14px; border: 1px solid #465066; }
+    .source-list li { margin: 16px 0; overflow-wrap: anywhere; }
+    @media (max-width: 680px) { .watch-studies { grid-template-columns: 1fr; } .watch-studies figure { width: 100%; max-width: 320px; margin: 0 auto 14px; } }
+    @media print { .watch-studies figure, .research-note { break-inside: avoid; } }
+  </style>
+</head>
+<body>
+  <header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">Apple Watch 设计指南研究与项目适配 v1</span></header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录"><ul>
+      <li><a href="#scope">1. 结论与版本范围</a></li>
+      <li><a href="#old-guide">2. 用户提供的文章如何使用</a></li>
+      <li><a href="#principles">3. 最值得借鉴的设计原则</a></li>
+      <li><a href="#navigation">4. 系统导航与输入</a></li>
+      <li><a href="#layout">5. 屏幕与布局适配</a></li>
+      <li><a href="#typography">6. 字体、文案与图标</a></li>
+      <li><a href="#materials">7. 颜色、对比度与材质</a></li>
+      <li><a href="#feedback">8. 状态、反馈与动效</a></li>
+      <li><a href="#surfaces">9. 通知、表盘组件与特殊状态</a></li>
+      <li><a href="#mapping">10. 项目接入与开发顺序</a></li>
+      <li><a href="#acceptance">11. 页面交付与验收清单</a></li>
+      <li><a href="#sources">12. 来源与阅读路径</a></li>
+    </ul></nav>
+    <main>
+      <h1>Apple Watch 设计指南研究<br>与项目适配 v1</h1>
+      <p class="research-meta">检索日期：2026-09-17 · 项目快照：<code>c8392a9</code> · 参考目标：Series 11 / watchOS 26 · 实现目标：SF32LB58 / 390×450 / LVGL</p>
+
+      <section id="scope"><h2>1. 结论与版本范围</h2>
+        <p><strong>优先建立清楚的信息层级、稳定的系统导航和完整的操作反馈，再逐页接近 Apple Watch 的视觉表现。</strong>大数字、胶囊按钮或玻璃高光单独出现，都不足以形成一致的手表体验。当前五类共享组件、字体服务和只读主题可以继续使用；下一步应通过具体页面检验这些基础能力。</p>
+        <div class="research-note">
+          <p><strong>本文是设计研究与后续适配建议。</strong>不改动已批准的 D07 预算、主题参数、接口和验收结论。撰写时 D07-C 正在架构复核，D07-D 尚未完成；新增建议在对应任务中评审后实施。</p>
+          <p>下文使用三种标记：<span class="research-tag">官方依据</span>能追溯到 Apple 的说明；<span class="research-tag">项目现状</span>能追溯到当前源码或验收文档；<span class="research-tag">适配建议</span>针对本项目提出、尚未全部实现的设计决策。</p>
+        </div>
+        <p>Series 11 是硬件型号，界面还取决于 watchOS 版本、语言、地区及辅助功能设置。研究沿用项目已确定的 <strong>watchOS 26</strong>，系统按键以版本固定的用户指南为准，视觉以 WWDC25 和 watchOS 26 UI Kit 为主要参考。官方入口现已包含 watchOS 27 信息；实时更新的 HIG 用于补充通用原则，不据此把目标版本悄悄升级。<a href="#s01">[S01]</a> <a href="#s02">[S02]</a> <a href="#s03">[S03]</a> <a href="#s04">[S04]</a></p>
+        <p>Apple 官方指南主要面向运行在 watchOS 内的 App，我们还需要实现表盘、桌面和系统输入层。因此，<strong>App 内返回、系统 Home、关闭弹层必须分开建模</strong>。SwiftUI、WidgetKit 和系统材质 API 是参考平台的实现方式，本项目借鉴其行为与层级，落地仍使用现有 C 服务和 LVGL。</p>
+      </section>
+
+      <section id="old-guide"><h2>2. 用户提供的文章如何使用</h2>
+        <p>已读取<a href="https://geekdaxue.co/read/zhuyeqian-eprgc@gof4aa/pulx3u">《WatchOS 系统篇》</a>正文。页面标注 2023-11-19，包含 watchOS 8、旧组件模板等内容；适合作为中文入门提纲，不宜作为 watchOS 26 的尺寸、材质或行为依据。以下逐项对照只采用已核实的官方说明。<a href="#s05">[S05]</a></p>
+        <table><thead><tr><th>文章中的方向</th><th>本次核对结果</th><th>项目处理</th></tr></thead><tbody>
+          <tr><td>交互短、重点清楚</td><td>与现行平台设计原则一致。<a href="#s06">[S06]</a></td><td>首页先给当前结果和主要动作，更多内容放详情。</td></tr>
+          <tr><td>偏向统一黑色底面</td><td>watchOS 10 已明确支持全屏色彩和图片来表达信息。不能理解成所有页面必须黑底。<a href="#s07">[S07]</a></td><td>系统列表保留黑底；天气、运动等业务背景以后按具体页面评估。</td></tr>
+          <tr><td>表盘组件的数量与模板</td><td>官方说明的是不同表盘支持的槽位，并非每张表盘必须放一个或固定四个；新旧模板需区分。<a href="#s08">[S08]</a></td><td>先确定表盘布局和能力，再决定放几个有效数据入口。</td></tr>
+          <tr><td>线宽以 px 描述</td><td>现行 complication 指南给出的通用线宽建议使用 point。<a href="#s08">[S08]</a></td><td>不把文中的像素数当作 390×450 的硬指标，按实际视觉尺寸检查。</td></tr>
+          <tr><td>短通知点击后看长通知</td><td>官方还描述了持续观看时从短通知切换到长通知的流程；点击不是唯一触发方式。<a href="#s09">[S09]</a></td><td>保留摘要/详情两级；抬腕触发需传感与功耗能力支持。</td></tr>
+          <tr><td>通知背景的固定透明度</td><td>当前指南按材质、内容和对比度组织层次；单一透明度无法定义新版外观。<a href="#s10">[S10]</a></td><td>继续走主题 Q0/Q1，不把旧数值写死到每个页面。</td></tr>
+        </tbody></table>
+        <p class="research-source">使用方法：中文文章帮助建立术语和问题清单；具体界面回到官方指南、对应版本 UI Kit 和参考设备画面核实。尚未见到的原厂页面状态标记“待核对”，不凭类似界面推断。</p>
+      </section>
+
+      <section id="principles"><h2>3. 最值得借鉴的设计原则</h2>
+        <p><span class="research-tag">官方依据</span>watchOS 强调抬腕即可读懂、少量操作完成任务、浅层导航，并通过通知和表盘组件把相关信息直接带到用户面前。<a href="#s06">[S06]</a></p>
+        <table><thead><tr><th>原则</th><th>适配建议</th><th>页面评审问题</th></tr></thead><tbody>
+          <tr><td>一眼看见重点</td><td>一屏确定一个主要读数或任务；标题、主值、说明分层，避免同等强调多个元素。</td><td>抬腕后先看见的是剩余时间，还是装饰和无关说明？</td></tr>
+          <tr><td>操作路径短</td><td>开始、暂停、确认等常用动作放在容易命中的位置；低频参数进入详情。</td><td>完成一个常用任务是否多绕了一层菜单？</td></tr>
+          <tr><td>先识别，再展开</td><td>列表展示标题和关键摘要；长正文独立纵向滚动，返回保留合理的位置。</td><td>列表里能否判断该打开哪一项？</td></tr>
+          <tr><td>位置与行为稳定</td><td>同一类返回和确认保持位置；加载、失败、恢复不突然移动按钮。</td><td>连续点击时是否误触到了状态变化后出现的另一动作？</td></tr>
+          <tr><td>表达真实状态</td><td>未采集、过期、未接入分别显示；命令提交、实际生效和保存完成分别反馈。</td><td>用户看到的“成功”能否对应真实服务结果？</td></tr>
+        </tbody></table>
+        <p>本项目的视觉工作优先级建议为：<strong>信息顺序 → 字体与对齐 → 输入与返回 → 状态反馈 → 动效 → 材质细节</strong>。这是一条开发取舍顺序，不代表 Apple 公布了相同的工程流程。</p>
+      </section>
+
+      <section id="navigation"><h2>4. 系统导航与输入</h2>
+        <p><span class="research-tag">官方依据</span>watchOS 10 起加强表冠在纵向滚动和分页中的作用，同时要求触摸能够完成对应操作。表冠按压由系统保留，普通 App 不自行接管。<a href="#s11">[S11]</a> watchOS 26 的具体按键行为见版本固定的用户指南。<a href="#s02">[S02]</a></p>
+        <table><thead><tr><th>输入 / 层级</th><th>watchOS 26 参考行为</th><th>iwatch 的接入边界</th></tr></thead><tbody>
+          <tr><td>表冠单击</td><td>进入表盘或应用桌面。</td><td>由系统层统一处理 Home；页面内返回另设语义，不让各 App 改写。</td></tr>
+          <tr><td>表冠双击</td><td>打开 App 切换器。</td><td>归 D09 输入仲裁及 D13 系统界面；不能照搬其他系统版本。</td></tr>
+          <tr><td>表冠旋转</td><td>滚动、缩放或调整当前值。</td><td>只交给当前焦点拥有者；编辑数值时避免同时滚动背景列表。</td></tr>
+          <tr><td>侧键单击</td><td>打开控制中心。</td><td>系统入口，优先级与锁定、弹层一起定义。</td></tr>
+          <tr><td>侧键双击 / 长按</td><td>支付入口 / 电源与紧急相关操作。</td><td>界面和能力分离；当前不具备真实支付、呼叫能力。</td></tr>
+          <tr><td>触摸</td><td>完成选取、滚动及屏幕手势。</td><td>纵向列表优先；没有旋钮时也能完成所有当前任务。</td></tr>
+        </tbody></table>
+        <p><span class="research-tag">项目现状</span>已验证的开发板输入是触摸和 KEY1，KEY1 当前承担工程入口/退出操作；它不等于已经实现了完整表冠。旋转编码器、第二实体键、触感反馈仍须分别接入与验证。</p>
+        <p><span class="research-tag">适配建议</span>D08/D09 让页面只接收“返回、确认、旋转增量”等语义。系统层先处理锁定与弹层，再分发页面操作。拖动开始后取消候选点击；页面退出取消按下态和在途手势；双击、长按不能顺带产生一次单击。具体阈值仍使用现有设计的待调参数，不称为 Apple 原厂时序。</p>
+        <p>转场期间先保留已批准的“完成当前事务＋合并一个返回请求”策略，避免为了更像原厂动效破坏生命周期。D14 再评估中途反向与更连续的转场。组件诊断页 KEY1 的清理路径不作为最终导航结构。</p>
+      </section>
+
+      <section id="layout"><h2>5. 屏幕与布局适配</h2>
+        <p><span class="research-tag">官方依据</span>Series 11 的 46 mm 型号为 <strong>416×496 px</strong>；46 mm 是机壳规格，不是屏幕对角线。<a href="#s12">[S12]</a> Apple 建议充分利用手表屏幕，减少不必要的留白，文字按钮通常铺满可用行宽，避免一行塞入过多控件。<a href="#s13">[S13]</a></p>
+        <p>我们的面板为 <strong>390×450 px</strong>。横向比例为 390/416＝0.9375，纵向约为 450/496＝0.9073，两者不同。整屏分别拉伸会改变圆形与字形；等比缩放也不能解决中文行数和按钮命中的问题。采用<strong>重新排版、图标等比、字号按角色确定</strong>的方式。</p>
+        <table><thead><tr><th>项目参数</th><th>当前源码值</th><th>适配含义</th></tr></thead><tbody>
+          <tr><td>安全区 / 内容宽</td><td>左右 18、上下 24；常规内容宽 354 px</td><td>当前工程初值。避让圆角需面板边缘标尺确认；不能声称为 Apple 安全区。</td></tr>
+          <tr><td>间距</td><td>4 / 8 / 12 / 16 / 24 px</td><td>先消除页面间随机间距，再按场景做光学校正。</td></tr>
+          <tr><td>列表行</td><td>最小 60 px</td><td>双行中文按实际 line_height 增高，不把最小行高当固定行高。</td></tr>
+          <tr><td>卡片</td><td>圆角 24、内边距 16 px</td><td>正文、按钮、整页轮廓使用不同尺度，不给所有对象同一个圆角。</td></tr>
+          <tr><td>胶囊按钮</td><td>高 60、圆角 30 px</td><td>主要动作优先全宽，标签尽量简短。</td></tr>
+          <tr><td>图标 / 命中区</td><td>图标 48、命中区至少 56×56 px</td><td>视觉图形与可触区域分开；邻近命中区不能冲突。</td></tr>
+        </tbody></table>
+        <p class="research-source">参数来源：<a href="../../firmware/iwatch/src/gui_core/iw_theme.c">iw_theme.c</a>、<a href="D07-C_共享组件与页面回收实施记录.html">D07-C 组件契约</a>。Apple 按钮指南中 44×44 <strong>pt</strong> 是通用触控建议，不等于 44×44 面板像素。watchOS 图像通常采用 @2x，44 pt 在该坐标体系下为 88 px；这也不能直接变成另一块面板的尺寸规定。现有 56 px 只能称为项目起点，需结合有效显示尺寸、佩戴距离和误触情况验收。<a href="#s14">[S14]</a> <a href="#s15">[S15]</a></p>
+        <h3>三种 390×450 页面结构示意</h3>
+        <p>以下为本项目绘制的静态结构图，坐标按 390×450；浏览器会缩放显示。字体来自浏览器，数据为示意，<strong>不是 Apple 截图、最终设计稿或固件渲染结果</strong>。</p>
+        <div class="watch-studies">
+          <figure>
+            <svg viewBox="0 0 390 450" role="img" aria-labelledby="study-list-title">
+              <title id="study-list-title">设置列表：标题、同宽卡片、主次文字</title>
+              <rect width="390" height="450" rx="48" fill="#000"/>
+              <text x="28" y="57" fill="#fff" font-size="30">设置</text><text x="292" y="53" fill="#b9bbc6" font-size="20">12:45</text>
+              <rect x="18" y="80" width="354" height="84" rx="24" fill="#17181c"/>
+              <text x="34" y="116" fill="#fff" font-size="26">显示与亮度</text><text x="34" y="146" fill="#b9bbc6" font-size="20">当前亮度 80%</text><text x="341" y="130" fill="#b9bbc6" font-size="30">›</text>
+              <rect x="18" y="176" width="354" height="84" rx="24" fill="#17181c"/>
+              <text x="34" y="212" fill="#fff" font-size="26">时间与日期</text><text x="34" y="242" fill="#b9bbc6" font-size="20">手动设置</text><text x="341" y="226" fill="#b9bbc6" font-size="30">›</text>
+              <rect x="18" y="272" width="354" height="84" rx="24" fill="#17181c"/>
+              <text x="34" y="308" fill="#fff" font-size="26">声音与触感</text><text x="34" y="338" fill="#b9bbc6" font-size="20">尚未接入</text>
+              <text x="34" y="398" fill="#b9bbc6" font-size="20">更多设置向下滚动</text>
+            </svg>
+            <figcaption><strong>列表型。</strong>先读标题和当前值；说明单独一行。点击行进入详情，长内容通过滚动延展。</figcaption>
+          </figure>
+          <figure>
+            <svg viewBox="0 0 390 450" role="img" aria-labelledby="study-value-title">
+              <title id="study-value-title">计时读数：大数字、单位、一个主要动作</title>
+              <rect width="390" height="450" rx="48" fill="#000"/>
+              <text x="28" y="57" fill="#fff" font-size="30">计时器</text>
+              <text x="195" y="141" text-anchor="middle" fill="#b9bbc6" font-size="22">剩余时间</text>
+              <text x="195" y="244" text-anchor="middle" fill="#ffd60a" font-size="80" font-family="monospace">12:45</text>
+              <text x="195" y="282" text-anchor="middle" fill="#b9bbc6" font-size="22">分 : 秒</text>
+              <rect x="18" y="336" width="354" height="60" rx="30" fill="#25262d"/>
+              <text x="195" y="376" text-anchor="middle" fill="#fff" font-size="26">暂停</text>
+            </svg>
+            <figcaption><strong>读数型。</strong>数字占主导，单位紧邻，主动作独立。字体大小服务于读数，不用其他装饰争夺注意力。</figcaption>
+          </figure>
+          <figure>
+            <svg viewBox="0 0 390 450" role="img" aria-labelledby="study-state-title">
+              <title id="study-state-title">能力不可用：无读数、原因、返回动作</title>
+              <rect width="390" height="450" rx="48" fill="#000"/>
+              <text x="28" y="57" fill="#fff" font-size="30">心率</text>
+              <text x="195" y="198" text-anchor="middle" fill="#fff" font-size="80">—</text>
+              <text x="195" y="250" text-anchor="middle" fill="#fff" font-size="26">传感器未接入</text>
+              <text x="195" y="288" text-anchor="middle" fill="#b9bbc6" font-size="22">暂时无法测量</text>
+              <rect x="18" y="336" width="354" height="60" rx="30" fill="#25262d"/>
+              <text x="195" y="376" text-anchor="middle" fill="#fff" font-size="26">返回</text>
+            </svg>
+            <figcaption><strong>状态型。</strong>占位不伪造数值；原因可读、退出明确。联网和硬件不可用时也保持完整界面。</figcaption>
+          </figure>
+        </div>
+        <p>图中右上角时间、卡片高度等只用于解释层级；当前 ScreenFrame 的标题与内容视口并不自动提供所有这些功能。未来加入角落工具按钮时，应扩展 Frame 的明确布局契约，不能在页面内硬叠到标题上。</p>
+      </section>
+
+      <section id="typography"><h2>6. 字体、文案与图标</h2>
+        <p><span class="research-tag">官方依据</span>Apple 为 watchOS 使用 SF Compact 字体家族，以适应较窄的列宽和小字号；官方资源页提供 watchOS 26 的 Figma / Sketch UI Kit。<a href="#s03">[S03]</a> <a href="#s16">[S16]</a> 本项目应比较字体的视觉比例、字宽和基线，而不是只对齐字号数字。</p>
+        <table><thead><tr><th>语义角色</th><th>当前 px</th><th>使用与检查</th></tr></thead><tbody>
+          <tr><td>主标题</td><td>30</td><td>短标题优先；过长转为页面内说明，不靠不断缩字适应。</td></tr>
+          <tr><td>正文 / 列表标题</td><td>26</td><td>主信息保持清晰；中文宽度、标点和数字混排按真实字形度量。</td></tr>
+          <tr><td>次级 / 注释</td><td>22 / 20</td><td>用于来源、单位、说明。重要错误原因不能缩成难读的小灰字。</td></tr>
+          <tr><td>数字</td><td>64 / 80 / 96</td><td>按最长内容选档；数字变化时位置稳定，检查冒号、负号、小数点和单位。</td></tr>
+          <tr><td>旧页兼容</td><td>16 / 18 / 20 / 22 / 24 / 26 / 28</td><td>继续保留，迁移时逐页回归；不能因新角色字号不同而一次删除。</td></tr>
+        </tbody></table>
+        <p><span class="research-tag">项目现状</span>当前子集字体为 336 字符、56,804 B；字号角色与字库覆盖是两件事。新页面每增加一条静态文案，都要更新输入清单并通过正式字体校验。浏览器示意图能显示一个字，不代表固件字库已经包含它。<a href="D07_资源预算与共享组件设计方案_v2.html">D07 字体方案</a></p>
+        <p><span class="research-tag">适配建议</span>中文优先使用简短动词与明确结果，例如“开始”“暂停”“重新测量”；加载时写正在做什么，失败时给出原因和可执行动作。日期、时区、单位、最长中文标题、数值上限分别准备排版样本。涉及真实数值或操作结果时不随意截断，必要时换行或进入详情。</p>
+        <p>当前源码还没有三套真实字重资源；视觉规范中的 Regular / Medium / Semibold 是目标，不代表已经实现。不要把常规字重反复偏移绘制当作已完成的字体设计。数字对齐也需验证所选字体的真实度量，不把浏览器的等宽显示当作实机结论。</p>
+        <p>图标采用一致的视觉重量、圆角和有效图形面积；同一个动作在列表、通知和桌面中保持可识别关系。工程图标与字体资源记录来源和许可，UI Kit 用于查阅结构与对照，固件继续采用项目已确认可分发的资源。本文未将 Apple 字体、图标包或整套界面图复制进仓库。</p>
+      </section>
+
+      <section id="materials"><h2>7. 颜色、对比度与材质</h2>
+        <p><span class="research-tag">官方依据</span>Liquid Glass 用于浮在内容上方的导航和控件层；正文所在的内容层使用标准材质。这样可保留层级与位置感，避免每块内容都像漂浮控件。<a href="#s10">[S10]</a> watchOS 26 更新了工具栏和按钮样式，自定义界面仍需检查可读性。<a href="#s01">[S01]</a></p>
+        <div class="research-swatches" aria-label="当前项目主题色示例"><span style="background:#000;color:#fff">系统背景</span><span style="background:#17181c;color:#fff">内容表面</span><span style="background:#25262d;color:#fff">凸起表面</span><span style="background:#0a84ff;color:#000">强调色</span><span style="background:#17181c;color:#b9bbc6">次级文字</span></div>
+        <table><thead><tr><th>层级</th><th>项目建议</th><th>应避免</th></tr></thead><tbody>
+          <tr><td>正文、长列表、数据卡片</td><td>稳定深色底面；用间距、字重与主次色分层。</td><td>逐行动态模糊、持续闪动高光、低透明度文字。</td></tr>
+          <tr><td>导航、浮动按钮、弹层</td><td>共用 Q0/Q1 轮廓与前景规则；必要时保留背景上下文。</td><td>透明背景变化后按钮消失、把表面高光误做成进度提示。</td></tr>
+          <tr><td>业务主色</td><td>表达选中、类别或重要数据；健康状态同时有文字或图形。</td><td>只凭红绿区分成功与失败；所有页面整屏使用同一品牌色。</td></tr>
+          <tr><td>降低效果</td><td>切到 Q0 时保持位置、命中区、文案和返回流程。</td><td>降档后更换整个布局，或把低效果模式做成残缺页面。</td></tr>
+        </tbody></table>
+        <p><span class="research-tag">项目现状</span>Q0 不透明；Q1 表面不透明度为 224/255，使用受控高光。当前不是 Apple 的实时折射材质。Q2 尚未实现，也不是推进主要页面的前提。新增材质要分别计入主堆、字形池和绘制临时缓冲预算。</p>
+        <h3>现有主题色的可复核检查</h3>
+        <p>采用 W3C 的 sRGB 相对亮度比值 <code>(L高 + 0.05) / (L低 + 0.05)</code> 计算下列不透明色对。建议普通有效文字先以 4.5:1 做设计筛查；这不是宣布本机通过某项无障碍认证，也不把 LVGL 像素字号直接套进网页“大字”豁免。<a href="#s17">[S17]</a> <a href="#s18">[S18]</a></p>
+        <table><thead><tr><th>前景 / 背景</th><th>计算结果</th><th>含义</th></tr></thead><tbody>
+          <tr><td><code>#FFFFFF / #17181C</code></td><td>17.74:1</td><td>适合作为稳定内容层的主文字组合。</td></tr>
+          <tr><td><code>#B9BBC6 / #17181C</code></td><td>9.28:1</td><td>不透明次级文字仍保有较高对比。</td></tr>
+          <tr><td><code>#FFFFFF / #0A84FF</code></td><td>3.65:1</td><td>如果将强调蓝用作实底，不能自动认为小号白字已满足建议目标。</td></tr>
+          <tr><td><code>#000000 / #0A84FF</code></td><td>5.76:1</td><td>可作为蓝色实底的候选前景；是否采用还需页面视觉评审。</td></tr>
+        </tbody></table>
+        <p>以上只是静态色值计算，不证明当前某个组件在实屏上失败或通过。半透明面必须用合成后的最不利背景重新检查；RGB565 量化、抗锯齿边缘、玻璃反光和显示亮度还需实屏观察。20% / 80% 是现有调试亮度命令值，不是测得的 nits。</p>
+      </section>
+
+      <section id="feedback"><h2>8. 状态、反馈与动效</h2>
+        <p><span class="research-tag">官方依据</span>自定义按钮应有按下反馈；watchOS 的内容内按钮采用胶囊形，主要动作优先占满可用宽度。<a href="#s14">[S14]</a> 动效应说明操作和层级，进入与退出方向有逻辑，避免让用户反复等待装饰性动画；减弱动态效果后仍要传达结果。<a href="#s19">[S19]</a> <a href="#s20">[S20]</a></p>
+        <table><thead><tr><th>时刻</th><th>界面应该表达</th><th>本项目责任</th></tr></thead><tbody>
+          <tr><td>按下</td><td>已收到触摸；松开或拖出有明确变化。</td><td>组件按下态，不等待业务线程回复才有反馈。</td></tr>
+          <tr><td>提交</td><td>正在处理；相同动作不能连续生成重复命令。</td><td>Presenter 生成请求，按钮进入等待；当前省略号只是局部反馈。</td></tr>
+          <tr><td>成功</td><td>真实结果已经生效，而非仅进入队列。</td><td>读取服务结果与快照；区分 target、applied 和 persisted。</td></tr>
+          <tr><td>失败 / 超时</td><td>保留可信的旧状态，给原因与重试或返回。</td><td>结束等待；业务失败不擅自升级成全局崩溃。</td></tr>
+          <tr><td>页面退出</td><td>及时抵达确定的返回目标。</td><td>取消输入与订阅，等待在途绘制安全结束；服务结果仍由全局通路回收。</td></tr>
+        </tbody></table>
+        <p><span class="research-tag">项目现状</span>主题提供按压 75 ms、普通导航 250 ms、App 转场 290 ms 等参数，按压缩放 0.97。这些是项目配置，不能称为测得的 Apple 动画常数；只有调用该效果的页面才具备相应行为。缩放绘制不得缩小命中区。</p>
+        <p><span class="research-tag">适配建议</span>秒表、计时器和圆环用模型的实际时间/数值重绘，动画只负责表现；页面隐藏后暂停无必要动画。错误发生在绘制期间时先记录，等 GPU/LCD 安全点再按所有权回收，最后显示独立应急层。正常业务错误与字体/绘制资源故障使用不同处理路径。</p>
+        <p>动效时长、输入排队延迟、命令处理时间和屏幕刷新帧率要分开记录。现存长文滑动和触摸覆盖问题继续跟踪，主要页面成型后集中优化；本研究不增加“现在必须达到 30 FPS”这一放行条件，也不把诊断命令响应快等同于动画流畅。</p>
+      </section>
+
+      <section id="surfaces"><h2>9. 通知、表盘组件与特殊状态</h2>
+        <table><thead><tr><th>场景</th><th>官方依据</th><th>本项目适配建议</th></tr></thead><tbody>
+          <tr><td>通知摘要与详情</td><td>短通知让人识别来源，长通知承载正文和可操作项；摘要应注意隐私。<a href="#s09">[S09]</a> <a href="#s21">[S21]</a></td><td>摘要先显示应用与事件；正文页可纵向滚动，常用动作放独立按钮。旧演示通知不等于手机通知同步已经实现。</td></tr>
+          <tr><td>表盘复杂功能</td><td>核心价值是及时的数据，不只是 App 快捷图标；没有内容时要有占位。<a href="#s08">[S08]</a></td><td>每个槽位带值、单位、有效性、更新时间与详情入口；过期数据不能继续冒充当前读数。</td></tr>
+          <tr><td>健康读数</td><td>借鉴信息层级和组件模式，具体数据契约由项目负责。</td><td>未接传感器用“—”和原因；演示数据持续标注“演示”。采集中与测量失败分开，不能显示正常范围占位数值。</td></tr>
+          <tr><td>常亮 / 抬腕 / 灭屏</td><td>属于设备与系统能力，不能由一张暗色界面代表。</td><td>D16 验证前不宣称完整 Always On。先定义暗屏隐私、唤醒输入是否被消费及亮度恢复目标，再做功耗和唤醒实测。</td></tr>
+          <tr><td>更大文字 / 更少运动</td><td>Apple 强调文本适配、颜色以外的识别线索以及减少运动效果。<a href="#s17">[S17]</a> <a href="#s20">[S20]</a></td><td>逐页评估字号放大、增高与滚动；全局可用的设置页尚需接入。降低效果不能取消成功/失败反馈。</td></tr>
+        </tbody></table>
+        <p>当前离线范围内，微信、支付宝、联网天气等入口如果保留，只表达已实现的本地能力或说明未接入。Siri、支付、后台同步不是换个图标即可获得的功能。这一边界沿用<a href="功能逻辑与页面契约_v1.html">功能逻辑与页面契约</a>。</p>
+      </section>
+
+      <section id="mapping"><h2>10. 项目接入与开发顺序</h2>
+        <p>以下对应已有任务，不创建一条与 D01–D18 平行的开发路线。研究所得的新要求先写入各页契约，涉及接口或预算变化时纳入对应任务评审。</p>
+        <table><thead><tr><th>现有基础 / 任务</th><th>如何使用本研究</th><th>验收重点</th></tr></thead><tbody>
+          <tr><td>D07-C / D07-D</td><td>ScreenFrame 管页面骨架；ListRow 管列表；PillButton 管动作；StatePanel 管空/错/不可用；StatusBanner 管短反馈。</td><td>按已批准方案完成状态、字号、Q0/Q1、返回和故障清理。Banner 限频/超时属于后续 Presenter，不假定组件已自动实现。</td></tr>
+          <tr><td>D08 / D09</td><td>把 App 内返回、系统 Home、弹层关闭及表冠焦点规则落入路由和输入仲裁。</td><td>转场连按、触摸取消、重复返回、锁定优先级；真实硬件与注入分别记录。</td></tr>
+          <tr><td>D10 首个可运行批</td><td>数字表盘 → 应用列表 → 设置/亮度 → 校时 → 关于，逐页建立参考卡和完整状态。</td><td>首屏可读、中文边界、结果回执、往返路径；先完成闭环再扩大页面数量。</td></tr>
+          <tr><td>D11 / D12</td><td>计时、秒表与提醒采用大读数和清楚的主要动作。</td><td>后台运行与到期模型正确；视觉不能通过动画次数计算时间。</td></tr>
+          <tr><td>D13 / D14</td><td>控制中心、通知、智能叠放、切换器和复杂桌面遵守固定系统版本。</td><td>层次清楚、手势不冲突；主要页面完成后评估转场和滑动性能。</td></tr>
+          <tr><td>D15–D18</td><td>资源持久化、低功耗、真实数据 Provider 和佩戴版适配逐项接入。</td><td>存储故障、恢复边界、能力状态、实际触控尺寸及整机长期使用。</td></tr>
+        </tbody></table>
+        <h3>进入页面开发前应补齐的设计资料</h3>
+        <ol>
+          <li><strong>参考卡：</strong>每页保存系统版本、机型、语言、来源链接和已观察到的状态；HIG 不能替代实际页面参考。</li>
+          <li><strong>重排稿：</strong>在 390×450 坐标下给出边界、字号角色、主动作和滚动范围；不要整屏缩放截图。</li>
+          <li><strong>状态稿：</strong>画出加载、空、正常、失败、不可用和返回；先确定数据来源与提交反馈。</li>
+          <li><strong>资源表：</strong>新增文字、图标和位图分别登记；容量检查继续绑定正式字体清单和双工具链构建身份。</li>
+          <li><strong>对照说明：</strong>记录真实旋钮、触感、字重、材质等差异，以及本轮是否接受。未核实的参数保持待定。</li>
+        </ol>
+        <p>目前还需要在后续页面任务中确定：最终物理触控尺寸、角落工具栏占位、长标题规则、常用数字的字宽、各 App 背景色及能力不可用文案。现有主题不应在缺乏页面样本时一次性重写。</p>
+      </section>
+
+      <section id="acceptance"><h2>11. 页面交付与验收清单</h2>
+        <p>建议每页以 HTML 参考卡交付，下表是可直接使用的字段。状态统一分为“未实现、主机通过、目标构建通过、实屏通过”，并写明版本，不以一项替代另一项。</p>
+        <table><thead><tr><th>字段</th><th>必须记录</th></tr></thead><tbody>
+          <tr><td>身份与来源</td><td>page_id、参考系统小版本、语言/地区、参考来源、项目提交、主题与资源版本。</td></tr>
+          <tr><td>路径</td><td>入口、父级、内部返回、Home、弹层、转场中返回、重新进入后的落点。</td></tr>
+          <tr><td>数据</td><td>Provider / snapshot、单位、有效期、未接入和演示标记、命令与结果对应关系。</td></tr>
+          <tr><td>布局</td><td>安全区、主要信息、字号角色、命中区、内容高度、最长中文和数字边界。</td></tr>
+          <tr><td>交互状态</td><td>按下、拖动取消、等待防重、成功、失败、超时、禁用、退出。</td></tr>
+          <tr><td>视觉可读性</td><td>低/高亮度、复杂背景、灰阶、Q0/Q1、减弱动态效果、字号与字重差异。</td></tr>
+          <tr><td>资源与故障</td><td>字体引用、主堆与字形池、绘制临时内存、失败点、重复退出和恢复。</td></tr>
+          <tr><td>性能</td><td>固定场景、采集开销、输入延迟、首帧时间、帧间隔分布、长停顿、触摸丢失/覆盖。</td></tr>
+          <tr><td>证据</td><td>主机日志、构建身份、原始串口、用户实屏反馈；差异和未验证项单列。</td></tr>
+        </tbody></table>
+        <h3>实屏检查的最小流程</h3>
+        <ol>
+          <li>固定语言、时间和数据，先读首屏：标题、重点数值和主要动作能否立即区分。</li>
+          <li>检查四角、中文上下沿、长标题、单位和最大数字，不允许字形破损、重叠或重要信息被裁切。</li>
+          <li>完成进入、滚动、触摸按钮、实体按键返回，重复进入后检查位置和状态。</li>
+          <li>在等待中返回、快速重复点击、拖出按钮后松手；确认不会产生重复命令或错误落点。</li>
+          <li>检查不可用/失败页面仍可退出；页面释放后的两类内存回到合理基线，反复操作无持续增长。</li>
+        </ol>
+        <p>普通文字和操作验收优先使用直接反馈配合串口记录；只有出现难以文字描述的视觉差异时，再用截图或短视频定位。后续性能基线固定同一正文、字号、亮度、滚动动作和固件身份；输入队列 P95 不能代替刷新性能数据。</p>
+      </section>
+
+      <section id="sources"><h2>12. 来源与阅读路径</h2>
+        <p>建议先读 S06（平台原则）、S07（watchOS 10 导航基础）、S01（watchOS 26 变化），再看 S03 的 UI Kit；具体页面按布局、按钮、字体和材质章节核对。所有链接于 2026-09-17 检索；HIG 和资源入口会更新，版本固定的视频与用户指南用于保留参考范围。</p>
+        <ol class="source-list">
+          <li id="s01"><strong>S01 · watchOS 26 的版本依据。</strong> <a href="https://developer.apple.com/videos/play/wwdc2025/334/">Apple WWDC25 — What’s new in watchOS 26</a>。用于工具栏、控件、图标与系统空间的设计更新；不据视频推定未展示页面的具体像素。</li>
+          <li id="s02"><strong>S02 · 系统输入。</strong> <a href="https://support.apple.com/en-asia/guide/watch/apd1d9d7efca/26/watchos/26">Apple Watch User Guide — Use buttons and gestures（watchOS 26）</a>。用于 Crown、侧键及系统入口。</li>
+          <li id="s03"><strong>S03 · 官方设计资源。</strong> <a href="https://developer.apple.com/design/resources/">Apple Design Resources</a>。检索时 watchOS 栏列出 watchOS 26 UI Kit 的 Figma / Sketch 入口及 SF Compact 字体说明；本次核实入口，未逐层检查设计文件。</li>
+          <li id="s04"><strong>S04 · 当前平台入口。</strong> <a href="https://developer.apple.com/watchos/">watchOS — Apple Developer</a>。检索时已有 watchOS 27 内容，因此实时入口不能直接当作 watchOS 26 冻结规范。</li>
+          <li id="s05"><strong>S05 · 用户提供的中文资料。</strong> <a href="https://geekdaxue.co/read/zhuyeqian-eprgc@gof4aa/pulx3u">WatchOS 系统篇 — 极客文档</a>。页面日期 2023-11-19；用于问题索引和新旧对照，不作为本项目尺寸依据。</li>
+          <li id="s06"><strong>S06 · 平台原则。</strong> <a href="https://developer.apple.com/design/human-interface-guidelines/designing-for-watchos">HIG — Designing for watchOS</a>。快速阅读、浅层交互及平台入口；动态网页，部分正文经检索索引读取。</li>
+          <li id="s07"><strong>S07 · 导航与布局基础。</strong> <a href="https://developer.apple.com/documentation/watchos-apps/creating-an-intuitive-and-effective-ui-in-watchos-10">Creating an intuitive and effective UI in watchOS 10</a>。纵向分页、层级导航、全屏色彩和材质；从设计语义映射到 LVGL。</li>
+          <li id="s08"><strong>S08 · 表盘复杂功能。</strong> <a href="https://developer.apple.com/design/human-interface-guidelines/complications">HIG — Complications</a>。及时数据、单色可读、占位与模板版本；不把旧模板尺寸混用到新页面。</li>
+          <li id="s09"><strong>S09 · 通知流程。</strong> <a href="https://developer.apple.com/documentation/watchos-apps/presenting-notifications-on-apple-watch">Presenting notifications on Apple Watch</a>。短通知和长通知转换。</li>
+          <li id="s10"><strong>S10 · 材质分层。</strong> <a href="https://developer.apple.com/design/human-interface-guidelines/materials">HIG — Materials</a>。Liquid Glass、内容层标准材质及 watchOS 模态层。</li>
+          <li id="s11"><strong>S11 · 表冠。</strong> <a href="https://developer.apple.com/design/human-interface-guidelines/digital-crown">HIG — Digital Crown</a>。旋转导航、触摸替代及 App / 系统输入边界。</li>
+          <li id="s12"><strong>S12 · 实际硬件规格。</strong> <a href="https://support.apple.com/en-us/125093">Apple Watch Series 11 — Tech Specs</a>。46 mm 型号 416×496 px；用于与本项目面板区分。</li>
+          <li id="s13"><strong>S13 · 布局。</strong> <a href="https://developer.apple.com/design/human-interface-guidelines/layout">HIG — Layout</a>；<a href="https://developer.apple.com/documentation/watchos-apps/supporting-multiple-watch-sizes">Supporting multiple watch sizes</a>。内容宽度、控件数量和适配尺寸。</li>
+          <li id="s14"><strong>S14 · 按钮。</strong> <a href="https://developer.apple.com/design/human-interface-guidelines/buttons">HIG — Buttons</a>。命中区、按下态、watchOS 胶囊和工具栏按钮；各平台小节不能混用。</li>
+          <li id="s15"><strong>S15 · 图像单位。</strong> <a href="https://developer.apple.com/design/human-interface-guidelines/images">HIG — Images</a>。point 与像素比例、watchOS @2x 资源规则。</li>
+          <li id="s16"><strong>S16 · 字体。</strong> <a href="https://developer.apple.com/design/human-interface-guidelines/typography">HIG — Typography</a>。系统字体和文本层级；中文译文与英文术语冲突时以英文上下文核实。</li>
+          <li id="s17"><strong>S17 · 可读性。</strong> <a href="https://developer.apple.com/design/human-interface-guidelines/accessibility">HIG — Accessibility</a>；<a href="https://developer.apple.com/help/app-store-connect/manage-app-accessibility/sufficient-contrast-evaluation-criteria">Sufficient Contrast evaluation criteria</a>。文本放大、对比度及辅助功能设计参考。</li>
+          <li id="s18"><strong>S18 · 色值计算。</strong> <a href="https://www.w3.org/WAI/WCAG22/Understanding/contrast-minimum.html">W3C — Understanding SC 1.4.3: Contrast (Minimum)</a>。静态对比度计算和阈值解释；本文未做整机合规认证。</li>
+          <li id="s19"><strong>S19 · 动效。</strong> <a href="https://developer.apple.com/design/human-interface-guidelines/motion">HIG — Motion</a>。目的、方向、简洁反馈与取消；游戏帧率建议不直接作为本轮 GUI 门槛。</li>
+          <li id="s20"><strong>S20 · 减少动态效果。</strong> <a href="https://developer.apple.com/help/app-store-connect/manage-app-accessibility/reduced-motion-evaluation-criteria/">Reduced Motion evaluation criteria</a>。减少装饰运动后保留状态信息。</li>
+          <li id="s21"><strong>S21 · 通知内容。</strong> <a href="https://developer.apple.com/design/human-interface-guidelines/notifications">HIG — Notifications</a>。摘要隐私、标题、正文与上下文动作。</li>
+        </ol>
+        <p>与本文配套的项目资料：<a href="视觉与交互规范_v1.html">视觉与交互规范</a>、<a href="功能逻辑与页面契约_v1.html">页面契约</a>、<a href="模块接口与开发任务_v1.html">开发任务</a>、<a href="D07_资源预算与共享组件设计方案_v2.html">D07 批准方案</a>及<a href="D07-C_共享组件与页面回收实施记录.html">当前共享组件记录</a>。本文没有改变这些文档的批准状态。</p>
+      </section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · 设计研究与适配建议 · 2026-09-17</footer>
+  <script src="../assets/engineering.js"></script>
+</body>
+</html>

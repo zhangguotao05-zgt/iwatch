@@ -10,6 +10,7 @@
 - [模块接口、开发任务与测试矩阵](docs/ui/模块接口与开发任务_v1.html)
 - [系统架构 v1.1](docs/ui/系统架构_v1.1.html)
 - [视觉与交互规范 v1](docs/ui/视觉与交互规范_v1.html)
+- [Apple Watch 设计指南研究与项目适配](docs/ui/Apple_Watch设计指南研究与项目适配_v1.html)
 - [实施与验收记录](docs/ui/实施与验收_v1.html)
 - [D01–D03 板上验收记录](docs/ui/D01-D03_实施记录.html)
 - [D04–D05 时间与最小服务实施记录](docs/ui/D04-D05_实施记录.html)
