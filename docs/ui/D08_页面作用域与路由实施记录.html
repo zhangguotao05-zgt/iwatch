@@ -11,11 +11,11 @@
 <main class="doc-main"><h1>D08 页面作用域与路由实施记录</h1>
 <p class="doc-meta">2026-09-17 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/9">Issue #9</a> · 前置审批：D07 / 9088f52 · 接续基线 78ed9d6</p>
 <section id="status"><h2>交付状态</h2>
-<p>页面作用域、注册表、单笔导航事务与 SiFli 适配已实现，主机回归通过。目标固件正在构建；新镜像尚未完成实机复验。D08 不提前收口，Issue #9 保持打开。旧通知布局和资源保持稳定，D10 再接入正式中文产品页面。</p>
+<p>页面作用域、注册表、单笔导航事务与 SiFli 适配已实现，主机回归通过。修正版源码为 82ab706，GCC/Keil 身份、预算与 DryRun 通过，GCC 三件套已写入并校验；新镜像尚未完成实机复验。D08 不提前收口，Issue #9 保持打开。旧通知布局和资源保持稳定，D10 再接入正式中文产品页面。</p>
 <table><thead><tr><th>层次</th><th>当前结论</th></tr></thead><tbody>
 <tr><td>主机</td><td>纯 C 策略、真实 LVGL 页面、生产 SDK 函数摘录和既有字体/输入回归通过；具体替身边界见下文。</td></tr>
-<tr><td>目标构建</td><td>待 GCC/Keil 构建、身份、预算及 COM255 DryRun 完成后填写。</td></tr>
-<tr><td>实机</td><td>待 COM9 写入、COM10 原始采集和用户操作确认；历史 D07 证据不作为本轮实机通过证据。</td></tr>
+<tr><td>目标构建</td><td>GCC / Keil 均通过；绑定 82ab706。COM255 DryRun 通过。</td></tr>
+<tr><td>实机</td><td>GCC 三件套已由 COM9 写入并校验；等待取下 Mode 后复位及操作确认。COM10 持续采集，历史 D07 证据不作为本轮实机通过证据。</td></tr>
 </tbody></table></section>
 <section id="ownership"><h2>所有权与接口</h2>
 <table><thead><tr><th>模块</th><th>责任及边界</th></tr></thead><tbody>
@@ -57,7 +57,7 @@
 <p>初版 <code>f6e401c</code> 在接口联查发现能力查询漏传必需的 required 指针，会拒绝打开诊断页。原测试快照替身未覆盖这一约束；现改为链接真实 <code>iw_service.c</code> 和 <code>iw_time.c</code>，只替换运行时互斥和采样。先复现旧调用失败，再修复长度参数和变长载荷检查，1000 轮导航及完整回归重新通过。初版构建、第一次写入记录单独保存，不作为最终板测镜像。</p>
 </section>
 <section id="target"><h2>双工具链与实机证据</h2>
-<p>本节待本轮构建与板测填写。三件套继续使用已批准分区与地址：Bootloader 0x1C020000、main 0x69000000、FTab 0x1C000000，FTab 最后写入。仅使用此开发板的 COM9/COM10。</p>
+<p>源码 <code>82ab706dbfed8f828273281aa0060a489c683c09</code>，两套归档的 map 工具链标识和 SHA-256 均不同。以下镜像已经身份、资源预算、布局及 COM255 DryRun 验证。</p><table><thead><tr><th>工具链</th><th>主镜像</th><th>main.bin SHA-256</th></tr></thead><tbody><tr><td>GCC</td><td>1,881,436 B / 29.905%</td><td><code>e7b71048b4b5b4ab3b801afd784dc88981ff7616ddfcf0f72310f3af2d5e6a3b</code></td></tr><tr><td>KEIL</td><td>1,807,176 B / 28.724%</td><td><code>1e8ed441e619a71d9aee8bd76e09c91e465adc77f698c3f3df9f88e5f0a94839</code></td></tr></tbody></table><p>最终候选归档为 <code>logs/board-validation-20260917-d08-r2/</code>，包含两套产物、原始构建输出、完整烧录输出和回归记录。COM10 的 <code>serial.raw</code> 与 <code>timeline.jsonl</code> 仍在采集中，验收结束后封存；不提前对活动日志计算最终校验和。</p><p>已通过 COM9 写入 GCC Bootloader、main 和 FTab，并完成 sftool 写后校验。Bootloader 0x1C020000、main 0x69000000、FTab 0x1C000000，FTab 最后写入。当前等待用户取下 Mode 并复位，启动和交互结论待补。</p>
 </section>
 <section id="commands"><h2>诊断操作与实机验收</h2>
 <pre><code>iw_nav open 1
