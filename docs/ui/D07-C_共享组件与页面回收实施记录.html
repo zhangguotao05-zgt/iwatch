@@ -3,11 +3,11 @@
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <title>D07-C 共享组件与页面回收 · iwatch</title><link rel="stylesheet" href="../assets/engineering.css"></head>
 <body><header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D07-C 共享组件</span></header>
-<div class="page-shell"><nav class="toc"><ul><li><a href="#status">阶段状态</a></li><li><a href="#components">组件契约</a></li><li><a href="#ownership">所有权与故障</a></li><li><a href="#patch">受控补丁</a></li><li><a href="#tests">主机验证</a></li><li><a href="#target">目标构建</a></li><li><a href="#board">开发板复验</a></li></ul></nav>
+<div class="page-shell"><nav class="toc"><ul><li><a href="#status">阶段状态</a></li><li><a href="#components">组件契约</a></li><li><a href="#ownership">所有权与故障</a></li><li><a href="#patch">受控补丁</a></li><li><a href="#tests">主机验证</a></li><li><a href="#navigation-fix">返回延迟修正</a></li><li><a href="#target-r2">修正版构建</a></li><li><a href="#board">开发板复验</a></li></ul></nav>
 <main class="doc-main"><h1>D07-C 共享组件与页面回收实施记录</h1>
 <p class="doc-meta">2026-09-17 · B 审批基线 7dfd90d · <a href="D07_资源预算与共享组件设计方案_v2.html">批准方案 v2</a> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">Issue #7</a></p>
 <section id="status"><h2>阶段状态</h2>
-<p><strong>B 已通过阶段审批。C 初版完成主机和双工具链构建，但实屏复验发现组件退出延迟，不能收口。排空顺序已修正并补专项回归；修正版双工具链与实机验证待完成。C 尚不记为架构验收通过，D07 整体保持打开。</strong></p>
+<p><strong>B 已通过阶段审批。C 五类组件及多页面清理已实现；初版实屏发现的退出延迟已修正，修正版主机回归、双工具链、身份与GCC实机复验完成，提交架构复核。C 尚不记为架构验收通过，D07-D及整体验收未完成，Issue #7保持打开。</strong></p>
 <p>保留 B 首轮按键队列 P95≥100 ms、最大121 ms及一次触摸缓冲覆盖；独立补测46 ms不能覆盖首轮。这里的队列延迟也不代表 GUI 帧率。长文全面优化仍在主要页面成型后进行。C 的诊断入口供组件验证使用，D 的完整状态展示、综合故障和实屏验收仍单独执行。</p></section>
 <section id="components"><h2>组件契约</h2>
 <p><code>gui_core/iw_components</code>只依赖字体服务、主题和 LVGL，不调用时间、亮度或其他业务服务。五类组件使用同一受控对象类，父对象拥有子树；组件自身没有业务线程、定时器或订阅。只有 GUI 主循环推进75 ms按压效果，减弱动态效果时直接使用最终状态。</p>
@@ -41,13 +41,30 @@
 <tr><td>状态与边界</td><td>合法/非法状态矩阵、等待与禁用不触发动作、错误owner、8个owner上限、子计数上限、UTF-8、超长、实际行高校验、异步文案快照和稳定命中几何。</td></tr>
 <tr><td>实际渲染</td><td>真实LVGL软件渲染390×450 Q0/Q1及64/80/96数值预览。发现并修正双行卡片截字，调整诊断页高度；此结果不代替目标EPIC及实屏。</td></tr>
 <tr><td>正式字体</td><td>组件实际编译文案也进入构建输入校验，修改文案使清单过期或引入缺字时阻止构建。字体仍为336字符、56,804 B，旧通知文案与布局未改。</td></tr></tbody></table>
-<p>回归入口：<code>firmware/tests/run-core-tests.ps1</code>、<code>firmware/tests/run-d07-a0-tests.ps1</code>。后者仍保留历史文件名，已覆盖A/B/C；专项Python36项，核心Python44项中43项通过、1项FontTools环境跳过由专项覆盖。本地日志：<code>logs/d07-c-core.log</code>、<code>logs/d07-c-host.log</code>。主机实际LVGL采用ASan；硬件边界使用替身，不声称在板上制造真实内存耗尽。</p></section>
+<p>回归入口：<code>firmware/tests/run-core-tests.ps1</code>、<code>firmware/tests/run-d07-a0-tests.ps1</code>。后者仍保留历史文件名，已覆盖A/B/C；专项Python36项，核心Python44项中43项通过、1项FontTools环境跳过由专项覆盖。修正版本地日志：<code>logs/d07-c-r2-core.log</code>、<code>logs/d07-c-r2-host.log</code>。主机实际LVGL采用ASan；硬件边界使用替身，不声称在板上制造真实内存耗尽。</p></section>
 <section id="target"><h2>目标构建（初版失败对照）</h2>
 <p>2026-09-17完成GCC、Keil顺序干净构建，两套源码身份均绑定 <code>a7b40259615252587a45a806784fe7fbfde64954</code>，受控SDK补丁同上。分别通过预算、BUILD IDENTITY与COM255 DryRun；归档保留各自map、编译器标记和完整输出。后续测试运行目录修正及文档更新不改变固件输入。</p>
 <table><thead><tr><th>工具链</th><th>主程序 / 6 MiB槽</th><th>main.bin SHA-256</th></tr></thead><tbody>
 <tr><td>GCC</td><td>1,870,488 B / 29.731%</td><td><code>bb6ebccc172f4ecc74603865c3e345e4ce49ca341c326fac5f0752e3c552f6e4</code></td></tr>
 <tr><td>Keil</td><td>1,797,968 B / 28.578%</td><td><code>e5360d47f075d2c605d4a57f22ce18f93ff4b379679a631b463e7192ef65cc70</code></td></tr>
 </tbody></table><p>两套统计均为TTF 56,804 B、内置位图字体51,335 B、图片866,577 B。GCC镜像余量4,420,968 B。既有SDK/链接告警保留在日志，不声明零告警。归档目录为 <code>logs/board-validation-20260917-d07-c/</code>。</p></section>
-<section id="board"><h2>开发板复验</h2><p>待新GCC镜像写入与原始日志采集。开发命令 <code>iw_demo 0..6</code> 分别为关闭、Q0、Q1、64/80/96字号和清理链路诊断。串口只投递邮箱，GUI线程在安全点处理；不加入产品桌面。</p>
-<p>计划覆盖旧中文通知、两档亮度、Q0/Q1、点击按钮进入等待态、Home返回、大字号、反复进出以及多页面清理。命令6仅人为锁存清理请求，不是实际堆耗尽或真实屏幕故障。保存原始串口、用户文字确认、主堆与PSRAM独立稳定样本和输入数据。完成后仍交架构复核，D07-D前不关闭Issue #7。</p></section>
+<section id="target-r2"><h2>修正版目标构建</h2>
+<p>当前固件源码身份为 <code>2e95882699674c0af3337a006bdc301706fec8e7</code>。完整主机回归、GCC/Keil干净构建、预算、各自身份和COM255 DryRun均通过；补丁与字体不变。两套归档及后续板测保存在 <code>logs/board-validation-20260917-d07-c-r2/</code>，与初版失败对照分开。</p>
+<table><thead><tr><th>工具链</th><th>主程序 / 6 MiB槽</th><th>main.bin SHA-256</th></tr></thead><tbody>
+<tr><td>GCC</td><td>1,870,504 B / 29.731%</td><td><code>d9d2383ebb07d3c2990c740fb1af34ed28f015b400a1d076d19d57697bb9861f</code></td></tr>
+<tr><td>Keil</td><td>1,798,008 B / 28.579%</td><td><code>d7f0f71e0b7d772411054f1636ce74a1a5f69313b7a3dab38957c62e94f7fdb9</code></td></tr>
+</tbody></table><p>GCC槽余量4,420,952 B；TTF、位图字库和图片分项保持56,804 / 51,335 / 866,577 B。</p></section>
+<section id="board"><h2>修正版开发板复验</h2>
+<p>2026-09-17修正版GCC三件套经COM9写入并校验，完整sftool输出已保存；用户取下Mode并复位。COM10按1,000,000 baud记录，分析从原始偏移28开始，前28 B复位噪声保留。本轮1次启动，没有操作期间重启或断言；不声明重新做过断电冷启动。采集已结束、串口已关闭，最后停在应用图标桌面、80%亮度。未操作其他项目的串口或J-Link。</p>
+<table><thead><tr><th>实机项</th><th>证据及结果</th></tr></thead><tbody>
+<tr><td>组件返回修复</td><td>表盘持续运行时，10轮串口开关全部完成、无覆盖；20条请求到GUI执行结果最大65.760 ms，其中关闭范围1.831～65.760 ms。完整采集中32条可关联请求最大79.940 ms。用户确认修正版Q1按钮等待态、触摸和KEY1及时返回正常；这类串口往返时间不代表最终像素完成或实体按键延迟。</td></tr>
+<tr><td>主题及大字</td><td>Q0、Q1及64/80/96 px实际显示，用户确认中文、数字、卡片清晰完整，最大字号可用KEY1退出。19次组件页成功创建包含10轮自动开关、人工交互、字号切换及3轮96 px完整进出；不把这些记录称为实机1000轮测试。</td></tr>
+<tr><td>多使用方清理</td><td>clock与组件同时存活时refs=15；命令6锁存清理请求后live=0、refs=0、pending=0，字形池72 B，fallback=1。用户确认预创建应急层显示、KEY1返回及重新进入通知页正常。create/metadata/bitmap OOM计数均为0：这是清理通路诊断，不是实机堆耗尽注入或真实显示故障恢复。</td></tr>
+<tr><td>旧页面兼容</td><td>用户确认80%亮度下故障后重入通知、20%下三次通知长文滚动及KEY1返回正常。框架日志共9次clock创建、停止及销毁，包含自动与人工操作。此前初版20%/80%结果单独保留，不替代本轮新镜像。</td></tr>
+<tr><td>主堆与PSRAM</td><td>7个桌面稳定样本均为主堆59,660 B、字形池72 B，含启动、故障后、旧通知及连续三轮96 px退出，无持续增长。绝对峰值分别163,648 B / 45,780 B，较桌面两个独立峰值增量之和149,696 B（非同一时刻峰值）；字形池预留160,000 B。仅清理对象、尚未退出框架时主堆60,320 B，按KEY1返回后660 B框架资源也释放，不能混作桌面残留。</td></tr>
+<tr><td>栈</td><td>GUI 16 KiB栈峰值31%，触摸2048 B栈39%，LCD 2048 B栈43%，服务栈9%。</td></tr>
+<tr><td>性能保留项</td><td>修正版组件KEY1样本3个，P95/最大32 ms；含后续恢复重入的累计21样本为45/45 ms；独立低亮度长文18样本P95≥100 ms、最大114 ms，另有1次触摸缓冲覆盖。ge_100是P95末桶标志，不是超限样本数。初版最大144 ms及B最大121 ms均保留，不能被本轮较小样本覆盖。未新增30 FPS门槛，也未宣称长文全面性能达标。</td></tr>
+</tbody></table>
+<p>原始COM10共75,872 B，SHA-256：<code>b418787eda96b703fd79e5b8692d56e19944adfb7fcb31cf9f37231f94695d8d</code>。串口命令/接收时间线：<code>0f211120bbaa8c2fdf70234916d3d89552d73e6b597b4c67003199967957acaf</code>；独立用户确认：<code>d38f9c6c9329efd02f1241c18810cbaffd04cfad4562897f1c8e6024b2b7be16</code>；完整烧录输出：<code>3a99fb4094394c3e294ac647d03faf50b931d0de1da8d79ce77b3038c77466c5</code>。修正版47项归档校验通过，覆盖两套产物、预算、身份、测试与构建日志、提取脚本；初版失败对照另外44项保留，两组共91项。原始数据与二进制保持本地归档，工程文档记录可复核身份。</p>
+<p>开发命令 <code>iw_demo 0..6</code> 为关闭、Q0、Q1、64/80/96字号和清理诊断；串口只投递邮箱，GUI线程在安全点处理，不加入产品桌面。本阶段已有实际显示与安全路径证据，完整状态组合展示、综合验收和Issue #7关闭仍属D07-D；<code>flash1</code>报错及持久化留D15，真实显示故障确认、有限重试留D16。</p></section>
 </main></div></body></html>
