@@ -28,6 +28,12 @@ if ($LASTEXITCODE -ne 0) { throw '固定 SDK 校验失败。' }
 if ($LASTEXITCODE -ne 0) { throw '派生 SDK 校验失败。' }
 
 New-Item -ItemType Directory -Path $outputRoot -Force | Out-Null
+# 先验证仓库正式产物，临时生成成功不能替代正式清单的输入一致性。
+$committedFonts = Join-Path $firmwareDir 'iwatch\src\resource\fonts'
+& $PythonPath (Join-Path $firmwareDir 'generate_font_subset.py') `
+    --output (Join-Path $committedFonts 'DroidSansFallback.ttf') `
+    --manifest (Join-Path $committedFonts 'DroidSansFallback.subset.json') --check
+if ($LASTEXITCODE -ne 0) { throw '正式字体或清单过期，拒绝继续回归。' }
 & $PythonPath (Join-Path $firmwareDir 'generate_font_subset.py') --output $fontPath --manifest $fontManifest
 if ($LASTEXITCODE -ne 0) { throw '字体子集生成失败。' }
 & $PythonPath (Join-Path $firmwareDir 'generate_font_subset.py') --output $fontPath --manifest $fontManifest --check

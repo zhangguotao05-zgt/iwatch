@@ -274,6 +274,36 @@ static uint32_t test_utf8_next(const char * text, uint32_t * offset)
 
 int test_epic_glyph(lv_font_glyph_dsc_t *glyph);
 int test_epic_result(void);
+unsigned test_epic_submissions(void);
+
+static int run_epic_oom(const uint8_t *data, size_t size, size_t failure_index)
+{
+    size_t initial_blocks = live_blocks;
+    size_t initial_bytes = live_bytes;
+    lv_font_t *font = create_font(data, size, 96);
+    lv_font_glyph_dsc_t glyph = {0};
+    if(!font || !lv_font_get_glyph_dsc(font, &glyph, 0x601d, 0)) return 21;
+    size_t before_sequence = allocation_sequence;
+    unsigned before_submissions = test_epic_submissions();
+    arm_failure(failure_index);
+    int pixels = test_epic_glyph(&glyph);
+    disarm_failure();
+    size_t allocations = allocation_sequence - before_sequence;
+    bool expected = pixels == 0;
+    if(failure_index) {
+        expected = expected && oom_count == 1 &&
+                   last_oom_reason == LV_TINY_TTF_OOM_GLYPH_BITMAP &&
+                   test_epic_submissions() == before_submissions;
+        /* 同一字形再次到达绘制入口时，不应重复上报或提交残缺像素。 */
+        test_epic_glyph(&glyph);
+        expected = expected && oom_count == 1 &&
+                   test_epic_submissions() == before_submissions;
+    }
+    else expected = expected && test_epic_submissions() == before_submissions + 1;
+    lv_tiny_ttf_destroy(font);
+    int cleanup = finish_case("epic", allocations, initial_blocks, initial_bytes);
+    return expected ? cleanup : 22;
+}
 
 static int run_multi_font_evict(const uint8_t * data, size_t size, size_t iterations, bool draw_pixels)
 {
@@ -374,7 +404,7 @@ static int run_draw_buf_compat(void)
 int main(int argc, char ** argv)
 {
     if(argc != 4) {
-        fprintf(stderr, "usage: test_tiny_ttf_oom <font.ttf> <create|metadata|bitmap|repeat|evict|pixels|compat> <number>\n");
+        fprintf(stderr, "usage: test_tiny_ttf_oom <font.ttf> <create|metadata|bitmap|epic|repeat|evict|pixels|compat> <number>\n");
         return 64;
     }
 
@@ -396,6 +426,7 @@ int main(int argc, char ** argv)
     if(strcmp(argv[2], "create") == 0) result = run_create(font_data, font_size, (size_t)parsed);
     else if(strcmp(argv[2], "metadata") == 0) result = run_metadata(font_data, font_size, (size_t)parsed);
     else if(strcmp(argv[2], "bitmap") == 0) result = run_bitmap(font_data, font_size, (size_t)parsed);
+    else if(strcmp(argv[2], "epic") == 0) result = run_epic_oom(font_data, font_size, (size_t)parsed);
     else if(strcmp(argv[2], "repeat") == 0) result = run_repeat(font_data, font_size, (size_t)parsed);
     else if(strcmp(argv[2], "evict") == 0) result = run_multi_font_evict(font_data, font_size, (size_t)parsed, false);
     else if(strcmp(argv[2], "pixels") == 0) result = run_multi_font_evict(font_data, font_size, (size_t)parsed, true);

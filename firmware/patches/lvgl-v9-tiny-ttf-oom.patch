@@ -55,7 +55,7 @@ index 30d5a9e6d72ad600f2e43dffda57f55d345e6141..e466987d4caf3a58adcd36dcb8b5192f
   * Duplicate a draw buf with same image size, stride and color format. Copy the image data too.
   * @param draw_buf  the draw buf to duplicate
 diff --git a/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.c b/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.c
-index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a93757cefdad 100644
+index 09f1e8762228d478fcd44e733c94a0a217e98cdc..eeac7a635663e9de91b288cd2a141a80123e21f2 100644
 --- a/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.c
 +++ b/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.c
 @@ -24,7 +24,8 @@
@@ -98,7 +98,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
  
  /**********************
   *      MACROS
-@@ -149,11 +157,24 @@ const lv_font_class_t lv_tiny_ttf_font_class = {
+@@ -149,11 +157,32 @@ const lv_font_class_t lv_tiny_ttf_font_class = {
   *   GLOBAL FUNCTIONS
   **********************/
  
@@ -106,6 +106,14 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
 +{
 +    oom_cb = cb;
 +    oom_cb_user_data = user_data;
++}
++
++void lv_tiny_ttf_report_draw_oom(const lv_font_t * font)
++{
++    /* 非 TinyTTF 字体也可能借用临时 A8 缓冲，但不能转换其私有描述符。 */
++    ttf_font_desc_t * dsc = font && font->get_glyph_dsc == ttf_get_glyph_dsc_cb ?
++                           (ttf_font_desc_t *)font->dsc : NULL;
++    tiny_ttf_report_oom(dsc, LV_TINY_TTF_OOM_GLYPH_BITMAP);
 +}
 +
  void lv_tiny_ttf_set_size(lv_font_t * font, int32_t font_size)
@@ -124,7 +132,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
      }
      ttf_font_desc_t * dsc = (ttf_font_desc_t *)font->dsc;
      dsc->scale = stbtt_ScaleForMappingEmToPixels(&dsc->info, font_size);
-@@ -178,7 +199,7 @@ void lv_tiny_ttf_set_size(lv_font_t * font, int32_t font_size)
+@@ -178,7 +207,7 @@ void lv_tiny_ttf_set_size(lv_font_t * font, int32_t font_size)
          dsc->kerning_cache = NULL;
      }
  
@@ -133,7 +141,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
  }
  
  void lv_tiny_ttf_destroy(lv_font_t * font)
-@@ -187,15 +208,7 @@ void lv_tiny_ttf_destroy(lv_font_t * font)
+@@ -187,15 +216,7 @@ void lv_tiny_ttf_destroy(lv_font_t * font)
  
      if(font->dsc != NULL) {
          ttf_font_desc_t * ttf = (ttf_font_desc_t *)font->dsc;
@@ -150,7 +158,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
          font->dsc = NULL;
      }
  
-@@ -256,7 +269,7 @@ static uint16_t ttf_get_glyph_pair_kerning_width(const ttf_font_desc_t * dsc, ui
+@@ -256,7 +277,7 @@ static uint16_t ttf_get_glyph_pair_kerning_width(const ttf_font_desc_t * dsc, ui
          .dsc = dsc,
      };
  
@@ -159,7 +167,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
          /* No cache, call the create function directly */
          bool ret = tiny_ttf_kerning_cache_create_cb(&kerning_cache_search_key, (void *)&kerning_cache_create_data);
          LV_ASSERT(ret);
-@@ -266,7 +279,11 @@ static uint16_t ttf_get_glyph_pair_kerning_width(const ttf_font_desc_t * dsc, ui
+@@ -266,7 +287,11 @@ static uint16_t ttf_get_glyph_pair_kerning_width(const ttf_font_desc_t * dsc, ui
      LV_ASSERT_NULL(dsc->kerning_cache);
      lv_cache_entry_t * kerning_entry = lv_cache_acquire_or_create(dsc->kerning_cache, &kerning_cache_search_key,
                                                                    (void *)&kerning_cache_create_data);
@@ -172,7 +180,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
      tiny_ttf_kerning_cache_data_t * data = lv_cache_entry_get_data(kerning_entry);
      LV_ASSERT_NULL(data);
  
-@@ -291,6 +308,10 @@ static bool ttf_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_t * d
+@@ -291,6 +316,10 @@ static bool ttf_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_t * d
      }
  
      ttf_font_desc_t * dsc = (ttf_font_desc_t *)font->dsc;
@@ -183,7 +191,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
  
      tiny_ttf_glyph_cache_data_t search_key = {
          .unicode = unicode_letter,
-@@ -302,8 +323,7 @@ static bool ttf_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_t * d
+@@ -302,8 +331,7 @@ static bool ttf_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_t * d
  
      if(entry == NULL) {
          if(!dsc->cache_size) {  /* no cache, do everything directly */
@@ -193,7 +201,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
              *dsc_out = search_key.glyph_dsc;
              adv_w = search_key.adv_w;
  
-@@ -319,6 +339,7 @@ static bool ttf_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_t * d
+@@ -319,6 +347,7 @@ static bool ttf_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_t * d
              dsc_out->entry = NULL;
              return true;
          }
@@ -201,7 +209,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
          LV_LOG_ERROR("cache not allocated");
          return false;
      }
-@@ -335,10 +356,13 @@ static bool ttf_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_t * d
+@@ -335,10 +364,13 @@ static bool ttf_get_glyph_dsc_cb(const lv_font_t * font, lv_font_glyph_dsc_t * d
  
          int g2 = 0;
          search_key.unicode = unicode_letter_next; /* reuse search key */
@@ -217,7 +225,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
          }
          else {
              tiny_ttf_glyph_cache_data_t * data_next = lv_cache_entry_get_data(entry_next);
-@@ -360,6 +384,7 @@ static const void * ttf_get_glyph_bitmap_cb(lv_font_glyph_dsc_t * g_dsc, lv_draw
+@@ -360,6 +392,7 @@ static const void * ttf_get_glyph_bitmap_cb(lv_font_glyph_dsc_t * g_dsc, lv_draw
      uint32_t glyph_index = g_dsc->gid.index;
      const lv_font_t * font = g_dsc->resolved_font;
      ttf_font_desc_t * dsc = (ttf_font_desc_t *)font->dsc;
@@ -225,7 +233,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
      tiny_ttf_cache_data_t search_key = {
          .glyph_index = glyph_index,
          .size = font->line_height,
-@@ -377,6 +402,7 @@ static const void * ttf_get_glyph_bitmap_cb(lv_font_glyph_dsc_t * g_dsc, lv_draw
+@@ -377,6 +410,7 @@ static const void * ttf_get_glyph_bitmap_cb(lv_font_glyph_dsc_t * g_dsc, lv_draw
                  return NULL;
              }
          }
@@ -233,7 +241,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
          LV_LOG_ERROR("cache not allocated");
          return NULL;
      }
-@@ -392,7 +418,7 @@ static void ttf_release_glyph_cb(const lv_font_t * font, lv_font_glyph_dsc_t * g
+@@ -392,7 +426,7 @@ static void ttf_release_glyph_cb(const lv_font_t * font, lv_font_glyph_dsc_t * g
  
      ttf_font_desc_t * dsc = (ttf_font_desc_t *)font->dsc;
      if(!dsc->cache_size) {  /* no cache, do everything directly */
@@ -242,7 +250,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
      }
      else {
          if(g_dsc->entry == NULL) {
-@@ -403,33 +429,58 @@ static void ttf_release_glyph_cb(const lv_font_t * font, lv_font_glyph_dsc_t * g
+@@ -403,33 +437,58 @@ static void ttf_release_glyph_cb(const lv_font_t * font, lv_font_glyph_dsc_t * g
      g_dsc->entry = NULL;
  }
  
@@ -307,7 +315,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
  }
  
  static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size_t data_size, int32_t font_size,
-@@ -442,6 +493,7 @@ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size
+@@ -442,6 +501,7 @@ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size
      }
      ttf_font_desc_t * dsc = lv_malloc_zeroed(sizeof(ttf_font_desc_t));
      if(dsc == NULL) {
@@ -315,7 +323,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
          LV_LOG_ERROR("tiny_ttf: out of memory");
          return NULL;
      }
-@@ -459,7 +511,7 @@ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size
+@@ -459,7 +519,7 @@ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size
          dsc->stream.size = data_size;
      }
      if(0 == stbtt_InitFont(&dsc->info, &dsc->stream, stbtt_GetFontOffsetForIndex(&dsc->stream, 0))) {
@@ -324,7 +332,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
          LV_LOG_ERROR("tiny_ttf: init failed");
          return NULL;
      }
-@@ -467,7 +519,7 @@ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size
+@@ -467,7 +527,7 @@ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size
  #else
      dsc->stream = (const uint8_t *)data;
      if(0 == stbtt_InitFont(&dsc->info, dsc->stream, stbtt_GetFontOffsetForIndex(dsc->stream, 0))) {
@@ -333,7 +341,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
          LV_LOG_ERROR("tiny_ttf: init failed");
          return NULL;
      }
-@@ -477,7 +529,8 @@ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size
+@@ -477,7 +537,8 @@ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size
  
      lv_font_t * out_font = lv_malloc_zeroed(sizeof(lv_font_t));
      if(out_font == NULL) {
@@ -343,7 +351,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
          LV_LOG_ERROR("tiny_ttf: out of memory");
          return NULL;
      }
-@@ -496,7 +549,11 @@ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size
+@@ -496,7 +557,11 @@ static lv_font_t * lv_tiny_ttf_create(const char * path, const void * data, size
      out_font->get_glyph_bitmap = ttf_get_glyph_bitmap_cb;
      out_font->release_glyph = ttf_release_glyph_cb;
      out_font->dsc = dsc;
@@ -356,7 +364,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
      return out_font;
  }
  #if LV_TINY_TTF_FILE_SUPPORT != 0
-@@ -596,8 +653,10 @@ static bool tiny_ttf_draw_data_cache_create_cb(tiny_ttf_cache_data_t * node, voi
+@@ -596,8 +661,10 @@ static bool tiny_ttf_draw_data_cache_create_cb(tiny_ttf_cache_data_t * node, voi
      w = x2 - x1 + 1;
      h = y2 - y1 + 1;
  
@@ -368,7 +376,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
          LV_LOG_ERROR("tiny_ttf: out of memory");
          return false;
      }
-@@ -605,7 +664,13 @@ static bool tiny_ttf_draw_data_cache_create_cb(tiny_ttf_cache_data_t * node, voi
+@@ -605,7 +672,13 @@ static bool tiny_ttf_draw_data_cache_create_cb(tiny_ttf_cache_data_t * node, voi
      lv_draw_buf_clear(draw_buf, NULL);
  
      uint32_t stride = draw_buf->header.stride;
@@ -382,7 +390,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
  
      lv_draw_buf_flush_cache(draw_buf, NULL);
      node->draw_buf = draw_buf;
-@@ -616,7 +681,7 @@ static void tiny_ttf_draw_data_cache_free_cb(tiny_ttf_cache_data_t * node, void
+@@ -616,7 +689,7 @@ static void tiny_ttf_draw_data_cache_free_cb(tiny_ttf_cache_data_t * node, void
  {
      LV_UNUSED(user_data);
  
@@ -391,7 +399,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
  }
  
  static lv_cache_compare_res_t tiny_ttf_draw_data_cache_compare_cb(const tiny_ttf_cache_data_t * lhs,
-@@ -693,11 +758,19 @@ static void * tiny_ttf_font_dup_src_cb(const void * src)
+@@ -693,11 +766,19 @@ static void * tiny_ttf_font_dup_src_cb(const void * src)
      const lv_tiny_ttf_font_src_t * font_src = src;
  
      lv_tiny_ttf_font_src_t * new_src = lv_malloc_zeroed(sizeof(lv_tiny_ttf_font_src_t));
@@ -412,7 +420,7 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
      }
  
      return new_src;
-@@ -714,4 +787,34 @@ static void tiny_ttf_font_free_src_cb(void * src)
+@@ -714,4 +795,34 @@ static void tiny_ttf_font_free_src_cb(void * src)
      lv_free(font_src);
  }
  
@@ -448,10 +456,10 @@ index 09f1e8762228d478fcd44e733c94a0a217e98cdc..46bf38b2ae6f1eac6faae70dca27a937
 +
  #endif
 diff --git a/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.h b/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.h
-index 09910bca97871a87bb26168911c13f10b7c0c59e..e18a7977031d104d77c9aa8bef44ca3346012a66 100644
+index 09910bca97871a87bb26168911c13f10b7c0c59e..e79306fb9b840d74f523701a4b64c614e418e848 100644
 --- a/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.h
 +++ b/external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.h
-@@ -32,12 +32,29 @@ typedef struct {
+@@ -32,12 +32,32 @@ typedef struct {
      size_t cache_size; /**< Size of the font cache*/
  } lv_tiny_ttf_font_src_t;
  
@@ -477,6 +485,9 @@ index 09910bca97871a87bb26168911c13f10b7c0c59e..e18a7977031d104d77c9aa8bef44ca33
 + * 设置 tiny_ttf 内存不足通知。回调只允许置位或增加饱和计数。
 + */
 +void lv_tiny_ttf_set_oom_cb(lv_tiny_ttf_oom_cb_t cb, void * user_data);
++
++/* 绘制后端的临时字形缓冲分配失败时通知 owner；只锁存，不删除 GUI 对象。 */
++void lv_tiny_ttf_report_draw_oom(const lv_font_t * font);
 +
  #if LV_TINY_TTF_FILE_SUPPORT != 0
  /**
@@ -795,10 +806,36 @@ index bec0a788f72804e4e3bfd3ad033e7c5eb4835a24..7398630f736d10a394252a7e6136c8ef
  void * lv_rb_remove_node(lv_rb_t * tree, lv_rb_node_t * node);
  void * lv_rb_remove(lv_rb_t * tree, const void * key);
 diff --git a/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c b/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c
-index 3d5323e92cc5f40a287815ec5ba645876149bac9..45e7845e2f42c69c0870bf5fd77cf03c8c428a01 100644
+index 3d5323e92cc5f40a287815ec5ba645876149bac9..4f02fcb4206bb52aed150948e3dc3b5baa6ca3a2 100644
 --- a/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c
 +++ b/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c
-@@ -342,6 +342,8 @@ void print_letter_map(uint32_t letter, const uint8_t *map_p, uint16_t box_w, uin
+@@ -15,6 +15,9 @@
+ 
+ #include "blend/lv_draw_sw_blend_private.h"
+ #include "../lv_draw_label_private.h"
++#if LV_USE_TINY_TTF
++#include "src/libs/tiny_ttf/lv_tiny_ttf.h"
++#endif
+ 
+ /*********************
+  *      DEFINES
+@@ -299,9 +302,14 @@ void print_letter_map(uint32_t letter, const uint8_t *map_p, uint16_t box_w, uin
+                     }
+                     else {
+                         if (glyph_draw_dsc->_draw_buf == NULL) {
+-                            glyph_draw_dsc->_draw_buf = lv_draw_buf_create(glyph_width, glyph_height, LV_COLOR_FORMAT_A8, 0);
++                            /* 描述符及像素分配失败均返回 NULL，保留其他路径的全局断言。 */
++                            glyph_draw_dsc->_draw_buf = lv_draw_buf_try_create_ex(lv_draw_buf_get_handlers(),
++                                glyph_width, glyph_height, LV_COLOR_FORMAT_A8, 0);
+                         }
+                         if (glyph_draw_dsc->_draw_buf == NULL) {
++#if LV_USE_TINY_TTF
++                            lv_tiny_ttf_report_draw_oom(glyph_draw_dsc->g->resolved_font);
++#endif
+                             LV_EPIC_LOG("ERROR: failed to create draw buf");
+                             return;
+                         }
+@@ -342,6 +350,8 @@ void print_letter_map(uint32_t letter, const uint8_t *map_p, uint16_t box_w, uin
                      input_layers[1].height = glyph_height;
                      input_layers[1].color_mode = EPIC_INPUT_A8;
                      input_layers[1].total_width = mask_stride;

@@ -158,3 +158,8 @@ int test_epic_result(void)
     drv_epic_cont_blend_reset();
     return pixel_errors == 0 && submissions > 100 ? 0 : 1;
 }
+
+unsigned test_epic_submissions(void)
+{
+    return submissions;
+}

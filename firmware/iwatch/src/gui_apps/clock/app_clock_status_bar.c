@@ -90,6 +90,11 @@ static void font_oom_cb(lv_tiny_ttf_oom_reason_t reason, void *user_data)
     stats->pending = 1;
 }
 
+bool app_clock_main_status_bar_font_fault_pending(void)
+{
+    return font_stats.pending != 0;
+}
+
 bool app_clock_main_status_bar_take_font_fault(void)
 {
     if (!font_stats.pending) return false;

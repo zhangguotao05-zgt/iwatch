@@ -5,7 +5,7 @@ import subprocess
 from pathlib import Path
 
 
-STAGES = ("create", "metadata", "bitmap")
+STAGES = ("create", "metadata", "bitmap", "epic")
 
 
 def run_case(executable, font, stage, number, timeout=10):

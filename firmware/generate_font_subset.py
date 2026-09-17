@@ -174,6 +174,27 @@ def make_manifest(config_path, config, source, input_files, charset, subset):
     }
 
 
+def verify_committed(config_path=DEFAULT_CONFIG, output_path=None, manifest_path=None):
+    """构建门槛：校验正式输入、字体及清单，不生成或自动修正任何文件。"""
+    config_path = config_path.resolve()
+    output_path = output_path or config_path.parent / "DroidSansFallback.ttf"
+    manifest_path = manifest_path or config_path.parent / "DroidSansFallback.subset.json"
+    config = json.loads(config_path.read_text(encoding="utf-8"))
+    charset, inputs = collect_charset(config)
+    source = resolve_inside_root(config["source_font"])
+    expected = config["expected"]
+    if source.stat().st_size != expected["source_font_bytes"] or sha256_file(source) != expected["source_font_sha256"]:
+        raise ValueError("source font differs from approved input")
+    output = output_path.read_bytes()
+    if len(output) != expected["subset_font_bytes"] or sha256_bytes(output) != expected["subset_font_sha256"]:
+        raise ValueError("committed subset differs from approved output")
+    actual = json.loads(manifest_path.read_text(encoding="utf-8"))
+    current = make_manifest(config_path, config, source, inputs, charset, output)
+    if actual != current:
+        raise ValueError("committed subset manifest is stale; regenerate and review it")
+    return current
+
+
 def generate(config_path, output_path, manifest_path, check):
     config_path = config_path.resolve()
     config = json.loads(config_path.read_text(encoding="utf-8"))

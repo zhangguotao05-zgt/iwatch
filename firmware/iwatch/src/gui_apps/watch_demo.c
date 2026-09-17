@@ -1000,10 +1000,11 @@ void app_watch_entry(void *parameter)
         display_process_pending();
 
         rt_pm_request(PM_SLEEP_MODE_IDLE);
-        ms = lv_timer_handler();
+        /* 故障排空期间保留服务和输入采集，只暂停提交新的页面绘制。 */
+        ms = app_clock_main_process_font_fault() ? 1u : lv_timer_handler();
         rt_pm_release(PM_SLEEP_MODE_IDLE);
         /* 绘制结束后再处理字体故障，避免在 LVGL 回调中删除或切换对象。 */
-        app_clock_main_process_font_fault();
+        if (app_clock_main_process_font_fault()) ms = 1u;
         display_recover_if_faulted();
 
 #ifdef BSP_USING_PM

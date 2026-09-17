@@ -11,6 +11,7 @@ from pathlib import Path
 
 import check_layout
 import sdk_patch
+import generate_font_subset
 
 FIRMWARE = Path(__file__).resolve().parent
 ROOT = FIRMWARE.parent
@@ -56,6 +57,8 @@ def image_budget(size, profile):
 
 
 def source_snapshot(sdk, profile, config):
+    # GCC/Keil 的 begin、finish、verify 共用此门槛；不允许过期清单生成可发布身份。
+    generate_font_subset.verify_committed()
     sdk_state = sdk_patch.identify_sdk(sdk)
     commit = sdk_state['sdk_commit']
     if commit != config['sdk_commit']:

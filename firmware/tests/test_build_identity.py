@@ -6,6 +6,7 @@ import sys
 import struct
 import tempfile
 import unittest
+from unittest import mock
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 import build_identity as identity
 
@@ -13,6 +14,15 @@ import build_identity as identity
 class BuildIdentityTests(unittest.TestCase):
     def setUp(self):
         self.config, self.profile = identity.load_profile('DEV_A128_NAND')
+
+    def test_font_gate_runs_before_sdk_and_build_identity(self):
+        with mock.patch.object(identity.generate_font_subset, 'verify_committed',
+                               side_effect=ValueError('stale font manifest')) as check:
+            with mock.patch.object(identity.sdk_patch, 'identify_sdk') as sdk:
+                with self.assertRaisesRegex(ValueError, 'stale font manifest'):
+                    identity.source_snapshot(Path('unused'), self.profile, self.config)
+                check.assert_called_once_with()
+                sdk.assert_not_called()
 
     def test_product_cannot_build_with_dev_layout(self):
         with self.assertRaisesRegex(ValueError, 'design only'):

@@ -105,11 +105,19 @@ static int plugin_resume(void) { return resume_result; }
 static int plugin_deinit(void) { initialized_plugins--;return 0; }
 static const app_clock_ops_t ops={plugin_init,plugin_pause,plugin_resume,plugin_deinit};
 static void tileview_event_cb_t(lv_event_t *e) { (void)e; }
-static void app_clock_main_status_bar_deinit(void) {}
+static bool font_fault_pending, rendering_idle = true;
+static unsigned font_fallbacks;
+static void *clock_fonts;
+static bool lv_refreshing_done(void) { return rendering_idle; }
+static bool app_clock_main_status_bar_font_fault_pending(void) { return font_fault_pending; }
+static bool app_clock_main_status_bar_take_font_fault(void) { bool pending=font_fault_pending; font_fault_pending=false; return pending; }
+static void app_clock_main_status_bar_note_fallback(void) { font_fallbacks++; }
+static void app_clock_main_status_bar_deinit(void) { assert(initialized_plugins==0); test_free(clock_fonts);clock_fonts=NULL; }
 '''
 clock_functions = '\n'.join(function(clock, sig) for sig in [
     'static void app_clock_change_state(app_clock_desc_t *p_clock, uint8_t new_state)',
     'static void on_stop(void)',
+    'bool app_clock_main_process_font_fault(void)',
     'int32_t app_clock_register(const char *id, const app_clock_ops_t *operations)'])
 clock_test = r'''
 int main(void) {
@@ -132,7 +140,27 @@ int main(void) {
     p_app_clock_main=rt_calloc(1,sizeof(*p_app_clock_main));rt_list_init(&p_app_clock_main->list);
     fail_at=alloc_at+1;assert(app_clock_register("fail",&ops)==-RT_ENOMEM);
     assert(p_app_clock_main->registration_failed);on_stop();assert(live==0);
-    puts("Clock teardown/failure tests passed (1000 cycles)");return 0;
+    /* GPU/LCD 仍引用绘制资源时保留页面；排空后回收，再展示预创建应急层。 */
+    fail_at=0;resume_result=0;
+    for(int cycle=0;cycle<1000;cycle++) {
+        p_app_clock_main=rt_calloc(1,sizeof(*p_app_clock_main));rt_list_init(&p_app_clock_main->list);
+        p_app_clock_main->tileview=lv_obj_create(&screen);
+        assert(app_clock_register("fault",&ops)==0);
+        app_clock_desc_t *desc=rt_list_entry(p_app_clock_main->list.next,app_clock_desc_t,node);
+        desc->parent=p_app_clock_main->tileview;app_clock_change_state(desc,STATE_ACTIVE);
+        clock_fonts=rt_calloc(1,16);
+        font_fault_pending=true;rendering_idle=false;
+        assert(app_clock_main_process_font_fault());
+        if(!font_fault_pending || !p_app_clock_main || !clock_fonts || font_fallbacks!=(unsigned)cycle) {
+            puts("Font fault incorrectly handled while rendering is busy");return 23;
+        }
+        rendering_idle=true;assert(!app_clock_main_process_font_fault());
+        assert(!p_app_clock_main && !clock_fonts && !screen.child && !initialized_plugins && live==0);
+        assert(font_fallbacks==(unsigned)cycle+1);
+        assert(!app_clock_main_process_font_fault());on_stop();on_stop();
+        assert(!font_fault_pending && live==0);
+    }
+    puts("Clock teardown/failure tests passed (1000 normal + 1000 deferred font fault/reentry cycles)");return 0;
 }
 '''
 

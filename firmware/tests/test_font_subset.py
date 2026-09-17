@@ -4,6 +4,7 @@ import json
 import sys
 import tempfile
 import unittest
+from unittest import mock
 
 
 FIRMWARE = Path(__file__).resolve().parents[1]
@@ -16,6 +17,42 @@ class FontSubsetTests(unittest.TestCase):
     def setUp(self):
         self.config_path = subset.DEFAULT_CONFIG
         self.config = json.loads(self.config_path.read_text(encoding="utf-8"))
+
+    def test_committed_font_manifest_and_inputs(self):
+        subset.verify_committed(self.config_path)
+
+    def test_committed_stale_manifest_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            manifest_path = Path(directory) / "stale.json"
+            current = subset.verify_committed(self.config_path)
+            current["inputs"][self.config["notification_source"]["path"]] = "0" * 64
+            manifest_path.write_text(json.dumps(current), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "manifest is stale"):
+                subset.verify_committed(self.config_path, manifest_path=manifest_path)
+
+    def test_committed_missing_or_damaged_font_is_rejected(self):
+        with tempfile.TemporaryDirectory() as directory:
+            output = Path(directory) / "font.ttf"
+            with self.assertRaises(FileNotFoundError):
+                subset.verify_committed(self.config_path, output_path=output)
+            output.write_bytes(b"damaged")
+            with self.assertRaisesRegex(ValueError, "differs from approved output"):
+                subset.verify_committed(self.config_path, output_path=output)
+
+    def test_new_text_missing_from_charset_is_rejected(self):
+        config = json.loads(json.dumps(self.config))
+        config["planned_static_strings"].append("龘")
+        with tempfile.TemporaryDirectory() as directory:
+            config_path = Path(directory) / "font_charset.json"
+            config_path.write_text(json.dumps(config), encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "character count changed"):
+                subset.verify_committed(config_path)
+
+    def test_input_text_change_blocks_formal_validation(self):
+        changed = self.config["notification_source"]["expected_strings"] + ["遗漏字符龘"]
+        with mock.patch.object(subset, "parse_c_string_array", return_value=changed):
+            with self.assertRaisesRegex(ValueError, "notification strings changed"):
+                subset.verify_committed(self.config_path)
 
     def test_approved_character_set_and_legacy_messages(self):
         charset, _ = subset.collect_charset(self.config)
