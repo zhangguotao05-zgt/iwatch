@@ -337,10 +337,7 @@ static void draw(iw_product_view_t *v, lv_layer_t *layer) {
             area.y2 -= (area.y2 - cy) * shrink / 1000;
         }
         uint32_t fill = n->fill;
-        if (feedback_active && fill == IW_PRODUCT_SURFACE) {
-            unsigned delta = 16u * v->press_value / 1000u;
-            fill += delta * 0x010101u;
-        }
+        if (feedback_active && n == hit) fill = IW_PRODUCT_PRESSED;
         if (fill && !iw_draw_fill_checked(layer, &area, fill, n->radius, 255, false, 0)) break;
         if (fill && n->fixed && n->width == 48 && n->height == 48 && v->quality == IW_THEME_Q1 &&
             !iw_draw_fill_checked(layer, &area, IW_PRODUCT_WHITE, n->radius, 24, true, fill)) break;

@@ -463,7 +463,16 @@ bool iw_router_process(void)
     }
     if (command.kind == REQUEST_STAT) print_stat(&snapshot);
     else if (command.kind == REQUEST_PROBE) {
-        if (command.argument) { iw_render_probe_start(); rt_kprintf("render probe started capacity=128\n"); }
+        if (command.argument == 2u) {
+            iw_render_probe_overhead_reset();
+            rt_kprintf("render probe overhead reset boundary=next_gui_frames\n");
+        } else if (command.argument == 3u) {
+            uint32_t on_count, on_total, on_max, off_count, off_total, off_max;
+            iw_render_probe_overhead_get(&on_count, &on_total, &on_max, &off_count, &off_total, &off_max);
+            rt_kprintf("render probe overhead on_count=%lu on_total_us=%lu on_max_us=%lu off_count=%lu off_total_us=%lu off_max_us=%lu\n",
+                       (unsigned long)on_count, (unsigned long)on_total, (unsigned long)on_max,
+                       (unsigned long)off_count, (unsigned long)off_total, (unsigned long)off_max);
+        } else if (command.argument) { iw_render_probe_start(); rt_kprintf("render probe started capacity=128\n"); }
         else {
             iw_render_probe_stop();
             unsigned count = 0;
@@ -550,8 +559,11 @@ static void iw_nav(int argc, char **argv)
     uint32_t argument;
     if (argc == 2 && !strcmp(argv[1], "back")) accepted = request((route_request_t){0}, true);
     else if (argc == 3 && !strcmp(argv[1], "probe") &&
-             (!strcmp(argv[2], "start") || !strcmp(argv[2], "stop")))
-        accepted = request((route_request_t){REQUEST_PROBE, !strcmp(argv[2], "start")}, false);
+             (!strcmp(argv[2], "start") || !strcmp(argv[2], "stop") || !strcmp(argv[2], "reset") || !strcmp(argv[2], "report"))) {
+        uint32_t probe_command = !strcmp(argv[2], "start") ? 1u : !strcmp(argv[2], "reset") ? 2u :
+                                 !strcmp(argv[2], "report") ? 3u : 0u;
+        accepted = request((route_request_t){REQUEST_PROBE, probe_command}, false);
+    }
     else if (argc == 5 && !strcmp(argv[1], "profile") &&
              (argv[2][0] == '0' || argv[2][0] == '1') && !argv[2][1] &&
              (argv[3][0] == '0' || argv[3][0] == '1') && !argv[3][1] &&
@@ -565,7 +577,7 @@ static void iw_nav(int argc, char **argv)
         accepted = request((route_request_t){.kind=REQUEST_OPEN,.page_id=(uint16_t)argument},false);
     else if (argc == 3 && (!strcmp(argv[1], "open") || !strcmp(argv[1], "burst")) && parse_argument(argv[2], &argument))
         accepted = request((route_request_t){!strcmp(argv[1], "open") ? REQUEST_OPEN : REQUEST_BURST, argument}, false);
-    else { rt_kprintf("iw_nav open <id> | burst <id> | page <page_id> | profile <q:0|1> <large:0|1> <reduced:0|1> | probe start|stop | back | stat\n"); return; }
+    else { rt_kprintf("iw_nav open <id> | burst <id> | page <page_id> | profile <q:0|1> <large:0|1> <reduced:0|1> | probe start|stop|reset|report | back | stat\n"); return; }
     rt_kprintf("nav queued=%u\n", (unsigned)accepted);
 }
 MSH_CMD_EXPORT(iw_nav, D08 navigation diagnostics);

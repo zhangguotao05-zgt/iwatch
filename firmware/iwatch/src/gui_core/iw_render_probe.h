@@ -13,6 +13,10 @@ typedef struct {
 void iw_render_probe_start(void);
 void iw_render_probe_stop(void);
 bool iw_render_probe_active(void);
+void iw_render_probe_note_overhead(bool enabled, uint32_t microseconds);
+void iw_render_probe_overhead_reset(void);
+void iw_render_probe_overhead_get(uint32_t *on_count, uint32_t *on_total, uint32_t *on_max,
+                                  uint32_t *off_count, uint32_t *off_total, uint32_t *off_max);
 void iw_render_probe_begin(uint32_t now, bool render_idle);
 void iw_render_probe_draw(uint16_t page, uint32_t first_ms, bool first);
 void iw_render_probe_end(uint32_t now, bool render_idle);

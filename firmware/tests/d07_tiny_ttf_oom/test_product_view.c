@@ -224,6 +224,31 @@ static bool has_text(const iw_product_scene_t *scene, const char *text) {
 
 static void scene_boundaries(iw_product_model_t *m) {
     static iw_product_scene_t scene;
+    unsigned separators;
+    assert(iw_product_scene_build(&scene, IW_PAGE_LAUNCHER_LIST, m));
+    bool launcher_row_found = false;
+    for (unsigned i = 0; i < scene.count; i++) {
+        if (scene.nodes[i].action == IW_PAGE_SETTINGS) {
+            assert(scene.nodes[i].fill == 0 && scene.nodes[i].radius == 24);
+            launcher_row_found = true;
+        }
+    }
+    assert(launcher_row_found);
+    assert(iw_product_scene_build(&scene, IW_PAGE_DISPLAY, m));
+    assert(has_text(&scene, "未接入"));
+    assert(iw_product_scene_build(&scene, IW_PAGE_TIME, m));
+    for (unsigned i = 0; i < scene.count; i++) {
+        if (scene.nodes[i].action == IW_ACTION_TIME_SAVE || scene.nodes[i].action == IW_ACTION_PICK_CHOOSE)
+            assert(scene.nodes[i].fill == 0x164a26 && scene.nodes[i].radius == 30);
+    }
+    separators = 0;
+    m->hardware = "board";
+    m->firmware = "firmware";
+    m->toolchain = "gcc";
+    assert(iw_product_scene_build(&scene, IW_PAGE_ABOUT, m));
+    for (unsigned i = 0; i < scene.count; i++)
+        if (!scene.nodes[i].text[0] && scene.nodes[i].height == 1) separators++;
+    assert(separators == 6);
     m->clock.valid = false;
     assert(iw_product_scene_build(&scene, IW_PAGE_TIME, m));
     assert(has_text(&scene, "--:--"));
@@ -295,6 +320,13 @@ static void render_probe_cases(void) {
     iw_render_probe_end(9001, true);
     s = iw_render_probe_samples(&count);
     assert(count == IW_RENDER_PROBE_CAPACITY && s[0].page_id == IW_PAGE_ABOUT);
+    iw_render_probe_overhead_reset();
+    iw_render_probe_note_overhead(true, 3);
+    iw_render_probe_note_overhead(true, 5);
+    iw_render_probe_note_overhead(false, 2);
+    uint32_t on_count, on_total, on_max, off_count, off_total, off_max;
+    iw_render_probe_overhead_get(&on_count, &on_total, &on_max, &off_count, &off_total, &off_max);
+    assert(on_count == 2 && on_total == 8 && on_max == 5 && off_count == 1 && off_total == 2 && off_max == 2);
 }
 
 int test_product_view(lv_display_t *display, size_t number, unsigned mode) {

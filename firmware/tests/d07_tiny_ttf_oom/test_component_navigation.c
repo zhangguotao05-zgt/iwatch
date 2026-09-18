@@ -24,6 +24,8 @@ extern unsigned test_epic_submissions(void);
 typedef int rt_base_t;
 static unsigned irq_depth, wakes, submissions, gallery_callbacks;
 static bool home_during_frame;
+/* 主机测试没有硬件计时器；目标平台由 SDK 提供同名函数。 */
+static uint32_t cpu_get_hw_us(void) { return 0u; }
 static rt_base_t rt_hw_interrupt_disable(void) { return (int)irq_depth++; }
 static void rt_hw_interrupt_enable(rt_base_t saved) { assert(irq_depth == (unsigned)saved + 1u); irq_depth--; }
 #define IW_GUI_WAKE_STATE 2u

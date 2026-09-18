@@ -35,7 +35,8 @@ static bool label(iw_product_scene_t *s, int x, int baseline, int w, unsigned px
 
 static bool button(iw_product_scene_t *s, int x, int y, int w, int h, unsigned action, bool disabled,
                    bool fixed, const char *text) {
-    return add(s, x, y, w, h, y + h / 2 + 9, 26, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 24, 1, action, fixed, disabled, text);
+    unsigned fill = action == IW_ACTION_TIME_SAVE || action == IW_ACTION_PICK_CHOOSE ? 0x164a26 : IW_PRODUCT_SURFACE;
+    return add(s, x, y, w, h, y + h / 2 + 9, 26, IW_PRODUCT_WHITE, fill, 30, 1, action, fixed, disabled, text);
 }
 
 static bool icon(iw_product_scene_t *s, int x, int y, int size, unsigned kind, unsigned color, bool fixed) {
@@ -223,7 +224,9 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
              label(s, 34, 127, 320, 20, IW_PRODUCT_SECONDARY, 0, false, TEXT(APPEARANCE)) &&
              brightness_control(s, m, 144) &&
              button(s, 18, 244, 354, 64, IW_PAGE_BRIGHTNESS, false, false, TEXT(BRIGHTNESS_DETAIL)) &&
-             button(s, 18, 320, 354, 76, 0, true, false, TEXT(TEXT_SIZE)) &&
+             add(s, 18, 320, 354, 76, 0, 0, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 24, 0, 0, false, true, "") &&
+             label(s, 34, 366, 180, 26, IW_PRODUCT_DISABLED, 0, false, TEXT(TEXT_SIZE)) &&
+             label(s, 348, 366, 120, 20, IW_PRODUCT_DISABLED, 2, false, TEXT(NOT_CONNECTED)) &&
              label(s, 34, 426, 320, 20, IW_PRODUCT_SECONDARY, 1, false, TEXT(SESSION_ONLY));
         break;
     case IW_PAGE_BRIGHTNESS:
@@ -272,6 +275,8 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
                  add(s, 34, 146 + y, 322, (int)lines * 28 + 12, 168 + y, 22, IW_PRODUCT_WHITE, 0, 0, 0, 0, false, false,
                      text);
             if (ok) s->nodes[s->count - 1].multiline = true;
+            if (ok && i < 6) ok = add(s, 34, 162 + y + (int)lines * 28, 322, 1, 0, 0,
+                                     IW_PRODUCT_SECONDARY, 0, 0, 0, 0, false, false, "");
             y += 93 + ((int)lines - 1) * 28;
         }
         break;

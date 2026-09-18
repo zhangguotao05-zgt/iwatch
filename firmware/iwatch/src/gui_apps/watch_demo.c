@@ -30,6 +30,7 @@
 #include "iw_router.h"
 #include "iw_render_probe.h"
 #include "iw_font_port.h"
+#include "cpu_usage_profiler.h"
 #include "iw_components.h"
 #include "iw_components_demo.h"
 #include "iw_boot.h"
@@ -427,9 +428,14 @@ static uint32_t gui_process_frame(void)
     if (iw_router_process()) return 1u;
     /* 页面切换刚提出的取消必须在新页面读取触摸之前兑现。 */
     input_service();
-    if (iw_render_probe_active()) iw_render_probe_begin(lv_tick_get(), iw_font_port_render_idle());
+    bool probe_enabled = iw_render_probe_active();
+    uint32_t probe_start_us = cpu_get_hw_us();
+    iw_render_probe_begin(lv_tick_get(), iw_font_port_render_idle());
+    uint32_t probe_begin_us = cpu_get_hw_us();
     uint32_t wait_ms = lv_timer_handler();
-    if (iw_render_probe_active()) iw_render_probe_end(lv_tick_get(), iw_font_port_render_idle());
+    iw_render_probe_end(lv_tick_get(), iw_font_port_render_idle());
+    uint32_t probe_end_us = cpu_get_hw_us();
+    iw_render_probe_note_overhead(probe_enabled, (probe_begin_us - probe_start_us) + (probe_end_us - probe_begin_us));
     /* 输入回调可能刚投递关闭请求，绘制返回后再次检查。 */
     if (app_clock_main_process_font_fault() || iw_components_demo_process()) return 1u;
     if (iw_router_process()) return 1u;
