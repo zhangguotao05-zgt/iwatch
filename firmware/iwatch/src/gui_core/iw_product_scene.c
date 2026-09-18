@@ -1,4 +1,5 @@
 #include "iw_product_scene.h"
+#include <assert.h>
 #include <stdio.h>
 #include <string.h>
 
@@ -7,6 +8,7 @@
 static bool add(iw_product_scene_t *s, int x, int y, int w, int h, int baseline, unsigned px, unsigned color,
                 unsigned fill, unsigned radius, unsigned align, unsigned action, bool fixed, bool disabled,
                 const char *text) {
+    assert(x >= 0 && w >= 0 && x + w <= 390);
     if (s->count == IW_PRODUCT_NODES || !text || strlen(text) >= IW_PRODUCT_TEXT_BYTES) return false;
     iw_product_node_t *n = &s->nodes[s->count++];
     *n = (iw_product_node_t){.x = (int16_t)x,
@@ -35,7 +37,8 @@ static bool label(iw_product_scene_t *s, int x, int baseline, int w, unsigned px
 
 static bool button(iw_product_scene_t *s, int x, int y, int w, int h, unsigned action, bool disabled,
                    bool fixed, const char *text) {
-    unsigned fill = action == IW_ACTION_TIME_SAVE || action == IW_ACTION_PICK_CHOOSE ? 0x164a26 : IW_PRODUCT_SURFACE;
+    unsigned fill = disabled ? IW_PRODUCT_DISABLED_SURFACE
+                  : action == IW_ACTION_TIME_SAVE || action == IW_ACTION_PICK_CHOOSE ? 0x164a26 : IW_PRODUCT_SURFACE;
     return add(s, x, y, w, h, y + h / 2 + 9, 26, IW_PRODUCT_WHITE, fill, 30, 1, action, fixed, disabled, text);
 }
 
@@ -226,7 +229,7 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
              button(s, 18, 244, 354, 64, IW_PAGE_BRIGHTNESS, false, false, TEXT(BRIGHTNESS_DETAIL)) &&
              add(s, 18, 320, 354, 76, 0, 0, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 24, 0, 0, false, true, "") &&
              label(s, 34, 366, 180, 26, IW_PRODUCT_DISABLED, 0, false, TEXT(TEXT_SIZE)) &&
-             label(s, 348, 366, 120, 20, IW_PRODUCT_DISABLED, 2, false, TEXT(NOT_CONNECTED)) &&
+             label(s, 286, 366, 86, 20, IW_PRODUCT_DISABLED, 2, false, TEXT(NOT_CONNECTED)) &&
              label(s, 34, 426, 320, 20, IW_PRODUCT_SECONDARY, 1, false, TEXT(SESSION_ONLY));
         break;
     case IW_PAGE_BRIGHTNESS:

@@ -235,7 +235,16 @@ static void scene_boundaries(iw_product_model_t *m) {
     }
     assert(launcher_row_found);
     assert(iw_product_scene_build(&scene, IW_PAGE_DISPLAY, m));
-    assert(has_text(&scene, "未接入"));
+    bool unavailable_found = false;
+    for (unsigned i = 0; i < scene.count; i++) {
+        assert(scene.nodes[i].x >= 0 && scene.nodes[i].width >= 0 &&
+               scene.nodes[i].x + scene.nodes[i].width <= 390);
+        if (!strcmp(scene.nodes[i].text, "未接入")) {
+            unavailable_found = true;
+            assert(scene.nodes[i].x == 286 && scene.nodes[i].width == 86);
+        }
+    }
+    assert(unavailable_found);
     assert(iw_product_scene_build(&scene, IW_PAGE_TIME, m));
     for (unsigned i = 0; i < scene.count; i++) {
         if (scene.nodes[i].action == IW_ACTION_TIME_SAVE || scene.nodes[i].action == IW_ACTION_PICK_CHOOSE)
@@ -272,6 +281,14 @@ static void scene_boundaries(iw_product_model_t *m) {
     m->time_available = false;
     assert(iw_product_scene_build(&scene, IW_PAGE_TIME, m));
     assert(iw_product_scene_hit(&scene, 60, 140, 0) < 0);
+    bool disabled_save_found = false;
+    for (unsigned i = 0; i < scene.count; i++) {
+        if (scene.nodes[i].action == IW_ACTION_TIME_SAVE) {
+            disabled_save_found = true;
+            assert(scene.nodes[i].disabled && scene.nodes[i].fill == IW_PRODUCT_DISABLED_SURFACE);
+        }
+    }
+    assert(disabled_save_found);
     char longest[IW_PRODUCT_TEXT_BYTES];
     memset(longest, 'A', sizeof(longest) - 1);
     longest[sizeof(longest) - 1] = 0;
