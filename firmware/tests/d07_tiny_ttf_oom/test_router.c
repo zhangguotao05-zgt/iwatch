@@ -7,6 +7,7 @@
 #include "iw_service.h"
 #include "iw_router_text.h"
 #include "iw_product_controller.h"
+#include "iw_render_probe.h"
 #include "src/core/lv_obj_private.h"
 #include "src/core/lv_obj_class_private.h"
 #include "src/core/lv_obj_style_private.h"
@@ -328,7 +329,14 @@ int test_product_router(lv_display_t *display,size_t loops)
     memcpy(stack[0].name,"root",5); depth=1; active_app="iwlist";
     iw_router_init(); notify_page(0,GUI_APP_MSG_ONSTART); notify_page(0,GUI_APP_MSG_ONRESUME); process();
     for (size_t i=0;i<loops;i++) {
+        char *profile_args[] = {"iw_nav", "profile", "1", "1", "1"};
+        iw_nav(5, profile_args); process();
         assert(iw_router_open(IW_PAGE_SETTINGS)); process(); assert(depth==2);
+        route_page_t *profile_page=find_page(stack[1].data);
+        assert(profile_page && profile_page->product->model.large_text && profile_page->product->model.reduced_motion);
+        profile_args[3]="0"; profile_args[4]="0";
+        iw_nav(5, profile_args); process();
+        assert(!profile_page->product->model.large_text && !profile_page->product->model.reduced_motion);
         assert(iw_router_open(IW_PAGE_DISPLAY)); process(); assert(depth==3);
         assert(iw_router_open(IW_PAGE_BRIGHTNESS)); process(); assert(depth==4);
         assert(iw_router_back()); process(); assert(depth==3);

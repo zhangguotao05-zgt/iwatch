@@ -59,7 +59,8 @@ static bool header(iw_product_scene_t *s, const iw_product_model_t *m, const cha
                          add(s, 24, 22, 48, 48, 0, 0, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 24, 0, 0, true, false, "") &&
                          icon(s, 28, 26, 40, IW_ICON_BACK, IW_PRODUCT_WHITE, true))) &&
            label(s, 240, 42, 108, 22, IW_PRODUCT_WHITE, 2, true, time) &&
-           label(s, 28, 88, 320, 30, IW_PRODUCT_WHITE, m->back ? 2u : 0u, true, title);
+           label(s, 28, 88, 320, 30, m->back ? IW_PRODUCT_BLUE : IW_PRODUCT_WHITE,
+                 m->back ? 2u : 0u, true, title);
 }
 
 static bool brightness_control(iw_product_scene_t *s, const iw_product_model_t *m, int y) {
@@ -115,6 +116,8 @@ static bool time_page(iw_product_scene_t *s, const iw_product_model_t *m) {
     char text[48];
     s->clip_bottom = 354;
     if (d->editing != IW_EDIT_NONE) {
+        s->picker_field = d->editing;
+        s->picker_value = d->candidate;
         if (!header(s, m, iw_product_texts[IW_TEXT_PICK_YEAR + d->editing])) return false;
         iw_time_draft_t previous = *d, next = *d;
         (void)iw_time_draft_step(&previous, -1);
@@ -131,11 +134,16 @@ static bool time_page(iw_product_scene_t *s, const iw_product_model_t *m) {
             (void)iw_clock_format_offset(d->candidate, text, sizeof(text));
         else
             (void)snprintf(text, sizeof(text), "%d", d->candidate);
-        return button(s, 68, 116, 254, 60, IW_ACTION_PICK_PREV,
-                      m->pending || previous.candidate == d->candidate, false, before) &&
-               add(s, 68, 190, 254, 60, 230, 30, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 20, 1, 0, false, false, text) &&
-               button(s, 68, 266, 254, 60, IW_ACTION_PICK_NEXT, m->pending || next.candidate == d->candidate,
-                      false, after) &&
+        if (!add(s, 68, 190, 254, 60, 0, 0, 0, IW_PRODUCT_SURFACE, 20, 1, 0, false, false, "")) return false;
+        unsigned first = s->count;
+        bool ok = add(s, 68, 116, 254, 60, 155, 22, IW_PRODUCT_SECONDARY, 0, 0, 1,
+                      IW_ACTION_PICK_PREV, false, m->pending || previous.candidate == d->candidate, before) &&
+                  add(s, 68, 190, 254, 60, 230, 30, IW_PRODUCT_WHITE, 0, 0, 1, 0, false, false, text) &&
+                  add(s, 68, 266, 254, 60, 305, 22, IW_PRODUCT_SECONDARY, 0, 0, 1,
+                      IW_ACTION_PICK_NEXT, false, m->pending || next.candidate == d->candidate, after);
+        if (!ok) return false;
+        for (unsigned i = first; i < s->count; i++) s->nodes[i].picker_item = true;
+        return
                button(s, 18, 366, 170, 60, IW_ACTION_PICK_CANCEL, false, true, TEXT(CANCEL)) &&
                button(s, 202, 366, 170, 60, IW_ACTION_PICK_CHOOSE, m->pending, true, TEXT(CHOOSE));
     }
@@ -143,13 +151,15 @@ static bool time_page(iw_product_scene_t *s, const iw_product_model_t *m) {
     int values[] = {d->value.year, d->value.month, d->value.day, d->value.hour, d->value.minute};
     for (unsigned i = 0; i < 5; i++) {
         (void)snprintf(text, sizeof(text), "%d %s", values[i], iw_product_texts[IW_TEXT_YEAR + i]);
-        if (!button(s, i < 3 ? 18 + (int)i * 122 : 18 + (int)(i - 3) * 184, i < 3 ? 108 : 196,
-                    i < 3 ? 110 : 170, 76, IW_ACTION_FIELD + i, m->pending || !m->time_available, false,
+        int x = m->large_text ? 18 + (int)(i % 2) * 184 : i < 3 ? 18 + (int)i * 122 : 18 + (int)(i - 3) * 184;
+        int y = m->large_text ? 108 + (int)(i / 2) * 88 : i < 3 ? 108 : 196;
+        if (!button(s, x, y, m->large_text || i >= 3 ? 170 : 110, 76, IW_ACTION_FIELD + i,
+                    m->pending || !m->time_available, false,
                     text))
             return false;
     }
     (void)iw_clock_format_offset(d->offset_minutes, text, sizeof(text));
-    return button(s, 18, 284, 354, 64, IW_ACTION_FIELD + IW_EDIT_OFFSET, m->pending || !m->time_available,
+    return button(s, 18, m->large_text ? 372 : 284, 354, 64, IW_ACTION_FIELD + IW_EDIT_OFFSET, m->pending || !m->time_available,
                   false, text) &&
            button(s, 18, 366, 170, 60,
                   m->message == IW_TEXT_TIME_CONFLICT ? IW_ACTION_RELOAD : IW_ACTION_TIME_CANCEL, false, true,
@@ -162,6 +172,7 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
     if (!s || !m || (unsigned)m->draft.editing > IW_EDIT_NONE || (unsigned)m->message > IW_TEXT_COUNT)
         return false;
     memset(s, 0, sizeof(*s));
+    s->picker_field = IW_EDIT_NONE;
     s->page_id = id;
     s->clip_bottom = 450;
     bool ok = false;
@@ -268,9 +279,23 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
     default:
         return false;
     }
-    if (m->message < IW_TEXT_COUNT)
-        ok = ok && label(s, 18, id == IW_PAGE_TIME ? 448 : 438, 354, 20, IW_PRODUCT_WARNING, 1, true,
+    if (m->message < IW_TEXT_COUNT) {
+        /* 错误文案随正文滚动，不能覆盖固定的取消/设置按钮。 */
+        ok = ok && label(s, 18, s->content_height + 36, 354, 20, IW_PRODUCT_WARNING, 1, false,
                          iw_product_texts[m->message]);
+        if (ok) s->nodes[s->count - 1].multiline = true;
+    }
+    if (m->large_text) {
+        for (unsigned i = 0; i < s->count; i++) {
+            iw_product_node_t *n = &s->nodes[i];
+            unsigned old = n->font_px;
+            n->font_px = old == 20 ? 22 : old == 22 ? 26 : old == 26 ? 30 : (uint8_t)old;
+            if (n->font_px != old) {
+                n->baseline += (int16_t)((n->font_px - old) / 2);
+                if (n->height <= (int)old + 12) n->height += (int16_t)(n->font_px - old);
+            }
+        }
+    }
     s->content_height += 24;
     return ok;
 }

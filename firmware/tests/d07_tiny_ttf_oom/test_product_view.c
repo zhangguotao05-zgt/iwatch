@@ -1,5 +1,6 @@
 #include "iw_product_view.h"
 #include "iw_gui_owner.h"
+#include "iw_render_probe.h"
 #include "src/draw/lv_draw_private.h"
 #include "src/draw/sw/lv_draw_sw.h"
 #include "src/draw/sw/lv_draw_sw_mask_private.h"
@@ -43,6 +44,56 @@ static void pointer_action_cb(uint16_t action, int32_t value, bool final, void *
     pointer_value = value;
 }
 
+static void picker_cases(lv_indev_t *input, iw_product_view_t *view, iw_product_model_t *m) {
+    for (unsigned reduced = 0; reduced < 2; reduced++) {
+        m->large_text = true;
+        m->reduced_motion = reduced != 0;
+        assert(iw_time_draft_begin(&m->draft, &m->clock));
+        assert(iw_product_view_create(view, lv_screen_active(), IW_PAGE_TIME, m, pointer_action_cb, NULL, NULL));
+        iw_product_view_scroll(view, 70);
+        int saved_scroll = view->scroll_y;
+        assert(saved_scroll > 0 && iw_time_draft_select(&m->draft, IW_EDIT_MONTH));
+        assert(iw_product_view_update(view, m) && !view->scroll_y);
+        lv_obj_update_layout(view->surface);
+        pointer_actions = 0;
+        /* 从选中行上拖超过半格，松手只产生一次候选变更，未直接提交日期。 */
+        touch(input, 180, 220, true);
+        touch(input, 180, 175, true);
+        assert(view->picker_offset == -45);
+        touch(input, 180, 175, false);
+        assert(pointer_actions == 1 && pointer_action == IW_ACTION_PICK_STEP && pointer_value == 1);
+        uint8_t original_month = m->draft.value.month;
+        assert(iw_time_draft_step(&m->draft, pointer_value));
+        assert(iw_product_view_update(view, m));
+        assert(m->draft.value.month == original_month);
+        assert(view->picker_snapping == !reduced);
+        if (!reduced) {
+            assert(view->picker_offset == 30);
+            lv_tick_inc(95);
+            assert(iw_product_view_tick(view) == 16);
+            assert(view->picker_offset > 0 && view->picker_offset < 5);
+        }
+        lv_tick_inc(190);
+        (void)iw_product_view_tick(view);
+        assert(!view->picker_offset && !view->picker_snapping);
+        /* 不到半格只回弹；输入取消必须丢弃尚未松手的动作。 */
+        touch(input, 180, 220, true);
+        touch(input, 180, 200, true);
+        touch(input, 180, 200, false);
+        assert(pointer_actions == 1);
+        touch(input, 180, 220, true);
+        touch(input, 180, 270, true);
+        lv_indev_reset(input, NULL);
+        touch(input, 180, 270, false);
+        assert(pointer_actions == 1 && !view->picker_offset && !view->picker_snapping);
+        iw_time_draft_cancel_field(&m->draft);
+        assert(iw_product_view_update(view, m) && view->scroll_y == saved_scroll);
+        assert(m->draft.value.month == original_month);
+        assert(iw_product_view_destroy(view));
+    }
+    m->large_text = false;
+}
+
 static void input_cases(iw_product_view_t *view, iw_product_model_t *m) {
     lv_indev_t *input = lv_indev_create();
     assert(input);
@@ -72,6 +123,27 @@ static void input_cases(iw_product_view_t *view, iw_product_model_t *m) {
     touch(input, 150, 150, true);
     touch(input, 150, 150, false);
     assert(view->scroll_y > 0 && !pointer_actions);
+    char wide[IW_PRODUCT_TEXT_BYTES];
+    memset(wide, 'W', sizeof(wide) - 1);
+    wide[sizeof(wide) - 1] = 0;
+    const char *saved_firmware = m->firmware;
+    m->firmware = wide;
+    m->large_text = true;
+    assert(iw_product_view_update(view, m));
+    for (unsigned i = 0; i < view->scene.count; i++) {
+        const iw_product_node_t *node = &view->scene.nodes[i];
+        if (strcmp(node->text, wide)) continue;
+        lv_point_t measured;
+        const lv_font_t *font = NULL;
+        for (unsigned f = 0; f < 5; f++)
+            if (view->fonts[f].font && node->font_px == (unsigned[]){20, 22, 26, 30, 80}[f]) font = view->fonts[f].font;
+        assert(font);
+        lv_text_get_size(&measured, wide, font, 0, 0, node->width, LV_TEXT_FLAG_NONE);
+        assert(node->height == measured.y + 12 && node->height > 150);
+        assert(i + 1 < view->scene.count && view->scene.nodes[i + 1].y >= node->y + node->height);
+    }
+    m->firmware = saved_firmware;
+    m->large_text = false;
     assert(iw_product_view_destroy(view));
     assert(iw_product_view_create(view, lv_screen_active(), IW_PAGE_BRIGHTNESS, m, pointer_action_cb, NULL, NULL));
     lv_obj_update_layout(view->surface);
@@ -85,6 +157,7 @@ static void input_cases(iw_product_view_t *view, iw_product_model_t *m) {
     touch(input, 120, 310, false);
     assert(pointer_finals == 1);
     assert(iw_product_view_destroy(view));
+    picker_cases(input, view, m);
     lv_indev_delete(input);
 }
 
@@ -192,6 +265,38 @@ static void scene_boundaries(iw_product_model_t *m) {
     assert(!iw_product_scene_build(&scene, IW_PAGE_ABOUT, m));
 }
 
+static void render_probe_cases(void) {
+    unsigned count;
+    iw_render_probe_start();
+    assert(iw_render_probe_active() && !iw_render_probe_samples(&count));
+    iw_render_probe_begin(UINT32_MAX - 4, true);
+    iw_render_probe_draw(IW_PAGE_TIME, 12, true);
+    iw_render_probe_draw(IW_PAGE_TIME, 12, false);
+    iw_render_probe_end(3, false);
+    iw_render_probe_begin(9, false);
+    iw_render_probe_end(10, false);
+    iw_render_probe_begin(14, true);
+    iw_render_probe_end(15, true);
+    iw_render_probe_stop();
+    const iw_render_sample_t *s = iw_render_probe_samples(&count);
+    assert(s && count == 1 && s[0].submit_ms - s[0].begin_ms == 8);
+    assert(s[0].first && s[0].first_ms == 12 && s[0].idle_seen && s[0].idle_ms == 14);
+    iw_render_probe_start();
+    for (unsigned i = 0; i < IW_RENDER_PROBE_CAPACITY + 10; i++) {
+        iw_render_probe_begin(i * 20, true);
+        iw_render_probe_draw(IW_PAGE_ABOUT, 0, false);
+        iw_render_probe_end(i * 20 + 5, true);
+    }
+    iw_render_probe_stop();
+    s = iw_render_probe_samples(&count);
+    assert(count == IW_RENDER_PROBE_CAPACITY && s[count - 1].idle_seen);
+    iw_render_probe_begin(9000, true);
+    iw_render_probe_draw(IW_PAGE_TIME, 0, false);
+    iw_render_probe_end(9001, true);
+    s = iw_render_probe_samples(&count);
+    assert(count == IW_RENDER_PROBE_CAPACITY && s[0].page_id == IW_PAGE_ABOUT);
+}
+
 int test_product_view(lv_display_t *display, size_t number, unsigned mode) {
     iw_product_model_t m = fixture();
     /* 固定存储避免测试栈大小影响嵌入式页面状态的所有权。 */
@@ -199,6 +304,7 @@ int test_product_view(lv_display_t *display, size_t number, unsigned mode) {
     size_t blocks = test_font_live_blocks(), bytes = test_font_live_bytes();
     size_t allocations = 0;
     if (mode == 8) {
+        render_probe_cases();
         scene_boundaries(&m);
     } else if (mode >= 5 && mode <= 7) {
         allocations = line_case(display, mode - 5, number);
@@ -257,6 +363,11 @@ int test_product_view(lv_display_t *display, size_t number, unsigned mode) {
             assert(view.scene.nodes[0].action == IW_ACTION_BACK && view.scene.nodes[1].fill == 0x242426);
         }
         test_component_capture(display, view.surface, 100u + (unsigned)number);
+        if (page == IW_PAGE_TIME) {
+            iw_product_view_scroll(&view, INT32_MAX);
+            test_component_capture(display, view.surface, 400u + (unsigned)number);
+            iw_product_view_scroll(&view, INT32_MIN);
+        }
         if (page == IW_PAGE_ABOUT) {
             iw_product_view_scroll(&view, INT32_MAX);
             test_component_capture(display, view.surface, 300u + (unsigned)number);

@@ -3,6 +3,7 @@
 #include "iw_components_demo_text.h"
 #include "iw_font.h"
 #include "iw_font_port.h"
+#include "iw_render_probe.h"
 #include "iw_gui_owner.h"
 #include "src/draw/lv_draw_private.h"
 #include <assert.h>

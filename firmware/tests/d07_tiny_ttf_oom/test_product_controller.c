@@ -92,6 +92,11 @@ int test_product_controller(size_t loops) {
         memset(&page, 0, sizeof(page));
         assert(iw_product_create(&page, IW_PAGE_TIME, (uint32_t)i * 2 + 2, true, navigate, stop, &model));
         page.view.action(IW_ACTION_FIELD + IW_EDIT_OFFSET, 0, true, page.view.context);
+        page.view.action(IW_ACTION_PICK_STEP, 2, true, page.view.context);
+        assert(page.model.draft.candidate == 480);
+        page.view.action(IW_ACTION_PICK_STEP, 1, true, page.view.context);
+        page.view.action(IW_ACTION_PICK_STEP, -1, true, page.view.context);
+        assert(page.model.draft.candidate == 480 && !page.request);
         assert(iw_product_rotate(&page, 7));
         page.view.action(IW_ACTION_PICK_CHOOSE, 0, true, page.view.context);
         assert(page.model.draft.offset_minutes == 487);

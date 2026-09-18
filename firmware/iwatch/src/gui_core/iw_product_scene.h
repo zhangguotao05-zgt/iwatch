@@ -29,19 +29,22 @@ enum {
     IW_ACTION_DIM,
     IW_ACTION_BRIGHTEN,
     IW_ACTION_TRACK,
-    IW_ACTION_RELOAD
+    IW_ACTION_RELOAD,
+    IW_ACTION_PICK_STEP
 };
 typedef struct {
     int16_t x, y, width, height, baseline;
     uint16_t action;
     uint8_t font_px, radius, align, icon;
-    bool fixed, disabled, multiline;
+    bool fixed, disabled, multiline, picker_item;
     uint32_t color, fill;
     char text[IW_PRODUCT_TEXT_BYTES];
 } iw_product_node_t;
 typedef struct {
     iw_product_node_t nodes[IW_PRODUCT_NODES];
     uint16_t page_id, count, content_height, clip_top, clip_bottom;
+    iw_time_field_t picker_field;
+    int32_t picker_value;
 } iw_product_scene_t;
 typedef struct {
     iw_clock_snapshot_t clock;

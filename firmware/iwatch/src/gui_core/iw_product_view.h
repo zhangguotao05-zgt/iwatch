@@ -15,8 +15,10 @@ typedef struct {
     int16_t scroll_y, press_y, last_y, pressed, feedback_node;
     uint16_t press_value, press_from, press_to;
     uint32_t press_started;
+    int16_t picker_offset, picker_from, picker_parent_scroll;
+    uint32_t picker_started, resumed_ms;
     iw_theme_quality_t quality;
-    bool active, dragging, animating, reduced_motion;
+    bool active, dragging, animating, reduced_motion, picker_snapping, first_draw;
 } iw_product_view_t;
 /* 句柄地址固定，零初始化；父屏幕删除时自动清空并释放字体引用。 */
 bool iw_product_view_create(iw_product_view_t *view, lv_obj_t *parent, uint16_t page_id,

@@ -39,6 +39,7 @@ def main():
         if variant % 7 == 6:
             samples.append((300 + variant, dict(parameters, position='bottom')))
         if variant % 7 == 5:
+            samples.append((400 + variant, dict(parameters, position='bottom')))
             for field in range(6):
                 samples.append((200 + variant // 7 * 6 + field, dict(parameters, picker=field)))
     # 先确认整套帧都存在，再写入预览，避免半套画面被误认成完整验收。

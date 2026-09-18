@@ -2,6 +2,7 @@
 #include "iw_draw_checked.h"
 #include "iw_gui_owner.h"
 #include "iw_font_port.h"
+#include "iw_render_probe.h"
 #include "src/core/lv_obj_private.h"
 #include "src/core/lv_obj_event_private.h"
 #include "src/core/lv_obj_class_private.h"
@@ -17,6 +18,9 @@ typedef struct {
     lv_style_const_prop_t props[5];
 } product_surface_t;
 static const uint8_t sizes[] = {20, 22, 26, 30, 80};
+#define PICKER_STEP_PX 75
+#define PICKER_TOP 116
+#define PICKER_BOTTOM 326
 static void event(const lv_obj_class_t *class_p, lv_event_t *e);
 static void destructor(const lv_obj_class_t *class_p, lv_obj_t *object);
 static const lv_obj_class_t surface_class = {.base_class = &lv_obj_class,
@@ -42,19 +46,40 @@ static void feedback(iw_product_view_t *v, bool down) {
     if (!v->animating) v->press_value = v->press_to;
 }
 
+static void picker_snap(iw_product_view_t *v) {
+    v->picker_from = v->picker_offset;
+    v->picker_started = lv_tick_get();
+    v->picker_snapping = v->picker_offset && !v->reduced_motion;
+    if (!v->picker_snapping) v->picker_offset = 0;
+}
+
 uint32_t iw_product_view_tick(iw_product_view_t *v) {
-    if (!v || !v->surface || !v->active || !v->animating || !iw_font_port_is_owner()) return UINT32_MAX;
+    if (!v || !v->surface || !v->active || !iw_font_port_is_owner()) return UINT32_MAX;
     const iw_theme_effects_t *effects = iw_theme_effects(v->quality, v->reduced_motion);
-    uint32_t elapsed = lv_tick_get() - v->press_started;
-    if (!effects->press_ms || elapsed >= effects->press_ms) {
-        v->press_value = v->press_to;
-        v->animating = false;
-    } else {
-        v->press_value = (uint16_t)(v->press_from +
-            ((int32_t)v->press_to - v->press_from) * (int32_t)elapsed / effects->press_ms);
+    bool changed = v->animating || v->picker_snapping;
+    if (v->animating) {
+        uint32_t elapsed = lv_tick_get() - v->press_started;
+        if (!effects->press_ms || elapsed >= effects->press_ms) {
+            v->press_value = v->press_to;
+            v->animating = false;
+        } else {
+            v->press_value = (uint16_t)(v->press_from +
+                ((int32_t)v->press_to - v->press_from) * (int32_t)elapsed / effects->press_ms);
+        }
     }
-    lv_obj_invalidate(v->surface);
-    return v->animating ? 16u : UINT32_MAX;
+    if (v->picker_snapping) {
+        uint32_t elapsed = lv_tick_get() - v->picker_started;
+        if (!effects->snap_ms || elapsed >= effects->snap_ms) {
+            v->picker_offset = 0;
+            v->picker_snapping = false;
+        } else {
+            /* 剩余位移乘 (1-t)^3，定点运算不依赖浮点或动态定时器。 */
+            int32_t left = (int32_t)(1024u * (effects->snap_ms - elapsed) / effects->snap_ms);
+            v->picker_offset = (int16_t)(v->picker_from * left / 1024 * left / 1024 * left / 1024);
+        }
+    }
+    if (changed) lv_obj_invalidate(v->surface);
+    return v->animating || v->picker_snapping ? 16u : UINT32_MAX;
 }
 
 static void icon_line(lv_layer_t *layer, const lv_area_t *a, uint32_t color, int x1, int y1, int x2, int y2) {
@@ -124,6 +149,7 @@ static void destructor(const lv_obj_class_t *class_p, lv_obj_t *object) {
     if (!v) return;
     v->active = false;
     v->animating = false;
+    v->picker_snapping = false;
     v->surface = NULL;
     v->pressed = -1;
     for (unsigned i = 0; i < sizeof(sizes); i++)
@@ -177,6 +203,8 @@ bool iw_product_view_update(iw_product_view_t *v, const iw_product_model_t *mode
         return false;
     v->quality = model->quality;
     v->reduced_motion = model->reduced_motion;
+    iw_time_field_t old_field = v->scene.picker_field;
+    int32_t old_value = v->scene.picker_value;
     if (!iw_product_scene_build(&v->scene, v->scene.page_id, model)) {
         iw_gui_fault_raise();
         return false;
@@ -189,6 +217,32 @@ bool iw_product_view_update(iw_product_view_t *v, const iw_product_model_t *mode
             return false;
         }
     }
+    /* 用生产字体的真实度量重排长文本，避免按字符数估计漏掉宽拉丁字形。 */
+    for (unsigned i = 0; i < v->scene.count; i++) {
+        iw_product_node_t *n = &v->scene.nodes[i];
+        unsigned f = font_index(n->font_px);
+        if (!n->multiline || f == sizeof(sizes)) continue;
+        lv_point_t measured;
+        lv_text_get_size(&measured, n->text, v->fonts[f].font, 0, 0, n->width, LV_TEXT_FLAG_NONE);
+        if (iw_gui_fault_pending()) return false;
+        int delta = measured.y + 12 - n->height;
+        n->height += (int16_t)delta;
+        for (unsigned j = i + 1; j < v->scene.count; j++) {
+            iw_product_node_t *after = &v->scene.nodes[j];
+            if (!after->fixed) { after->y += (int16_t)delta; after->baseline += (int16_t)delta; }
+        }
+        v->scene.content_height = (uint16_t)((int)v->scene.content_height + delta);
+    }
+    if (old_field != v->scene.picker_field) {
+        if (old_field == IW_EDIT_NONE) { v->picker_parent_scroll = v->scroll_y; v->scroll_y = 0; }
+        if (v->scene.picker_field == IW_EDIT_NONE) v->scroll_y = v->picker_parent_scroll;
+        v->picker_offset = 0;
+        v->picker_snapping = false;
+    } else if (old_field != IW_EDIT_NONE && old_value != v->scene.picker_value) {
+        int32_t step = v->scene.picker_value - old_value;
+        v->picker_offset = step >= -1 && step <= 1 ? (int16_t)(v->picker_offset + step * PICKER_STEP_PX) : 0;
+        picker_snap(v);
+    }
     int limit = iw_product_scene_scroll_limit(&v->scene);
     if (v->scroll_y > limit) v->scroll_y = (int16_t)limit;
     lv_obj_invalidate(v->surface);
@@ -200,10 +254,13 @@ bool iw_product_view_create(iw_product_view_t *v, lv_obj_t *parent, uint16_t pag
                             void (*quiesce)(void *), void *context) {
     if (!v || v->frame.object || v->surface || !model || !iw_font_port_is_owner()) return false;
     v->scene.page_id = page_id;
+    v->scene.picker_field = IW_EDIT_NONE;
     v->pressed = -1;
     v->feedback_node = -1;
     v->press_value = 0;
     v->animating = false;
+    v->picker_snapping = false;
+    v->picker_offset = 0;
     v->action = action;
     v->context = context;
     if (iw_screen_frame_create(&v->frame, parent, IW_FRAME_FULLSCREEN, "", quiesce, context) !=
@@ -214,6 +271,8 @@ bool iw_product_view_create(iw_product_view_t *v, lv_obj_t *parent, uint16_t pag
         return false;
     }
     v->active = true;
+    v->resumed_ms = lv_tick_get();
+    v->first_draw = true;
     return true;
 }
 
@@ -224,10 +283,14 @@ bool iw_product_view_destroy(iw_product_view_t *v) {
 void iw_product_view_activate(iw_product_view_t *v, bool active) {
     if (!v || !iw_font_port_is_owner()) return;
     v->active = active;
+    v->resumed_ms = lv_tick_get();
+    v->first_draw = active;
     v->pressed = -1;
     v->dragging = false;
     v->press_value = 0;
     v->animating = false;
+    v->picker_snapping = false;
+    v->picker_offset = 0;
     if (v->surface) lv_obj_invalidate(v->surface);
 }
 
@@ -247,9 +310,15 @@ static void draw(iw_product_view_t *v, lv_layer_t *layer) {
     for (unsigned i = 0; i < v->scene.count && !iw_gui_fault_pending(); i++) {
         const iw_product_node_t *n = &v->scene.nodes[i];
         int shift = n->fixed ? 0 : v->scroll_y;
+        if (n->picker_item) shift -= v->picker_offset;
         lv_area_t clip = {origin.x1, origin.y1 + (n->fixed ? 0 : v->scene.clip_top), origin.x2,
                           origin.y1 + (n->fixed ? 450 : v->scene.clip_bottom) - 1};
         if (!lv_area_intersect(&layer->_clip_area, &original, &clip)) continue;
+        if (n->picker_item) {
+            lv_area_t picker_clip = {origin.x1, origin.y1 + PICKER_TOP, origin.x2,
+                                    origin.y1 + PICKER_BOTTOM - 1};
+            if (!lv_area_intersect(&layer->_clip_area, &layer->_clip_area, &picker_clip)) continue;
+        }
         lv_area_t area = {origin.x1 + n->x, origin.y1 + n->y - shift, origin.x1 + n->x + n->width - 1,
                           origin.y1 + n->y - shift + n->height - 1};
         const iw_product_node_t *hit = v->feedback_node >= 0 && v->feedback_node < (int)v->scene.count
@@ -295,6 +364,8 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
     iw_product_view_t *v = surface->view;
     lv_event_code_t code = lv_event_get_code(e);
     if (code == LV_EVENT_DRAW_MAIN) {
+        iw_render_probe_draw(v->scene.page_id, lv_tick_get() - v->resumed_ms, v->first_draw);
+        v->first_draw = false;
         draw(v, lv_event_get_layer(e));
         return;
     }
@@ -309,6 +380,8 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
         feedback(v, false);
         v->pressed = -1;
         v->dragging = false;
+        v->picker_offset = 0;
+        v->picker_snapping = false;
         lv_obj_invalidate(&surface->base);
         return;
     }
@@ -322,6 +395,8 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
         v->pressed = (int16_t)iw_product_scene_hit(&v->scene, x, y, v->scroll_y);
         v->last_y = v->press_y = (int16_t)y;
         v->dragging = false;
+        v->picker_snapping = false;
+        v->picker_offset = 0;
         feedback(v, v->pressed >= 0);
     }
     uint16_t action = v->pressed >= 0 ? v->scene.nodes[v->pressed].action : 0;
@@ -333,14 +408,25 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
             v->dragging = true;
             feedback(v, false);
         }
-        if (v->dragging && v->press_y >= v->scene.clip_top && v->press_y < v->scene.clip_bottom)
+        if (v->dragging && v->scene.picker_field != IW_EDIT_NONE &&
+            v->press_y >= PICKER_TOP && v->press_y < PICKER_BOTTOM) {
+            int offset = y - v->press_y;
+            v->picker_offset = (int16_t)(offset < -PICKER_STEP_PX ? -PICKER_STEP_PX :
+                                        offset > PICKER_STEP_PX ? PICKER_STEP_PX : offset);
+        } else if (v->dragging && v->press_y >= v->scene.clip_top && v->press_y < v->scene.clip_bottom)
             iw_product_view_scroll(v, v->last_y - y);
         v->last_y = (int16_t)y;
     } else if (code == LV_EVENT_RELEASED) {
         bool click = !v->dragging && v->pressed >= 0 &&
                      iw_product_scene_hit(&v->scene, x, y, v->scroll_y) == v->pressed;
         v->pressed = -1;
-        if (click && v->action) v->action(action, 0, true, v->context);
+        if (v->dragging && v->scene.picker_field != IW_EDIT_NONE &&
+            v->press_y >= PICKER_TOP && v->press_y < PICKER_BOTTOM) {
+            int steps = v->picker_offset > PICKER_STEP_PX / 2 ? -1 :
+                        v->picker_offset < -PICKER_STEP_PX / 2 ? 1 : 0;
+            if (steps && v->action) v->action(IW_ACTION_PICK_STEP, steps, true, v->context);
+            picker_snap(v);
+        } else if (click && v->action) v->action(action, 0, true, v->context);
     }
     if (code == LV_EVENT_RELEASED) {
         feedback(v, false);

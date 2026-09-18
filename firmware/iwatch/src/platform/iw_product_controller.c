@@ -15,6 +15,23 @@ static const iw_ui_command_port_t command_port = {iw_request_allocate, iw_servic
                                                   iw_command_submit, iw_result_get, iw_result_ack};
 static iw_ui_commands_t commands = {.port = &command_port};
 static iw_product_page_t *pages;
+static iw_theme_quality_t profile_quality = IW_THEME_Q1;
+static bool profile_large, profile_reduced;
+
+bool iw_product_set_profile(iw_theme_quality_t quality, bool large_text, bool reduced_motion) {
+    if (!iw_font_port_is_owner() || !iw_theme_effects(quality, reduced_motion)) return false;
+    profile_quality = quality;
+    profile_large = large_text;
+    profile_reduced = reduced_motion;
+    for (iw_product_page_t *p = pages; p; p = p->next) {
+        p->model.quality = quality;
+        p->model.large_text = large_text;
+        p->model.reduced_motion = reduced_motion;
+        iw_product_view_activate(&p->view, p->visible);
+        p->dirty = true;
+    }
+    return true;
+}
 
 static void stop(void *context) {
     iw_product_page_t *p = context;
@@ -110,6 +127,9 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
             p->model.message = IW_TEXT_COUNT;
     } else if (id >= IW_ACTION_FIELD && id < IW_ACTION_FIELD + IW_EDIT_NONE) {
         if (!p->request) (void)iw_time_draft_select(&p->model.draft, (iw_time_field_t)(id - IW_ACTION_FIELD));
+    } else if (id == IW_ACTION_PICK_STEP) {
+        if (!p->request && value >= -1 && value <= 1)
+            (void)iw_time_draft_step(&p->model.draft, value);
     } else if (id == IW_ACTION_PICK_PREV || id == IW_ACTION_PICK_NEXT) {
         if (!p->request) (void)iw_time_draft_step(&p->model.draft, id == IW_ACTION_PICK_PREV ? -1 : 1);
     } else if (id == IW_ACTION_PICK_CANCEL)
@@ -146,7 +166,8 @@ bool iw_product_create(iw_product_page_t *p, uint16_t id, uint32_t generation, b
     p->quiesce = quiesce;
     p->context = context;
     p->model = (iw_product_model_t){.message = IW_TEXT_COUNT, .back = back,
-        .hardware = "SF32LB58 A128 QSPI", .firmware = IW_BUILD_TAG, .quality = IW_THEME_Q1};
+        .hardware = "SF32LB58 A128 QSPI", .firmware = IW_BUILD_TAG, .quality = profile_quality,
+        .large_text = profile_large, .reduced_motion = profile_reduced};
 #if defined(__ARMCOMPILER_VERSION)
     p->model.toolchain = "Arm Compiler " __VERSION__;
 #elif defined(__GNUC__)

@@ -8,6 +8,7 @@
 #include "iw_service_runtime.h"
 #include "iw_router_text.h"
 #include "iw_product_controller.h"
+#include "iw_render_probe.h"
 #include "gui_app_fwk.h"
 #include <rtthread.h>
 #include <rthw.h>
@@ -15,7 +16,7 @@
 #include <string.h>
 
 enum { ROUTE_SLOTS = IW_NAV_MAX_APPS * IW_NAV_MAX_DEPTH };
-typedef enum { REQUEST_NONE, REQUEST_OPEN, REQUEST_STAT, REQUEST_BURST } request_kind_t;
+typedef enum { REQUEST_NONE, REQUEST_OPEN, REQUEST_STAT, REQUEST_BURST, REQUEST_PROFILE, REQUEST_PROBE } request_kind_t;
 typedef struct { request_kind_t kind; uint32_t argument; uint16_t page_id; } route_request_t;
 typedef struct {
     iw_scope_t scope;
@@ -461,6 +462,27 @@ bool iw_router_process(void)
         rollback_failures = 0;
     }
     if (command.kind == REQUEST_STAT) print_stat(&snapshot);
+    else if (command.kind == REQUEST_PROBE) {
+        if (command.argument) { iw_render_probe_start(); rt_kprintf("render probe started capacity=128\n"); }
+        else {
+            iw_render_probe_stop();
+            unsigned count = 0;
+            const iw_render_sample_t *samples = iw_render_probe_samples(&count);
+            rt_kprintf("render probe count=%u unit=ms boundary=lvgl_batch_idle_observation\n", count);
+            for (unsigned i = 0; i < count; i++) {
+                const iw_render_sample_t *s = &samples[i];
+                rt_kprintf("render %u page=%u begin=%lu submit=%lu idle=%lu seen=%u first=%u first_ms=%lu\n",
+                    i, (unsigned)s->page_id, (unsigned long)s->begin_ms, (unsigned long)s->submit_ms,
+                    (unsigned long)s->idle_ms, (unsigned)s->idle_seen, (unsigned)s->first, (unsigned long)s->first_ms);
+            }
+        }
+    }
+    else if (command.kind == REQUEST_PROFILE) {
+        iw_gui_cancel_input();
+        bool applied = iw_product_set_profile((iw_theme_quality_t)(command.argument & 1u),
+            (command.argument & 2u) != 0, (command.argument & 4u) != 0);
+        rt_kprintf("product profile=%u applied=%u\n", (unsigned)command.argument, (unsigned)applied);
+    }
     else if (!fault_unwind && !rolling_back &&
              (command.kind == REQUEST_OPEN || command.kind == REQUEST_BURST)) {
         begin_request(IW_NAV_PUSH, command.argument,command.page_id, &snapshot);
@@ -527,12 +549,23 @@ static void iw_nav(int argc, char **argv)
     bool accepted = false;
     uint32_t argument;
     if (argc == 2 && !strcmp(argv[1], "back")) accepted = request((route_request_t){0}, true);
+    else if (argc == 3 && !strcmp(argv[1], "probe") &&
+             (!strcmp(argv[2], "start") || !strcmp(argv[2], "stop")))
+        accepted = request((route_request_t){REQUEST_PROBE, !strcmp(argv[2], "start")}, false);
+    else if (argc == 5 && !strcmp(argv[1], "profile") &&
+             (argv[2][0] == '0' || argv[2][0] == '1') && !argv[2][1] &&
+             (argv[3][0] == '0' || argv[3][0] == '1') && !argv[3][1] &&
+             (argv[4][0] == '0' || argv[4][0] == '1') && !argv[4][1]) {
+        argument = (uint32_t)(argv[2][0] - '0') | ((uint32_t)(argv[3][0] - '0') << 1) |
+                   ((uint32_t)(argv[4][0] - '0') << 2);
+        accepted = request((route_request_t){REQUEST_PROFILE, argument}, false);
+    }
     else if (argc == 2 && !strcmp(argv[1], "stat")) accepted = request((route_request_t){REQUEST_STAT, 0}, false);
     else if (argc == 3 && !strcmp(argv[1], "page") && parse_argument(argv[2], &argument) && argument <= UINT16_MAX)
         accepted = request((route_request_t){.kind=REQUEST_OPEN,.page_id=(uint16_t)argument},false);
     else if (argc == 3 && (!strcmp(argv[1], "open") || !strcmp(argv[1], "burst")) && parse_argument(argv[2], &argument))
         accepted = request((route_request_t){!strcmp(argv[1], "open") ? REQUEST_OPEN : REQUEST_BURST, argument}, false);
-    else { rt_kprintf("iw_nav open <id> | burst <id> | page <page_id> | back | stat\n"); return; }
+    else { rt_kprintf("iw_nav open <id> | burst <id> | page <page_id> | profile <q:0|1> <large:0|1> <reduced:0|1> | probe start|stop | back | stat\n"); return; }
     rt_kprintf("nav queued=%u\n", (unsigned)accepted);
 }
 MSH_CMD_EXPORT(iw_nav, D08 navigation diagnostics);
