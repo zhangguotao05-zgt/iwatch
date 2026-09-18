@@ -3,7 +3,7 @@
 <title>D10 界面完善与复核交接 · iwatch</title><link rel="stylesheet" href="../assets/engineering.css"></head>
 <body><header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D10 增量复核</span></header>
 <div class="page-shell"><main class="doc-main"><h1>D10 界面完善与复核交接</h1>
-<p class="doc-meta">2026-09-18 · 源码 <code>cd8c6e7</code> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/12">Issue #12</a></p>
+<p class="doc-meta">2026-09-18 · 源码 <code>7cc8bcf</code> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/12">Issue #12</a></p>
 <section id="scope"><h2>复核范围</h2>
 <p>在 <a href="D10_首批七页实施记录.html">七页基本功能与首次校时整改</a>上补齐字段拖动吸附、大字号重排、真实字体换行和诊断采样。以 <a href="Apple_Watch界面复刻定稿_v2.html">IW-VISUAL-2.0 定稿</a>为对照；本记录不等于架构审批，Issue #12 仍打开。</p>
 <ul><li>选择器只维护前值、候选值、后值。拖动超过半格后改变一个候选，松手按 190 ms ease-out 吸附；减少动态效果时直接到位。触摸与点击均可完成操作，不依赖旋钮。</li>
@@ -13,15 +13,15 @@
 <li>采样使用固定 128 项数组，绘制回调只写记录；停止采集后才输出串口。不开启诊断时不查询额外的绘制空闲状态。</li></ul></section>
 <section id="host"><h2>主机与同源渲染</h2>
 <p>全量 GUI 包装脚本通过：37 个页面构造失败点、47 个绘制失败点、15 个画线分配失败点，1000 轮七页生命周期、控制器、路由与故障恢复，既有字体／组件／触摸回归通过。新增真实 LVGL pointer 测试覆盖超过半格／不足半格拖动、取消、190 ms 插值、减弱动效与滚动恢复；127 个宽拉丁字形验证真实换行和相邻行间距。采样测试覆盖同批多次绘制去重、容量上限、时钟回绕、延迟空闲及关闭状态。</p>
-<p>核心脚本 46 项 Python 检查通过，其中 FontTools 环境缺失一项跳过；GUI 脚本在 FontTools 环境运行 38 项并覆盖该检查。两组有重叠，不累加。<a href="assets/d10-product/manifest.json">120 张同源帧清单</a>（已按 cd8c6e7 重新生成）覆盖七页、Q0/Q1、两种字号、减弱动效及选择器／正文底部；它们是主机软件渲染，不是实屏照片。</p>
+<p>核心脚本 46 项 Python 检查通过，其中 FontTools 环境缺失一项跳过；GUI 脚本在 FontTools 环境运行 38 项并覆盖该检查。两组有重叠，不累加。<a href="assets/d10-product/manifest.json">120 张同源帧清单</a>（已按 7cc8bcf 归档生成）覆盖七页、Q0/Q1、两种字号、减弱动效及选择器／正文底部；它们是主机软件渲染，不是实屏照片。</p>
 <div style="display:flex;flex-wrap:wrap;gap:16px"><figure><img src="assets/d10-product/product-112.png" width="234" alt="大字号校时页顶部"><figcaption>大字号顶部</figcaption></figure><figure><img src="assets/d10-product/product-412.png" width="234" alt="大字号校时页底部与固定页脚"><figcaption>滚动到时区</figcaption></figure><figure><img src="assets/d10-product/product-207.png" width="234" alt="月份选择器"><figcaption>三个候选行</figcaption></figure></div></section>
 <section id="build"><h2>目标构建</h2>
 <table><thead><tr><th>工具链</th><th>main 大小</th><th>槽占用</th><th>状态</th></tr></thead><tbody>
-<tr><td>GCC</td><td>1,913,076 B</td><td>30.406%</td><td>构建、身份、预算及 COM255 DryRun 通过；main SHA-256 <code>b65ec2e5423dac79c99a7eec3ebabe5bbcd78d5862ef88761c4e5e924933acba</code>。</td></tr>
-<tr><td>Keil</td><td>1,837,792 B</td><td>29.211%</td><td>构建、身份、预算及 COM255 DryRun 通过；main SHA-256 <code>f9644930a475c6cc1204336e17da677c6194f23e514ccc29353e5ea14427a3c9</code>。</td></tr></tbody></table>
+<tr><td>GCC</td><td>1,913,076 B</td><td>30.408%</td><td>构建、身份、预算及 COM255 DryRun 通过；main SHA-256 <code>1bc3d40365a9aa8baa6f5c74ec4210071f6670cbfc8e427dec3cd693baac9e24</code>；git_head 与嵌入身份均为 7cc8bcf。</td></tr>
+<tr><td>Keil</td><td>1,837,792 B</td><td>29.211%</td><td>构建、身份、预算及 COM255 DryRun 通过；main SHA-256 <code>a20ee8065068495b557749c8fb0dcd2c11946d08bf964f42a0b5a0eeda6c15ea</code>；git_head 与嵌入身份均为 7cc8bcf。</td></tr></tbody></table>
 <p>受控 SDK 补丁仍为 31 文件，SHA-256 <code>52b18a9f4f107962121c2f692c434141c090979658d894da8728eba08381b506</code>。TTF 65,752 B、位图字体 51,335 B、链接图片 866,577 B 均未增加。采样静态数组占 2,560 B，另有固定状态；不计为动态堆增长。</p></section>
 <section id="board"><h2>实机复验与原始证据</h2>
-<p>本轮源码 <code>cd8c6e7</code> 已完成 GCC/Keil 构建、身份和预算检查；GCC 三件套已通过 COM9 写入并校验，COM10 原始日志已封存。相关页面抽查确认“未接入”完整可见，校时选择、取消和返回正常。没有访问 J-Link。当前 GCC main SHA-256：<code>b65ec2e5423dac79c99a7eec3ebabe5bbcd78d5862ef88761c4e5e924933acba</code>；Keil：<code>f9644930a475c6cc1204336e17da677c6194f23e514ccc29353e5ea14427a3c9</code>。</p>
+<p>本轮源码 <code>7cc8bcf</code> 已完成 GCC/Keil 构建、身份和预算检查；GCC 三件套已通过 COM9 写入并校验，COM10 原始日志已封存。相关页面抽查确认“未接入”完整可见，校时选择、取消和返回正常。没有访问 J-Link。当前 GCC main SHA-256：<code>1bc3d40365a9aa8baa6f5c74ec4210071f6670cbfc8e427dec3cd693baac9e24</code>；Keil：<code>a20ee8065068495b557749c8fb0dcd2c11946d08bf964f42a0b5a0eeda6c15ea</code>；两套 build_identity.json 的 git_head 与 embedded_tag 均绑定 7cc8bcf。</p>
 <table><thead><tr><th>项</th><th>本轮结果</th></tr></thead><tbody>
 <tr><td>正常动效选择器</td><td>初次反馈“半格直接到下一月”；随后确认“轻移会回弹，接近半格才改变”。本轮以相邻候选中心距 75 px 的中点为阈值。保留原反馈，记作阈值手感澄清，未据此修改代码或声称修复额外故障。</td></tr>
 <tr><td>Q0／大字号／减弱动效／80%</td><td>人工确认双列字段、滚动时区、固定页脚、松手直接到位、整页取消后重新进入未保存，以及文字和操作正常。</td></tr>
@@ -46,13 +46,13 @@
 <p>建议复核顺序：候选值与命令边界 → GUI 单线程及动画取消 → 字体分配失败与页面回收 → 双工具链身份 → 原始实机与测量边界。源码、构建和实物三个层次分别签字，不互相替代。</p></section>
 
 <section id="architect-fixes"><h2>D10-D 增量验收：外观、七页往返与 V08</h2>
-<p>本轮代码基线为 <code>cd8c6e7</code>，在已批准的 D10 页面和服务上只补齐架构复核要求：应用列表按下态改为整行反馈；“文字大小”禁用项显示“未接入”；主操作按钮统一深绿色填充和 30 px 圆角；关于页增加 1 px 分隔线；绘制探针增加诊断开／关的计时计数。未扩大 SDK 补丁范围。</p>
+<p>本轮构建基线为 <code>7cc8bcf</code>（功能源码变更来自 cd8c6e7，最终构建包含本轮测试与文档提交），在已批准的 D10 页面和服务上只补齐架构复核要求：应用列表按下态改为整行反馈；“文字大小”禁用项显示“未接入”；主操作按钮统一深绿色填充和 30 px 圆角；关于页增加 1 px 分隔线；绘制探针增加诊断开／关的计时计数。未扩大 SDK 补丁范围。</p>
 <table><thead><tr><th>验收项</th><th>板上结果</th></tr></thead><tbody>
 <tr><td>完整七页往返</td><td>COM10 原始日志中完成 3 轮：应用列表根 → KEY1 表盘 → KEY1 应用列表根；每轮依次进入设置（0100）、显示（0101）、亮度详情（0102）、返回、时间（0103）、返回、关于（0105）、返回设置、返回列表。最终均回到 <code>iwlist/root</code>，未见导航失败或页面卡住。</td></tr>
 <tr><td>前后台内存对照</td><td>冷启动列表根为主堆 43,692 B、字形池 1,432 B、引用 2；表盘前台／列表后台稳定样本为主堆 63,460 B、字形池 11,264 B、引用 7；列表前台／表盘后台稳定样本为主堆约 80,532 B、字形池约 42,484 B、引用 7。三轮后未观察到逐轮增长；峰值记录为主堆 119,432 B、字形池 47,152 B，不能把后台保留对象误判为冷启动基线。</td></tr>
 <tr><td>V08 首绘与完整帧</td><td><code>iw_nav probe start/stop</code> 共记录 17 个批次。首绘样本的 <code>ONRESUME→首次 DRAW_MAIN</code> 为 5、7、8 ms；提交到 LCD/GPU 空闲观察约 30～50 ms。最长批次间隔 1,490 ms 包含页面停留／命令等待，不作为单帧耗时，也不宣称 30 FPS。</td></tr>
 <tr><td>诊断开销对照</td><td>同一串口窗口报告：探针开启 <code>count=449,total=359863 us,max=32349 us</code>；关闭 <code>count=182,total=35489 us,max=15686 us</code>。计时起点为 GUI frame handler 进入探针前，终点为探针 begin/end 返回；该数据只描述探针与空闲观察开销，不代表面板刷新率。</td></tr>
-<tr><td>实机与证据</td><td>本轮增量证据位于 <code>logs/board-validation-20260918-d10-disabled-fix</code>（仅本地）：GCC 三件套通过 COM9 写入并校验，COM10 原始串口 18,971 B，SHA-256 <code>c83e9abf730acc99d4e991c658b2077994970bc338d4c664b3b46b07be5afc22</code>；确认“未接入”完整可见、校时选择／取消／返回正常。未访问 J-Link。历史七页往返证据仍保留在 <code>logs/board-validation-20260918-d10-architect-fixes</code>。</td></tr>
+<tr><td>实机与证据</td><td>本轮增量证据位于 <code>logs/board-validation-20260918-d10-identity-fix</code>（仅本地）：GCC 三件套通过 COM9 写入并校验，COM10 原始串口 5,807 B，SHA-256 <code>ccb7014fe7c6a4cf643f22de36b55ebd006799d266f5238323bc639f754bc67a</code>；确认“未接入”完整可见、校时选择／取消／返回正常。未访问 J-Link。历史七页往返证据仍保留在 <code>logs/board-validation-20260918-d10-architect-fixes</code>。</td></tr>
 </tbody></table>
 <p>主机全量脚本为 38 项 Python 测试，字体、组件、路由、输入和产品边界测试均通过；GCC/Keil 均已重新构建、身份校验和 DryRun 通过。#8 的长文延迟／触摸溢出、#10 的显示异常、#12 的 D10 总体验收仍保持打开，以上证据提交架构师做增量复核。</p>
 </section>

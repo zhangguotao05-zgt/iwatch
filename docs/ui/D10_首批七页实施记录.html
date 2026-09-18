@@ -4,14 +4,14 @@
 <body><header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D10 首批正式界面</span></header>
 <div class="page-shell"><nav class="toc"><ul><li><a href="#status">状态</a></li><li><a href="#model">编辑模型</a></li><li><a href="#font">正式字体</a></li><li><a href="#integration">接入顺序</a></li><li><a href="#validation">验证与边界</a></li></ul></nav>
 <main class="doc-main"><h1>D10 首批七页实施记录</h1>
-<p class="doc-meta">2026-09-18 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/12">Issue #12</a> · 开发起点 cd8c6e7 · 视觉契约 IW-VISUAL-2.0 / REF-W26-ZH-R1</p>
+<p class="doc-meta">2026-09-18 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/12">Issue #12</a> · 开发起点 7cc8bcf · 视觉契约 IW-VISUAL-2.0 / REF-W26-ZH-R1</p>
 <section id="status"><h2>当前状态</h2>
-<p>D09 已按审批基线 042ba6f、固件源码 05fb667 收口。D10 七页、路由与服务接入已实现；源码 2e89117 的历史实机记录保留在下文；本轮 cd8c6e7 增量板测见复核交接。增量源码 cd8c6e7 补齐选择器拖动吸附、大字号重排及绘制批次采样，见<a href="D10_界面完善与复核交接.html">界面完善与复核交接</a>。跨页动效降级与性能测量边界单列；显示异常 #10 和 Issue #12 保持打开，等待架构复核。</p>
+<p>D09 已按审批基线 042ba6f、固件源码 05fb667 收口。D10 七页、路由与服务接入已实现；源码 2e89117 的历史实机记录保留在下文；本轮 7cc8bcf 增量板测见复核交接。增量源码 7cc8bcf 补齐选择器拖动吸附、大字号重排及绘制批次采样，见<a href="D10_界面完善与复核交接.html">界面完善与复核交接</a>。跨页动效降级与性能测量边界单列；显示异常 #10 和 Issue #12 保持打开，等待架构复核。</p>
 <table><thead><tr><th>范围</th><th>状态</th></tr></thead><tbody>
 <tr><td>校时草稿、格式化、亮度数值映射</td><td>已接入真实服务，包含校时冲突重试、亮度预览合并与最终提交。</td></tr>
 <tr><td>七页文案与正式字体</td><td>已加入正式清单并生成，字体校验与既有绘制回归通过。</td></tr>
 <tr><td>七页 View、路由、命令结果</td><td>已实现。开机进入 iwlist，KEY1 在列表根页与数字表盘之间切换，列表只展示已接入的设置；新页面已登记全局故障回收。</td></tr>
-<tr><td>目标构建、实机与视觉验收</td><td>增量源码 cd8c6e7 的 GCC/Keil 构建、身份、预算及 DryRun 通过；GCC/Keil 已完成构建与身份校验，GCC 已通过 COM9 刷入并完成“未接入”与校时相关页面抽查。详见增量交接，跨页转场降级与性能测量边界等待架构裁定。</td></tr>
+<tr><td>目标构建、实机与视觉验收</td><td>增量源码 7cc8bcf 的 GCC/Keil 构建、身份、预算及 DryRun 通过；GCC/Keil 已完成构建与身份校验，GCC 已通过 COM9 刷入并完成“未接入”与校时相关页面抽查。详见增量交接，跨页转场降级与性能测量边界等待架构裁定。</td></tr>
 </tbody></table></section>
 <section id="model"><h2>编辑模型与所有权</h2>
 <p><a href="../../firmware/iwatch/src/gui_core/iw_settings_model.h">iw_settings_model</a> 是无堆分配的纯 C 模型；<a href="../../firmware/iwatch/src/gui_core/iw_product_scene.h">iw_product_scene</a> 使用固定 48 项节点并复制文本；<a href="../../firmware/iwatch/src/gui_core/iw_product_view.h">iw_product_view</a> 负责裁切、绘制、命中与滚动。<a href="../../firmware/iwatch/src/platform/iw_product_controller.h">iw_product_controller</a> 读取服务、维护草稿并发出导航请求。LVGL 操作仍限定在 app_watch 线程。</p>
@@ -67,9 +67,9 @@
 <li>fdd6067 已补大字号校时双列重排、滚动时区和关于页真实字体换行；全局字号设置仍禁用，工程 profile 不冒充用户功能。</li>
 <li>增量实屏结果及绘制批次测量见复核交接；不把主机状态矩阵替代实屏验收，不把空闲轮询或输入延迟当成面板 FPS。</li></ul>
 <h3 id="board-20260918">2026-09-18 七页基本操作与首次校时整改复验</h3>
-<p>当前板上源码 <code>2e891170bbddb7699d562f7a73c2cbf238bf4069</code>。GCC main SHA-256：<code>cdd312db7c7ac244ca2d51f896f8bfcaf0405c3fe08a20f25b4864b6c971800d</code>；Keil：<code>29aad321e8bd8689947e6b708cd6aa160d576ac7c21ed0bf3ab8a9588b951325</code>。两套构建、身份、容量、DryRun 通过，仅 GCC 实际写入并校验。首版三件套和修正版三件套分别保留，不混用证据。</p>
+<p>历史七页与首次校时板测源码为 <code>2e891170bbddb7699d562f7a73c2cbf238bf4069</code>；其 GCC/Keil 哈希保留作历史证据。本轮最终身份归档见复核交接：源码 <code>7cc8bcf</code>，GCC main <code>1bc3d40365a9aa8baa6f5c74ec4210071f6670cbfc8e427dec3cd693baac9e24</code>，Keil main <code>a20ee8065068495b557749c8fb0dcd2c11946d08bf964f42a0b5a0eeda6c15ea</code>，两套 git_head 与 embedded_tag 均绑定 7cc8bcf。</p>
 <table><thead><tr><th>层次</th><th>结果与边界</th></tr></thead><tbody>
-<tr><td>主机</td><td>灰色校时字段已复现并修复；首次校时与 25 种能力组合通过。完整 GUI 回归、1000 轮控制器/路由与故障清理、37 个构造失败点、47 个绘制失败点、15 个画线失败点通过；112 张重新渲染帧与归档一致。核心 46 项 Python 检查中两项环境跳过，随后在 FontTools 环境和两套归档完成后单独补测通过。</td></tr>
+<tr><td>主机</td><td>灰色校时字段已复现并修复；首次校时与 25 种能力组合通过。完整 GUI 回归、1000 轮控制器/路由与故障清理、37 个构造失败点、47 个绘制失败点、15 个画线失败点通过；120 张重新渲染帧与归档一致。核心 46 项 Python 检查中两项环境跳过，随后在 FontTools 环境和两套归档完成后单独补测通过。</td></tr>
 <tr><td>实机人工操作</td><td>校时字段可编辑；修改后取消并重进未保留草稿。首次从页面提交后表盘显示有效时间；关于页构建身份、滚动、来源相关返回、亮度调节和触摸人工确认正常。没有要求拍照，因此不将人工确认称为像素级实屏对照。</td></tr>
 <tr><td>时间与结果</td><td>取消后 valid=0、submitted=0；首次页面校时后 valid=1、offset=480、revision=2、source=MANUAL，submitted/completed/ack=1/1/1、ledger=0。后续混合操作结束为 39/39/39；软件 reboot 后 session 995903079→995903080、时间从 RTC 恢复。未执行断电保持或亮度持久化验收。</td></tr>
 <tr><td>重复进退</td><td>GUI 邮箱依次完成设置、显示、亮度、校时、关于及 Back，共 10 轮。11 个同状态根页样本主堆均 103,084 B、字体引用均 15；字形池从 42,268 B 预热后为 43,556～43,812 B，未见持续增长。该状态包括后台页面，不能与单应用冷启动直接比较。首次脚本因当前仍是设置页而拒绝采样；经路由返回列表后重跑，失败前置检查也保留。</td></tr>
