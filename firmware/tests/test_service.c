@@ -32,6 +32,49 @@ static iw_command_t brightness_command(uint32_t session,
     return command;
 }
 
+static iw_result_t execute_software(iw_service_t *service, const iw_command_t *command)
+{
+    iw_service_work_t work;
+    iw_result_t result;
+    iw_result_token_t token;
+    assert(iw_service_command_submit(service, command) == IW_SUBMIT_QUEUED);
+    assert(iw_service_take_next(service, &work) == IW_TAKE_COMPLETED);
+    assert(iw_service_result_get(service, command->session_id, command->request_id,
+                                 &result) == IW_RESULT_LOOKUP_FOUND);
+    token = (iw_result_token_t){result.session_id, result.request_id,
+                                result.ledger_generation};
+    assert(iw_service_result_ack(service, &token) == IW_ACK_OK);
+    return result;
+}
+
+static iw_command_t timer_create_command(uint32_t session, uint32_t request, uint32_t duration_ms)
+{
+    iw_command_t command;
+    iw_command_init(&command, session, request, 0x0200u, 1u,
+                    IW_OPCODE_TIMER_CREATE);
+    assert(iw_command_encode_timer_create(&command, duration_ms));
+    return command;
+}
+
+static iw_command_t timer_control_command(uint32_t session, uint32_t request,
+                                          iw_opcode_t opcode, uint32_t timer_id,
+                                          uint32_t revision)
+{
+    iw_command_t command;
+    iw_command_init(&command, session, request, 0x0202u, 1u, opcode);
+    assert(iw_command_encode_timer_control(&command, timer_id, revision));
+    return command;
+}
+
+static iw_command_t stopwatch_command(uint32_t session, uint32_t request,
+                                      iw_opcode_t opcode, uint32_t revision)
+{
+    iw_command_t command;
+    iw_command_init(&command, session, request, 0x0300u, 1u, opcode);
+    assert(iw_command_encode_stopwatch_control(&command, revision));
+    return command;
+}
+
 static iw_result_t finish_one(iw_service_t *service, uint32_t tick, bool device_success)
 {
     iw_service_work_t work;
@@ -560,6 +603,87 @@ static void test_brightness_rejection_has_no_model_side_effect(void)
     assert(memcmp(&before, &after, sizeof(before)) == 0);
 }
 
+static void test_d11_service_t16_deadline_and_snapshots(void)
+{
+    iw_time_state_t time_state;
+    iw_service_t service;
+    iw_command_t command;
+    iw_result_t result;
+    iw_timer_snapshot_t timers;
+    uint8_t message[sizeof(iw_snapshot_header_t) + sizeof(iw_timer_snapshot_t)];
+    size_t required = 0u;
+
+    assert(iw_time_init(&time_state, 0u, 1000u, 1704067200, 0,
+                        IW_TIME_SOURCE_RTC) == IW_TIME_OK);
+    assert(iw_service_init(&service, &time_state, 31u));
+    command = timer_create_command(31u, 1u, 5000u);
+    result = execute_software(&service, &command);
+    assert(result.code == IW_RESULT_OK_APPLIED);
+    uint32_t timer_id = (uint32_t)result.payload[0] |
+                        ((uint32_t)result.payload[1] << 8) |
+                        ((uint32_t)result.payload[2] << 16) |
+                        ((uint32_t)result.payload[3] << 24);
+    uint32_t revision = result.model_revision;
+
+    /* 日历校时只改 UTC 映射；同一单调截止时刻仍必须先于暂停生效。 */
+    assert(iw_time_set_clock(&time_state, 1000u, 1893456000, 480,
+                             IW_TIME_SOURCE_MANUAL) == IW_TIME_OK);
+    iw_time_sample(&time_state, 4999u);
+    assert(iw_service_timers_read(&service, 4999u, &timers));
+    assert(timers.timers[0].state == IW_TIMER_RUNNING &&
+           timers.timers[0].remaining_ms == 1u);
+    iw_time_sample(&time_state, 5000u);
+    command = timer_control_command(31u, 2u, IW_OPCODE_TIMER_PAUSE, timer_id, revision);
+    result = execute_software(&service, &command);
+    assert(result.code == IW_RESULT_STATE_CONFLICT);
+    assert(iw_service_timers_read(&service, 5000u, &timers));
+    assert(timers.count == 1u && timers.timers[0].state == IW_TIMER_EXPIRED &&
+           timers.timers[0].alert_pending);
+    assert(iw_service_snapshot_read(&service, IW_SNAPSHOT_TIMERS, message,
+                                    sizeof(message), &required) == IW_SNAPSHOT_OK);
+    assert(required == sizeof(iw_snapshot_header_t) + offsetof(iw_timer_snapshot_t, timers) +
+                       sizeof(iw_timer_view_t));
+}
+
+static void test_d11_service_t17_background_and_lap_capacity(void)
+{
+    iw_time_state_t time_state;
+    iw_service_t service;
+    iw_command_t command;
+    iw_result_t result;
+    iw_stopwatch_snapshot_t stopwatch;
+    uint32_t request = 1u;
+
+    assert(iw_time_init(&time_state, 0u, 1000u, 1704067200, 0,
+                        IW_TIME_SOURCE_RTC) == IW_TIME_OK);
+    assert(iw_service_init(&service, &time_state, 32u));
+    command = timer_create_command(32u, request++, 1000u);
+    assert(execute_software(&service, &command).code == IW_RESULT_OK_APPLIED);
+    iw_time_sample(&time_state, 1000u);
+    assert(iw_service_advance(&service, 1000u) == 1u);
+    assert(iw_service_advance(&service, 2000u) == 0u);
+
+    assert(iw_service_stopwatch_read(&service, 2000u, &stopwatch));
+    command = stopwatch_command(32u, request++, IW_OPCODE_STOPWATCH_START,
+                                stopwatch.revision);
+    assert(execute_software(&service, &command).code == IW_RESULT_OK_APPLIED);
+    for (unsigned i = 0; i < IW_STOPWATCH_LAP_CAPACITY; i++) {
+        assert(iw_service_stopwatch_read(&service, 2001u + i, &stopwatch));
+        iw_time_sample(&time_state, 2001u + i);
+        command = stopwatch_command(32u, request++, IW_OPCODE_STOPWATCH_LAP,
+                                    stopwatch.revision);
+        assert(execute_software(&service, &command).code == IW_RESULT_OK_APPLIED);
+    }
+    assert(iw_service_stopwatch_read(&service, 3000u, &stopwatch));
+    command = stopwatch_command(32u, request++, IW_OPCODE_STOPWATCH_LAP,
+                                stopwatch.revision);
+    result = execute_software(&service, &command);
+    assert(result.code == IW_RESULT_CAPACITY);
+    assert(iw_service_stopwatch_read(&service, 4000u, &stopwatch));
+    assert(stopwatch.state == IW_STOPWATCH_RUNNING &&
+           stopwatch.lap_count == IW_STOPWATCH_LAP_CAPACITY);
+}
+
 int main(void)
 {
     test_duplicate_expiry_and_session();
@@ -572,6 +696,8 @@ int main(void)
     test_brightness_failures_preserve_applied_state();
     test_brightness_conflicts_and_revision_exhaustion();
     test_brightness_rejection_has_no_model_side_effect();
+    test_d11_service_t16_deadline_and_snapshots();
+    test_d11_service_t17_background_and_lap_capacity();
     puts("service tests passed");
     return 0;
 }

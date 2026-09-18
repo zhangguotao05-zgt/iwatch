@@ -6,6 +6,7 @@
 #include <stdint.h>
 
 #include "iw_time.h"
+#include "iw_chronograph.h"
 
 #define IW_COMMAND_VERSION 1u
 #define IW_COMMAND_CAPACITY 16u
@@ -70,6 +71,22 @@ typedef struct
     uint8_t kind;
     uint16_t reserved;
 } iw_set_brightness_payload_t;
+
+typedef struct
+{
+    uint32_t duration_ms;
+} iw_timer_create_payload_t;
+
+typedef struct
+{
+    uint32_t timer_id;
+    uint32_t expected_revision;
+} iw_timer_control_payload_t;
+
+typedef struct
+{
+    uint32_t expected_revision;
+} iw_stopwatch_control_payload_t;
 
 _Static_assert(sizeof(iw_set_brightness_payload_t) == 12u,
                "亮度命令载荷必须保持 12 字节");
@@ -230,7 +247,9 @@ typedef enum
     IW_SNAPSHOT_CLOCK = 1,
     IW_SNAPSHOT_CAPABILITIES = 2,
     IW_SNAPSHOT_SERVICE = 3,
-    IW_SNAPSHOT_BRIGHTNESS = 4
+    IW_SNAPSHOT_BRIGHTNESS = 4,
+    IW_SNAPSHOT_TIMERS = 5,
+    IW_SNAPSHOT_STOPWATCH = 6
 } iw_snapshot_topic_t;
 
 typedef struct
@@ -294,6 +313,7 @@ typedef struct
     iw_capability_entry_t capabilities[IW_CAPABILITY_CAPACITY];
     iw_service_stats_t stats;
     iw_brightness_snapshot_t brightness;
+    iw_chronograph_t chronograph;
     uint8_t queue[IW_COMMAND_CAPACITY];
     uint32_t session_id;
     uint32_t next_slot_generation;
@@ -327,7 +347,19 @@ bool iw_command_encode_set_brightness(iw_command_t *command,
                                       uint32_t expected_revision,
                                       uint32_t setting_sequence);
 bool iw_command_decode_set_brightness(const iw_command_t *command,
-                                      iw_set_brightness_payload_t *payload);
+                                       iw_set_brightness_payload_t *payload);
+bool iw_command_encode_timer_create(iw_command_t *command, uint32_t duration_ms);
+bool iw_command_decode_timer_create(const iw_command_t *command,
+                                    iw_timer_create_payload_t *payload);
+bool iw_command_encode_timer_control(iw_command_t *command,
+                                     uint32_t timer_id,
+                                     uint32_t expected_revision);
+bool iw_command_decode_timer_control(const iw_command_t *command,
+                                     iw_timer_control_payload_t *payload);
+bool iw_command_encode_stopwatch_control(iw_command_t *command,
+                                         uint32_t expected_revision);
+bool iw_command_decode_stopwatch_control(const iw_command_t *command,
+                                         iw_stopwatch_control_payload_t *payload);
 
 bool iw_client_session_init(iw_client_session_t *client, uint32_t session_id);
 bool iw_client_next_request(iw_client_session_t *client, uint32_t *request_id);
@@ -356,7 +388,17 @@ bool iw_service_note_brightness_applied(iw_service_t *service,
                                         bool device_success,
                                         int32_t device_error);
 bool iw_service_brightness_read(const iw_service_t *service,
-                                iw_brightness_snapshot_t *snapshot);
+                                 iw_brightness_snapshot_t *snapshot);
+unsigned iw_service_advance(iw_service_t *service, uint64_t mono_ms);
+bool iw_service_timers_read(const iw_service_t *service,
+                            uint64_t mono_ms,
+                            iw_timer_snapshot_t *snapshot);
+bool iw_service_stopwatch_read(const iw_service_t *service,
+                               uint64_t mono_ms,
+                               iw_stopwatch_snapshot_t *snapshot);
+bool iw_service_stopwatch_summary_read(const iw_service_t *service,
+                                       uint64_t mono_ms,
+                                       iw_stopwatch_summary_t *summary);
 iw_result_lookup_t iw_service_result_get(const iw_service_t *service,
                                          uint32_t session_id,
                                          uint32_t request_id,

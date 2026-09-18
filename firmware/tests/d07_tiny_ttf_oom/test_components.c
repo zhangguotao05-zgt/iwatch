@@ -425,10 +425,12 @@ void test_component_capture(lv_display_t *display, lv_obj_t *content, unsigned v
     lv_display_set_flush_cb(display, render_flush);
     for (unsigned bottom = 0; bottom < 2; bottom++) {
         lv_obj_update_layout(content);
-        if (bottom) lv_obj_scroll_to_y(content, LV_COORD_MAX, LV_ANIM_OFF);
-        lv_obj_invalidate(content);
+        lv_obj_scroll_to_y(content, bottom ? LV_COORD_MAX : 0, LV_ANIM_OFF);
+        memset(render_buffer, 0, sizeof(render_buffer));
+        unsigned before_flush = flushes;
+        lv_obj_invalidate(lv_screen_active());
         lv_refr_now(display);
-        assert(flushes && !iw_gui_fault_pending() && !test_font_assert_count());
+        assert(flushes > before_flush && !iw_gui_fault_pending() && !test_font_assert_count());
         char filename[160];
         snprintf(filename, sizeof(filename), "firmware/tests/build/d07-a0/gallery-%02u-%u.rgb565", variant, bottom);
         FILE *file = NULL;
@@ -508,6 +510,7 @@ int test_components(const void *data, size_t size, const char *stage, size_t num
     else if (!strcmp(stage, "component_product_boundaries")) result = test_product_view(display, number, 8);
     else if (!strcmp(stage, "component_product")) result = test_product_view(display, number, 1);
     else if (!strcmp(stage, "component_product_render")) result = test_product_view(display, number, 2);
+    else if (!strcmp(stage, "component_d11_render")) result = test_product_view(display, number, 9);
     else if (!strcmp(stage, "component_sdk_nav")) result = test_sdk_navigation();
     else if (!strcmp(stage, "component_router")) result = test_router(display, number, false);
     else if (!strcmp(stage, "component_router_oom")) result = test_router(display, number, true);

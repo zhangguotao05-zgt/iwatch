@@ -109,12 +109,13 @@ bool iw_router_open(uint16_t id)
     return request((route_request_t){.kind=REQUEST_OPEN,.page_id=id},false);
 }
 
-static void product_action(uint16_t id,void *context)
+static void product_action(uint16_t id,uint32_t argument,void *context)
 {
     route_page_t *p=context;
     if (!p->scope.alive || !p->scope.visible) return;
     if (id==IW_ACTION_BACK) (void)request((route_request_t){0},true);
-    else (void)iw_router_open(id);
+    else if (initialized && iw_font_port_is_owner())
+        (void)request((route_request_t){.kind=REQUEST_OPEN,.argument=argument,.page_id=id},false);
 }
 
 static bool create_view(route_page_t *page)
@@ -126,7 +127,7 @@ static bool create_view(route_page_t *page)
         (void)gui_app_get_route_snapshot(&snapshot);
         bool back=page->route.page_id!=IW_PAGE_FACE && page->route.page_id!=IW_PAGE_LAUNCHER_LIST &&
             !(page->route.page_id==IW_PAGE_SETTINGS && !strcmp(snapshot.app_id,"iwlist"));
-        return iw_product_create(page->product,page->route.page_id,page->scope.token.generation,
+        return iw_product_create(page->product,page->route.page_id,page->route.argument,page->scope.token.generation,
             back,product_action,quiesce,page);
     }
     char title[48], detail[96];

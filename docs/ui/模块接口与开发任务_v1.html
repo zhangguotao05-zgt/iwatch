@@ -13,7 +13,7 @@
 <li><a href="#tests">9. 测试矩阵与判定标准</a></li>
 <li><a href="#records">10. 开发记录与提交要求</a></li></ul></nav><main>
 <h1>模块接口与开发任务 v1</h1>
-<p class="doc-meta">2026-09-17 · D01–D06 已完成 · D07–D09 已按各自审批收口，D10 本地开发中 · 接口开发基线：<code>0288a98</code></p>
+<p class="doc-meta">2026-09-18 · D01–D10 已按各自审批收口 · D11 开发验证中 · 接口开发基线：<code>83db910</code></p>
 <p>本文规定模块所有权、接口输入输出、资源限制和开发依赖。D04–D06 对应的时间、命令、结果、快照和显示 mailbox 已经落到头文件；其余接口仍是后续实现契约。功能行为见 <a href="功能逻辑与页面契约_v1.html">页面契约</a>，实现证据见 <a href="D04-D05_实施记录.html">D04–D05</a> 与 <a href="D06_显示目标与会话亮度实施记录.html">D06 实施记录</a>。</p>
 
 <section id="owners"><h2>1. 模块所有权与允许依赖</h2>
@@ -199,8 +199,8 @@ typedef struct {
 <tr><td><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/7">D07 · #7</a> · M1.1 · 已审批收口</td><td><a href="D07_资源预算与共享组件设计方案_v2.html">方案 v2</a> 基线 <code>967483d</code>；<a href="D07-A1_字体替换与渲染修复记录.html">A1</a> 字体替换、进入停机与中文字形修复已通过主机、双工具链和本轮 GCC 实机复验。最终整改镜像 8 次进出无内存增长，20%/80% 亮度正常。</td><td>D01、D02、D06；T12。D07-A1 已获架构审批通过，收口提交为 e064686。D07-B 已获架构阶段验收通过（审批基线 7dfd90d）。D07-C 已获架构阶段验收通过（审批基线 c8392a9）。D07-D 完整状态展示、长文案、质量/动效组合与综合故障回归、双工具链和新镜像实屏复验已完成，触摸溢出取消整改随后通过；D07 最终按 9088f52 审批收口，Issue #7 已关闭。长文延迟和溢出频率转入性能 Issue #8。 <a href="D07-A1_安全整改与复验记录.html">本次整改</a>。</td></tr>
 <tr><td><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/9">D08 · #9</a> · M1.1</td><td>scope、navigator、页面注册表、返回合并策略。<a href="D08_页面作用域与路由实施记录.html">实施记录</a>：按“接受已知风险”收口，验收基线 5c51f54、固件源码 82ab706；基础实现及已验证功能通过，负责人同意继续 D09。半黑半白转入 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/10">#10</a>，未定位、后续未复现；性能跟踪 #8。保留首次异常、采集缺口与原始证据，不代表异常已修复或产品发布验收通过。</td><td>D05、D07；T13、T14。</td></tr>
 <tr><td><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/11">D09 · #11</a> · M1.1 · 已审批收口</td><td>双键输入语义、表冠旋转注入、全局仲裁。<a href="D09_双键语义与输入仲裁实施记录.html">实施记录</a>。</td><td>D03、D08；T05、T15。实际 KEY2 和旋钮按硬件条件记录。</td></tr>
-<tr><td><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/12">D10 · #12</a> · M1.2 · 开发中</td><td><a href="D10_首批七页实施记录.html">实施记录</a>：七页 View、路由、时间与亮度服务已完成主机回归；增量源码 fdd6067 补齐选择器吸附、大字号重排与绘制采样，主机和双工具链通过，本轮实机复验完成，待架构复核。<a href="D10_界面完善与复核交接.html">增量复核记录</a>保留跨页转场降级、测量边界及 #8／#10，等待架构复核。首个可运行批：数字表盘、应用列表、设置/亮度、手动校时和关于页七页完整流程；按<a href="Apple_Watch界面复刻定稿_v2.html">视觉施工定稿 v2</a>实现并交付 V01–V08。</td><td>D04–D09；T07、T11–T15。T22 本阶段采样归档，帧率全面达标留主要 UI 成型后；不豁免稳定性、正确输入和安全回收。</td></tr>
-<tr><td>D11 · M2</td><td>计时器/秒表核心、服务与 View；8 个计时器、100 lap。</td><td>D10；T16、T17。</td></tr>
+<tr><td><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/12">D10 · #12</a> · M1.2 · 已收口</td><td><a href="D10_首批七页实施记录.html">实施记录</a>与<a href="D10_界面完善与复核交接.html">增量复核记录</a>已通过架构审批；七页、服务、视觉证据和最终构建身份闭环。</td><td>D04–D09；T07、T11–T15。#8、#10、V-DIFF-08 和 flash1 边界继续独立跟踪。</td></tr>
+<tr><td><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/13">D11 · #13</a> · M2 · 开发验证中</td><td><a href="D11_计时器与秒表实施记录.html">实施记录</a>：固定容量核心、命令/快照、计时器列表/详情和秒表 View 已完成主机回归；双工具链和实机待执行。</td><td>D10；T16、T17。</td></tr>
 <tr><td>D12 · M2</td><td>16 闹钟、24 提醒槽、互斥输出、全局提醒页。</td><td>D11；T18、T19。</td></tr>
 <tr><td>D13 · M3</td><td>控制中心、通知、叠放、切换器、输入锁、水锁、表盘选择/编辑。</td><td>D12；T14、T15、T20。</td></tr>
 <tr><td>D14 · M3</td><td>蜂窝桌面与复杂表盘性能样例，改进可中断转场。</td><td>D10；T22、T23。未通过时保留 Q0/Q1 和完成后返回。</td></tr>

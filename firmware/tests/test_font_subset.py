@@ -68,7 +68,7 @@ class FontSubsetTests(unittest.TestCase):
 
     def test_approved_character_set_and_legacy_messages(self):
         charset, _ = subset.collect_charset(self.config)
-        self.assertEqual(389, len(charset))
+        self.assertEqual(406, len(charset))
         self.assertEqual(self.config["expected"]["charset_sha256"],
                          subset.sha256_bytes(charset.encode("utf-8")))
         for message in self.config["notification_source"]["expected_strings"]:

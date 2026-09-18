@@ -15,7 +15,9 @@ enum {
     IW_ICON_SUN,
     IW_ICON_CLOCK,
     IW_ICON_INFO,
-    IW_ICON_SETTINGS
+    IW_ICON_SETTINGS,
+    IW_ICON_TIMER,
+    IW_ICON_STOPWATCH
 };
 enum {
     IW_ACTION_BACK = 0x1000,
@@ -30,7 +32,19 @@ enum {
     IW_ACTION_BRIGHTEN,
     IW_ACTION_TRACK,
     IW_ACTION_RELOAD,
-    IW_ACTION_PICK_STEP
+    IW_ACTION_PICK_STEP,
+    IW_ACTION_TIMER_PRESET_1M = 0x1100,
+    IW_ACTION_TIMER_PRESET_3M,
+    IW_ACTION_TIMER_PRESET_5M,
+    IW_ACTION_TIMER_PRESET_10M,
+    IW_ACTION_TIMER_OPEN_BASE = 0x1120,
+    IW_ACTION_TIMER_PAUSE = 0x1140,
+    IW_ACTION_TIMER_RESUME,
+    IW_ACTION_TIMER_CANCEL,
+    IW_ACTION_TIMER_RESTART,
+    IW_ACTION_STOPWATCH_PRIMARY = 0x1160,
+    IW_ACTION_STOPWATCH_LAP,
+    IW_ACTION_STOPWATCH_RESET
 };
 typedef struct {
     int16_t x, y, width, height, baseline;
@@ -47,8 +61,19 @@ typedef struct {
     int32_t picker_value;
 } iw_product_scene_t;
 typedef struct {
+    uint32_t revision;
+    uint16_t lap_count;
+    uint8_t state;
+    uint8_t visible_laps;
+    uint64_t elapsed_ms;
+    iw_stopwatch_lap_t laps[8];
+} iw_stopwatch_view_model_t;
+typedef struct {
     iw_clock_snapshot_t clock;
     iw_brightness_snapshot_t brightness;
+    iw_timer_snapshot_t timers;
+    iw_timer_view_t selected_timer;
+    iw_stopwatch_view_model_t stopwatch;
     iw_time_draft_t draft;
     const char *hardware, *firmware, *toolchain;
     iw_product_text_id_t message;

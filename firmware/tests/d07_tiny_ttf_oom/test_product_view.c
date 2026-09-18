@@ -18,7 +18,8 @@ extern void test_component_capture(lv_display_t *, lv_obj_t *, unsigned);
 
 static const uint16_t product_pages[] = {IW_PAGE_FACE,    IW_PAGE_LAUNCHER_LIST, IW_PAGE_SETTINGS,
                                          IW_PAGE_DISPLAY, IW_PAGE_BRIGHTNESS,    IW_PAGE_TIME,
-                                         IW_PAGE_ABOUT};
+                                         IW_PAGE_ABOUT, IW_PAGE_TIMER_LIST,
+                                         IW_PAGE_TIMER_DETAIL, IW_PAGE_STOPWATCH};
 
 static lv_point_t pointer_point;
 static lv_indev_state_t pointer_state;
@@ -234,6 +235,21 @@ static void scene_boundaries(iw_product_model_t *m) {
         }
     }
     assert(launcher_row_found);
+    assert(has_text(&scene, "计时器") && has_text(&scene, "秒表"));
+    m->timers.count = 1u;
+    m->timers.revision = 2u;
+    m->timers.timers[0] = (iw_timer_view_t){.timer_id = 7u, .revision = 3u,
+        .duration_ms = 60000u, .remaining_ms = 42500u, .state = IW_TIMER_RUNNING};
+    m->selected_timer = m->timers.timers[0];
+    assert(iw_product_scene_build(&scene, IW_PAGE_TIMER_LIST, m));
+    assert(has_text(&scene, "快速开始") && has_text(&scene, "1 分钟"));
+    assert(iw_product_scene_build(&scene, IW_PAGE_TIMER_DETAIL, m));
+    assert(has_text(&scene, "00:42") && has_text(&scene, "暂停"));
+    m->stopwatch = (iw_stopwatch_view_model_t){.revision = 2u,
+        .lap_count = 1u, .state = IW_STOPWATCH_RUNNING, .visible_laps = 1u,
+        .elapsed_ms = 12340u, .laps = {{12340u, 12340u}}};
+    assert(iw_product_scene_build(&scene, IW_PAGE_STOPWATCH, m));
+    assert(has_text(&scene, "00:12.3") && has_text(&scene, "计次"));
     assert(iw_product_scene_build(&scene, IW_PAGE_DISPLAY, m));
     bool unavailable_found = false;
     for (unsigned i = 0; i < scene.count; i++) {
@@ -360,13 +376,53 @@ static void render_probe_cases(void) {
     assert(on_count == 2 && on_total == 8 && on_max == 5 && off_count == 1 && off_total == 2 && off_max == 2);
 }
 
+static void d11_render_case(lv_display_t *display, iw_product_view_t *view,
+                            iw_product_model_t *m, size_t number) {
+    unsigned profile = (unsigned)(number / 8u);
+    unsigned state = (unsigned)(number % 8u);
+    uint16_t page = IW_PAGE_LAUNCHER_LIST;
+    m->quality = profile ? IW_THEME_Q1 : IW_THEME_Q0;
+    m->large_text = profile == 2u;
+    m->reduced_motion = profile == 3u;
+    m->timers.count = 3u;
+    m->timers.revision = 7u;
+    m->timers.timers[0] = (iw_timer_view_t){.timer_id = 11u, .revision = 2u,
+        .duration_ms = 60000u, .remaining_ms = 42500u, .state = IW_TIMER_RUNNING};
+    m->timers.timers[1] = (iw_timer_view_t){.timer_id = 12u, .revision = 4u,
+        .duration_ms = 180000u, .remaining_ms = 93000u, .state = IW_TIMER_PAUSED};
+    m->timers.timers[2] = (iw_timer_view_t){.timer_id = 13u, .revision = 3u,
+        .duration_ms = 300000u, .state = IW_TIMER_EXPIRED, .alert_pending = 1u};
+    if (state == 1u) {
+        page = IW_PAGE_TIMER_LIST;
+        m->timers.count = 0u;
+    } else if (state == 2u) {
+        page = IW_PAGE_TIMER_LIST;
+    } else if (state >= 3u && state <= 5u) {
+        page = IW_PAGE_TIMER_DETAIL;
+        m->selected_timer = m->timers.timers[state - 3u];
+    } else if (state >= 6u) {
+        page = IW_PAGE_STOPWATCH;
+        m->stopwatch = (iw_stopwatch_view_model_t){.revision = 9u,
+            .lap_count = state == 7u ? 100u : 3u,
+            .state = state == 7u ? IW_STOPWATCH_PAUSED : IW_STOPWATCH_RUNNING,
+            .visible_laps = 3u, .elapsed_ms = 75430u,
+            .laps = {{75430u, 23110u}, {52320u, 25200u}, {27120u, 27120u}}};
+    }
+    m->back = page != IW_PAGE_LAUNCHER_LIST;
+    assert(iw_product_view_create(view, lv_screen_active(), page, m, NULL, NULL, NULL));
+    test_component_capture(display, view->surface, 500u + (unsigned)number);
+    assert(iw_product_view_destroy(view));
+}
+
 int test_product_view(lv_display_t *display, size_t number, unsigned mode) {
     iw_product_model_t m = fixture();
     /* 固定存储避免测试栈大小影响嵌入式页面状态的所有权。 */
     static iw_product_view_t view;
     size_t blocks = test_font_live_blocks(), bytes = test_font_live_bytes();
     size_t allocations = 0;
-    if (mode == 8) {
+    if (mode == 9) {
+        d11_render_case(display, &view, &m, number);
+    } else if (mode == 8) {
         render_probe_cases();
         scene_boundaries(&m);
     } else if (mode >= 5 && mode <= 7) {

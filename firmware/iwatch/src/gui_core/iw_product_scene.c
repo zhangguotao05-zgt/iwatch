@@ -115,6 +115,104 @@ static bool face(iw_product_scene_t *s, const iw_product_model_t *m) {
            shortcut(s, 324, 365, IW_PAGE_ABOUT, IW_ICON_INFO, IW_PRODUCT_BLUE);
 }
 
+static void format_elapsed(uint64_t value_ms, bool tenths, char *text, size_t bytes) {
+    uint64_t total_seconds = value_ms / 1000u;
+    uint64_t hours = total_seconds / 3600u;
+    unsigned minutes = (unsigned)((total_seconds / 60u) % 60u);
+    unsigned seconds = (unsigned)(total_seconds % 60u);
+    if (hours)
+        (void)snprintf(text, bytes, "%02llu:%02u:%02u", (unsigned long long)hours, minutes, seconds);
+    else if (tenths)
+        (void)snprintf(text, bytes, "%02u:%02u.%u", minutes, seconds,
+                       (unsigned)((value_ms / 100u) % 10u));
+    else
+        (void)snprintf(text, bytes, "%02u:%02u", minutes, seconds);
+}
+
+static const char *timer_state_text(uint8_t state) {
+    return state == IW_TIMER_RUNNING ? TEXT(RUNNING) :
+           state == IW_TIMER_PAUSED ? TEXT(PAUSED) : TEXT(EXPIRED);
+}
+
+static bool timer_list(iw_product_scene_t *s, const iw_product_model_t *m) {
+    static const iw_product_text_id_t preset_texts[] = {
+        IW_TEXT_ONE_MINUTE, IW_TEXT_THREE_MINUTES,
+        IW_TEXT_FIVE_MINUTES, IW_TEXT_TEN_MINUTES};
+    char text[64];
+    if (!header(s, m, TEXT(TIMER)) ||
+        !label(s, 24, 128, 342, 20, IW_PRODUCT_SECONDARY, 0, false, TEXT(QUICK_START)))
+        return false;
+    for (unsigned i = 0; i < 4; i++)
+        if (!button(s, 18 + (int)(i % 2u) * 184, 144 + (int)(i / 2u) * 72, 170, 60,
+                    IW_ACTION_TIMER_PRESET_1M + i, m->pending, false,
+                    iw_product_texts[preset_texts[i]]))
+            return false;
+    int y = 304;
+    if (!m->timers.count)
+        return label(s, 30, y + 70, 330, 26, IW_PRODUCT_SECONDARY, 1, false, TEXT(NO_TIMERS));
+    for (unsigned i = 0; i < m->timers.count; i++) {
+        char duration[24];
+        format_elapsed(m->timers.timers[i].remaining_ms, false, duration, sizeof(duration));
+        (void)snprintf(text, sizeof(text), "%s  %s", duration,
+                       timer_state_text(m->timers.timers[i].state));
+        if (!button(s, 18, y, 354, 70, IW_ACTION_TIMER_OPEN_BASE + i, false, false, text))
+            return false;
+        y += 82;
+    }
+    return true;
+}
+
+static bool timer_detail(iw_product_scene_t *s, const iw_product_model_t *m) {
+    char remaining_text[32];
+    const iw_timer_view_t *timer = &m->selected_timer;
+    if (!timer->timer_id) return header(s, m, TEXT(TIMER)) &&
+        label(s, 30, 236, 330, 26, IW_PRODUCT_WARNING, 1, false, TEXT(OPERATION_FAILED));
+    format_elapsed(timer->remaining_ms, false, remaining_text, sizeof(remaining_text));
+    if (!header(s, m, TEXT(TIMER)) ||
+        !label(s, 20, 226, 350, 80, IW_PRODUCT_WHITE, 1, false, remaining_text) ||
+        !label(s, 30, 270, 330, 22,
+               timer->state == IW_TIMER_EXPIRED ? IW_PRODUCT_WARNING : IW_PRODUCT_SECONDARY,
+               1, false, timer_state_text(timer->state)))
+        return false;
+    if (timer->state == IW_TIMER_RUNNING)
+        return button(s, 18, 304, 170, 64, IW_ACTION_TIMER_PAUSE, m->pending, false, TEXT(PAUSE)) &&
+               button(s, 202, 304, 170, 64, IW_ACTION_TIMER_CANCEL, m->pending, false, TEXT(CANCEL_TIMER));
+    if (timer->state == IW_TIMER_PAUSED)
+        return button(s, 18, 304, 170, 64, IW_ACTION_TIMER_RESUME, m->pending, false, TEXT(RESUME)) &&
+               button(s, 202, 304, 170, 64, IW_ACTION_TIMER_CANCEL, m->pending, false, TEXT(CANCEL_TIMER));
+    return button(s, 18, 304, 354, 64, IW_ACTION_TIMER_RESTART, m->pending, false, TEXT(RESTART));
+}
+
+static bool stopwatch_page(iw_product_scene_t *s, const iw_product_model_t *m) {
+    char elapsed[32], row[80];
+    format_elapsed(m->stopwatch.elapsed_ms, true, elapsed, sizeof(elapsed));
+    if (!header(s, m, TEXT(STOPWATCH)) ||
+        !label(s, 20, 210, 350, 80, IW_PRODUCT_WHITE, 1, false, elapsed) ||
+        !button(s, 18, 238, 170, 64, IW_ACTION_STOPWATCH_PRIMARY, m->pending, false,
+                m->stopwatch.state == IW_STOPWATCH_RUNNING ? TEXT(PAUSE) : TEXT(START)) ||
+        !button(s, 202, 238, 170, 64,
+                m->stopwatch.state == IW_STOPWATCH_RUNNING ? IW_ACTION_STOPWATCH_LAP : IW_ACTION_STOPWATCH_RESET,
+                m->pending || (m->stopwatch.state == IW_STOPWATCH_IDLE && !m->stopwatch.lap_count), false,
+                m->stopwatch.state == IW_STOPWATCH_RUNNING ? TEXT(LAP) : TEXT(RESET)) ||
+        !label(s, 24, 340, 342, 20, IW_PRODUCT_SECONDARY, 0, false, TEXT(LAP_RECORD)))
+        return false;
+    int y = 354;
+    for (unsigned i = 0; i < m->stopwatch.visible_laps; i++) {
+        char total[24], split[24];
+        unsigned lap_number = m->stopwatch.lap_count - i;
+        format_elapsed(m->stopwatch.laps[i].total_ms, true, total, sizeof(total));
+        format_elapsed(m->stopwatch.laps[i].split_ms, true, split, sizeof(split));
+        (void)snprintf(row, sizeof(row), "#%u  %s  +%s", lap_number, total, split);
+        if (!add(s, 18, y, 354, 58, y + 38, 22, IW_PRODUCT_WHITE,
+                 IW_PRODUCT_SURFACE, 20, 0, 0, false, false, row))
+            return false;
+        y += 66;
+    }
+    if (m->stopwatch.lap_count >= IW_STOPWATCH_LAP_CAPACITY)
+        return label(s, 24, y + 30, 342, 20, IW_PRODUCT_WARNING, 0, false, TEXT(LAPS_FULL));
+    return true;
+}
+
 static bool time_page(iw_product_scene_t *s, const iw_product_model_t *m) {
     const iw_time_draft_t *d = &m->draft;
     char text[48];
@@ -187,7 +285,7 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
         ok = face(s, m);
         break;
     case IW_PAGE_LAUNCHER_LIST: {
-        /* 与路由共用注册表，只列已实现的应用根页；当前只有设置符合条件。 */
+        /* 与路由共用注册表，只列已经具备真实业务闭环的应用根页。 */
         unsigned count = 0;
         ok = true;
         for (size_t i = 0; ok && i < iw_route_count(); i++) {
@@ -198,9 +296,14 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
             int y = 68 + (int)count++ * 88;
             ok = add(s, 18, y, 354, 88, 0, 0, IW_PRODUCT_WHITE, 0, 24, 0, r->page_id, false, false, "") &&
                  add(s, 28, y + 8, 72, 72, 0, 0, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 36, 0, 0, false, false, "") &&
-                 icon(s, 40, y + 20, 48, IW_ICON_SETTINGS, IW_PRODUCT_WHITE, false) &&
-                 label(s, 118, y + 55, 244, body, IW_PRODUCT_WHITE, 0, false,
-                       r->page_id == IW_PAGE_SETTINGS ? TEXT(SETTINGS) : r->name);
+                  icon(s, 40, y + 20, 48,
+                       r->page_id == IW_PAGE_TIMER_LIST ? IW_ICON_TIMER :
+                       r->page_id == IW_PAGE_STOPWATCH ? IW_ICON_STOPWATCH : IW_ICON_SETTINGS,
+                       IW_PRODUCT_WHITE, false) &&
+                  label(s, 118, y + 55, 244, body, IW_PRODUCT_WHITE, 0, false,
+                        r->page_id == IW_PAGE_SETTINGS ? TEXT(SETTINGS) :
+                        r->page_id == IW_PAGE_TIMER_LIST ? TEXT(TIMER) :
+                        r->page_id == IW_PAGE_STOPWATCH ? TEXT(STOPWATCH) : r->name);
         }
         if (!count) ok = label(s, 30, 230, 330, 26, IW_PRODUCT_SECONDARY, 1, false, TEXT(EMPTY_APPS));
         break;
@@ -254,6 +357,15 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
         break;
     case IW_PAGE_TIME:
         ok = time_page(s, m);
+        break;
+    case IW_PAGE_TIMER_LIST:
+        ok = timer_list(s, m);
+        break;
+    case IW_PAGE_TIMER_DETAIL:
+        ok = timer_detail(s, m);
+        break;
+    case IW_PAGE_STOPWATCH:
+        ok = stopwatch_page(s, m);
         break;
     case IW_PAGE_ABOUT: {
         const char *values[] = {"iwatch",

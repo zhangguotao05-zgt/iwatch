@@ -18,6 +18,38 @@ static iw_product_page_t *pages;
 static iw_theme_quality_t profile_quality = IW_THEME_Q1;
 static bool profile_large, profile_reduced;
 
+static void chronographs(iw_product_page_t *p) {
+    struct {
+        iw_snapshot_header_t header;
+        iw_timer_snapshot_t model;
+    } timers = {0};
+    struct {
+        iw_snapshot_header_t header;
+        iw_stopwatch_snapshot_t model;
+    } stopwatch = {0};
+    size_t bytes = 0;
+    if (iw_snapshot_read(IW_SNAPSHOT_TIMERS, &timers, sizeof(timers), &bytes) == IW_SNAPSHOT_OK &&
+        timers.model.count <= IW_TIMER_CAPACITY) {
+        p->model.timers = timers.model;
+        memset(&p->model.selected_timer, 0, sizeof(p->model.selected_timer));
+        for (unsigned i = 0; i < timers.model.count; i++)
+            if (timers.model.timers[i].timer_id == p->argument)
+                p->model.selected_timer = timers.model.timers[i];
+    }
+    bytes = 0;
+    if (iw_snapshot_read(IW_SNAPSHOT_STOPWATCH, &stopwatch, sizeof(stopwatch), &bytes) == IW_SNAPSHOT_OK &&
+        stopwatch.model.lap_count <= IW_STOPWATCH_LAP_CAPACITY) {
+        p->model.stopwatch.revision = stopwatch.model.revision;
+        p->model.stopwatch.lap_count = stopwatch.model.lap_count;
+        p->model.stopwatch.state = stopwatch.model.state;
+        p->model.stopwatch.elapsed_ms = stopwatch.model.elapsed_ms;
+        p->model.stopwatch.visible_laps = stopwatch.model.lap_count > 8u ? 8u :
+                                            (uint8_t)stopwatch.model.lap_count;
+        for (unsigned i = 0; i < p->model.stopwatch.visible_laps; i++)
+            p->model.stopwatch.laps[i] = stopwatch.model.laps[stopwatch.model.lap_count - 1u - i];
+    }
+}
+
 bool iw_product_set_profile(iw_theme_quality_t quality, bool large_text, bool reduced_motion) {
     if (!iw_font_port_is_owner() || !iw_theme_effects(quality, reduced_motion)) return false;
     profile_quality = quality;
@@ -84,6 +116,32 @@ static bool send(iw_product_page_t *p, iw_command_t *command) {
     return true;
 }
 
+static void submit_timer_create(iw_product_page_t *p, uint32_t duration_ms) {
+    if (p->request) return;
+    iw_command_t command;
+    iw_command_init(&command, 1u, 1u, p->page_id, p->generation, IW_OPCODE_TIMER_CREATE);
+    if (!iw_command_encode_timer_create(&command, duration_ms) || !send(p, &command))
+        p->model.message = IW_TEXT_OPERATION_FAILED;
+}
+
+static void submit_timer_control(iw_product_page_t *p, iw_opcode_t opcode) {
+    if (p->request || !p->model.selected_timer.timer_id) return;
+    iw_command_t command;
+    iw_command_init(&command, 1u, 1u, p->page_id, p->generation, opcode);
+    if (!iw_command_encode_timer_control(&command, p->model.selected_timer.timer_id,
+                                         p->model.selected_timer.revision) || !send(p, &command))
+        p->model.message = IW_TEXT_OPERATION_FAILED;
+}
+
+static void submit_stopwatch(iw_product_page_t *p, iw_opcode_t opcode) {
+    if (p->request) return;
+    iw_command_t command;
+    iw_command_init(&command, 1u, 1u, p->page_id, p->generation, opcode);
+    if (!iw_command_encode_stopwatch_control(&command, p->model.stopwatch.revision) ||
+        !send(p, &command))
+        p->model.message = IW_TEXT_OPERATION_FAILED;
+}
+
 static void submit_clock_edit(iw_product_page_t *p) {
     if (p->request) return;
     capabilities(&p->model);
@@ -110,18 +168,44 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
     iw_product_page_t *p = context;
     if (!p->visible || p->exiting || iw_gui_fault_pending()) return;
     if (id == IW_ACTION_BACK) {
-        if (!iw_product_back(p)) p->navigate(id, p->context);
+        if (!iw_product_back(p)) p->navigate(id, 0u, p->context);
         return;
     }
     if (id == IW_ACTION_TIME_CANCEL) {
-        p->navigate(IW_ACTION_BACK, p->context);
+        p->navigate(IW_ACTION_BACK, 0u, p->context);
         return;
     }
     if (id == IW_ACTION_TIME_SAVE) {
         submit_clock_edit(p);
         return;
     }
-    if (id == IW_ACTION_RELOAD) {
+    if (id >= IW_ACTION_TIMER_PRESET_1M && id <= IW_ACTION_TIMER_PRESET_10M) {
+        static const uint32_t duration[] = {60000u, 180000u, 300000u, 600000u};
+        submit_timer_create(p, duration[id - IW_ACTION_TIMER_PRESET_1M]);
+        return;
+    } else if (id >= IW_ACTION_TIMER_OPEN_BASE && id < IW_ACTION_TIMER_OPEN_BASE + IW_TIMER_CAPACITY) {
+        unsigned index = id - IW_ACTION_TIMER_OPEN_BASE;
+        if (index < p->model.timers.count)
+            p->navigate(IW_PAGE_TIMER_DETAIL, p->model.timers.timers[index].timer_id, p->context);
+        return;
+    } else if (id == IW_ACTION_TIMER_PAUSE || id == IW_ACTION_TIMER_RESUME ||
+               id == IW_ACTION_TIMER_CANCEL || id == IW_ACTION_TIMER_RESTART) {
+        iw_opcode_t opcode = id == IW_ACTION_TIMER_PAUSE ? IW_OPCODE_TIMER_PAUSE :
+                             id == IW_ACTION_TIMER_RESUME ? IW_OPCODE_TIMER_RESUME :
+                             id == IW_ACTION_TIMER_CANCEL ? IW_OPCODE_TIMER_CANCEL : IW_OPCODE_TIMER_RESTART;
+        submit_timer_control(p, opcode);
+        return;
+    } else if (id == IW_ACTION_STOPWATCH_PRIMARY) {
+        submit_stopwatch(p, p->model.stopwatch.state == IW_STOPWATCH_RUNNING ?
+                            IW_OPCODE_STOPWATCH_PAUSE : IW_OPCODE_STOPWATCH_START);
+        return;
+    } else if (id == IW_ACTION_STOPWATCH_LAP) {
+        submit_stopwatch(p, IW_OPCODE_STOPWATCH_LAP);
+        return;
+    } else if (id == IW_ACTION_STOPWATCH_RESET) {
+        submit_stopwatch(p, IW_OPCODE_STOPWATCH_RESET);
+        return;
+    } else if (id == IW_ACTION_RELOAD) {
         if (!p->request && iw_clock_read(&p->model.clock) &&
             iw_time_draft_begin(&p->model.draft, &p->model.clock))
             p->model.message = IW_TEXT_COUNT;
@@ -151,17 +235,20 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
         }
         iw_gui_wake(IW_GUI_WAKE_STATE);
     } else {
-        p->navigate(id, p->context);
+        p->navigate(id, 0u, p->context);
         return;
     }
     p->dirty = true;
 }
 
-bool iw_product_create(iw_product_page_t *p, uint16_t id, uint32_t generation, bool back,
-                       void (*navigate)(uint16_t, void *), void (*quiesce)(void *), void *context) {
+bool iw_product_create(iw_product_page_t *p, uint16_t id, uint32_t argument,
+                       uint32_t generation, bool back,
+                       void (*navigate)(uint16_t, uint32_t, void *),
+                       void (*quiesce)(void *), void *context) {
     if (!p || p->linked || !generation || !navigate || !iw_font_port_is_owner()) return false;
     p->page_id = id;
     p->generation = generation;
+    p->argument = argument;
     p->navigate = navigate;
     p->quiesce = quiesce;
     p->context = context;
@@ -175,6 +262,7 @@ bool iw_product_create(iw_product_page_t *p, uint16_t id, uint32_t generation, b
 #endif
     (void)iw_clock_read(&p->model.clock);
     (void)iw_brightness_read(&p->model.brightness);
+    chronographs(p);
     capabilities(&p->model);
     if (id == IW_PAGE_TIME && !iw_time_draft_begin(&p->model.draft, &p->model.clock)) return false;
     if (id == IW_PAGE_TIME && p->model.draft.needs_calibration) p->model.message = IW_TEXT_CALIBRATE;
@@ -251,11 +339,17 @@ uint32_t iw_product_process(void) {
                 result.code == IW_RESULT_SUPERSEDED) {
                 p->model.message = IW_TEXT_COUNT;
                 if (p->page_id == IW_PAGE_TIME && result.code == IW_RESULT_OK_APPLIED && p->visible)
-                    p->navigate(IW_ACTION_BACK, p->context);
-            } else
+                    p->navigate(IW_ACTION_BACK, 0u, p->context);
+                if (p->page_id == IW_PAGE_TIMER_DETAIL && result.opcode == IW_OPCODE_TIMER_CANCEL && p->visible)
+                    p->navigate(IW_ACTION_BACK, 0u, p->context);
+            } else if (result.code == IW_RESULT_CAPACITY && p->page_id == IW_PAGE_STOPWATCH)
+                p->model.message = IW_TEXT_LAPS_FULL;
+            else
                 p->model.message = result.code == IW_RESULT_STATE_CONFLICT && p->page_id == IW_PAGE_TIME ? IW_TEXT_TIME_CONFLICT
-                                   : p->page_id == IW_PAGE_TIME            ? IW_TEXT_TIME_FAILED
-                                                                           : IW_TEXT_BRIGHTNESS_FAILED;
+                                   : p->page_id == IW_PAGE_TIME ? IW_TEXT_TIME_FAILED
+                                   : p->page_id == IW_PAGE_BRIGHTNESS ? IW_TEXT_BRIGHTNESS_FAILED
+                                                                      : IW_TEXT_OPERATION_FAILED;
+            chronographs(p);
         } else if (p->request && iw_ui_command_delayed(&commands, p->session, p->request, now)) {
             if (p->model.message != IW_TEXT_CONFIRMING) {
                 p->model.message = IW_TEXT_CONFIRMING;
@@ -283,9 +377,12 @@ uint32_t iw_product_process(void) {
         uint32_t view_wait = iw_product_view_tick(&p->view);
         if (wait > 50u) wait = 50u;
         if (view_wait < wait) wait = view_wait;
-        if ((uint32_t)(now - p->last_poll) >= 1000u) {
+        uint32_t poll_ms = p->page_id == IW_PAGE_STOPWATCH ? 100u :
+                           (p->page_id == IW_PAGE_TIMER_LIST || p->page_id == IW_PAGE_TIMER_DETAIL) ? 250u : 1000u;
+        if ((uint32_t)(now - p->last_poll) >= poll_ms) {
             (void)iw_clock_read(&p->model.clock);
             (void)iw_brightness_read(&p->model.brightness);
+            chronographs(p);
             capabilities(&p->model);
             p->last_poll = now;
             p->dirty = true;

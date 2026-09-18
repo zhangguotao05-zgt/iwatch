@@ -12,6 +12,7 @@ static iw_time_state_t clock_model;
 static iw_client_session_t allocator;
 static unsigned navigations, quiesces;
 static uint16_t last_destination;
+static uint32_t last_argument;
 void iw_gui_wake(uint32_t reason) {
     assert(reason == 2);
 }
@@ -41,10 +42,11 @@ bool iw_brightness_read(iw_brightness_snapshot_t *v) {
 iw_snapshot_status_t iw_snapshot_read(iw_snapshot_topic_t t, void *v, size_t capacity, size_t *required) {
     return iw_service_snapshot_read(&model, t, v, capacity, required);
 }
-static void navigate(uint16_t id, void *context) {
+static void navigate(uint16_t id, uint32_t argument, void *context) {
     assert(context == &model);
     navigations++;
     last_destination = id;
+    last_argument = argument;
 }
 static void stop(void *context) {
     assert(context == &model);
@@ -76,7 +78,7 @@ int test_product_controller(size_t loops) {
     for (size_t i = 0; i < loops; i++) {
         memset(&page, 0, sizeof(page));
         assert(
-            iw_product_create(&page, IW_PAGE_BRIGHTNESS, (uint32_t)i * 2 + 1, true, navigate, stop, &model));
+            iw_product_create(&page, IW_PAGE_BRIGHTNESS, 0u, (uint32_t)i * 2 + 1, true, navigate, stop, &model));
         page.view.action(IW_ACTION_TRACK, 20, false, page.view.context);
         page.view.action(IW_ACTION_TRACK, 80, true, page.view.context);
         page.view.action(IW_ACTION_TRACK, 30, false, page.view.context);
@@ -90,7 +92,7 @@ int test_product_controller(size_t loops) {
         iw_service_stats_read(&model, &stats);
         assert(!stats.active_count && !stats.ledger_used);
         memset(&page, 0, sizeof(page));
-        assert(iw_product_create(&page, IW_PAGE_TIME, (uint32_t)i * 2 + 2, true, navigate, stop, &model));
+        assert(iw_product_create(&page, IW_PAGE_TIME, 0u, (uint32_t)i * 2 + 2, true, navigate, stop, &model));
         page.view.action(IW_ACTION_FIELD + IW_EDIT_OFFSET, 0, true, page.view.context);
         page.view.action(IW_ACTION_PICK_STEP, 2, true, page.view.context);
         assert(page.model.draft.candidate == 480);
@@ -113,7 +115,7 @@ int test_product_controller(size_t loops) {
     }
     assert(navigations == loops && quiesces == loops * 2);
     memset(&page, 0, sizeof(page));
-    assert(iw_product_create(&page, IW_PAGE_TIME, 100000, true, navigate, stop, &model));
+    assert(iw_product_create(&page, IW_PAGE_TIME, 0u, 100000, true, navigate, stop, &model));
     unsigned before_navigation = navigations;
     /* 编辑期间外部校时改变版本；冲突必须保留草稿，明确重读后才允许重试。 */
     assert(iw_time_set_clock(&clock_model, 0, IW_TIME_MIN_UTC_SECONDS + 86401, 487, IW_TIME_SOURCE_MANUAL) == IW_TIME_OK);
@@ -133,7 +135,7 @@ int test_product_controller(size_t loops) {
     assert(iw_service_set_capability(&model, IW_CAP_CLOCK, IW_CAP_STATE_DEGRADED, -1));
     assert(iw_service_set_capability(&model, IW_CAP_RTC_BACKUP, IW_CAP_STATE_DEGRADED, -1));
     memset(&page, 0, sizeof(page));
-    assert(iw_product_create(&page, IW_PAGE_TIME, 100002, true, navigate, stop, &model));
+    assert(iw_product_create(&page, IW_PAGE_TIME, 0u, 100002, true, navigate, stop, &model));
     assert(page.model.time_available && page.model.draft.needs_calibration);
     page.view.action(IW_ACTION_FIELD + IW_EDIT_MONTH, 0, true, page.view.context);
     page.view.action(IW_ACTION_PICK_NEXT, 0, true, page.view.context);
@@ -156,7 +158,7 @@ int test_product_controller(size_t loops) {
             assert(iw_service_set_capability(&model, IW_CAP_CLOCK, (iw_capability_state_t)clock_state, 0));
             assert(iw_service_set_capability(&model, IW_CAP_RTC_BACKUP, (iw_capability_state_t)rtc_state, 0));
             memset(&page, 0, sizeof(page));
-            assert(iw_product_create(&page, IW_PAGE_TIME, 100003, true, navigate, stop, &model));
+            assert(iw_product_create(&page, IW_PAGE_TIME, 0u, 100003, true, navigate, stop, &model));
             bool writable = (clock_state == IW_CAP_STATE_AVAILABLE || clock_state == IW_CAP_STATE_DEGRADED) &&
                             (rtc_state == IW_CAP_STATE_AVAILABLE || rtc_state == IW_CAP_STATE_DEGRADED);
             assert(page.model.time_available == writable);
@@ -170,9 +172,53 @@ int test_product_controller(size_t loops) {
     /* 能力撤销时提交失败，页面不得误报已设置，也不得留下等待令牌。 */
     assert(iw_service_set_capability(&model, IW_CAP_CLOCK, IW_CAP_STATE_ABSENT, 0));
     memset(&page, 0, sizeof(page));
-    assert(iw_product_create(&page, IW_PAGE_TIME, 100001, true, navigate, stop, &model));
+    assert(iw_product_create(&page, IW_PAGE_TIME, 0u, 100001, true, navigate, stop, &model));
     page.view.action(IW_ACTION_TIME_SAVE, 0, true, page.view.context);
     assert(!page.request && !page.model.pending && page.model.message == IW_TEXT_TIME_FAILED);
+    assert(iw_product_destroy(&page));
+    assert(iw_font_collect());
+    assert(test_font_live_bytes() == bytes && test_font_live_blocks() == blocks);
+    /* D11 页面只订阅快照；退出后计时业务继续，由重新进入恢复。 */
+    memset(&page, 0, sizeof(page));
+    assert(iw_product_create(&page, IW_PAGE_TIMER_LIST, 0u, 200001u, true,
+                             navigate, stop, &model));
+    page.view.action(IW_ACTION_TIMER_PRESET_1M, 0, true, page.view.context);
+    assert(page.request);
+    finish();
+    (void)iw_product_process();
+    assert(page.model.timers.count == 1u && page.model.timers.timers[0].state == IW_TIMER_RUNNING);
+    page.view.action(IW_ACTION_TIMER_OPEN_BASE, 0, true, page.view.context);
+    assert(last_destination == IW_PAGE_TIMER_DETAIL && last_argument == page.model.timers.timers[0].timer_id);
+    uint32_t timer_id = last_argument;
+    assert(iw_product_destroy(&page));
+
+    memset(&page, 0, sizeof(page));
+    assert(iw_product_create(&page, IW_PAGE_TIMER_DETAIL, timer_id, 200002u, true,
+                             navigate, stop, &model));
+    page.view.action(IW_ACTION_TIMER_PAUSE, 0, true, page.view.context);
+    finish();
+    (void)iw_product_process();
+    assert(page.model.selected_timer.state == IW_TIMER_PAUSED);
+    assert(iw_product_destroy(&page));
+
+    memset(&page, 0, sizeof(page));
+    assert(iw_product_create(&page, IW_PAGE_STOPWATCH, 0u, 200003u, true,
+                             navigate, stop, &model));
+    page.view.action(IW_ACTION_STOPWATCH_PRIMARY, 0, true, page.view.context);
+    finish();
+    (void)iw_product_process();
+    assert(page.model.stopwatch.state == IW_STOPWATCH_RUNNING);
+    assert(iw_product_destroy(&page));
+    iw_time_sample(&clock_model, 5000u);
+    memset(&page, 0, sizeof(page));
+    assert(iw_product_create(&page, IW_PAGE_STOPWATCH, 0u, 200004u, true,
+                             navigate, stop, &model));
+    assert(page.model.stopwatch.state == IW_STOPWATCH_RUNNING &&
+           page.model.stopwatch.elapsed_ms == 5000u);
+    page.view.action(IW_ACTION_STOPWATCH_LAP, 0, true, page.view.context);
+    finish();
+    (void)iw_product_process();
+    assert(page.model.stopwatch.lap_count == 1u);
     assert(iw_product_destroy(&page));
     assert(iw_font_collect());
     assert(test_font_live_bytes() == bytes && test_font_live_blocks() == blocks);

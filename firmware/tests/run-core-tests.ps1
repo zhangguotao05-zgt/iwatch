@@ -53,11 +53,15 @@ try {
     if ($LASTEXITCODE -ne 0) { throw '时间核心测试编译失败。' }
     & ./test_time.exe
     if ($LASTEXITCODE -ne 0) { throw '时间核心测试失败。' }
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$coreDir" /Fetest_chronograph.exe (Join-Path $PSScriptRoot 'test_chronograph.c') (Join-Path $coreDir 'iw_chronograph.c')
+    if ($LASTEXITCODE -ne 0) { throw 'D11 计时器与秒表核心测试编译失败。' }
+    & ./test_chronograph.exe
+    if ($LASTEXITCODE -ne 0) { throw 'D11 T16/T17 核心测试失败。' }
     & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$platformDir" "/I$PSScriptRoot/mocks" /Fetest_time_rtc.exe (Join-Path $PSScriptRoot 'test_time_rtc.c') (Join-Path $platformDir 'iw_time_rtc.c')
     if ($LASTEXITCODE -ne 0) { throw 'RTC 可信标记与会话测试编译失败。' }
     & ./test_time_rtc.exe
     if ($LASTEXITCODE -ne 0) { throw 'RTC 可信标记与会话测试失败。' }
-    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$coreDir" "/I$serviceDir" /Fetest_service.exe (Join-Path $PSScriptRoot 'test_service.c') (Join-Path $serviceDir 'iw_service.c') (Join-Path $coreDir 'iw_time.c')
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$coreDir" "/I$serviceDir" /Fetest_service.exe (Join-Path $PSScriptRoot 'test_service.c') (Join-Path $serviceDir 'iw_service.c') (Join-Path $coreDir 'iw_time.c') (Join-Path $coreDir 'iw_chronograph.c')
     if ($LASTEXITCODE -ne 0) { throw '服务账本测试编译失败。' }
     & ./test_service.exe
     if ($LASTEXITCODE -ne 0) { throw '服务账本测试失败。' }
@@ -66,7 +70,7 @@ try {
     & ./test_boot.exe
     if ($LASTEXITCODE -ne 0) { throw '启动协调失败注入测试失败。' }
     $guiCoreDir = Join-Path $firmwareDir 'iwatch/src/gui_core'
-    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$guiCoreDir" "/I$coreDir" "/I$serviceDir" /Fetest_ui_commands.exe (Join-Path $PSScriptRoot 'test_ui_commands.c') (Join-Path $guiCoreDir 'iw_ui_commands.c') (Join-Path $serviceDir 'iw_service.c') (Join-Path $coreDir 'iw_time.c')
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$guiCoreDir" "/I$coreDir" "/I$serviceDir" /Fetest_ui_commands.exe (Join-Path $PSScriptRoot 'test_ui_commands.c') (Join-Path $guiCoreDir 'iw_ui_commands.c') (Join-Path $serviceDir 'iw_service.c') (Join-Path $coreDir 'iw_time.c') (Join-Path $coreDir 'iw_chronograph.c')
     if ($LASTEXITCODE -ne 0) { throw 'D10 全局结果客户端编译失败。' }
     & ./test_ui_commands.exe
     if ($LASTEXITCODE -ne 0) { throw 'D10 全局结果客户端测试失败。' }

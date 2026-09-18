@@ -30,6 +30,15 @@ typedef struct
     iw_brightness_snapshot_t payload;
 } iw_brightness_snapshot_message_t;
 
+typedef struct
+{
+    iw_snapshot_header_t header;
+    iw_timer_snapshot_t payload;
+} iw_timer_snapshot_message_t;
+
+typedef char iw_stopwatch_prefix_layout_must_match[
+    sizeof(iw_stopwatch_summary_t) == offsetof(iw_stopwatch_snapshot_t, laps) ? 1 : -1];
+
 static uint16_t read_u16(const uint8_t *data)
 {
     return (uint16_t)((uint16_t)data[0] | ((uint16_t)data[1] << 8));
@@ -163,6 +172,39 @@ static void result_payload_set_brightness(iw_result_t *result,
     write_u32(&result->payload[8], brightness->applied_revision);
 }
 
+static void result_payload_set_timer(iw_result_t *result, const iw_timer_view_t *timer)
+{
+    memset(result->payload, 0, sizeof(result->payload));
+    if (!timer) return;
+    write_u32(&result->payload[0], timer->timer_id);
+    write_u32(&result->payload[4], timer->revision);
+    write_u32(&result->payload[8], timer->occurrence);
+    result->model_revision = timer->revision;
+}
+
+static void result_payload_set_stopwatch(iw_result_t *result,
+                                         const iw_stopwatch_t *stopwatch)
+{
+    memset(result->payload, 0, sizeof(result->payload));
+    if (!stopwatch) return;
+    write_u32(&result->payload[0], stopwatch->revision);
+    write_u16(&result->payload[4], stopwatch->lap_count);
+    result->payload[6] = stopwatch->state;
+    result->model_revision = stopwatch->revision;
+}
+
+static iw_result_code_t chrono_result(iw_chrono_status_t status)
+{
+    switch (status)
+    {
+    case IW_CHRONO_OK: return IW_RESULT_OK_APPLIED;
+    case IW_CHRONO_ABSENT: return IW_RESULT_ABSENT;
+    case IW_CHRONO_CONFLICT: return IW_RESULT_STATE_CONFLICT;
+    case IW_CHRONO_CAPACITY: return IW_RESULT_CAPACITY;
+    default: return IW_RESULT_INVALID;
+    }
+}
+
 static void finish_slot(iw_service_t *service,
                         iw_service_slot_t *slot,
                         iw_result_code_t code,
@@ -193,6 +235,9 @@ static bool command_shape_valid(const iw_command_t *command)
 {
     iw_set_clock_payload_t payload;
     iw_set_brightness_payload_t brightness = {0};
+    iw_timer_create_payload_t timer_create;
+    iw_timer_control_payload_t timer_control;
+    iw_stopwatch_control_payload_t stopwatch_control;
 
     if (!command || command->version != IW_COMMAND_VERSION || command->request_id == 0u)
         return false;
@@ -212,12 +257,25 @@ static bool command_shape_valid(const iw_command_t *command)
                brightness.reserved == 0u && brightness.expected_revision != 0u &&
                brightness.setting_sequence != 0u;
     }
+    if (command->opcode == IW_OPCODE_TIMER_CREATE)
+        return iw_command_decode_timer_create(command, &timer_create) &&
+               timer_create.duration_ms >= IW_TIMER_MIN_DURATION_MS &&
+               timer_create.duration_ms <= IW_TIMER_MAX_DURATION_MS;
+    if (command->opcode >= IW_OPCODE_TIMER_PAUSE && command->opcode <= IW_OPCODE_TIMER_RESTART)
+        return iw_command_decode_timer_control(command, &timer_control) &&
+               timer_control.timer_id != 0u && timer_control.expected_revision != 0u;
+    if (command->opcode >= IW_OPCODE_STOPWATCH_START &&
+            command->opcode <= IW_OPCODE_STOPWATCH_LAP)
+        return iw_command_decode_stopwatch_control(command, &stopwatch_control) &&
+               stopwatch_control.expected_revision != 0u;
     return false;
 }
 
 static bool command_opcode_supported(uint16_t opcode)
 {
-    return opcode == IW_OPCODE_SET_CLOCK || opcode == IW_OPCODE_SET_BRIGHTNESS;
+    return opcode == IW_OPCODE_SET_CLOCK || opcode == IW_OPCODE_SET_BRIGHTNESS ||
+           (opcode >= IW_OPCODE_TIMER_CREATE && opcode <= IW_OPCODE_TIMER_RESTART) ||
+           (opcode >= IW_OPCODE_STOPWATCH_START && opcode <= IW_OPCODE_STOPWATCH_LAP);
 }
 
 void iw_command_init(iw_command_t *command,
@@ -304,6 +362,75 @@ bool iw_command_decode_set_brightness(const iw_command_t *command,
     return true;
 }
 
+bool iw_command_encode_timer_create(iw_command_t *command, uint32_t duration_ms)
+{
+    if (!command || command->opcode != IW_OPCODE_TIMER_CREATE ||
+            duration_ms < IW_TIMER_MIN_DURATION_MS || duration_ms > IW_TIMER_MAX_DURATION_MS)
+        return false;
+    memset(command->payload, 0, sizeof(command->payload));
+    write_u32(command->payload, duration_ms);
+    command->payload_bytes = 4u;
+    return true;
+}
+
+bool iw_command_decode_timer_create(const iw_command_t *command,
+                                    iw_timer_create_payload_t *payload)
+{
+    if (!command || !payload || command->opcode != IW_OPCODE_TIMER_CREATE ||
+            command->payload_bytes != 4u)
+        return false;
+    payload->duration_ms = read_u32(command->payload);
+    return true;
+}
+
+bool iw_command_encode_timer_control(iw_command_t *command,
+                                     uint32_t timer_id,
+                                     uint32_t expected_revision)
+{
+    if (!command || command->opcode < IW_OPCODE_TIMER_PAUSE ||
+            command->opcode > IW_OPCODE_TIMER_RESTART || timer_id == 0u ||
+            expected_revision == 0u)
+        return false;
+    memset(command->payload, 0, sizeof(command->payload));
+    write_u32(&command->payload[0], timer_id);
+    write_u32(&command->payload[4], expected_revision);
+    command->payload_bytes = 8u;
+    return true;
+}
+
+bool iw_command_decode_timer_control(const iw_command_t *command,
+                                     iw_timer_control_payload_t *payload)
+{
+    if (!command || !payload || command->opcode < IW_OPCODE_TIMER_PAUSE ||
+            command->opcode > IW_OPCODE_TIMER_RESTART || command->payload_bytes != 8u)
+        return false;
+    payload->timer_id = read_u32(&command->payload[0]);
+    payload->expected_revision = read_u32(&command->payload[4]);
+    return true;
+}
+
+bool iw_command_encode_stopwatch_control(iw_command_t *command,
+                                         uint32_t expected_revision)
+{
+    if (!command || command->opcode < IW_OPCODE_STOPWATCH_START ||
+            command->opcode > IW_OPCODE_STOPWATCH_LAP || expected_revision == 0u)
+        return false;
+    memset(command->payload, 0, sizeof(command->payload));
+    write_u32(command->payload, expected_revision);
+    command->payload_bytes = 4u;
+    return true;
+}
+
+bool iw_command_decode_stopwatch_control(const iw_command_t *command,
+                                         iw_stopwatch_control_payload_t *payload)
+{
+    if (!command || !payload || command->opcode < IW_OPCODE_STOPWATCH_START ||
+            command->opcode > IW_OPCODE_STOPWATCH_LAP || command->payload_bytes != 4u)
+        return false;
+    payload->expected_revision = read_u32(command->payload);
+    return true;
+}
+
 bool iw_client_session_init(iw_client_session_t *client, uint32_t session_id)
 {
     if (!client || session_id == 0u) return false;
@@ -338,7 +465,7 @@ bool iw_service_init(iw_service_t *service, iw_time_state_t *time_state, uint32_
     service->brightness.desired = IW_BRIGHTNESS_DEFAULT;
     service->brightness.flags = IW_BRIGHTNESS_FLAG_DESIRED_VALID |
                                 IW_BRIGHTNESS_FLAG_SESSION_ONLY;
-    return true;
+    return iw_chronograph_init(&service->chronograph);
 }
 
 uint32_t iw_service_session_id(const iw_service_t *service)
@@ -530,6 +657,11 @@ iw_take_status_t iw_service_take_next(iw_service_t *service, iw_service_work_t *
     iw_set_clock_payload_t clock_payload;
     iw_set_brightness_payload_t brightness_payload;
     iw_clock_snapshot_t clock;
+    iw_chrono_status_t chrono_status;
+    iw_timer_create_payload_t timer_create;
+    iw_timer_control_payload_t timer_control;
+    iw_stopwatch_control_payload_t stopwatch_control;
+    iw_timer_view_t timer_view_value = {0};
 
     if (!service || !work || service->queue_count == 0u) return IW_TAKE_EMPTY;
     index = service->queue[service->queue_head];
@@ -545,6 +677,7 @@ iw_take_status_t iw_service_take_next(iw_service_t *service, iw_service_work_t *
         finish_slot(service, slot, IW_RESULT_INVALID, NULL);
         return IW_TAKE_COMPLETED;
     }
+    (void)iw_service_advance(service, clock.mono_ms);
 
     if (slot->result.code != IW_RESULT_PENDING)
     {
@@ -578,6 +711,73 @@ iw_take_status_t iw_service_take_next(iw_service_t *service, iw_service_work_t *
             finish_slot(service, slot, IW_RESULT_INVALID, &clock);
             return IW_TAKE_COMPLETED;
         }
+    }
+    else if (slot->command.opcode == IW_OPCODE_TIMER_CREATE)
+    {
+        chrono_status = iw_command_decode_timer_create(&slot->command, &timer_create) ?
+                        iw_timer_create(&service->chronograph, clock.mono_ms,
+                                        timer_create.duration_ms, &timer_view_value) :
+                        IW_CHRONO_INVALID;
+        result_payload_set_timer(&slot->result, chrono_status == IW_CHRONO_OK ?
+                                 &timer_view_value : NULL);
+        finish_slot(service, slot, chrono_result(chrono_status), &clock);
+        return IW_TAKE_COMPLETED;
+    }
+    else if (slot->command.opcode >= IW_OPCODE_TIMER_PAUSE &&
+             slot->command.opcode <= IW_OPCODE_TIMER_RESTART)
+    {
+        chrono_status = IW_CHRONO_INVALID;
+        if (iw_command_decode_timer_control(&slot->command, &timer_control))
+        {
+            if (slot->command.opcode == IW_OPCODE_TIMER_PAUSE)
+                chrono_status = iw_timer_pause(&service->chronograph, clock.mono_ms,
+                                               timer_control.timer_id,
+                                               timer_control.expected_revision,
+                                               &timer_view_value);
+            else if (slot->command.opcode == IW_OPCODE_TIMER_RESUME)
+                chrono_status = iw_timer_resume(&service->chronograph, clock.mono_ms,
+                                                timer_control.timer_id,
+                                                timer_control.expected_revision,
+                                                &timer_view_value);
+            else if (slot->command.opcode == IW_OPCODE_TIMER_CANCEL)
+                chrono_status = iw_timer_cancel(&service->chronograph, clock.mono_ms,
+                                                timer_control.timer_id,
+                                                timer_control.expected_revision);
+            else
+                chrono_status = iw_timer_restart(&service->chronograph, clock.mono_ms,
+                                                 timer_control.timer_id,
+                                                 timer_control.expected_revision,
+                                                 &timer_view_value);
+        }
+        result_payload_set_timer(&slot->result,
+                                 chrono_status == IW_CHRONO_OK &&
+                                 slot->command.opcode != IW_OPCODE_TIMER_CANCEL ?
+                                 &timer_view_value : NULL);
+        finish_slot(service, slot, chrono_result(chrono_status), &clock);
+        return IW_TAKE_COMPLETED;
+    }
+    else if (slot->command.opcode >= IW_OPCODE_STOPWATCH_START &&
+             slot->command.opcode <= IW_OPCODE_STOPWATCH_LAP)
+    {
+        chrono_status = IW_CHRONO_INVALID;
+        if (iw_command_decode_stopwatch_control(&slot->command, &stopwatch_control))
+        {
+            if (slot->command.opcode == IW_OPCODE_STOPWATCH_START)
+                chrono_status = iw_stopwatch_start(&service->chronograph, clock.mono_ms,
+                                                   stopwatch_control.expected_revision);
+            else if (slot->command.opcode == IW_OPCODE_STOPWATCH_PAUSE)
+                chrono_status = iw_stopwatch_pause(&service->chronograph, clock.mono_ms,
+                                                   stopwatch_control.expected_revision);
+            else if (slot->command.opcode == IW_OPCODE_STOPWATCH_RESET)
+                chrono_status = iw_stopwatch_reset(&service->chronograph,
+                                                   stopwatch_control.expected_revision);
+            else
+                chrono_status = iw_stopwatch_lap(&service->chronograph, clock.mono_ms,
+                                                 stopwatch_control.expected_revision);
+        }
+        result_payload_set_stopwatch(&slot->result, &service->chronograph.stopwatch);
+        finish_slot(service, slot, chrono_result(chrono_status), &clock);
+        return IW_TAKE_COMPLETED;
     }
     else
     {
@@ -725,6 +925,36 @@ bool iw_service_brightness_read(const iw_service_t *service,
     return true;
 }
 
+unsigned iw_service_advance(iw_service_t *service, uint64_t mono_ms)
+{
+    unsigned expired;
+    if (!service) return 0u;
+    expired = iw_chronograph_advance(&service->chronograph, mono_ms);
+    if (expired) service_changed(service);
+    return expired;
+}
+
+bool iw_service_timers_read(const iw_service_t *service,
+                            uint64_t mono_ms,
+                            iw_timer_snapshot_t *snapshot)
+{
+    return service && iw_timer_snapshot_read(&service->chronograph, mono_ms, snapshot);
+}
+
+bool iw_service_stopwatch_read(const iw_service_t *service,
+                               uint64_t mono_ms,
+                               iw_stopwatch_snapshot_t *snapshot)
+{
+    return service && iw_stopwatch_snapshot_read(&service->chronograph, mono_ms, snapshot);
+}
+
+bool iw_service_stopwatch_summary_read(const iw_service_t *service,
+                                       uint64_t mono_ms,
+                                       iw_stopwatch_summary_t *summary)
+{
+    return service && iw_stopwatch_summary_read(&service->chronograph, mono_ms, summary);
+}
+
 iw_result_lookup_t iw_service_result_get(const iw_service_t *service,
                                          uint32_t session_id,
                                          uint32_t request_id,
@@ -850,6 +1080,43 @@ iw_snapshot_status_t iw_service_snapshot_read(const iw_service_t *service,
                     (message.payload.flags & IW_BRIGHTNESS_FLAG_DESIRED_VALID) ?
                     IW_SNAPSHOT_FLAG_VALID : 0u);
         memcpy(output, &message, bytes);
+        return IW_SNAPSHOT_OK;
+    }
+    case IW_SNAPSHOT_TIMERS:
+    {
+        iw_timer_snapshot_message_t message;
+        iw_clock_snapshot_t clock;
+        if (!iw_time_read(service->time_state, &clock) ||
+                !iw_timer_snapshot_read(&service->chronograph, clock.mono_ms, &message.payload))
+            return IW_SNAPSHOT_INVALID;
+        bytes = sizeof(message.header) + offsetof(iw_timer_snapshot_t, timers) +
+                message.payload.count * sizeof(message.payload.timers[0]);
+        *required = bytes;
+        if (!output || capacity < bytes) return IW_SNAPSHOT_TOO_SMALL;
+        fill_header(&message.header, service, topic, (uint16_t)(bytes - sizeof(message.header)),
+                    message.payload.revision, IW_SNAPSHOT_FLAG_VALID);
+        memcpy(output, &message, bytes);
+        return IW_SNAPSHOT_OK;
+    }
+    case IW_SNAPSHOT_STOPWATCH:
+    {
+        iw_snapshot_header_t header;
+        iw_stopwatch_summary_t summary;
+        iw_clock_snapshot_t clock;
+        if (!iw_time_read(service->time_state, &clock) ||
+                !iw_stopwatch_summary_read(&service->chronograph, clock.mono_ms, &summary))
+            return IW_SNAPSHOT_INVALID;
+        bytes = sizeof(header) + sizeof(summary) +
+                summary.lap_count * sizeof(iw_stopwatch_lap_t);
+        *required = bytes;
+        if (!output || capacity < bytes) return IW_SNAPSHOT_TOO_SMALL;
+        fill_header(&header, service, topic, (uint16_t)(bytes - sizeof(header)),
+                    summary.revision, IW_SNAPSHOT_FLAG_VALID);
+        memcpy(output, &header, sizeof(header));
+        memcpy((uint8_t *)output + sizeof(header), &summary, sizeof(summary));
+        memcpy((uint8_t *)output + sizeof(header) + sizeof(summary),
+               service->chronograph.stopwatch.laps,
+               summary.lap_count * sizeof(iw_stopwatch_lap_t));
         return IW_SNAPSHOT_OK;
     }
     default:

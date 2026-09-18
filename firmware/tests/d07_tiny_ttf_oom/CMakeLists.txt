@@ -106,6 +106,7 @@ add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c test_epic_glyph.c test_font
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_settings_model.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/services/iw_service.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core/iw_time.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core/iw_chronograph.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_components.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_key_feedback.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_gui_owner.c"

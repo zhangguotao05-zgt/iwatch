@@ -5,16 +5,18 @@ typedef struct iw_product_page {
     iw_product_view_t view;
     iw_product_model_t model;
     struct iw_product_page *next;
-    void (*navigate)(uint16_t, void *);
+    void (*navigate)(uint16_t, uint32_t, void *);
     void (*quiesce)(void *);
     void *context;
-    uint32_t generation, session, request, last_poll, last_preview;
+    uint32_t generation, session, request, last_poll, last_preview, argument;
     uint16_t page_id;
     uint8_t next_level;
     bool queued_level, final_level, visible, dirty, linked, exiting;
 } iw_product_page_t;
-bool iw_product_create(iw_product_page_t *page, uint16_t id, uint32_t generation, bool back,
-                       void (*navigate)(uint16_t, void *), void (*quiesce)(void *), void *context);
+bool iw_product_create(iw_product_page_t *page, uint16_t id, uint32_t argument,
+                       uint32_t generation, bool back,
+                       void (*navigate)(uint16_t, uint32_t, void *),
+                       void (*quiesce)(void *), void *context);
 void iw_product_resume(iw_product_page_t *page, bool visible);
 bool iw_product_destroy(iw_product_page_t *page);
 bool iw_product_back(iw_product_page_t *page);

@@ -197,6 +197,7 @@ int main(void)
         assert(entry && iw_route_find(entry->page_id) == entry && entry->name);
         assert(entry->reference_id);
         if (entry->support == IW_ROUTE_READY) assert(entry->supported_states && entry->test_ids && entry->resource_bundle);
+        if (entry->page_id == IW_PAGE_TIMER_DETAIL) assert(entry->entry_params == IW_ROUTE_PARAMS_ID);
         if (i) assert(iw_route_at(i - 1)->page_id < entry->page_id);
         if (entry->parent_id) assert(iw_route_find(entry->parent_id));
     }

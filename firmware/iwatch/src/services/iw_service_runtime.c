@@ -37,9 +37,12 @@ static void runtime_unlock(void)
     (void)rt_mutex_release(&runtime_mutex);
 }
 
-static void runtime_sample_locked(void)
+static unsigned runtime_sample_locked(void)
 {
     iw_time_sample(&runtime_time, (uint32_t)rt_tick_get());
+    iw_clock_snapshot_t clock;
+    return iw_time_read(&runtime_time, &clock) ?
+           iw_service_advance(&runtime_service, clock.mono_ms) : 0u;
 }
 
 static iw_result_code_t display_result_code(iw_display_apply_status_t status)
@@ -185,8 +188,9 @@ static void runtime_thread_entry(void *parameter)
         runtime_process_batch();
         if (runtime_lock())
         {
-            runtime_sample_locked();
+            unsigned expired = runtime_sample_locked();
             runtime_unlock();
+            if (expired) iw_gui_wake(IW_GUI_WAKE_STATE);
         }
     }
 }
@@ -341,6 +345,18 @@ bool iw_brightness_read(iw_brightness_snapshot_t *snapshot)
     return success;
 }
 
+bool iw_stopwatch_summary_runtime_read(iw_stopwatch_summary_t *summary)
+{
+    iw_clock_snapshot_t clock;
+    bool success;
+    if (!summary || !runtime_lock()) return false;
+    runtime_sample_locked();
+    success = iw_time_read(&runtime_time, &clock) &&
+              iw_service_stopwatch_summary_read(&runtime_service, clock.mono_ms, summary);
+    runtime_unlock();
+    return success;
+}
+
 bool iw_display_runtime_set_available(bool available, int32_t device_error)
 {
     bool success;
@@ -460,6 +476,7 @@ MSH_CMD_EXPORT(iw_service_stat, Show command and result ledger statistics);
 static iw_client_session_t diagnostic_client;
 static uint32_t diagnostic_last_clock_request;
 static uint32_t diagnostic_last_brightness_request;
+static uint32_t diagnostic_last_chrono_request;
 static uint32_t diagnostic_brightness_sequence;
 
 static bool diagnostic_prepare_client(uint32_t session)
@@ -468,6 +485,7 @@ static bool diagnostic_prepare_client(uint32_t session)
     if (!iw_client_session_init(&diagnostic_client, session)) return false;
     diagnostic_last_clock_request = 0u;
     diagnostic_last_brightness_request = 0u;
+    diagnostic_last_chrono_request = 0u;
     diagnostic_brightness_sequence = 0u;
     return true;
 }
@@ -648,3 +666,109 @@ static void iw_brightness_stat(void)
                (unsigned)mailbox.apply_timeout, (unsigned)mailbox.apply_failed);
 }
 MSH_CMD_EXPORT(iw_brightness_stat, Show brightness model and display mailbox state);
+
+static void iw_chrono_stat(void)
+{
+    struct { iw_snapshot_header_t header; iw_timer_snapshot_t model; } timers = {0};
+    iw_stopwatch_summary_t stopwatch = {0};
+    size_t bytes = 0u;
+    if (iw_snapshot_read(IW_SNAPSHOT_TIMERS, &timers, sizeof(timers), &bytes) != IW_SNAPSHOT_OK)
+    {
+        rt_kprintf("timers unavailable\n");
+        return;
+    }
+    rt_kprintf("timers revision=%u count=%u\n", (unsigned)timers.model.revision,
+               (unsigned)timers.model.count);
+    for (unsigned i = 0; i < timers.model.count; i++)
+    {
+        const iw_timer_view_t *timer = &timers.model.timers[i];
+        rt_kprintf("timer id=%u revision=%u state=%u duration_ms=%u remaining_ms=%llu occurrence=%u alert=%u\n",
+                   (unsigned)timer->timer_id, (unsigned)timer->revision,
+                   (unsigned)timer->state, (unsigned)timer->duration_ms,
+                   (unsigned long long)timer->remaining_ms, (unsigned)timer->occurrence,
+                   (unsigned)timer->alert_pending);
+    }
+    if (iw_stopwatch_summary_runtime_read(&stopwatch))
+        rt_kprintf("stopwatch revision=%u state=%u elapsed_ms=%llu laps=%u\n",
+                   (unsigned)stopwatch.revision, (unsigned)stopwatch.state,
+                   (unsigned long long)stopwatch.elapsed_ms,
+                   (unsigned)stopwatch.lap_count);
+}
+MSH_CMD_EXPORT(iw_chrono_stat, Show timer and stopwatch snapshots);
+
+static int iw_timer_create_diag(int argc, char **argv)
+{
+    iw_command_t command;
+    uint32_t session, request;
+    char *end;
+    unsigned long duration;
+    iw_submit_status_t status;
+    if (argc != 2) {
+        rt_kprintf("usage: iw_timer_create_diag <duration_ms>\n");
+        return -RT_EINVAL;
+    }
+    duration = strtoul(argv[1], &end, 0);
+    if (end == argv[1] || *end != '\0' || duration > UINT32_MAX ||
+            !iw_request_allocate(&session, &request))
+        return -RT_EINVAL;
+    iw_command_init(&command, session, request, IW_DIAGNOSTIC_PAGE_ID, 1u,
+                    IW_OPCODE_TIMER_CREATE);
+    if (!iw_command_encode_timer_create(&command, (uint32_t)duration)) return -RT_EINVAL;
+    status = iw_command_submit(&command);
+    if (status == IW_SUBMIT_QUEUED || status == IW_SUBMIT_DUPLICATE)
+        diagnostic_last_chrono_request = request;
+    rt_kprintf("timer request=%u submit=%u duration_ms=%lu\n",
+               (unsigned)request, (unsigned)status, duration);
+    return status == IW_SUBMIT_QUEUED || status == IW_SUBMIT_DUPLICATE ? RT_EOK : -RT_ERROR;
+}
+MSH_CMD_EXPORT(iw_timer_create_diag, Create a timer through the service path);
+
+static int iw_stopwatch_diag(int argc, char **argv)
+{
+    iw_stopwatch_summary_t snapshot = {0};
+    iw_command_t command;
+    iw_opcode_t opcode;
+    uint32_t session, request;
+    iw_submit_status_t status;
+    if (argc != 2 || !iw_stopwatch_summary_runtime_read(&snapshot))
+        return -RT_EINVAL;
+    if (!strcmp(argv[1], "start")) opcode = IW_OPCODE_STOPWATCH_START;
+    else if (!strcmp(argv[1], "pause")) opcode = IW_OPCODE_STOPWATCH_PAUSE;
+    else if (!strcmp(argv[1], "reset")) opcode = IW_OPCODE_STOPWATCH_RESET;
+    else if (!strcmp(argv[1], "lap")) opcode = IW_OPCODE_STOPWATCH_LAP;
+    else return -RT_EINVAL;
+    if (!iw_request_allocate(&session, &request)) return -RT_EFULL;
+    iw_command_init(&command, session, request, IW_DIAGNOSTIC_PAGE_ID, 1u, opcode);
+    if (!iw_command_encode_stopwatch_control(&command, snapshot.revision)) return -RT_EINVAL;
+    status = iw_command_submit(&command);
+    if (status == IW_SUBMIT_QUEUED || status == IW_SUBMIT_DUPLICATE)
+        diagnostic_last_chrono_request = request;
+    rt_kprintf("stopwatch request=%u submit=%u opcode=%u expected_revision=%u\n",
+               (unsigned)request, (unsigned)status, (unsigned)opcode,
+               (unsigned)snapshot.revision);
+    return status == IW_SUBMIT_QUEUED || status == IW_SUBMIT_DUPLICATE ? RT_EOK : -RT_ERROR;
+}
+MSH_CMD_EXPORT(iw_stopwatch_diag, Control stopwatch through the service path);
+
+static void iw_chrono_result(void)
+{
+    iw_result_t result;
+    iw_result_token_t token;
+    uint32_t session = iw_service_current_session();
+    iw_result_lookup_t lookup = iw_result_get(session, diagnostic_last_chrono_request, &result);
+    if (lookup != IW_RESULT_LOOKUP_FOUND) {
+        rt_kprintf("chrono result request=%u lookup=%u\n",
+                   (unsigned)diagnostic_last_chrono_request, (unsigned)lookup);
+        return;
+    }
+    rt_kprintf("chrono result request=%u state=%u code=%u opcode=%u revision=%u mono_ms=%llu\n",
+               (unsigned)result.request_id, (unsigned)result.state, (unsigned)result.code,
+               (unsigned)result.opcode, (unsigned)result.model_revision,
+               (unsigned long long)result.completed_mono_ms);
+    if (result.state == IW_RESULT_STATE_TERMINAL) {
+        token = (iw_result_token_t){result.session_id, result.request_id,
+                                    result.ledger_generation};
+        rt_kprintf("chrono result ack=%u\n", (unsigned)iw_result_ack(&token));
+    }
+}
+MSH_CMD_EXPORT(iw_chrono_result, Show and acknowledge the last chronograph result);
