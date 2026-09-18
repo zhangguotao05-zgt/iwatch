@@ -277,6 +277,20 @@ static void scene_boundaries(iw_product_model_t *m) {
     assert(iw_product_scene_build(&scene, IW_PAGE_TIME, m));
     assert(iw_product_scene_hit(&scene, 260, 396, 0) < 0);
     assert(iw_product_scene_hit(&scene, 48, 46, 0) >= 0);
+    /* 请求处理中，两种主操作都必须呈灰底且不能被命中。 */
+    for (unsigned picker = 0; picker < 2; picker++) {
+        if (picker) assert(iw_time_draft_select(&m->draft, IW_EDIT_MONTH));
+        assert(iw_product_scene_build(&scene, IW_PAGE_TIME, m));
+        unsigned action = picker ? IW_ACTION_PICK_CHOOSE : IW_ACTION_TIME_SAVE;
+        bool found = false;
+        for (unsigned i = 0; i < scene.count; i++) {
+            if (scene.nodes[i].action != action) continue;
+            found = true;
+            assert(scene.nodes[i].disabled && scene.nodes[i].fill == IW_PRODUCT_DISABLED_SURFACE);
+        }
+        assert(found && iw_product_scene_hit(&scene, 260, 396, 0) < 0);
+    }
+    assert(iw_time_draft_begin(&m->draft, &m->clock));
     m->pending = false;
     m->time_available = false;
     assert(iw_product_scene_build(&scene, IW_PAGE_TIME, m));

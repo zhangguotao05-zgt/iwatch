@@ -21,7 +21,7 @@
 <tr><td>Keil</td><td>1,837,792 B</td><td>29.211%</td><td>构建、身份、预算及 COM255 DryRun 通过；main SHA-256 <code>f9644930a475c6cc1204336e17da677c6194f23e514ccc29353e5ea14427a3c9</code>。</td></tr></tbody></table>
 <p>受控 SDK 补丁仍为 31 文件，SHA-256 <code>52b18a9f4f107962121c2f692c434141c090979658d894da8728eba08381b506</code>。TTF 65,752 B、位图字体 51,335 B、链接图片 866,577 B 均未增加。采样静态数组占 2,560 B，另有固定状态；不计为动态堆增长。</p></section>
 <section id="board"><h2>实机复验与原始证据</h2>
-<p>前一轮 GCC 三件套已通过 COM9 写入并校验；本轮源码 <code>cd8c6e7</code> 已重新完成 GCC/Keil 构建、身份和预算检查，待开发板连接后再用 COM9 刷入并做相关页面抽查。没有访问 J-Link。当前 GCC main SHA-256：<code>b65ec2e5423dac79c99a7eec3ebabe5bbcd78d5862ef88761c4e5e924933acba</code>；Keil：<code>f9644930a475c6cc1204336e17da677c6194f23e514ccc29353e5ea14427a3c9</code>。</p>
+<p>本轮源码 <code>cd8c6e7</code> 已完成 GCC/Keil 构建、身份和预算检查；GCC 三件套已通过 COM9 写入并校验，COM10 原始日志已封存。相关页面抽查确认“未接入”完整可见，校时选择、取消和返回正常。没有访问 J-Link。当前 GCC main SHA-256：<code>b65ec2e5423dac79c99a7eec3ebabe5bbcd78d5862ef88761c4e5e924933acba</code>；Keil：<code>f9644930a475c6cc1204336e17da677c6194f23e514ccc29353e5ea14427a3c9</code>。</p>
 <table><thead><tr><th>项</th><th>本轮结果</th></tr></thead><tbody>
 <tr><td>正常动效选择器</td><td>初次反馈“半格直接到下一月”；随后确认“轻移会回弹，接近半格才改变”。本轮以相邻候选中心距 75 px 的中点为阈值。保留原反馈，记作阈值手感澄清，未据此修改代码或声称修复额外故障。</td></tr>
 <tr><td>Q0／大字号／减弱动效／80%</td><td>人工确认双列字段、滚动时区、固定页脚、松手直接到位、整页取消后重新进入未保存，以及文字和操作正常。</td></tr>
@@ -52,7 +52,7 @@
 <tr><td>前后台内存对照</td><td>冷启动列表根为主堆 43,692 B、字形池 1,432 B、引用 2；表盘前台／列表后台稳定样本为主堆 63,460 B、字形池 11,264 B、引用 7；列表前台／表盘后台稳定样本为主堆约 80,532 B、字形池约 42,484 B、引用 7。三轮后未观察到逐轮增长；峰值记录为主堆 119,432 B、字形池 47,152 B，不能把后台保留对象误判为冷启动基线。</td></tr>
 <tr><td>V08 首绘与完整帧</td><td><code>iw_nav probe start/stop</code> 共记录 17 个批次。首绘样本的 <code>ONRESUME→首次 DRAW_MAIN</code> 为 5、7、8 ms；提交到 LCD/GPU 空闲观察约 30～50 ms。最长批次间隔 1,490 ms 包含页面停留／命令等待，不作为单帧耗时，也不宣称 30 FPS。</td></tr>
 <tr><td>诊断开销对照</td><td>同一串口窗口报告：探针开启 <code>count=449,total=359863 us,max=32349 us</code>；关闭 <code>count=182,total=35489 us,max=15686 us</code>。计时起点为 GUI frame handler 进入探针前，终点为探针 begin/end 返回；该数据只描述探针与空闲观察开销，不代表面板刷新率。</td></tr>
-<tr><td>实机与证据</td><td><code>logs/board-validation-20260918-d10-architect-fixes</code>（仅本地）保存完整烧录、命令时间线和原始串口。<code>serial-raw.bin</code>：79,878 B，SHA-256 <code>b385d4c54384b9c9a79d3e270847f3cfdbcba43e5a5bc4965c6ecf5047b7a050</code>；使用 COM9/COM10，未访问 J-Link。</td></tr>
+<tr><td>实机与证据</td><td>本轮增量证据位于 <code>logs/board-validation-20260918-d10-disabled-fix</code>（仅本地）：GCC 三件套通过 COM9 写入并校验，COM10 原始串口 18,971 B，SHA-256 <code>c83e9abf730acc99d4e991c658b2077994970bc338d4c664b3b46b07be5afc22</code>；确认“未接入”完整可见、校时选择／取消／返回正常。未访问 J-Link。历史七页往返证据仍保留在 <code>logs/board-validation-20260918-d10-architect-fixes</code>。</td></tr>
 </tbody></table>
 <p>主机全量脚本为 38 项 Python 测试，字体、组件、路由、输入和产品边界测试均通过；GCC/Keil 均已重新构建、身份校验和 DryRun 通过。#8 的长文延迟／触摸溢出、#10 的显示异常、#12 的 D10 总体验收仍保持打开，以上证据提交架构师做增量复核。</p>
 </section>
