@@ -66,6 +66,7 @@ void test_product_runtime_init(void) {
            IW_TIME_OK);
     assert(iw_service_init(&model, &clock_model, 123));
     assert(iw_service_set_capability(&model, IW_CAP_CLOCK, IW_CAP_STATE_AVAILABLE, 0));
+    assert(iw_service_set_capability(&model, IW_CAP_RTC_BACKUP, IW_CAP_STATE_AVAILABLE, 0));
     assert(iw_service_set_capability(&model, IW_CAP_DISPLAY, IW_CAP_STATE_AVAILABLE, 0));
 }
 int test_product_controller(size_t loops) {
@@ -122,6 +123,45 @@ int test_product_controller(size_t loops) {
     (void)iw_product_process();
     assert(!page.request && navigations == before_navigation + 1);
     assert(iw_product_destroy(&page));
+    /* 复现冷启动：RTC 存在但尚未校准，两个能力均降级，必须允许首次校时。 */
+    assert(iw_time_init(&clock_model, 0, 1000, 0, 0, IW_TIME_SOURCE_NONE) == IW_TIME_OK);
+    assert(iw_service_set_capability(&model, IW_CAP_CLOCK, IW_CAP_STATE_DEGRADED, -1));
+    assert(iw_service_set_capability(&model, IW_CAP_RTC_BACKUP, IW_CAP_STATE_DEGRADED, -1));
+    memset(&page, 0, sizeof(page));
+    assert(iw_product_create(&page, IW_PAGE_TIME, 100002, true, navigate, stop, &model));
+    assert(page.model.time_available && page.model.draft.needs_calibration);
+    page.view.action(IW_ACTION_FIELD + IW_EDIT_MONTH, 0, true, page.view.context);
+    page.view.action(IW_ACTION_PICK_NEXT, 0, true, page.view.context);
+    page.view.action(IW_ACTION_PICK_CHOOSE, 0, true, page.view.context);
+    assert(page.model.draft.value.month == 2);
+    page.view.action(IW_ACTION_TIME_SAVE, 0, true, page.view.context);
+    assert(page.request && page.model.pending);
+    finish();
+    (void)iw_product_process();
+    iw_clock_snapshot_t calibrated;
+    assert(iw_clock_read(&calibrated) && calibrated.valid);
+    assert(!page.request && !page.model.pending && last_destination == IW_ACTION_BACK);
+    iw_service_stats_t calibrated_stats;
+    iw_service_stats_read(&model, &calibrated_stats);
+    assert(!calibrated_stats.active_count && !calibrated_stats.ledger_used);
+    assert(iw_product_destroy(&page));
+    /* 时间有效性与 RTC 可写能力分别覆盖；未知、缺失和故障均不得误开放。 */
+    for (unsigned clock_state = IW_CAP_STATE_UNKNOWN; clock_state <= IW_CAP_STATE_FAULT; clock_state++) {
+        for (unsigned rtc_state = IW_CAP_STATE_UNKNOWN; rtc_state <= IW_CAP_STATE_FAULT; rtc_state++) {
+            assert(iw_service_set_capability(&model, IW_CAP_CLOCK, (iw_capability_state_t)clock_state, 0));
+            assert(iw_service_set_capability(&model, IW_CAP_RTC_BACKUP, (iw_capability_state_t)rtc_state, 0));
+            memset(&page, 0, sizeof(page));
+            assert(iw_product_create(&page, IW_PAGE_TIME, 100003, true, navigate, stop, &model));
+            bool writable = (clock_state == IW_CAP_STATE_AVAILABLE || clock_state == IW_CAP_STATE_DEGRADED) &&
+                            (rtc_state == IW_CAP_STATE_AVAILABLE || rtc_state == IW_CAP_STATE_DEGRADED);
+            assert(page.model.time_available == writable);
+            if (!writable) {
+                page.view.action(IW_ACTION_TIME_SAVE, 0, true, page.view.context);
+                assert(!page.request && !page.model.pending && page.model.message == IW_TEXT_TIME_FAILED);
+            }
+            assert(iw_product_destroy(&page));
+        }
+    }
     /* 能力撤销时提交失败，页面不得误报已设置，也不得留下等待令牌。 */
     assert(iw_service_set_capability(&model, IW_CAP_CLOCK, IW_CAP_STATE_ABSENT, 0));
     memset(&page, 0, sizeof(page));
@@ -132,7 +172,7 @@ int test_product_controller(size_t loops) {
     assert(iw_font_collect());
     assert(test_font_live_bytes() == bytes && test_font_live_blocks() == blocks);
     printf("product_controller loops=%zu detached_ack=ok preview_final=ok time_navigation=ok asserts=0 "
-           "result=ok\n",
+           "cold_calibration=ok capability_combinations=25 result=ok\n",
            loops);
     return 0;
 }

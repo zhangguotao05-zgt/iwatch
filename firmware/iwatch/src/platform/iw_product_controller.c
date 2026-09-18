@@ -31,6 +31,7 @@ static void capabilities(iw_product_model_t *m) {
         iw_capability_snapshot_t model;
     } value = {0};
     size_t bytes = 0;
+    bool clock_ready = false, rtc_ready = false;
     m->display_available = m->time_available = false;
     if (iw_snapshot_read(IW_SNAPSHOT_CAPABILITIES, &value, sizeof(value), &bytes) != IW_SNAPSHOT_OK ||
         value.model.count > IW_CAPABILITY_CAPACITY ||
@@ -39,10 +40,14 @@ static void capabilities(iw_product_model_t *m) {
         return;
     for (unsigned i = 0; i < value.model.count; i++) {
         const iw_capability_entry_t *e = &value.model.entries[i];
-        if (e->state != IW_CAP_STATE_AVAILABLE) continue;
-        if (e->capability_id == IW_CAP_CLOCK) m->time_available = true;
-        if (e->capability_id == IW_CAP_DISPLAY) m->display_available = true;
+        /* 尚未校准属于降级，仍允许写入；RTC 缺失或故障时不能开放编辑。 */
+        bool usable = e->state == IW_CAP_STATE_AVAILABLE || e->state == IW_CAP_STATE_DEGRADED;
+        if (e->capability_id == IW_CAP_CLOCK) clock_ready = usable;
+        if (e->capability_id == IW_CAP_RTC_BACKUP) rtc_ready = usable;
+        if (e->capability_id == IW_CAP_DISPLAY)
+            m->display_available = e->state == IW_CAP_STATE_AVAILABLE;
     }
+    m->time_available = clock_ready && rtc_ready;
 }
 
 static bool send(iw_product_page_t *p, iw_command_t *command) {
