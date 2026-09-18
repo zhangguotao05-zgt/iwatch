@@ -39,8 +39,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-103.png",
-      "rgb565_sha256": "9d5f9b0ca3fec7d3874fade170381762ba88c8649b45309c99afd996385b9c58",
-      "png_sha256": "b3fabd8646b9b5b9092333a43b3f0a66d698c15486dc7261cfb6c54484cfe47f"
+      "rgb565_sha256": "e8e4379812148c5c1329be2e3198730451ef195029d61b258b41a718ff29ba30",
+      "png_sha256": "eab827e6870397ff85decc5ffa13b8edb859f6dca4e43b5e2dfcd4a962e0a366"
     },
     {
       "page": "brightness",
@@ -49,8 +49,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-104.png",
-      "rgb565_sha256": "544edfdd9218b79ad71bbb20ee9529057ca38904d8989c2d40ea9fded522743e",
-      "png_sha256": "9ad1b7102c7d9d05b51b495890165b67b5496fcf60de0d98d20b196ddbc191e3"
+      "rgb565_sha256": "f3688612f3a3cd56f40d1af3669b456f3d76e51c086b44408367f483264d4146",
+      "png_sha256": "2d7657e92b2d56849558bb2312d6d687af5d04ceb58e13476dbed8b37e14cd4d"
     },
     {
       "page": "time",
@@ -59,8 +59,18 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-105.png",
-      "rgb565_sha256": "6a008f5893cce3aead0ef15de5522bd38ea45497aa43c3c917c4af73464d8c1a",
-      "png_sha256": "6c167531fffbaf5f4e7a93171dd6dccdc5ec5096c587ef92a6cf165d42e8312e"
+      "rgb565_sha256": "d6662064f7210f8d63168d9e4c73593d2320809857b365742c9fef442c7d583f",
+      "png_sha256": "86bbead3ced2c9acaa558e7089cd8ade0981d54d9656cafd63c1abb2814fb95f"
+    },
+    {
+      "page": "time",
+      "large_text": false,
+      "quality": 0,
+      "reduced_motion": false,
+      "position": "bottom",
+      "file": "product-405.png",
+      "rgb565_sha256": "16b446a275a54b897ad3036dfc55a17c0672bdfa0d2df5098882f71fbbf12abb",
+      "png_sha256": "d66be1d526be86ec15ba4774f6e4c3c46119ba6d7af9767a080980f467fe9db2"
     },
     {
       "page": "time",
@@ -69,8 +79,8 @@
       "reduced_motion": false,
       "picker": 0,
       "file": "product-200.png",
-      "rgb565_sha256": "77b64513f1e414e6b768943b931a117e1104d8a0e8c3eba308dd383db27da336",
-      "png_sha256": "a8b0ed2220288309089a2663d65d6898a76e1eb5a1269e4b9d52212ba96626e3"
+      "rgb565_sha256": "0b7e7ef14df1abc81327a5f6b99da7e8babc41fa78b95f8c1cb86e046592e868",
+      "png_sha256": "4fb6a8fe6a1a7176114f1b0d11c98502fefd028513b4a9bf84bf5755740a963c"
     },
     {
       "page": "time",
@@ -79,8 +89,8 @@
       "reduced_motion": false,
       "picker": 1,
       "file": "product-201.png",
-      "rgb565_sha256": "8dd5eb019892acd81a626649eb70ff5bc61fc90355472a5806e1288ed57111b0",
-      "png_sha256": "be545ecf270f4bd2dab17bf327eb9fcc0c2ccee11995c96c8d393578a039b7d9"
+      "rgb565_sha256": "742e44f629238db19016df35b85d1a4456b69c645e8bd096d3f1b708a07f963b",
+      "png_sha256": "7206d6a65f8e4d1c20ca214af4ab59dd50003d5e69ed7fecfa74ddd42cb48174"
     },
     {
       "page": "time",
@@ -89,8 +99,8 @@
       "reduced_motion": false,
       "picker": 2,
       "file": "product-202.png",
-      "rgb565_sha256": "5082d319cffaa9a5764cf69bdacba2844c1e169f8e9c3bce581340bc7fe72395",
-      "png_sha256": "5c7601fd0af08a4600bb6ed6387de3918d5ebc0f1a055d0962fdbd2e1b80c0f6"
+      "rgb565_sha256": "4d009006a9b971660e4a0f0f16b4c4c167034196c948338e42233e5a11d8f2ce",
+      "png_sha256": "06a2ec1b38b1f15078c6da36f16a5625e6d469ace9deabdcc4b9b1d542214ad5"
     },
     {
       "page": "time",
@@ -99,8 +109,8 @@
       "reduced_motion": false,
       "picker": 3,
       "file": "product-203.png",
-      "rgb565_sha256": "0e8510f8d0e865621a650f284a649673c5856ea1856ebcf9beac18a360e43938",
-      "png_sha256": "f4c22ecfb06ce3bab114a25e701679cf2b371fa0917f0deae6c3d45b9dcf05a7"
+      "rgb565_sha256": "ceee1515defe7e3f2a698a651af1d7cb53b21aa24f3f38ffd5605b04320e53ba",
+      "png_sha256": "d8d04f222e846584b831931251a7f765e3f5be7996aad2f5e8a2787dc0b24507"
     },
     {
       "page": "time",
@@ -109,8 +119,8 @@
       "reduced_motion": false,
       "picker": 4,
       "file": "product-204.png",
-      "rgb565_sha256": "f76e7b922a0deb2fc90037c7914b8a1513ce677ff26ff93ad29a2769bdacae70",
-      "png_sha256": "f3036710ab0b180ba38fd6dbd544c80021d727d0d12fd67d1fbd657d5c997778"
+      "rgb565_sha256": "35fca565e042f188d9d3100c62f6bb450dd251002e354173588f0f214aa8f710",
+      "png_sha256": "e1e8e6a4989d1066ab8f83eb2dc83392eb6f7e9e3cb5e5d9d0d292880d76ec7c"
     },
     {
       "page": "time",
@@ -119,8 +129,8 @@
       "reduced_motion": false,
       "picker": 5,
       "file": "product-205.png",
-      "rgb565_sha256": "5ea9c1baf7ff511dbff577cb9ef1fe78fe18e066775d4fbf40cd21ad99ca8efa",
-      "png_sha256": "43ede809e1dad349916ec7c6db7043fd1b7d173661990810d421a8d73ab306da"
+      "rgb565_sha256": "a26431850a3c11603ba464143d06e82d53bfa4aa53ed0d060e968a1f9ee65f2e",
+      "png_sha256": "96a2274e9d2eb007d7e0568685e9d31d6537af69b573f7298ce33a2a92de7769"
     },
     {
       "page": "about",
@@ -129,8 +139,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-106.png",
-      "rgb565_sha256": "5eb41bc76e12ce18a03879e616a7abc97d9e3061b6aba540ecc34202e489b8f7",
-      "png_sha256": "eb424ff2e780b8b37b691c37b5dad2f57e9e6adffe4372778484a9de82c1ba44"
+      "rgb565_sha256": "096bde49d8747f292fe5206b2d6d1ada4dbba1eaff547ab920c07469ebdcde54",
+      "png_sha256": "8748714425ba26b7e252dc3d0550c571295ff10a3aa557c66c8612f8f0e76aa5"
     },
     {
       "page": "about",
@@ -139,8 +149,8 @@
       "reduced_motion": false,
       "position": "bottom",
       "file": "product-306.png",
-      "rgb565_sha256": "11f778f02a8d5fb94969f128e9e57838cfc0f5e6aab3eba06d02820c4acd413d",
-      "png_sha256": "c2db11940849cbf32092948e8e27b7a918ba338340ee0b0cc10b2ce8f9444f4e"
+      "rgb565_sha256": "23fde395a7cb11b46f9f56fa92a72ebca635153c92e053bcacc6a72299de51e0",
+      "png_sha256": "8ef0dc615206308b609ea0ddde95bee551ed2cb5b9f14866b02693fef6520ed3"
     },
     {
       "page": "face",
@@ -149,8 +159,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-107.png",
-      "rgb565_sha256": "aa21ac36c7bfbf844b8e0940367883e285d80f6804395c5b3ce45ee18aa67c14",
-      "png_sha256": "e3697095a4d2d69bfc90584c5b3197fe8574bbe2948001c5a4db7b81fd098a0a"
+      "rgb565_sha256": "ab7acf1244f93f9c8faf2268ac1c4cd3982613e339506deb6f4a3c358dad0862",
+      "png_sha256": "081f7f9fd5fdefb09d2d6cc4acc3be0571dad60aac64b1e1810740f5ed4741ce"
     },
     {
       "page": "apps",
@@ -169,8 +179,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-109.png",
-      "rgb565_sha256": "a05c927c33f224a2ba2dae882c452b452580380ab7f3018af2a2a4e7999b958a",
-      "png_sha256": "883f621b46eaa24516cc36c71888ab3cfabb8b9fe3b91a8dfb2497b1a0c3928c"
+      "rgb565_sha256": "3ac3c78acebe9aff012f5f50c8f10cdaaced4fd5862bdf0c73fa4e06538744f9",
+      "png_sha256": "48d8744bf6beea3df7c7eda4154b15d82868001664a2cd1af3496dc01da30a4f"
     },
     {
       "page": "display",
@@ -179,8 +189,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-110.png",
-      "rgb565_sha256": "9d5f9b0ca3fec7d3874fade170381762ba88c8649b45309c99afd996385b9c58",
-      "png_sha256": "b3fabd8646b9b5b9092333a43b3f0a66d698c15486dc7261cfb6c54484cfe47f"
+      "rgb565_sha256": "91c365a35c2c56f18c24519a28404354904277942c38fd053e3a704040d09787",
+      "png_sha256": "00ec746b70ad9e3cb40b3222ddb15138a1dba719cdc15c307ea0082912966545"
     },
     {
       "page": "brightness",
@@ -189,8 +199,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-111.png",
-      "rgb565_sha256": "544edfdd9218b79ad71bbb20ee9529057ca38904d8989c2d40ea9fded522743e",
-      "png_sha256": "9ad1b7102c7d9d05b51b495890165b67b5496fcf60de0d98d20b196ddbc191e3"
+      "rgb565_sha256": "cebd3701e474cf3c7f6e83960b995307a8f248f0fa1de8f84d3323f308b95927",
+      "png_sha256": "3e62d9c093963ae66abf3c7cecc47285c43b14a07e37d521fbc6f00721aa4992"
     },
     {
       "page": "time",
@@ -199,8 +209,18 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-112.png",
-      "rgb565_sha256": "6a008f5893cce3aead0ef15de5522bd38ea45497aa43c3c917c4af73464d8c1a",
-      "png_sha256": "6c167531fffbaf5f4e7a93171dd6dccdc5ec5096c587ef92a6cf165d42e8312e"
+      "rgb565_sha256": "2bfffbb2e5d8a88554cb5a37ed4baaa3fb76af369347783d5fd053412f34e1bd",
+      "png_sha256": "212786682f2a4e7ec5c41d31ce441f9bf29d1918bd7addef3a8bdc5471d2994e"
+    },
+    {
+      "page": "time",
+      "large_text": true,
+      "quality": 0,
+      "reduced_motion": false,
+      "position": "bottom",
+      "file": "product-412.png",
+      "rgb565_sha256": "56304ba4ba69c27467867042d3e98be2c6fe89fb9bb7388d531878c9a7cae8c8",
+      "png_sha256": "28b79e05d6a0c8729a273357a6c3eaedd415b3658e348542098d8bd8907b29a6"
     },
     {
       "page": "time",
@@ -209,8 +229,8 @@
       "reduced_motion": false,
       "picker": 0,
       "file": "product-206.png",
-      "rgb565_sha256": "77b64513f1e414e6b768943b931a117e1104d8a0e8c3eba308dd383db27da336",
-      "png_sha256": "a8b0ed2220288309089a2663d65d6898a76e1eb5a1269e4b9d52212ba96626e3"
+      "rgb565_sha256": "04adfcdce12a8c8c2dbae50cff60d8e9ddf10c540947cc9848a7fa2edd9a03db",
+      "png_sha256": "892db0eceafafb769c7a955838983276a1bbd5d3a8acba123415f8ac91353f39"
     },
     {
       "page": "time",
@@ -219,8 +239,8 @@
       "reduced_motion": false,
       "picker": 1,
       "file": "product-207.png",
-      "rgb565_sha256": "8dd5eb019892acd81a626649eb70ff5bc61fc90355472a5806e1288ed57111b0",
-      "png_sha256": "be545ecf270f4bd2dab17bf327eb9fcc0c2ccee11995c96c8d393578a039b7d9"
+      "rgb565_sha256": "94e44043fd653d014d304c8aaa74b502725b62e6f2cbb7ede12c3565be86e908",
+      "png_sha256": "9fb1d85041450150dbb3c25b8aee7d9bcbcce18ab4263d4caffad0d1ad0a1c94"
     },
     {
       "page": "time",
@@ -229,8 +249,8 @@
       "reduced_motion": false,
       "picker": 2,
       "file": "product-208.png",
-      "rgb565_sha256": "5082d319cffaa9a5764cf69bdacba2844c1e169f8e9c3bce581340bc7fe72395",
-      "png_sha256": "5c7601fd0af08a4600bb6ed6387de3918d5ebc0f1a055d0962fdbd2e1b80c0f6"
+      "rgb565_sha256": "c6ccd4c24c6616f9f32f9544643b35855a7acb6f3821b20e2c30682e86f5e476",
+      "png_sha256": "ef2bc4df48db1c47c432476a226d06e490370a8e4069ba265cd6a54968627964"
     },
     {
       "page": "time",
@@ -239,8 +259,8 @@
       "reduced_motion": false,
       "picker": 3,
       "file": "product-209.png",
-      "rgb565_sha256": "0e8510f8d0e865621a650f284a649673c5856ea1856ebcf9beac18a360e43938",
-      "png_sha256": "f4c22ecfb06ce3bab114a25e701679cf2b371fa0917f0deae6c3d45b9dcf05a7"
+      "rgb565_sha256": "ac5c27441d9aa5947237755150f2fef82c50a30bd33131b6bf6dab293f4de76f",
+      "png_sha256": "b1ec559fca8491c4825db7893e1b9def53b32c1f9b0477ee2dfdd9b961f01bf5"
     },
     {
       "page": "time",
@@ -249,8 +269,8 @@
       "reduced_motion": false,
       "picker": 4,
       "file": "product-210.png",
-      "rgb565_sha256": "f76e7b922a0deb2fc90037c7914b8a1513ce677ff26ff93ad29a2769bdacae70",
-      "png_sha256": "f3036710ab0b180ba38fd6dbd544c80021d727d0d12fd67d1fbd657d5c997778"
+      "rgb565_sha256": "31f299f5b89290cf4fbbb58b1e3137c5b151c8d2d79731775507203a4a950405",
+      "png_sha256": "4d390ea2db97a340f9342a68ba992f1f0d54ed1b1ff0a4539eefd9447c7bb9ed"
     },
     {
       "page": "time",
@@ -259,8 +279,8 @@
       "reduced_motion": false,
       "picker": 5,
       "file": "product-211.png",
-      "rgb565_sha256": "5ea9c1baf7ff511dbff577cb9ef1fe78fe18e066775d4fbf40cd21ad99ca8efa",
-      "png_sha256": "43ede809e1dad349916ec7c6db7043fd1b7d173661990810d421a8d73ab306da"
+      "rgb565_sha256": "c40c8b1f58e5906b6073545b391018c7b6729fbc7335c79c5f7be61f29b0bac1",
+      "png_sha256": "89b82b949db97bd81796e60829db36b3af8ea669695644e198e4ceb53055f7e3"
     },
     {
       "page": "about",
@@ -269,8 +289,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-113.png",
-      "rgb565_sha256": "5eb41bc76e12ce18a03879e616a7abc97d9e3061b6aba540ecc34202e489b8f7",
-      "png_sha256": "eb424ff2e780b8b37b691c37b5dad2f57e9e6adffe4372778484a9de82c1ba44"
+      "rgb565_sha256": "6a2de96232a5007df737d5cb3ebd8573c861ba60781050a8744008239708baac",
+      "png_sha256": "e43bdd8087c6043b438e0ff7aebdce60520a16f7aecf206c547b840ac4b550cf"
     },
     {
       "page": "about",
@@ -279,8 +299,8 @@
       "reduced_motion": false,
       "position": "bottom",
       "file": "product-313.png",
-      "rgb565_sha256": "11f778f02a8d5fb94969f128e9e57838cfc0f5e6aab3eba06d02820c4acd413d",
-      "png_sha256": "c2db11940849cbf32092948e8e27b7a918ba338340ee0b0cc10b2ce8f9444f4e"
+      "rgb565_sha256": "335ed7756cfb749a16fb02a1aacc60d423c95aa531c908d464bc9ab4542a0e8a",
+      "png_sha256": "570cc85ac4ae401a1a3907cb1d09872a8b3800ca95ef78732590087495b8f7b7"
     },
     {
       "page": "face",
@@ -319,8 +339,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-117.png",
-      "rgb565_sha256": "4aae43b92907ab703ff8a044d6ac588aa64c81f1feb9cfc1bab191c6e82beb0b",
-      "png_sha256": "e69c58c96dbd0e3b940b4b77dfbf74423ca641e775901ce1d343cc872d4470b2"
+      "rgb565_sha256": "bf170e185a3b0fe0629a5d8b9c32a78ce3c6223b7b6496dda900a9f1f6f67821",
+      "png_sha256": "83b0ccd098fe2efbf057d59344b95a1aa07550e8fc58eafd6181604c8a7be22b"
     },
     {
       "page": "brightness",
@@ -329,8 +349,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-118.png",
-      "rgb565_sha256": "430d78257954e89a4f51682ff0b38742be4cb77107ccada57a7c4fa966449619",
-      "png_sha256": "24ce8ab65acb3859b6bc8dd9a97d95ecc0b81a75c7e90a8abebd72d731ea5224"
+      "rgb565_sha256": "a78860fc9e2f2b3bc4e8bb39fd41fb08bd75c988a4f432dfacf291ea03ec2cb3",
+      "png_sha256": "65d045a08b530e5de6d040b1013f4aaf80c3da6cef2317261a72f2791995fbe9"
     },
     {
       "page": "time",
@@ -339,8 +359,18 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-119.png",
-      "rgb565_sha256": "30977bb7015ba29641e13dee9aefda11a6d8d2933c3408e56677be6eafb9f41d",
-      "png_sha256": "cebdb049cb8c97eadb9dc349bbae4e6d4184b75677e0af7bbaa131b25191cd45"
+      "rgb565_sha256": "dd4326cd2af34671c048fd34941fb16cec573eb67b7038c05fa20cb691e00ee9",
+      "png_sha256": "81df300d157c71a540cf872750e75d08e4c854ad322d339bde4a0ba2169cd9e3"
+    },
+    {
+      "page": "time",
+      "large_text": false,
+      "quality": 1,
+      "reduced_motion": false,
+      "position": "bottom",
+      "file": "product-419.png",
+      "rgb565_sha256": "3931a6a67838a3a58db28ce0dfcf9cf5f8e2f74e5c1205c4ad281c5ab4417180",
+      "png_sha256": "fcfe1ddaaf38c4cda18890c0ebbfdd689d5be37c3d109ee300f4f50e63176e21"
     },
     {
       "page": "time",
@@ -349,8 +379,8 @@
       "reduced_motion": false,
       "picker": 0,
       "file": "product-212.png",
-      "rgb565_sha256": "472257664a8ff311e07ca119c025cf8ce067c9afe78fe3595a3fa66ecdbdacad",
-      "png_sha256": "3dd1db1d23253ecefa598ef2c39da939c16f82c9895990d23254be47ef035a48"
+      "rgb565_sha256": "928c8a0afdbe3ff0bec49adf0be0b148ce485cbe4b1aba0bbdd3daaceebdd87b",
+      "png_sha256": "6d165663135edad56c8af1c81daa4b2c843ac848a52462ec3dd3ae0902218782"
     },
     {
       "page": "time",
@@ -359,8 +389,8 @@
       "reduced_motion": false,
       "picker": 1,
       "file": "product-213.png",
-      "rgb565_sha256": "4301003a0fd6201ac379f10ab1a438d05f7052161db2b37b9c67263ce4d9ad07",
-      "png_sha256": "00fdf16bd1d278eab908095b4d9914c03a6ba6d08e45ec8a642ece03da6859ef"
+      "rgb565_sha256": "0ad3c707596c876ab81518308d97e174cc875093436f3edc41bafc6a2b3cee24",
+      "png_sha256": "e9d5d6eaf134a5d79b2bda7cb57386b4fa053f3eebc346c77ff5514537334163"
     },
     {
       "page": "time",
@@ -369,8 +399,8 @@
       "reduced_motion": false,
       "picker": 2,
       "file": "product-214.png",
-      "rgb565_sha256": "2571c35f8847d642d4c7fb06c836836dc764a9af225e01daed77db8c96ccf496",
-      "png_sha256": "29a1ec4789a27c3e5bf09ad265e2188d5c09699f5bdb962d17fc77321b51db4d"
+      "rgb565_sha256": "75b480405f9f7b423fea994d67b32a6808914781b342b42f37c2761d07a385f7",
+      "png_sha256": "667a03ce99ddbfb8bea9b96298e3c940d8d8481826caff0f26ed76441076bfb1"
     },
     {
       "page": "time",
@@ -379,8 +409,8 @@
       "reduced_motion": false,
       "picker": 3,
       "file": "product-215.png",
-      "rgb565_sha256": "cd880565e2cd5018f41c465cbf126fb363ddfa9a4d168bf42ddbb311223346a9",
-      "png_sha256": "f9bceb5f16ae72f17049b333443c5819639cdc57570ce433a254d6b516bbd5a5"
+      "rgb565_sha256": "1f3662d4fca53e8fe34fb3122d4c44218e0efdae5e2e6ad71c0c2dbe91c37e82",
+      "png_sha256": "0b667c399ed703231491e8fa91230e87d5279dafc6801941ebaa8186b25c9791"
     },
     {
       "page": "time",
@@ -389,8 +419,8 @@
       "reduced_motion": false,
       "picker": 4,
       "file": "product-216.png",
-      "rgb565_sha256": "0b13a7cc02ded3a5800e91d33b8373c020d426c7893c63f17e042874dce1a103",
-      "png_sha256": "610676900ffda193378a75014795d4f086a6f91a446a01e3cd185b4ef89f0517"
+      "rgb565_sha256": "da13ed5a5da363dd7281e5c97267d2ed05ce2c4812d2b50ee3f65196ef3d4b0b",
+      "png_sha256": "47678d51e2988f98e55f5a2c2c6beb70072d1a2eb30e264598572aecb0758b82"
     },
     {
       "page": "time",
@@ -399,8 +429,8 @@
       "reduced_motion": false,
       "picker": 5,
       "file": "product-217.png",
-      "rgb565_sha256": "4a9774d2e68a5749875d8525dac09ffd7a6b4fa97a6348c2210f31a18db94023",
-      "png_sha256": "cd5c09fd6131003f014dbf4c7fbecd7c4bd86d76e47d61a4a86c00b51a4f83b6"
+      "rgb565_sha256": "8f47cafc1dbc0644d271f4d952ac968f48525c4bc8b2aa95edc6410239172777",
+      "png_sha256": "afc2d2b85daf377b1183c3018873926e7d67643e4514ac271b60eb0b7c35a1c2"
     },
     {
       "page": "about",
@@ -409,8 +439,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-120.png",
-      "rgb565_sha256": "ea114c288a0b9c2d60b35be618745fdf1d0aa209afba96b3ed0f8ebb706ba377",
-      "png_sha256": "75b5e4ed4bcf001a49e85bdf1fda66d00df7487608df4312b4c754a1bd709209"
+      "rgb565_sha256": "779a3b4d8acd23291b9148f5475ecb783f87c7c40e83b09bb94ebbf61e77ef7a",
+      "png_sha256": "8fa6c461dbc832b20d8c59c9125316a1c88e343e5645493cee922ee2fe933f75"
     },
     {
       "page": "about",
@@ -419,8 +449,8 @@
       "reduced_motion": false,
       "position": "bottom",
       "file": "product-320.png",
-      "rgb565_sha256": "f3bffc99d38629f0cf4923f3d8b5861bbd901af67b2384b4f22e7d764c6e6665",
-      "png_sha256": "fe09eb95a3d58c98e90029e1c0f55eadd1b601e525ac178aefaccc4c6b17fd74"
+      "rgb565_sha256": "0862c2c6ec8a36f3824f920e477951744f0de27952a83accd941a4288da7c7f1",
+      "png_sha256": "7f2d64a540a0631bef8cf5a41b5afcfd014b424888a9fed807b2b9bde7d2a8ea"
     },
     {
       "page": "face",
@@ -429,8 +459,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-121.png",
-      "rgb565_sha256": "aa21ac36c7bfbf844b8e0940367883e285d80f6804395c5b3ce45ee18aa67c14",
-      "png_sha256": "e3697095a4d2d69bfc90584c5b3197fe8574bbe2948001c5a4db7b81fd098a0a"
+      "rgb565_sha256": "ab7acf1244f93f9c8faf2268ac1c4cd3982613e339506deb6f4a3c358dad0862",
+      "png_sha256": "081f7f9fd5fdefb09d2d6cc4acc3be0571dad60aac64b1e1810740f5ed4741ce"
     },
     {
       "page": "apps",
@@ -449,8 +479,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-123.png",
-      "rgb565_sha256": "a05c927c33f224a2ba2dae882c452b452580380ab7f3018af2a2a4e7999b958a",
-      "png_sha256": "883f621b46eaa24516cc36c71888ab3cfabb8b9fe3b91a8dfb2497b1a0c3928c"
+      "rgb565_sha256": "3ac3c78acebe9aff012f5f50c8f10cdaaced4fd5862bdf0c73fa4e06538744f9",
+      "png_sha256": "48d8744bf6beea3df7c7eda4154b15d82868001664a2cd1af3496dc01da30a4f"
     },
     {
       "page": "display",
@@ -459,8 +489,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-124.png",
-      "rgb565_sha256": "4aae43b92907ab703ff8a044d6ac588aa64c81f1feb9cfc1bab191c6e82beb0b",
-      "png_sha256": "e69c58c96dbd0e3b940b4b77dfbf74423ca641e775901ce1d343cc872d4470b2"
+      "rgb565_sha256": "85b917770dd29075101515b48ec2ed11e73cf82acbd2bb3df4b14df09c2b999e",
+      "png_sha256": "3622b3dbe8a53ecf052750f7119446ed3d7d8aea1c50572305281733ae3a4021"
     },
     {
       "page": "brightness",
@@ -469,8 +499,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-125.png",
-      "rgb565_sha256": "430d78257954e89a4f51682ff0b38742be4cb77107ccada57a7c4fa966449619",
-      "png_sha256": "24ce8ab65acb3859b6bc8dd9a97d95ecc0b81a75c7e90a8abebd72d731ea5224"
+      "rgb565_sha256": "f2c7ad015fee09cec8eb9b367c5c6bf10c54e19f428c262cf04eaf2f1a0fb760",
+      "png_sha256": "f9885e59109d7b0a907c919031adbbb267b26c87c83fd5bd09a547c321e9c862"
     },
     {
       "page": "time",
@@ -479,8 +509,18 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-126.png",
-      "rgb565_sha256": "30977bb7015ba29641e13dee9aefda11a6d8d2933c3408e56677be6eafb9f41d",
-      "png_sha256": "cebdb049cb8c97eadb9dc349bbae4e6d4184b75677e0af7bbaa131b25191cd45"
+      "rgb565_sha256": "019ca991394b0e0454da7dc433e983ad795be171881902319b1c7464cd502561",
+      "png_sha256": "ab2e99fcf10f55f95ef5af71dd00f4bab9a736e7510b6675db4a7a015be702a0"
+    },
+    {
+      "page": "time",
+      "large_text": true,
+      "quality": 1,
+      "reduced_motion": false,
+      "position": "bottom",
+      "file": "product-426.png",
+      "rgb565_sha256": "160b94fa5cf14fb9fe77146b8aff05c8d6c5a608ad352f14594846df0fb22abc",
+      "png_sha256": "e7f922504cd3d00c1916bdf8e594e433e961f784ad2769d08241aee7cf3899fe"
     },
     {
       "page": "time",
@@ -489,8 +529,8 @@
       "reduced_motion": false,
       "picker": 0,
       "file": "product-218.png",
-      "rgb565_sha256": "472257664a8ff311e07ca119c025cf8ce067c9afe78fe3595a3fa66ecdbdacad",
-      "png_sha256": "3dd1db1d23253ecefa598ef2c39da939c16f82c9895990d23254be47ef035a48"
+      "rgb565_sha256": "27fada2f6e5ee92348876b8b9fb491b704bfb2e5351303e01f255c9abc3c0008",
+      "png_sha256": "1ef93705dbffdeb6d4f1518a80f790af922096b8c3a21c80cc1d46f47eec5bcf"
     },
     {
       "page": "time",
@@ -499,8 +539,8 @@
       "reduced_motion": false,
       "picker": 1,
       "file": "product-219.png",
-      "rgb565_sha256": "4301003a0fd6201ac379f10ab1a438d05f7052161db2b37b9c67263ce4d9ad07",
-      "png_sha256": "00fdf16bd1d278eab908095b4d9914c03a6ba6d08e45ec8a642ece03da6859ef"
+      "rgb565_sha256": "40d1a7bf11e462aea06f5fb86b40d451bd93939782dec0bd8bc856b668408c13",
+      "png_sha256": "8e33bda70fef4744fb21a3c182e8ac83d1c19d958975332301aa7db9a7946304"
     },
     {
       "page": "time",
@@ -509,8 +549,8 @@
       "reduced_motion": false,
       "picker": 2,
       "file": "product-220.png",
-      "rgb565_sha256": "2571c35f8847d642d4c7fb06c836836dc764a9af225e01daed77db8c96ccf496",
-      "png_sha256": "29a1ec4789a27c3e5bf09ad265e2188d5c09699f5bdb962d17fc77321b51db4d"
+      "rgb565_sha256": "650fc9d4c6209f1a587e34daefb003d0f984d75ce66de2feb8db4ae5a63b0ded",
+      "png_sha256": "9e623532f50f9ac5deba8d033a263e8d44972689dd936780a50558214e15c2d1"
     },
     {
       "page": "time",
@@ -519,8 +559,8 @@
       "reduced_motion": false,
       "picker": 3,
       "file": "product-221.png",
-      "rgb565_sha256": "cd880565e2cd5018f41c465cbf126fb363ddfa9a4d168bf42ddbb311223346a9",
-      "png_sha256": "f9bceb5f16ae72f17049b333443c5819639cdc57570ce433a254d6b516bbd5a5"
+      "rgb565_sha256": "1d6441dd838d10bb60bc76ce4971962a14d861ddeb28cc4dcd10ef1480c42cd1",
+      "png_sha256": "ffe70dce7acfbe449919f23823393792f96ebc1c63e2cda24eb8b5f1d863ff59"
     },
     {
       "page": "time",
@@ -529,8 +569,8 @@
       "reduced_motion": false,
       "picker": 4,
       "file": "product-222.png",
-      "rgb565_sha256": "0b13a7cc02ded3a5800e91d33b8373c020d426c7893c63f17e042874dce1a103",
-      "png_sha256": "610676900ffda193378a75014795d4f086a6f91a446a01e3cd185b4ef89f0517"
+      "rgb565_sha256": "c4c9972eb4d0c6047ae2c4f6482bdaa7cfd67594ea1e972be927d2e0a3d37299",
+      "png_sha256": "f299e83a9fecee7b52fc438974dbc0e6ad664bdc9323e65df5fdd98f9b7928e6"
     },
     {
       "page": "time",
@@ -539,8 +579,8 @@
       "reduced_motion": false,
       "picker": 5,
       "file": "product-223.png",
-      "rgb565_sha256": "4a9774d2e68a5749875d8525dac09ffd7a6b4fa97a6348c2210f31a18db94023",
-      "png_sha256": "cd5c09fd6131003f014dbf4c7fbecd7c4bd86d76e47d61a4a86c00b51a4f83b6"
+      "rgb565_sha256": "162342631e9df74737df85d1e6f7baec866898c9bdbc820e6a90d366a47879dd",
+      "png_sha256": "c95857171799e71ddea45e9f2d8fc74887171e3d9fc0933da33627e7cccecc1a"
     },
     {
       "page": "about",
@@ -549,8 +589,8 @@
       "reduced_motion": false,
       "position": "top",
       "file": "product-127.png",
-      "rgb565_sha256": "ea114c288a0b9c2d60b35be618745fdf1d0aa209afba96b3ed0f8ebb706ba377",
-      "png_sha256": "75b5e4ed4bcf001a49e85bdf1fda66d00df7487608df4312b4c754a1bd709209"
+      "rgb565_sha256": "10518bb6312046ca1f9b1bdf93e5b57133774f9b4985f29aec8a1f0064ee435b",
+      "png_sha256": "f0ccbc4395ec3c4bb6e1ed73085e4f6842cf5bbcf6159b25d5cdd6134a5a4a65"
     },
     {
       "page": "about",
@@ -559,8 +599,8 @@
       "reduced_motion": false,
       "position": "bottom",
       "file": "product-327.png",
-      "rgb565_sha256": "f3bffc99d38629f0cf4923f3d8b5861bbd901af67b2384b4f22e7d764c6e6665",
-      "png_sha256": "fe09eb95a3d58c98e90029e1c0f55eadd1b601e525ac178aefaccc4c6b17fd74"
+      "rgb565_sha256": "02587b96aae6e73f05cc2fe665f1b81ee6e26552d9e7422f1f1d08ef2c51ba21",
+      "png_sha256": "57c875d7309fd9e5a7a1d787f2918fa0b59acdfd6cba01ad46ea4c22cadb28da"
     },
     {
       "page": "face",
@@ -599,8 +639,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-131.png",
-      "rgb565_sha256": "9d5f9b0ca3fec7d3874fade170381762ba88c8649b45309c99afd996385b9c58",
-      "png_sha256": "b3fabd8646b9b5b9092333a43b3f0a66d698c15486dc7261cfb6c54484cfe47f"
+      "rgb565_sha256": "e8e4379812148c5c1329be2e3198730451ef195029d61b258b41a718ff29ba30",
+      "png_sha256": "eab827e6870397ff85decc5ffa13b8edb859f6dca4e43b5e2dfcd4a962e0a366"
     },
     {
       "page": "brightness",
@@ -609,8 +649,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-132.png",
-      "rgb565_sha256": "544edfdd9218b79ad71bbb20ee9529057ca38904d8989c2d40ea9fded522743e",
-      "png_sha256": "9ad1b7102c7d9d05b51b495890165b67b5496fcf60de0d98d20b196ddbc191e3"
+      "rgb565_sha256": "f3688612f3a3cd56f40d1af3669b456f3d76e51c086b44408367f483264d4146",
+      "png_sha256": "2d7657e92b2d56849558bb2312d6d687af5d04ceb58e13476dbed8b37e14cd4d"
     },
     {
       "page": "time",
@@ -619,8 +659,18 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-133.png",
-      "rgb565_sha256": "6a008f5893cce3aead0ef15de5522bd38ea45497aa43c3c917c4af73464d8c1a",
-      "png_sha256": "6c167531fffbaf5f4e7a93171dd6dccdc5ec5096c587ef92a6cf165d42e8312e"
+      "rgb565_sha256": "d6662064f7210f8d63168d9e4c73593d2320809857b365742c9fef442c7d583f",
+      "png_sha256": "86bbead3ced2c9acaa558e7089cd8ade0981d54d9656cafd63c1abb2814fb95f"
+    },
+    {
+      "page": "time",
+      "large_text": false,
+      "quality": 0,
+      "reduced_motion": true,
+      "position": "bottom",
+      "file": "product-433.png",
+      "rgb565_sha256": "16b446a275a54b897ad3036dfc55a17c0672bdfa0d2df5098882f71fbbf12abb",
+      "png_sha256": "d66be1d526be86ec15ba4774f6e4c3c46119ba6d7af9767a080980f467fe9db2"
     },
     {
       "page": "time",
@@ -629,8 +679,8 @@
       "reduced_motion": true,
       "picker": 0,
       "file": "product-224.png",
-      "rgb565_sha256": "77b64513f1e414e6b768943b931a117e1104d8a0e8c3eba308dd383db27da336",
-      "png_sha256": "a8b0ed2220288309089a2663d65d6898a76e1eb5a1269e4b9d52212ba96626e3"
+      "rgb565_sha256": "0b7e7ef14df1abc81327a5f6b99da7e8babc41fa78b95f8c1cb86e046592e868",
+      "png_sha256": "4fb6a8fe6a1a7176114f1b0d11c98502fefd028513b4a9bf84bf5755740a963c"
     },
     {
       "page": "time",
@@ -639,8 +689,8 @@
       "reduced_motion": true,
       "picker": 1,
       "file": "product-225.png",
-      "rgb565_sha256": "8dd5eb019892acd81a626649eb70ff5bc61fc90355472a5806e1288ed57111b0",
-      "png_sha256": "be545ecf270f4bd2dab17bf327eb9fcc0c2ccee11995c96c8d393578a039b7d9"
+      "rgb565_sha256": "742e44f629238db19016df35b85d1a4456b69c645e8bd096d3f1b708a07f963b",
+      "png_sha256": "7206d6a65f8e4d1c20ca214af4ab59dd50003d5e69ed7fecfa74ddd42cb48174"
     },
     {
       "page": "time",
@@ -649,8 +699,8 @@
       "reduced_motion": true,
       "picker": 2,
       "file": "product-226.png",
-      "rgb565_sha256": "5082d319cffaa9a5764cf69bdacba2844c1e169f8e9c3bce581340bc7fe72395",
-      "png_sha256": "5c7601fd0af08a4600bb6ed6387de3918d5ebc0f1a055d0962fdbd2e1b80c0f6"
+      "rgb565_sha256": "4d009006a9b971660e4a0f0f16b4c4c167034196c948338e42233e5a11d8f2ce",
+      "png_sha256": "06a2ec1b38b1f15078c6da36f16a5625e6d469ace9deabdcc4b9b1d542214ad5"
     },
     {
       "page": "time",
@@ -659,8 +709,8 @@
       "reduced_motion": true,
       "picker": 3,
       "file": "product-227.png",
-      "rgb565_sha256": "0e8510f8d0e865621a650f284a649673c5856ea1856ebcf9beac18a360e43938",
-      "png_sha256": "f4c22ecfb06ce3bab114a25e701679cf2b371fa0917f0deae6c3d45b9dcf05a7"
+      "rgb565_sha256": "ceee1515defe7e3f2a698a651af1d7cb53b21aa24f3f38ffd5605b04320e53ba",
+      "png_sha256": "d8d04f222e846584b831931251a7f765e3f5be7996aad2f5e8a2787dc0b24507"
     },
     {
       "page": "time",
@@ -669,8 +719,8 @@
       "reduced_motion": true,
       "picker": 4,
       "file": "product-228.png",
-      "rgb565_sha256": "f76e7b922a0deb2fc90037c7914b8a1513ce677ff26ff93ad29a2769bdacae70",
-      "png_sha256": "f3036710ab0b180ba38fd6dbd544c80021d727d0d12fd67d1fbd657d5c997778"
+      "rgb565_sha256": "35fca565e042f188d9d3100c62f6bb450dd251002e354173588f0f214aa8f710",
+      "png_sha256": "e1e8e6a4989d1066ab8f83eb2dc83392eb6f7e9e3cb5e5d9d0d292880d76ec7c"
     },
     {
       "page": "time",
@@ -679,8 +729,8 @@
       "reduced_motion": true,
       "picker": 5,
       "file": "product-229.png",
-      "rgb565_sha256": "5ea9c1baf7ff511dbff577cb9ef1fe78fe18e066775d4fbf40cd21ad99ca8efa",
-      "png_sha256": "43ede809e1dad349916ec7c6db7043fd1b7d173661990810d421a8d73ab306da"
+      "rgb565_sha256": "a26431850a3c11603ba464143d06e82d53bfa4aa53ed0d060e968a1f9ee65f2e",
+      "png_sha256": "96a2274e9d2eb007d7e0568685e9d31d6537af69b573f7298ce33a2a92de7769"
     },
     {
       "page": "about",
@@ -689,8 +739,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-134.png",
-      "rgb565_sha256": "5eb41bc76e12ce18a03879e616a7abc97d9e3061b6aba540ecc34202e489b8f7",
-      "png_sha256": "eb424ff2e780b8b37b691c37b5dad2f57e9e6adffe4372778484a9de82c1ba44"
+      "rgb565_sha256": "096bde49d8747f292fe5206b2d6d1ada4dbba1eaff547ab920c07469ebdcde54",
+      "png_sha256": "8748714425ba26b7e252dc3d0550c571295ff10a3aa557c66c8612f8f0e76aa5"
     },
     {
       "page": "about",
@@ -699,8 +749,8 @@
       "reduced_motion": true,
       "position": "bottom",
       "file": "product-334.png",
-      "rgb565_sha256": "11f778f02a8d5fb94969f128e9e57838cfc0f5e6aab3eba06d02820c4acd413d",
-      "png_sha256": "c2db11940849cbf32092948e8e27b7a918ba338340ee0b0cc10b2ce8f9444f4e"
+      "rgb565_sha256": "23fde395a7cb11b46f9f56fa92a72ebca635153c92e053bcacc6a72299de51e0",
+      "png_sha256": "8ef0dc615206308b609ea0ddde95bee551ed2cb5b9f14866b02693fef6520ed3"
     },
     {
       "page": "face",
@@ -709,8 +759,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-135.png",
-      "rgb565_sha256": "aa21ac36c7bfbf844b8e0940367883e285d80f6804395c5b3ce45ee18aa67c14",
-      "png_sha256": "e3697095a4d2d69bfc90584c5b3197fe8574bbe2948001c5a4db7b81fd098a0a"
+      "rgb565_sha256": "ab7acf1244f93f9c8faf2268ac1c4cd3982613e339506deb6f4a3c358dad0862",
+      "png_sha256": "081f7f9fd5fdefb09d2d6cc4acc3be0571dad60aac64b1e1810740f5ed4741ce"
     },
     {
       "page": "apps",
@@ -729,8 +779,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-137.png",
-      "rgb565_sha256": "a05c927c33f224a2ba2dae882c452b452580380ab7f3018af2a2a4e7999b958a",
-      "png_sha256": "883f621b46eaa24516cc36c71888ab3cfabb8b9fe3b91a8dfb2497b1a0c3928c"
+      "rgb565_sha256": "3ac3c78acebe9aff012f5f50c8f10cdaaced4fd5862bdf0c73fa4e06538744f9",
+      "png_sha256": "48d8744bf6beea3df7c7eda4154b15d82868001664a2cd1af3496dc01da30a4f"
     },
     {
       "page": "display",
@@ -739,8 +789,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-138.png",
-      "rgb565_sha256": "9d5f9b0ca3fec7d3874fade170381762ba88c8649b45309c99afd996385b9c58",
-      "png_sha256": "b3fabd8646b9b5b9092333a43b3f0a66d698c15486dc7261cfb6c54484cfe47f"
+      "rgb565_sha256": "91c365a35c2c56f18c24519a28404354904277942c38fd053e3a704040d09787",
+      "png_sha256": "00ec746b70ad9e3cb40b3222ddb15138a1dba719cdc15c307ea0082912966545"
     },
     {
       "page": "brightness",
@@ -749,8 +799,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-139.png",
-      "rgb565_sha256": "544edfdd9218b79ad71bbb20ee9529057ca38904d8989c2d40ea9fded522743e",
-      "png_sha256": "9ad1b7102c7d9d05b51b495890165b67b5496fcf60de0d98d20b196ddbc191e3"
+      "rgb565_sha256": "cebd3701e474cf3c7f6e83960b995307a8f248f0fa1de8f84d3323f308b95927",
+      "png_sha256": "3e62d9c093963ae66abf3c7cecc47285c43b14a07e37d521fbc6f00721aa4992"
     },
     {
       "page": "time",
@@ -759,8 +809,18 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-140.png",
-      "rgb565_sha256": "6a008f5893cce3aead0ef15de5522bd38ea45497aa43c3c917c4af73464d8c1a",
-      "png_sha256": "6c167531fffbaf5f4e7a93171dd6dccdc5ec5096c587ef92a6cf165d42e8312e"
+      "rgb565_sha256": "2bfffbb2e5d8a88554cb5a37ed4baaa3fb76af369347783d5fd053412f34e1bd",
+      "png_sha256": "212786682f2a4e7ec5c41d31ce441f9bf29d1918bd7addef3a8bdc5471d2994e"
+    },
+    {
+      "page": "time",
+      "large_text": true,
+      "quality": 0,
+      "reduced_motion": true,
+      "position": "bottom",
+      "file": "product-440.png",
+      "rgb565_sha256": "56304ba4ba69c27467867042d3e98be2c6fe89fb9bb7388d531878c9a7cae8c8",
+      "png_sha256": "28b79e05d6a0c8729a273357a6c3eaedd415b3658e348542098d8bd8907b29a6"
     },
     {
       "page": "time",
@@ -769,8 +829,8 @@
       "reduced_motion": true,
       "picker": 0,
       "file": "product-230.png",
-      "rgb565_sha256": "77b64513f1e414e6b768943b931a117e1104d8a0e8c3eba308dd383db27da336",
-      "png_sha256": "a8b0ed2220288309089a2663d65d6898a76e1eb5a1269e4b9d52212ba96626e3"
+      "rgb565_sha256": "04adfcdce12a8c8c2dbae50cff60d8e9ddf10c540947cc9848a7fa2edd9a03db",
+      "png_sha256": "892db0eceafafb769c7a955838983276a1bbd5d3a8acba123415f8ac91353f39"
     },
     {
       "page": "time",
@@ -779,8 +839,8 @@
       "reduced_motion": true,
       "picker": 1,
       "file": "product-231.png",
-      "rgb565_sha256": "8dd5eb019892acd81a626649eb70ff5bc61fc90355472a5806e1288ed57111b0",
-      "png_sha256": "be545ecf270f4bd2dab17bf327eb9fcc0c2ccee11995c96c8d393578a039b7d9"
+      "rgb565_sha256": "94e44043fd653d014d304c8aaa74b502725b62e6f2cbb7ede12c3565be86e908",
+      "png_sha256": "9fb1d85041450150dbb3c25b8aee7d9bcbcce18ab4263d4caffad0d1ad0a1c94"
     },
     {
       "page": "time",
@@ -789,8 +849,8 @@
       "reduced_motion": true,
       "picker": 2,
       "file": "product-232.png",
-      "rgb565_sha256": "5082d319cffaa9a5764cf69bdacba2844c1e169f8e9c3bce581340bc7fe72395",
-      "png_sha256": "5c7601fd0af08a4600bb6ed6387de3918d5ebc0f1a055d0962fdbd2e1b80c0f6"
+      "rgb565_sha256": "c6ccd4c24c6616f9f32f9544643b35855a7acb6f3821b20e2c30682e86f5e476",
+      "png_sha256": "ef2bc4df48db1c47c432476a226d06e490370a8e4069ba265cd6a54968627964"
     },
     {
       "page": "time",
@@ -799,8 +859,8 @@
       "reduced_motion": true,
       "picker": 3,
       "file": "product-233.png",
-      "rgb565_sha256": "0e8510f8d0e865621a650f284a649673c5856ea1856ebcf9beac18a360e43938",
-      "png_sha256": "f4c22ecfb06ce3bab114a25e701679cf2b371fa0917f0deae6c3d45b9dcf05a7"
+      "rgb565_sha256": "ac5c27441d9aa5947237755150f2fef82c50a30bd33131b6bf6dab293f4de76f",
+      "png_sha256": "b1ec559fca8491c4825db7893e1b9def53b32c1f9b0477ee2dfdd9b961f01bf5"
     },
     {
       "page": "time",
@@ -809,8 +869,8 @@
       "reduced_motion": true,
       "picker": 4,
       "file": "product-234.png",
-      "rgb565_sha256": "f76e7b922a0deb2fc90037c7914b8a1513ce677ff26ff93ad29a2769bdacae70",
-      "png_sha256": "f3036710ab0b180ba38fd6dbd544c80021d727d0d12fd67d1fbd657d5c997778"
+      "rgb565_sha256": "31f299f5b89290cf4fbbb58b1e3137c5b151c8d2d79731775507203a4a950405",
+      "png_sha256": "4d390ea2db97a340f9342a68ba992f1f0d54ed1b1ff0a4539eefd9447c7bb9ed"
     },
     {
       "page": "time",
@@ -819,8 +879,8 @@
       "reduced_motion": true,
       "picker": 5,
       "file": "product-235.png",
-      "rgb565_sha256": "5ea9c1baf7ff511dbff577cb9ef1fe78fe18e066775d4fbf40cd21ad99ca8efa",
-      "png_sha256": "43ede809e1dad349916ec7c6db7043fd1b7d173661990810d421a8d73ab306da"
+      "rgb565_sha256": "c40c8b1f58e5906b6073545b391018c7b6729fbc7335c79c5f7be61f29b0bac1",
+      "png_sha256": "89b82b949db97bd81796e60829db36b3af8ea669695644e198e4ceb53055f7e3"
     },
     {
       "page": "about",
@@ -829,8 +889,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-141.png",
-      "rgb565_sha256": "5eb41bc76e12ce18a03879e616a7abc97d9e3061b6aba540ecc34202e489b8f7",
-      "png_sha256": "eb424ff2e780b8b37b691c37b5dad2f57e9e6adffe4372778484a9de82c1ba44"
+      "rgb565_sha256": "6a2de96232a5007df737d5cb3ebd8573c861ba60781050a8744008239708baac",
+      "png_sha256": "e43bdd8087c6043b438e0ff7aebdce60520a16f7aecf206c547b840ac4b550cf"
     },
     {
       "page": "about",
@@ -839,8 +899,8 @@
       "reduced_motion": true,
       "position": "bottom",
       "file": "product-341.png",
-      "rgb565_sha256": "11f778f02a8d5fb94969f128e9e57838cfc0f5e6aab3eba06d02820c4acd413d",
-      "png_sha256": "c2db11940849cbf32092948e8e27b7a918ba338340ee0b0cc10b2ce8f9444f4e"
+      "rgb565_sha256": "335ed7756cfb749a16fb02a1aacc60d423c95aa531c908d464bc9ab4542a0e8a",
+      "png_sha256": "570cc85ac4ae401a1a3907cb1d09872a8b3800ca95ef78732590087495b8f7b7"
     },
     {
       "page": "face",
@@ -879,8 +939,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-145.png",
-      "rgb565_sha256": "4aae43b92907ab703ff8a044d6ac588aa64c81f1feb9cfc1bab191c6e82beb0b",
-      "png_sha256": "e69c58c96dbd0e3b940b4b77dfbf74423ca641e775901ce1d343cc872d4470b2"
+      "rgb565_sha256": "bf170e185a3b0fe0629a5d8b9c32a78ce3c6223b7b6496dda900a9f1f6f67821",
+      "png_sha256": "83b0ccd098fe2efbf057d59344b95a1aa07550e8fc58eafd6181604c8a7be22b"
     },
     {
       "page": "brightness",
@@ -889,8 +949,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-146.png",
-      "rgb565_sha256": "430d78257954e89a4f51682ff0b38742be4cb77107ccada57a7c4fa966449619",
-      "png_sha256": "24ce8ab65acb3859b6bc8dd9a97d95ecc0b81a75c7e90a8abebd72d731ea5224"
+      "rgb565_sha256": "a78860fc9e2f2b3bc4e8bb39fd41fb08bd75c988a4f432dfacf291ea03ec2cb3",
+      "png_sha256": "65d045a08b530e5de6d040b1013f4aaf80c3da6cef2317261a72f2791995fbe9"
     },
     {
       "page": "time",
@@ -899,8 +959,18 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-147.png",
-      "rgb565_sha256": "30977bb7015ba29641e13dee9aefda11a6d8d2933c3408e56677be6eafb9f41d",
-      "png_sha256": "cebdb049cb8c97eadb9dc349bbae4e6d4184b75677e0af7bbaa131b25191cd45"
+      "rgb565_sha256": "dd4326cd2af34671c048fd34941fb16cec573eb67b7038c05fa20cb691e00ee9",
+      "png_sha256": "81df300d157c71a540cf872750e75d08e4c854ad322d339bde4a0ba2169cd9e3"
+    },
+    {
+      "page": "time",
+      "large_text": false,
+      "quality": 1,
+      "reduced_motion": true,
+      "position": "bottom",
+      "file": "product-447.png",
+      "rgb565_sha256": "3931a6a67838a3a58db28ce0dfcf9cf5f8e2f74e5c1205c4ad281c5ab4417180",
+      "png_sha256": "fcfe1ddaaf38c4cda18890c0ebbfdd689d5be37c3d109ee300f4f50e63176e21"
     },
     {
       "page": "time",
@@ -909,8 +979,8 @@
       "reduced_motion": true,
       "picker": 0,
       "file": "product-236.png",
-      "rgb565_sha256": "472257664a8ff311e07ca119c025cf8ce067c9afe78fe3595a3fa66ecdbdacad",
-      "png_sha256": "3dd1db1d23253ecefa598ef2c39da939c16f82c9895990d23254be47ef035a48"
+      "rgb565_sha256": "928c8a0afdbe3ff0bec49adf0be0b148ce485cbe4b1aba0bbdd3daaceebdd87b",
+      "png_sha256": "6d165663135edad56c8af1c81daa4b2c843ac848a52462ec3dd3ae0902218782"
     },
     {
       "page": "time",
@@ -919,8 +989,8 @@
       "reduced_motion": true,
       "picker": 1,
       "file": "product-237.png",
-      "rgb565_sha256": "4301003a0fd6201ac379f10ab1a438d05f7052161db2b37b9c67263ce4d9ad07",
-      "png_sha256": "00fdf16bd1d278eab908095b4d9914c03a6ba6d08e45ec8a642ece03da6859ef"
+      "rgb565_sha256": "0ad3c707596c876ab81518308d97e174cc875093436f3edc41bafc6a2b3cee24",
+      "png_sha256": "e9d5d6eaf134a5d79b2bda7cb57386b4fa053f3eebc346c77ff5514537334163"
     },
     {
       "page": "time",
@@ -929,8 +999,8 @@
       "reduced_motion": true,
       "picker": 2,
       "file": "product-238.png",
-      "rgb565_sha256": "2571c35f8847d642d4c7fb06c836836dc764a9af225e01daed77db8c96ccf496",
-      "png_sha256": "29a1ec4789a27c3e5bf09ad265e2188d5c09699f5bdb962d17fc77321b51db4d"
+      "rgb565_sha256": "75b480405f9f7b423fea994d67b32a6808914781b342b42f37c2761d07a385f7",
+      "png_sha256": "667a03ce99ddbfb8bea9b96298e3c940d8d8481826caff0f26ed76441076bfb1"
     },
     {
       "page": "time",
@@ -939,8 +1009,8 @@
       "reduced_motion": true,
       "picker": 3,
       "file": "product-239.png",
-      "rgb565_sha256": "cd880565e2cd5018f41c465cbf126fb363ddfa9a4d168bf42ddbb311223346a9",
-      "png_sha256": "f9bceb5f16ae72f17049b333443c5819639cdc57570ce433a254d6b516bbd5a5"
+      "rgb565_sha256": "1f3662d4fca53e8fe34fb3122d4c44218e0efdae5e2e6ad71c0c2dbe91c37e82",
+      "png_sha256": "0b667c399ed703231491e8fa91230e87d5279dafc6801941ebaa8186b25c9791"
     },
     {
       "page": "time",
@@ -949,8 +1019,8 @@
       "reduced_motion": true,
       "picker": 4,
       "file": "product-240.png",
-      "rgb565_sha256": "0b13a7cc02ded3a5800e91d33b8373c020d426c7893c63f17e042874dce1a103",
-      "png_sha256": "610676900ffda193378a75014795d4f086a6f91a446a01e3cd185b4ef89f0517"
+      "rgb565_sha256": "da13ed5a5da363dd7281e5c97267d2ed05ce2c4812d2b50ee3f65196ef3d4b0b",
+      "png_sha256": "47678d51e2988f98e55f5a2c2c6beb70072d1a2eb30e264598572aecb0758b82"
     },
     {
       "page": "time",
@@ -959,8 +1029,8 @@
       "reduced_motion": true,
       "picker": 5,
       "file": "product-241.png",
-      "rgb565_sha256": "4a9774d2e68a5749875d8525dac09ffd7a6b4fa97a6348c2210f31a18db94023",
-      "png_sha256": "cd5c09fd6131003f014dbf4c7fbecd7c4bd86d76e47d61a4a86c00b51a4f83b6"
+      "rgb565_sha256": "8f47cafc1dbc0644d271f4d952ac968f48525c4bc8b2aa95edc6410239172777",
+      "png_sha256": "afc2d2b85daf377b1183c3018873926e7d67643e4514ac271b60eb0b7c35a1c2"
     },
     {
       "page": "about",
@@ -969,8 +1039,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-148.png",
-      "rgb565_sha256": "ea114c288a0b9c2d60b35be618745fdf1d0aa209afba96b3ed0f8ebb706ba377",
-      "png_sha256": "75b5e4ed4bcf001a49e85bdf1fda66d00df7487608df4312b4c754a1bd709209"
+      "rgb565_sha256": "779a3b4d8acd23291b9148f5475ecb783f87c7c40e83b09bb94ebbf61e77ef7a",
+      "png_sha256": "8fa6c461dbc832b20d8c59c9125316a1c88e343e5645493cee922ee2fe933f75"
     },
     {
       "page": "about",
@@ -979,8 +1049,8 @@
       "reduced_motion": true,
       "position": "bottom",
       "file": "product-348.png",
-      "rgb565_sha256": "f3bffc99d38629f0cf4923f3d8b5861bbd901af67b2384b4f22e7d764c6e6665",
-      "png_sha256": "fe09eb95a3d58c98e90029e1c0f55eadd1b601e525ac178aefaccc4c6b17fd74"
+      "rgb565_sha256": "0862c2c6ec8a36f3824f920e477951744f0de27952a83accd941a4288da7c7f1",
+      "png_sha256": "7f2d64a540a0631bef8cf5a41b5afcfd014b424888a9fed807b2b9bde7d2a8ea"
     },
     {
       "page": "face",
@@ -989,8 +1059,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-149.png",
-      "rgb565_sha256": "aa21ac36c7bfbf844b8e0940367883e285d80f6804395c5b3ce45ee18aa67c14",
-      "png_sha256": "e3697095a4d2d69bfc90584c5b3197fe8574bbe2948001c5a4db7b81fd098a0a"
+      "rgb565_sha256": "ab7acf1244f93f9c8faf2268ac1c4cd3982613e339506deb6f4a3c358dad0862",
+      "png_sha256": "081f7f9fd5fdefb09d2d6cc4acc3be0571dad60aac64b1e1810740f5ed4741ce"
     },
     {
       "page": "apps",
@@ -1009,8 +1079,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-151.png",
-      "rgb565_sha256": "a05c927c33f224a2ba2dae882c452b452580380ab7f3018af2a2a4e7999b958a",
-      "png_sha256": "883f621b46eaa24516cc36c71888ab3cfabb8b9fe3b91a8dfb2497b1a0c3928c"
+      "rgb565_sha256": "3ac3c78acebe9aff012f5f50c8f10cdaaced4fd5862bdf0c73fa4e06538744f9",
+      "png_sha256": "48d8744bf6beea3df7c7eda4154b15d82868001664a2cd1af3496dc01da30a4f"
     },
     {
       "page": "display",
@@ -1019,8 +1089,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-152.png",
-      "rgb565_sha256": "4aae43b92907ab703ff8a044d6ac588aa64c81f1feb9cfc1bab191c6e82beb0b",
-      "png_sha256": "e69c58c96dbd0e3b940b4b77dfbf74423ca641e775901ce1d343cc872d4470b2"
+      "rgb565_sha256": "85b917770dd29075101515b48ec2ed11e73cf82acbd2bb3df4b14df09c2b999e",
+      "png_sha256": "3622b3dbe8a53ecf052750f7119446ed3d7d8aea1c50572305281733ae3a4021"
     },
     {
       "page": "brightness",
@@ -1029,8 +1099,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-153.png",
-      "rgb565_sha256": "430d78257954e89a4f51682ff0b38742be4cb77107ccada57a7c4fa966449619",
-      "png_sha256": "24ce8ab65acb3859b6bc8dd9a97d95ecc0b81a75c7e90a8abebd72d731ea5224"
+      "rgb565_sha256": "f2c7ad015fee09cec8eb9b367c5c6bf10c54e19f428c262cf04eaf2f1a0fb760",
+      "png_sha256": "f9885e59109d7b0a907c919031adbbb267b26c87c83fd5bd09a547c321e9c862"
     },
     {
       "page": "time",
@@ -1039,8 +1109,18 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-154.png",
-      "rgb565_sha256": "30977bb7015ba29641e13dee9aefda11a6d8d2933c3408e56677be6eafb9f41d",
-      "png_sha256": "cebdb049cb8c97eadb9dc349bbae4e6d4184b75677e0af7bbaa131b25191cd45"
+      "rgb565_sha256": "019ca991394b0e0454da7dc433e983ad795be171881902319b1c7464cd502561",
+      "png_sha256": "ab2e99fcf10f55f95ef5af71dd00f4bab9a736e7510b6675db4a7a015be702a0"
+    },
+    {
+      "page": "time",
+      "large_text": true,
+      "quality": 1,
+      "reduced_motion": true,
+      "position": "bottom",
+      "file": "product-454.png",
+      "rgb565_sha256": "160b94fa5cf14fb9fe77146b8aff05c8d6c5a608ad352f14594846df0fb22abc",
+      "png_sha256": "e7f922504cd3d00c1916bdf8e594e433e961f784ad2769d08241aee7cf3899fe"
     },
     {
       "page": "time",
@@ -1049,8 +1129,8 @@
       "reduced_motion": true,
       "picker": 0,
       "file": "product-242.png",
-      "rgb565_sha256": "472257664a8ff311e07ca119c025cf8ce067c9afe78fe3595a3fa66ecdbdacad",
-      "png_sha256": "3dd1db1d23253ecefa598ef2c39da939c16f82c9895990d23254be47ef035a48"
+      "rgb565_sha256": "27fada2f6e5ee92348876b8b9fb491b704bfb2e5351303e01f255c9abc3c0008",
+      "png_sha256": "1ef93705dbffdeb6d4f1518a80f790af922096b8c3a21c80cc1d46f47eec5bcf"
     },
     {
       "page": "time",
@@ -1059,8 +1139,8 @@
       "reduced_motion": true,
       "picker": 1,
       "file": "product-243.png",
-      "rgb565_sha256": "4301003a0fd6201ac379f10ab1a438d05f7052161db2b37b9c67263ce4d9ad07",
-      "png_sha256": "00fdf16bd1d278eab908095b4d9914c03a6ba6d08e45ec8a642ece03da6859ef"
+      "rgb565_sha256": "40d1a7bf11e462aea06f5fb86b40d451bd93939782dec0bd8bc856b668408c13",
+      "png_sha256": "8e33bda70fef4744fb21a3c182e8ac83d1c19d958975332301aa7db9a7946304"
     },
     {
       "page": "time",
@@ -1069,8 +1149,8 @@
       "reduced_motion": true,
       "picker": 2,
       "file": "product-244.png",
-      "rgb565_sha256": "2571c35f8847d642d4c7fb06c836836dc764a9af225e01daed77db8c96ccf496",
-      "png_sha256": "29a1ec4789a27c3e5bf09ad265e2188d5c09699f5bdb962d17fc77321b51db4d"
+      "rgb565_sha256": "650fc9d4c6209f1a587e34daefb003d0f984d75ce66de2feb8db4ae5a63b0ded",
+      "png_sha256": "9e623532f50f9ac5deba8d033a263e8d44972689dd936780a50558214e15c2d1"
     },
     {
       "page": "time",
@@ -1079,8 +1159,8 @@
       "reduced_motion": true,
       "picker": 3,
       "file": "product-245.png",
-      "rgb565_sha256": "cd880565e2cd5018f41c465cbf126fb363ddfa9a4d168bf42ddbb311223346a9",
-      "png_sha256": "f9bceb5f16ae72f17049b333443c5819639cdc57570ce433a254d6b516bbd5a5"
+      "rgb565_sha256": "1d6441dd838d10bb60bc76ce4971962a14d861ddeb28cc4dcd10ef1480c42cd1",
+      "png_sha256": "ffe70dce7acfbe449919f23823393792f96ebc1c63e2cda24eb8b5f1d863ff59"
     },
     {
       "page": "time",
@@ -1089,8 +1169,8 @@
       "reduced_motion": true,
       "picker": 4,
       "file": "product-246.png",
-      "rgb565_sha256": "0b13a7cc02ded3a5800e91d33b8373c020d426c7893c63f17e042874dce1a103",
-      "png_sha256": "610676900ffda193378a75014795d4f086a6f91a446a01e3cd185b4ef89f0517"
+      "rgb565_sha256": "c4c9972eb4d0c6047ae2c4f6482bdaa7cfd67594ea1e972be927d2e0a3d37299",
+      "png_sha256": "f299e83a9fecee7b52fc438974dbc0e6ad664bdc9323e65df5fdd98f9b7928e6"
     },
     {
       "page": "time",
@@ -1099,8 +1179,8 @@
       "reduced_motion": true,
       "picker": 5,
       "file": "product-247.png",
-      "rgb565_sha256": "4a9774d2e68a5749875d8525dac09ffd7a6b4fa97a6348c2210f31a18db94023",
-      "png_sha256": "cd5c09fd6131003f014dbf4c7fbecd7c4bd86d76e47d61a4a86c00b51a4f83b6"
+      "rgb565_sha256": "162342631e9df74737df85d1e6f7baec866898c9bdbc820e6a90d366a47879dd",
+      "png_sha256": "c95857171799e71ddea45e9f2d8fc74887171e3d9fc0933da33627e7cccecc1a"
     },
     {
       "page": "about",
@@ -1109,8 +1189,8 @@
       "reduced_motion": true,
       "position": "top",
       "file": "product-155.png",
-      "rgb565_sha256": "ea114c288a0b9c2d60b35be618745fdf1d0aa209afba96b3ed0f8ebb706ba377",
-      "png_sha256": "75b5e4ed4bcf001a49e85bdf1fda66d00df7487608df4312b4c754a1bd709209"
+      "rgb565_sha256": "10518bb6312046ca1f9b1bdf93e5b57133774f9b4985f29aec8a1f0064ee435b",
+      "png_sha256": "f0ccbc4395ec3c4bb6e1ed73085e4f6842cf5bbcf6159b25d5cdd6134a5a4a65"
     },
     {
       "page": "about",
@@ -1119,8 +1199,8 @@
       "reduced_motion": true,
       "position": "bottom",
       "file": "product-355.png",
-      "rgb565_sha256": "f3bffc99d38629f0cf4923f3d8b5861bbd901af67b2384b4f22e7d764c6e6665",
-      "png_sha256": "fe09eb95a3d58c98e90029e1c0f55eadd1b601e525ac178aefaccc4c6b17fd74"
+      "rgb565_sha256": "02587b96aae6e73f05cc2fe665f1b81ee6e26552d9e7422f1f1d08ef2c51ba21",
+      "png_sha256": "57c875d7309fd9e5a7a1d787f2918fa0b59acdfd6cba01ad46ea4c22cadb28da"
     }
   ]
 }

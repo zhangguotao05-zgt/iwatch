@@ -5762,6 +5762,13 @@
           </Files>
           <Files>
             <File>
+              <FileName>iw_render_probe.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\gui_core\iw_render_probe.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
               <FileName>iw_routes.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\src\gui_core\iw_routes.c</FilePath>
