@@ -5644,6 +5644,13 @@
           <GroupName>Iwatch_core</GroupName>
           <Files>
             <File>
+              <FileName>iw_chronograph.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\core\iw_chronograph.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
               <FileName>iw_display_guard.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\src\core\iw_display_guard.c</FilePath>
