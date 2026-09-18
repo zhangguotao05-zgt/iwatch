@@ -6,7 +6,7 @@
 <main class="doc-main"><h1>D10 首批七页实施记录</h1>
 <p class="doc-meta">2026-09-18 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/12">Issue #12</a> · 开发起点 7cc8bcf · 视觉契约 IW-VISUAL-2.0 / REF-W26-ZH-R1</p>
 <section id="status"><h2>当前状态</h2>
-<p>D09 已按审批基线 042ba6f、固件源码 05fb667 收口。D10 七页、路由与服务接入已实现；源码 2e89117 的历史实机记录保留在下文；本轮 7cc8bcf 增量板测见复核交接。增量源码 7cc8bcf 补齐选择器拖动吸附、大字号重排及绘制批次采样，见<a href="D10_界面完善与复核交接.html">界面完善与复核交接</a>。跨页动效降级与性能测量边界单列；显示异常 #10 和 Issue #12 保持打开，等待架构复核。</p>
+<p>D09 已按审批基线 042ba6f、固件源码 05fb667 收口。D10 七页、路由与服务接入已实现；源码 2e89117 的历史实机记录保留在下文；本轮 7cc8bcf 增量板测见复核交接。增量源码 7cc8bcf 补齐选择器拖动吸附、大字号重排及绘制批次采样，见<a href="D10_界面完善与复核交接.html">界面完善与复核交接</a>。跨页动效降级与性能测量边界单列；显示异常 #10 保持打开；Issue #12 已按架构复核收口。</p>
 <table><thead><tr><th>范围</th><th>状态</th></tr></thead><tbody>
 <tr><td>校时草稿、格式化、亮度数值映射</td><td>已接入真实服务，包含校时冲突重试、亮度预览合并与最终提交。</td></tr>
 <tr><td>七页文案与正式字体</td><td>已加入正式清单并生成，字体校验与既有绘制回归通过。</td></tr>
@@ -78,5 +78,5 @@
 <tr><td>显示异常</td><td>软件 reboot 后先读到有效 CO5300 ID，随后出现 draw_core timeout、清理驱动状态和 recovery attempt 1，再经 PowerOff/PowerOn 重新识别并显示。日志计数 recovery=1，用户确认当前画面和操作正常，未单独说明瞬时启动画面。此证据仅证明一次恢复，不证明根因已修复，也不能将其直接等同早先半黑半白的同一原因；关联 #10 继续分析。D10 整体暂不收口。</td></tr>
 </tbody></table>
 <p>封存目录 <code>logs/board-validation-20260918-d10</code> 仅本地可用，含两轮烧录完整输出、首版与 cold-clock-fix 双工具链归档、自动进退脚本和原始串口。serial-raw.bin 为 299,076 B，SHA-256 <code>37c3bfb306313b599ff8108939f98c36305e62f37e252be014c33ea97e43137b</code>；timeline.jsonl SHA-256 <code>77f9b4fafbdf280e05534a4659459b8c07131e7fa7ab8a5a48756d7ddb5e46f6</code>。采集偏移连续性通过；这只检查已接收数据内部连续，不保证 USB 复位期间绝不丢字节。原始偏移 0～462 为旧固件，463 起为首版，72,186 起为修正版烧录之后的数据。</p>
-<p><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/8">#8</a> 继续保留历史最大 215 ms、D09 最大 133 ms 和六次触摸溢出；<a href="https://github.com/zhangguotao05-zgt/iwatch/issues/10">#10</a> 未定位的显示异常仍打开。页面成型后独立记录首帧、帧间隔和停顿，不以输入队列延迟代替帧率。D10 Issue #12 保持打开。</p>
+<p><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/8">#8</a> 继续保留历史最大 215 ms、D09 最大 133 ms 和六次触摸溢出；<a href="https://github.com/zhangguotao05-zgt/iwatch/issues/10">#10</a> 未定位的显示异常仍打开。页面成型后独立记录首帧、帧间隔和停顿，不以输入队列延迟代替帧率。D10 Issue #12 已按架构复核收口。</p>
 </section></main></div></body></html>

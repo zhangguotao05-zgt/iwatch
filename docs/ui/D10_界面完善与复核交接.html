@@ -5,7 +5,7 @@
 <div class="page-shell"><main class="doc-main"><h1>D10 界面完善与复核交接</h1>
 <p class="doc-meta">2026-09-18 · 源码 <code>7cc8bcf</code> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/12">Issue #12</a></p>
 <section id="scope"><h2>复核范围</h2>
-<p>在 <a href="D10_首批七页实施记录.html">七页基本功能与首次校时整改</a>上补齐字段拖动吸附、大字号重排、真实字体换行和诊断采样。以 <a href="Apple_Watch界面复刻定稿_v2.html">IW-VISUAL-2.0 定稿</a>为对照；本记录不等于架构审批，Issue #12 仍打开。</p>
+<p>在 <a href="D10_首批七页实施记录.html">七页基本功能与首次校时整改</a>上补齐字段拖动吸附、大字号重排、真实字体换行和诊断采样。以 <a href="Apple_Watch界面复刻定稿_v2.html">IW-VISUAL-2.0 定稿</a>为对照；本记录已按架构审批收口，Issue #12 已完成；性能、显示异常和持久化边界继续独立跟踪。</p>
 <ul><li>选择器只维护前值、候选值、后值。拖动超过半格后改变一个候选，松手按 190 ms ease-out 吸附；减少动态效果时直接到位。触摸与点击均可完成操作，不依赖旋钮。</li>
 <li>“选择”只合并字段草稿，整页“设置”才提交命令。取消、输入重置、Home、暂停和销毁停止动画，返回字段编辑前的滚动位置。</li>
 <li>大字号校时页改为双列正文，时区可通过滚动到达；取消／设置保持固定。关于页按生产字体真实度量换行，错误文案进入正文，不覆盖页脚。</li>
@@ -54,6 +54,7 @@
 <tr><td>诊断开销对照</td><td>同一串口窗口报告：探针开启 <code>count=449,total=359863 us,max=32349 us</code>；关闭 <code>count=182,total=35489 us,max=15686 us</code>。计时起点为 GUI frame handler 进入探针前，终点为探针 begin/end 返回；该数据只描述探针与空闲观察开销，不代表面板刷新率。</td></tr>
 <tr><td>实机与证据</td><td>本轮增量证据位于 <code>logs/board-validation-20260918-d10-identity-fix</code>（仅本地）：GCC 三件套通过 COM9 写入并校验，COM10 原始串口 5,807 B，SHA-256 <code>ccb7014fe7c6a4cf643f22de36b55ebd006799d266f5238323bc639f754bc67a</code>；确认“未接入”完整可见、校时选择／取消／返回正常。未访问 J-Link。历史七页往返证据仍保留在 <code>logs/board-validation-20260918-d10-architect-fixes</code>。</td></tr>
 </tbody></table>
-<p>主机全量脚本为 38 项 Python 测试，字体、组件、路由、输入和产品边界测试均通过；GCC/Keil 均已重新构建、身份校验和 DryRun 通过。#8 的长文延迟／触摸溢出、#10 的显示异常、#12 的 D10 总体验收仍保持打开，以上证据提交架构师做增量复核。</p>
+<p>主机全量脚本为 38 项 Python 测试，字体、组件、路由、输入和产品边界测试均通过；GCC/Keil 均已重新构建、身份校验和 DryRun 通过。#8 的长文延迟／触摸溢出、#10 的显示异常、Issue #12 的 D10 总体验收已按架构结论收口，以上证据已通过架构师增量复核。</p>
+<p>架构审批结论：以 603ebaa 为文档基线，D10 当前范围通过；#8 长文／输入性能、#10 显示异常、V-DIFF-08 转场降级及 <code>flash1</code> FAL 报错继续保留，不宣称这些边界已解决。</p>
 </section>
 </main></div></body></html>
