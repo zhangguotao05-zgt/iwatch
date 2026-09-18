@@ -6,12 +6,12 @@
 <main class="doc-main"><h1>D10 首批七页实施记录</h1>
 <p class="doc-meta">2026-09-18 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/12">Issue #12</a> · 开发起点 f392996 · 视觉契约 IW-VISUAL-2.0 / REF-W26-ZH-R1</p>
 <section id="status"><h2>当前状态</h2>
-<p>D09 已按审批基线 042ba6f、固件源码 05fb667 收口。D10 七页、路由与服务接入已在本地实现，正在准备最终双工具链构建和实机验证；尚未完成阶段验收，Issue #12 保持打开。当前未烧录 D10，不能继承 D09 板测结论。</p>
+<p>D09 已按审批基线 042ba6f、固件源码 05fb667 收口。D10 七页、路由与服务接入已实现，源码 2e89117 的双工具链和基本实机流程已复验，首次校时禁用问题已修正。定稿动效、完整大字号重排与视觉矩阵仍待补齐；软件复位期间一次 LCD 绘制超时及恢复继续跟踪 #10，Issue #12 保持打开，不申请整体收口。</p>
 <table><thead><tr><th>范围</th><th>状态</th></tr></thead><tbody>
 <tr><td>校时草稿、格式化、亮度数值映射</td><td>已接入真实服务，包含校时冲突重试、亮度预览合并与最终提交。</td></tr>
 <tr><td>七页文案与正式字体</td><td>已加入正式清单并生成，字体校验与既有绘制回归通过。</td></tr>
 <tr><td>七页 View、路由、命令结果</td><td>已实现。开机进入 iwlist，KEY1 在列表根页与数字表盘之间切换，列表只展示已接入的设置；新页面已登记全局故障回收。</td></tr>
-<tr><td>目标构建、实机与视觉验收</td><td>源码 062889f 的 GCC/Keil 构建、身份、预算和 COM255 DryRun 均通过。新固件尚未烧录；视觉与实机验收待执行。</td></tr>
+<tr><td>目标构建、实机与视觉验收</td><td>源码 2e89117 的 GCC/Keil 构建、身份、预算和 COM255 DryRun 均通过；GCC 已刷入，基本操作及首次校时实屏复验通过。完整视觉验收与遗留差异未完成。</td></tr>
 </tbody></table></section>
 <section id="model"><h2>编辑模型与所有权</h2>
 <p><a href="../../firmware/iwatch/src/gui_core/iw_settings_model.h">iw_settings_model</a> 是无堆分配的纯 C 模型；<a href="../../firmware/iwatch/src/gui_core/iw_product_scene.h">iw_product_scene</a> 使用固定 48 项节点并复制文本；<a href="../../firmware/iwatch/src/gui_core/iw_product_view.h">iw_product_view</a> 负责裁切、绘制、命中与滚动。<a href="../../firmware/iwatch/src/platform/iw_product_controller.h">iw_product_controller</a> 读取服务、维护草稿并发出导航请求。LVGL 操作仍限定在 app_watch 线程。</p>
@@ -47,11 +47,13 @@
 <tr><td>主机模型</td><td>146,100 次日期/时区往返、1000 轮编辑、命令 ACK/离页/session 回归通过；核心脚本 46 项 Python 检查，其中一项环境跳过。</td></tr>
 <tr><td>主机真实 View</td><td>37 个构造失败点、47 个绘制任务失败点、15 个实际画线分配失败点；1000 轮七页生命周期、1000 轮控制器、1000 轮路由/故障恢复通过。真实 pointer 单击、取消、拖动和最终提交通过。</td></tr>
 <tr><td>既有回归</td><td>字体、组件、输入溢出、SDK 路由及 4046 次像素对照通过。GUI 脚本 38 项 Python 与核心脚本有重叠，不相加。主机采用全量包装脚本，避免本机 Ninja 本地化依赖输出导致旧头文件对象混用。</td></tr>
-<tr><td>目标</td><td>源码 062889f：GCC 1,909,772 B（30.355%）、Keil 1,834,800 B（29.163%）；两套身份/预算/DryRun 通过。TTF 65,752 B、位图字体 51,335 B、链接图片 866,577 B。</td></tr>
-<tr><td>实机</td><td>尚未写入 D10。COM10 采集已启动，读取到旧固件 Main/root；等待装好 Mode 跳帽并复位。预烧录串口内容不可算作 D10 板测。</td></tr>
+<tr><td>首版目标（历史）</td><td>源码 062889f：GCC 1,909,772 B（30.355%）、Keil 1,834,800 B（29.163%）；两套身份/预算/DryRun 通过。TTF 65,752 B、位图字体 51,335 B、链接图片 866,577 B。</td></tr>
+<tr><td>首版实机（历史）</td><td>2026-09-18 已通过 COM9 写入首版 GCC 三件套并完成写后校验，完整输出保存为本地归档中的 flash-gcc.log。CO5300 / FT6146 识别，新列表/表盘切换、亮度及返回人工确认正常；首次校时字段灰色，实机验收未通过。timeline.jsonl 的 flash_verified 事件记录预烧录原始数据边界为 463 B，此前旧固件内容不可算作 D10 板测。</td></tr>
 </tbody></table>
-<p>本地日志：<code>work/d10-core-final.log</code>、<code>work/d10-gui-sdk-final.log</code>（仅本地可用，尚未封存最终板测归档）。复现使用 <a href="../../firmware/tests/run-core-tests.ps1">核心脚本</a>与 <a href="../../firmware/tests/run-d07-a0-tests.ps1">GUI 全量脚本</a>，后者包含产品矩阵。</p>
-<p>待验收包位于 <code>logs/board-validation-20260918-d10</code>（仅本地），两套 main.bin SHA-256：GCC <code>982df25773e38574b563fb5f6f5fe2a69e9f189b209b70429fa5cb206812b062</code>；Keil <code>7abedd4b8b8532377c019cf01fbefea99578496e04754a06e72d4f5280a7b343</code>。源码提交为 <code>062889f1fe2a8d181845e030b632ad7ac20a8f3c</code>，未推送。</p>
+<p>本地日志：<code>work/d10-core-final.log</code>、<code>work/d10-gui-sdk-final.log</code>（仅本地可用；本轮归档位置见下文）。复现使用 <a href="../../firmware/tests/run-core-tests.ps1">核心脚本</a>与 <a href="../../firmware/tests/run-d07-a0-tests.ps1">GUI 全量脚本</a>，后者包含产品矩阵。</p>
+<p>首次校时整改（源码 <code>2e89117</code>）：冷启动 RTC 存在但无有效时间，CLOCK / RTC_BACKUP 均为 DEGRADED。页面只接受 AVAILABLE，误禁用了首次校时。主机以相同状态复现禁用断言后，改为两项能力均处于 AVAILABLE 或 DEGRADED 才允许校时；UNKNOWN / ABSENT / FAULT 仍禁止。新增实际控制器首次设置、ACK 和 25 种能力组合，完整 GUI 回归通过（<code>work/d10-cold-clock-repro.log</code>、<code>work/d10-cold-clock-host.log</code>，仅本地）。修正版 GCC 1,909,804 B、Keil 1,834,832 B，身份、预算、DryRun 通过；两套归档位于本地 cold-clock-fix 子目录。修正版已通过 COM9 写入并完成首次校时实屏复验，结果见下文；没有沿用首版镜像验收身份。</p>
+<p>首版内存样本分开记录：首次启动仅有 iwlist，主堆 43,676 B、字形池 1,432 B、字体引用 2；打开表盘后返回列表，后台仍保留 iwface，主堆 80,684 B、字形池 45,972 B、引用 7。两种页面所有权不同，不能直接判为泄漏或声称返回启动值，仍需相同状态的重复采样。亮度操作第一次返回时最终值为 48，157 项命令后又为 100；均以原始日志为准，不写成精确的 20/80 样本。</p>
+<p>首版包位于 <code>logs/board-validation-20260918-d10</code>（仅本地），两套 main.bin SHA-256：GCC <code>982df25773e38574b563fb5f6f5fe2a69e9f189b209b70429fa5cb206812b062</code>；Keil <code>7abedd4b8b8532377c019cf01fbefea99578496e04754a06e72d4f5280a7b343</code>。源码提交为 <code>062889f1fe2a8d181845e030b632ad7ac20a8f3c</code>。</p>
 <p><a href="assets/d10-product/manifest.json">112 个同源样本与哈希</a>涵盖七页 × Q0/Q1 × 正常/减弱动效 × 正常/放大正文，另含校时六字段和关于页底部。固定数据 VIS-FIXTURE-01 只用于主机，不作为 RTC 或实屏证据。</p>
 <div style="display:flex;flex-wrap:wrap;gap:12px">
 <img width="195" height="225" src="assets/d10-product/product-114.png" alt="主机数字表盘">
@@ -63,6 +65,18 @@
 <img width="195" height="225" src="assets/d10-product/product-120.png" alt="主机关于本机"></div>
 <ul><li>当前转场保持无快照稳定切换；250/290 ms 转场及字段 190 ms 吸附尚未实现，单列差异，不能称定稿动效已完成。按压 75 ms、圆入口缩放及减弱动效只改颜色已接入；Q1 仅返回圆局部高光。</li>
 <li>放大样本覆盖列表/设置正文；校时数字、部分次级文案保持原字号。全局字号设置仍禁用，完整放大重排待补齐。</li>
-<li>后续补齐最长身份与异常状态组合、V01～V08 实屏确认、十轮完整流程、两类内存趋势和首帧/帧间隔，才申请 D10 收口。</li></ul>
+<li>后续补齐 V01～V08 的完整实屏矩阵与首帧/帧间隔，才申请 D10 收口。十轮页面进退和本轮基本操作结果见下文；不把主机状态矩阵替代实屏验收。</li></ul>
+<h3 id="board-20260918">2026-09-18 七页基本操作与首次校时整改复验</h3>
+<p>当前板上源码 <code>2e891170bbddb7699d562f7a73c2cbf238bf4069</code>。GCC main SHA-256：<code>cdd312db7c7ac244ca2d51f896f8bfcaf0405c3fe08a20f25b4864b6c971800d</code>；Keil：<code>29aad321e8bd8689947e6b708cd6aa160d576ac7c21ed0bf3ab8a9588b951325</code>。两套构建、身份、容量、DryRun 通过，仅 GCC 实际写入并校验。首版三件套和修正版三件套分别保留，不混用证据。</p>
+<table><thead><tr><th>层次</th><th>结果与边界</th></tr></thead><tbody>
+<tr><td>主机</td><td>灰色校时字段已复现并修复；首次校时与 25 种能力组合通过。完整 GUI 回归、1000 轮控制器/路由与故障清理、37 个构造失败点、47 个绘制失败点、15 个画线失败点通过；112 张重新渲染帧与归档一致。核心 46 项 Python 检查中两项环境跳过，随后在 FontTools 环境和两套归档完成后单独补测通过。</td></tr>
+<tr><td>实机人工操作</td><td>校时字段可编辑；修改后取消并重进未保留草稿。首次从页面提交后表盘显示有效时间；关于页构建身份、滚动、来源相关返回、亮度调节和触摸人工确认正常。没有要求拍照，因此不将人工确认称为像素级实屏对照。</td></tr>
+<tr><td>时间与结果</td><td>取消后 valid=0、submitted=0；首次页面校时后 valid=1、offset=480、revision=2、source=MANUAL，submitted/completed/ack=1/1/1、ledger=0。后续混合操作结束为 39/39/39；软件 reboot 后 session 995903079→995903080、时间从 RTC 恢复。未执行断电保持或亮度持久化验收。</td></tr>
+<tr><td>重复进退</td><td>GUI 邮箱依次完成设置、显示、亮度、校时、关于及 Back，共 10 轮。11 个同状态根页样本主堆均 103,084 B、字体引用均 15；字形池从 42,268 B 预热后为 43,556～43,812 B，未见持续增长。该状态包括后台页面，不能与单应用冷启动直接比较。首次脚本因当前仍是设置页而拒绝采样；经路由返回列表后重跑，失败前置检查也保留。</td></tr>
+<tr><td>清理与恢复</td><td>命令 6 的 owner_cleanup_only 诊断释放全部 15 个字体引用，字形池回到 72 B；人工确认应急层、KEY1 返回和重进正常。这不等同实机真实堆耗尽。软件复位后的单应用基线再次为主堆 43,676 B、字形池 1,432 B、引用 2。</td></tr>
+<tr><td>输入及性能</td><td>修正版采样窗口触摸 overflow=0；清理前实体输入队列 10 个样本，P95/max=0 ms。这是少量按键入队统计，不是绘制帧率或长文性能结论。#8 的历史 215 ms 等记录继续保留。</td></tr>
+<tr><td>显示异常</td><td>软件 reboot 后先读到有效 CO5300 ID，随后出现 draw_core timeout、清理驱动状态和 recovery attempt 1，再经 PowerOff/PowerOn 重新识别并显示。日志计数 recovery=1，用户确认当前画面和操作正常，未单独说明瞬时启动画面。此证据仅证明一次恢复，不证明根因已修复，也不能将其直接等同早先半黑半白的同一原因；关联 #10 继续分析。D10 整体暂不收口。</td></tr>
+</tbody></table>
+<p>封存目录 <code>logs/board-validation-20260918-d10</code> 仅本地可用，含两轮烧录完整输出、首版与 cold-clock-fix 双工具链归档、自动进退脚本和原始串口。serial-raw.bin 为 299,076 B，SHA-256 <code>37c3bfb306313b599ff8108939f98c36305e62f37e252be014c33ea97e43137b</code>；timeline.jsonl SHA-256 <code>77f9b4fafbdf280e05534a4659459b8c07131e7fa7ab8a5a48756d7ddb5e46f6</code>。采集偏移连续性通过；这只检查已接收数据内部连续，不保证 USB 复位期间绝不丢字节。原始偏移 0～462 为旧固件，463 起为首版，72,186 起为修正版烧录之后的数据。</p>
 <p><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/8">#8</a> 继续保留历史最大 215 ms、D09 最大 133 ms 和六次触摸溢出；<a href="https://github.com/zhangguotao05-zgt/iwatch/issues/10">#10</a> 未定位的显示异常仍打开。页面成型后独立记录首帧、帧间隔和停顿，不以输入队列延迟代替帧率。D10 Issue #12 保持打开。</p>
 </section></main></div></body></html>
