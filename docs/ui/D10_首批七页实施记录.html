@@ -4,14 +4,14 @@
 <body><header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D10 首批正式界面</span></header>
 <div class="page-shell"><nav class="toc"><ul><li><a href="#status">状态</a></li><li><a href="#model">编辑模型</a></li><li><a href="#font">正式字体</a></li><li><a href="#integration">接入顺序</a></li><li><a href="#validation">验证与边界</a></li></ul></nav>
 <main class="doc-main"><h1>D10 首批七页实施记录</h1>
-<p class="doc-meta">2026-09-18 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/12">Issue #12</a> · 开发起点 b4f824a · 视觉契约 IW-VISUAL-2.0 / REF-W26-ZH-R1</p>
+<p class="doc-meta">2026-09-18 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/12">Issue #12</a> · 开发起点 cd8c6e7 · 视觉契约 IW-VISUAL-2.0 / REF-W26-ZH-R1</p>
 <section id="status"><h2>当前状态</h2>
-<p>D09 已按审批基线 042ba6f、固件源码 05fb667 收口。D10 七页、路由与服务接入已实现；源码 2e89117 的历史实机记录保留在下文；本轮 b4f824a 增量板测见复核交接。增量源码 b4f824a 补齐选择器拖动吸附、大字号重排及绘制批次采样，见<a href="D10_界面完善与复核交接.html">界面完善与复核交接</a>。跨页动效降级与性能测量边界单列；显示异常 #10 和 Issue #12 保持打开，等待架构复核。</p>
+<p>D09 已按审批基线 042ba6f、固件源码 05fb667 收口。D10 七页、路由与服务接入已实现；源码 2e89117 的历史实机记录保留在下文；本轮 cd8c6e7 增量板测见复核交接。增量源码 cd8c6e7 补齐选择器拖动吸附、大字号重排及绘制批次采样，见<a href="D10_界面完善与复核交接.html">界面完善与复核交接</a>。跨页动效降级与性能测量边界单列；显示异常 #10 和 Issue #12 保持打开，等待架构复核。</p>
 <table><thead><tr><th>范围</th><th>状态</th></tr></thead><tbody>
 <tr><td>校时草稿、格式化、亮度数值映射</td><td>已接入真实服务，包含校时冲突重试、亮度预览合并与最终提交。</td></tr>
 <tr><td>七页文案与正式字体</td><td>已加入正式清单并生成，字体校验与既有绘制回归通过。</td></tr>
 <tr><td>七页 View、路由、命令结果</td><td>已实现。开机进入 iwlist，KEY1 在列表根页与数字表盘之间切换，列表只展示已接入的设置；新页面已登记全局故障回收。</td></tr>
-<tr><td>目标构建、实机与视觉验收</td><td>增量源码 b4f824a 的 GCC/Keil 构建、身份、预算及 DryRun 通过；GCC 已刷入并完成本轮界面复验。详见增量交接，跨页转场降级与性能测量边界等待架构裁定。</td></tr>
+<tr><td>目标构建、实机与视觉验收</td><td>增量源码 cd8c6e7 的 GCC/Keil 构建、身份、预算及 DryRun 通过；GCC/Keil 已完成构建与身份校验，待 COM9 刷入后完成本轮界面抽查。详见增量交接，跨页转场降级与性能测量边界等待架构裁定。</td></tr>
 </tbody></table></section>
 <section id="model"><h2>编辑模型与所有权</h2>
 <p><a href="../../firmware/iwatch/src/gui_core/iw_settings_model.h">iw_settings_model</a> 是无堆分配的纯 C 模型；<a href="../../firmware/iwatch/src/gui_core/iw_product_scene.h">iw_product_scene</a> 使用固定 48 项节点并复制文本；<a href="../../firmware/iwatch/src/gui_core/iw_product_view.h">iw_product_view</a> 负责裁切、绘制、命中与滚动。<a href="../../firmware/iwatch/src/platform/iw_product_controller.h">iw_product_controller</a> 读取服务、维护草稿并发出导航请求。LVGL 操作仍限定在 app_watch 线程。</p>
@@ -54,7 +54,7 @@
 <p>首次校时整改（源码 <code>2e89117</code>）：冷启动 RTC 存在但无有效时间，CLOCK / RTC_BACKUP 均为 DEGRADED。页面只接受 AVAILABLE，误禁用了首次校时。主机以相同状态复现禁用断言后，改为两项能力均处于 AVAILABLE 或 DEGRADED 才允许校时；UNKNOWN / ABSENT / FAULT 仍禁止。新增实际控制器首次设置、ACK 和 25 种能力组合，完整 GUI 回归通过（<code>work/d10-cold-clock-repro.log</code>、<code>work/d10-cold-clock-host.log</code>，仅本地）。修正版 GCC 1,909,804 B、Keil 1,834,832 B，身份、预算、DryRun 通过；两套归档位于本地 cold-clock-fix 子目录。修正版已通过 COM9 写入并完成首次校时实屏复验，结果见下文；没有沿用首版镜像验收身份。</p>
 <p>首版内存样本分开记录：首次启动仅有 iwlist，主堆 43,676 B、字形池 1,432 B、字体引用 2；打开表盘后返回列表，后台仍保留 iwface，主堆 80,684 B、字形池 45,972 B、引用 7。两种页面所有权不同，不能直接判为泄漏或声称返回启动值，仍需相同状态的重复采样。亮度操作第一次返回时最终值为 48，157 项命令后又为 100；均以原始日志为准，不写成精确的 20/80 样本。</p>
 <p>首版包位于 <code>logs/board-validation-20260918-d10</code>（仅本地），两套 main.bin SHA-256：GCC <code>982df25773e38574b563fb5f6f5fe2a69e9f189b209b70429fa5cb206812b062</code>；Keil <code>7abedd4b8b8532377c019cf01fbefea99578496e04754a06e72d4f5280a7b343</code>。源码提交为 <code>062889f1fe2a8d181845e030b632ad7ac20a8f3c</code>。</p>
-<p><a href="assets/d10-product/manifest.json">112 个同源样本与哈希</a>涵盖七页 × Q0/Q1 × 正常/减弱动效 × 正常/放大正文，另含校时六字段和关于页底部。固定数据 VIS-FIXTURE-01 只用于主机，不作为 RTC 或实屏证据。</p>
+<p><a href="assets/d10-product/manifest.json">120 个同源样本与哈希</a>涵盖七页 × Q0/Q1 × 正常/减弱动效 × 正常/放大正文，另含校时六字段和关于页底部。固定数据 VIS-FIXTURE-01 只用于主机，不作为 RTC 或实屏证据。</p>
 <div style="display:flex;flex-wrap:wrap;gap:12px">
 <img width="195" height="225" src="assets/d10-product/product-114.png" alt="主机数字表盘">
 <img width="195" height="225" src="assets/d10-product/product-115.png" alt="主机应用列表">
