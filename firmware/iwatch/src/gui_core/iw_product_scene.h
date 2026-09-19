@@ -17,7 +17,8 @@ enum {
     IW_ICON_INFO,
     IW_ICON_SETTINGS,
     IW_ICON_TIMER,
-    IW_ICON_STOPWATCH
+    IW_ICON_STOPWATCH,
+    IW_ICON_ALARM
 };
 enum {
     IW_ACTION_BACK = 0x1000,
@@ -44,7 +45,20 @@ enum {
     IW_ACTION_TIMER_RESTART,
     IW_ACTION_STOPWATCH_PRIMARY = 0x1160,
     IW_ACTION_STOPWATCH_LAP,
-    IW_ACTION_STOPWATCH_RESET
+    IW_ACTION_STOPWATCH_RESET,
+    IW_ACTION_ALARM_ADD = 0x1180,
+    IW_ACTION_ALARM_OPEN_BASE = 0x11a0,
+    IW_ACTION_ALARM_HOUR_MINUS = 0x11c0,
+    IW_ACTION_ALARM_HOUR_PLUS,
+    IW_ACTION_ALARM_MINUTE_MINUS,
+    IW_ACTION_ALARM_MINUTE_PLUS,
+    IW_ACTION_ALARM_WEEKDAY_BASE = 0x11d0,
+    IW_ACTION_ALARM_ENABLE = 0x11e0,
+    IW_ACTION_ALARM_SAVE,
+    IW_ACTION_ALARM_DELETE,
+    IW_ACTION_ALERT_ACK,
+    IW_ACTION_ALERT_SNOOZE,
+    IW_ACTION_ALERT_OPEN
 };
 typedef struct {
     int16_t x, y, width, height, baseline;
@@ -73,6 +87,10 @@ typedef struct {
     iw_brightness_snapshot_t brightness;
     iw_timer_snapshot_t timers;
     iw_timer_view_t selected_timer;
+    iw_alarm_snapshot_t alarms;
+    iw_alarm_edit_t alarm_edit;
+    iw_alert_snapshot_t alerts;
+    iw_alert_record_t selected_alert;
     iw_stopwatch_view_model_t stopwatch;
     iw_time_draft_t draft;
     const char *hardware, *firmware, *toolchain;

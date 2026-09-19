@@ -217,6 +217,77 @@ static bool stopwatch_page(iw_product_scene_t *s, const iw_product_model_t *m) {
     return true;
 }
 
+static bool alarm_list(iw_product_scene_t *s, const iw_product_model_t *m) {
+    char row[80];
+    bool full = m->alarms.count >= IW_ALARM_CAPACITY;
+    if (!header(s, m, TEXT(ALARM)) ||
+        !button(s, 18, 112, 354, 60, IW_ACTION_ALARM_ADD, full || m->pending,
+                false, TEXT(ADD_ALARM))) return false;
+    if (full && !label(s, 24, 197, 342, 20, IW_PRODUCT_WARNING, 0, false,
+                       TEXT(ALARMS_FULL))) return false;
+    if (!m->alarms.count)
+        return label(s, 30, 260, 330, 26, IW_PRODUCT_SECONDARY, 1, false,
+                     TEXT(NO_ALARMS));
+    for (unsigned i = 0; i < m->alarms.count; i++) {
+        const iw_alarm_t *alarm = &m->alarms.alarms[i];
+        (void)snprintf(row, sizeof(row), "%02u:%02u  %s  %s", alarm->hour,
+                       alarm->minute, alarm->weekday_mask ? TEXT(REPEAT) : TEXT(ONCE),
+                       alarm->enabled ? TEXT(ENABLED) : TEXT(DISABLED));
+        if (!button(s, 18, 208 + (int)i * 78, 354, 68,
+                    IW_ACTION_ALARM_OPEN_BASE + i, false, false, row)) return false;
+    }
+    return true;
+}
+
+static bool alarm_edit(iw_product_scene_t *s, const iw_product_model_t *m) {
+    const iw_alarm_edit_t *edit = &m->alarm_edit;
+    char time[8];
+    static const char *const weekday[] = {"一", "二", "三", "四", "五", "六", "日"};
+    (void)snprintf(time, sizeof(time), "%02u:%02u", edit->hour, edit->minute);
+    if (!header(s, m, TEXT(ALARM)) ||
+        !button(s, 18, 118, 74, 54, IW_ACTION_ALARM_HOUR_MINUS, m->pending, false, "-") ||
+        !button(s, 108, 118, 74, 54, IW_ACTION_ALARM_HOUR_PLUS, m->pending, false, "+") ||
+        !button(s, 208, 118, 74, 54, IW_ACTION_ALARM_MINUTE_MINUS, m->pending, false, "-") ||
+        !button(s, 298, 118, 74, 54, IW_ACTION_ALARM_MINUTE_PLUS, m->pending, false, "+") ||
+        !label(s, 20, 251, 350, 80, IW_PRODUCT_WHITE, 1, false, time) ||
+        !label(s, 24, 286, 342, 20, IW_PRODUCT_SECONDARY, 0, false, TEXT(REPEAT)))
+        return false;
+    for (unsigned i = 0; i < 7u; i++) {
+        bool selected = (edit->weekday_mask & (1u << i)) != 0u;
+        if (!add(s, 18 + (int)i * 52, 300, 48, 48, 332, 22,
+                 selected ? IW_PRODUCT_WHITE : IW_PRODUCT_SECONDARY,
+                 selected ? IW_PRODUCT_BLUE : IW_PRODUCT_SURFACE, 24, 1,
+                 IW_ACTION_ALARM_WEEKDAY_BASE + i, false, m->pending, weekday[i])) return false;
+    }
+    if (!button(s, 18, 360, 354, 60, IW_ACTION_ALARM_ENABLE, m->pending, false,
+                edit->enabled ? TEXT(ENABLED) : TEXT(DISABLED)) ||
+        !button(s, 18, 436, 354, 64, IW_ACTION_ALARM_SAVE,
+                m->pending || !m->clock.valid, false, TEXT(SAVE))) return false;
+    return !edit->alarm_id || button(s, 18, 516, 354, 64, IW_ACTION_ALARM_DELETE,
+                                     m->pending, false, TEXT(DELETE_ALARM));
+}
+
+static bool alert_page(iw_product_scene_t *s, const iw_product_model_t *m,
+                       bool timer_source) {
+    char detail[40];
+    const iw_alert_record_t *alert = &m->selected_alert;
+    if (!header(s, m, timer_source ? TEXT(TIMER) : TEXT(ALARM))) return false;
+    if (!alert->entity_id)
+        return label(s, 30, 242, 330, 26, IW_PRODUCT_SECONDARY, 1, false,
+                     TEXT(OPERATION_FAILED));
+    (void)snprintf(detail, sizeof(detail), "%s %lu", TEXT(MISSED),
+                   (unsigned long)alert->missed_count);
+    return label(s, 20, 165, 350, 30, IW_PRODUCT_WARNING, 1, false, TEXT(ALERT)) &&
+           label(s, 20, 238, 350, 26, IW_PRODUCT_WHITE, 1, false,
+                 timer_source ? TEXT(TIMER) : TEXT(ALARM)) &&
+           label(s, 20, 284, 350, 20, IW_PRODUCT_SECONDARY, 1, false,
+                 alert->missed_count ? detail : TEXT(VISUAL_ONLY)) &&
+           button(s, 18, 324, 170, 70, IW_ACTION_ALERT_SNOOZE, m->pending, true,
+                  TEXT(SNOOZE)) &&
+           button(s, 202, 324, 170, 70, IW_ACTION_ALERT_ACK, m->pending, true,
+                  TEXT(STOP_ALERT));
+}
+
 static bool time_page(iw_product_scene_t *s, const iw_product_model_t *m) {
     const iw_time_draft_t *d = &m->draft;
     char text[48];
@@ -292,22 +363,30 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
         /* 与路由共用注册表，只列已经具备真实业务闭环的应用根页。 */
         unsigned count = 0;
         ok = true;
+        int first_y = 68;
+        if (m->selected_alert.entity_id) {
+            ok = button(s, 18, 68, 354, 64, IW_ACTION_ALERT_OPEN, false, false,
+                        TEXT(ALERT));
+            first_y = 148;
+        }
         for (size_t i = 0; ok && i < iw_route_count(); i++) {
             const iw_route_descriptor_t *r = iw_route_at(i);
             if (r->support != IW_ROUTE_READY || r->parent_id != IW_PAGE_LAUNCHER_LIST ||
                 r->app_id == IW_APP_SYSTEM)
                 continue;
-            int y = 68 + (int)count++ * 88;
+            int y = first_y + (int)count++ * 88;
             ok = add(s, 18, y, 354, 88, 0, 0, IW_PRODUCT_WHITE, 0, 24, 0, r->page_id, false, false, "") &&
                  add(s, 28, y + 8, 72, 72, 0, 0, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 36, 0, 0, false, false, "") &&
                   icon(s, 40, y + 20, 48,
                        r->page_id == IW_PAGE_TIMER_LIST ? IW_ICON_TIMER :
-                       r->page_id == IW_PAGE_STOPWATCH ? IW_ICON_STOPWATCH : IW_ICON_SETTINGS,
+                       r->page_id == IW_PAGE_STOPWATCH ? IW_ICON_STOPWATCH :
+                       r->page_id == IW_PAGE_ALARM_LIST ? IW_ICON_ALARM : IW_ICON_SETTINGS,
                        IW_PRODUCT_WHITE, false) &&
                   label(s, 118, y + 55, 244, body, IW_PRODUCT_WHITE, 0, false,
                         r->page_id == IW_PAGE_SETTINGS ? TEXT(SETTINGS) :
                         r->page_id == IW_PAGE_TIMER_LIST ? TEXT(TIMER) :
-                        r->page_id == IW_PAGE_STOPWATCH ? TEXT(STOPWATCH) : r->name);
+                        r->page_id == IW_PAGE_STOPWATCH ? TEXT(STOPWATCH) :
+                        r->page_id == IW_PAGE_ALARM_LIST ? TEXT(ALARM) : r->name);
         }
         if (!count) ok = label(s, 30, 230, 330, 26, IW_PRODUCT_SECONDARY, 1, false, TEXT(EMPTY_APPS));
         break;
@@ -370,6 +449,16 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
         break;
     case IW_PAGE_STOPWATCH:
         ok = stopwatch_page(s, m);
+        break;
+    case IW_PAGE_ALARM_LIST:
+        ok = alarm_list(s, m);
+        break;
+    case IW_PAGE_ALARM_EDIT:
+        ok = alarm_edit(s, m);
+        break;
+    case IW_PAGE_ALERT_TIMER:
+    case IW_PAGE_ALERT_ALARM:
+        ok = alert_page(s, m, id == IW_PAGE_ALERT_TIMER);
         break;
     case IW_PAGE_ABOUT: {
         const char *values[] = {"iwatch",

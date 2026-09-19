@@ -32,7 +32,8 @@ enum { IW_ROUTE_STATE_CONTENT = 1u, IW_ROUTE_STATE_ERROR = 2u, IW_ROUTE_STATE_UN
 typedef enum { IW_ROUTE_PARAMS_RESERVED, IW_ROUTE_PARAMS_NONE, IW_ROUTE_PARAMS_ID } iw_route_params_t;
 enum { IW_ROUTE_RESOURCE_NONE, IW_ROUTE_RESOURCE_BUILTIN };
 enum { IW_ROUTE_TEST_T13 = 1u, IW_ROUTE_TEST_T14 = 2u,
-       IW_ROUTE_TEST_T16 = 4u, IW_ROUTE_TEST_T17 = 8u };
+       IW_ROUTE_TEST_T16 = 4u, IW_ROUTE_TEST_T17 = 8u,
+       IW_ROUTE_TEST_T18 = 16u, IW_ROUTE_TEST_T19 = 32u };
 
 typedef struct { uint16_t page_id; uint32_t argument; } iw_route_t;
 typedef struct {

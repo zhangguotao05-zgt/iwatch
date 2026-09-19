@@ -21,6 +21,8 @@ iw_snapshot_status_t iw_snapshot_read(iw_snapshot_topic_t topic,
 bool iw_clock_read(iw_clock_snapshot_t *snapshot);
 bool iw_brightness_read(iw_brightness_snapshot_t *snapshot);
 bool iw_stopwatch_summary_runtime_read(iw_stopwatch_summary_t *summary);
+bool iw_alarm_draft_runtime_store(const iw_alarm_edit_t *edit, uint32_t *handle);
+bool iw_alarm_draft_runtime_discard(uint32_t handle);
 void iw_service_runtime_stats(iw_service_stats_t *stats);
 
 /* LCD 设备访问只能由 GUI owner 完成；以下接口只复制邮箱和模型状态。 */

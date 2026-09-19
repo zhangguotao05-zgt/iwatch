@@ -5651,6 +5651,27 @@
           </Files>
           <Files>
             <File>
+              <FileName>iw_alarms.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\core\iw_alarms.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>iw_alerts.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\core\iw_alerts.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>iw_alert_output.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\core\iw_alert_output.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
               <FileName>iw_display_guard.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\src\core\iw_display_guard.c</FilePath>

@@ -207,6 +207,37 @@ iw_chrono_status_t iw_timer_restart(iw_chronograph_t *chronograph,
     return IW_CHRONO_OK;
 }
 
+iw_chrono_status_t iw_timer_alert_check(const iw_chronograph_t *chronograph,
+                                        uint32_t timer_id, uint32_t occurrence)
+{
+    const iw_timer_t *timer;
+    if (!chronograph || !timer_id || !occurrence) return IW_CHRONO_INVALID;
+    timer = NULL;
+    for (unsigned i = 0; i < IW_TIMER_CAPACITY; i++)
+        if (chronograph->timers[i].state != IW_TIMER_UNUSED &&
+            chronograph->timers[i].timer_id == timer_id) {
+            timer = &chronograph->timers[i];
+            break;
+        }
+    if (!timer) return IW_CHRONO_ABSENT;
+    if (timer->occurrence != occurrence || timer->state != IW_TIMER_EXPIRED ||
+        !timer->alert_pending) return IW_CHRONO_CONFLICT;
+    if (!can_change(chronograph, timer)) return IW_CHRONO_CAPACITY;
+    return IW_CHRONO_OK;
+}
+
+iw_chrono_status_t iw_timer_alert_ack(iw_chronograph_t *chronograph,
+                                      uint32_t timer_id, uint32_t occurrence)
+{
+    iw_chrono_status_t status = iw_timer_alert_check(chronograph, timer_id, occurrence);
+    iw_timer_t *timer;
+    if (status != IW_CHRONO_OK) return status;
+    timer = find_timer(chronograph, timer_id);
+    timer->alert_pending = 0u;
+    changed(chronograph, timer);
+    return IW_CHRONO_OK;
+}
+
 bool iw_timer_snapshot_read(const iw_chronograph_t *chronograph,
                             uint64_t now_ms,
                             iw_timer_snapshot_t *snapshot)

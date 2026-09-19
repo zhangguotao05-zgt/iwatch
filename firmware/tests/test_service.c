@@ -684,6 +684,56 @@ static void test_d11_service_t17_background_and_lap_capacity(void)
            stopwatch.lap_count == IW_STOPWATCH_LAP_CAPACITY);
 }
 
+static void test_d12_t18_simultaneous_sources(void)
+{
+    iw_time_state_t time_state;
+    iw_service_t service;
+    iw_alarm_edit_t edit = {0};
+    iw_alert_snapshot_t alerts;
+    iw_alarm_snapshot_t alarms;
+    iw_timer_snapshot_t timers;
+    iw_command_t command;
+    iw_result_t result;
+    int64_t utc_seconds = 0;
+    uint32_t request = 1u, handle;
+
+    assert(iw_time_calendar_to_utc_seconds(2026, 9u, 18u, 7u, 59u, 0u, &utc_seconds));
+    assert(iw_time_init(&time_state, 0u, 1000u, utc_seconds, 0,
+                        IW_TIME_SOURCE_RTC) == IW_TIME_OK);
+    assert(iw_service_init(&service, &time_state, 42u));
+    for (unsigned i = 0; i < IW_TIMER_CAPACITY; i++) {
+        command = timer_create_command(42u, request++, 60000u);
+        assert(execute_software(&service, &command).code == IW_RESULT_OK_APPLIED);
+    }
+    edit.hour = 8u;
+    edit.enabled = 1u;
+    edit.weekday_mask = 0x7fu;
+    memcpy(edit.label, "Alarm", sizeof("Alarm"));
+    for (unsigned i = 0; i < IW_ALARM_CAPACITY; i++) {
+        assert(iw_service_alarm_draft_store(&service, &edit, &handle));
+        iw_command_init(&command, 42u, request++, 0x0400u, 1u, IW_OPCODE_ALARM_APPLY);
+        assert(iw_command_encode_alarm_apply(&command, handle, 0u));
+        assert(execute_software(&service, &command).code == IW_RESULT_OK_APPLIED);
+    }
+    assert(iw_service_alarms_read(&service, &alarms) && alarms.count == IW_ALARM_CAPACITY);
+    iw_time_sample(&time_state, 60000u);
+    assert(iw_service_advance(&service, 60000u) == IW_ALERT_CAPACITY);
+    assert(iw_service_alerts_read(&service, &alerts) && alerts.count == IW_ALERT_CAPACITY);
+    assert(iw_service_advance(&service, 60000u) == 0u);
+
+    assert(iw_service_timers_read(&service, 60000u, &timers));
+    iw_command_init(&command, 42u, request++, 0x0401u, 1u, IW_OPCODE_ACK_ALERT);
+    assert(iw_command_encode_alert_control(&command, IW_ALERT_SOURCE_TIMER,
+                                           timers.timers[0].timer_id,
+                                           timers.timers[0].occurrence));
+    result = execute_software(&service, &command);
+    assert(result.code == IW_RESULT_OK_APPLIED);
+    assert(iw_service_timers_read(&service, 60000u, &timers));
+    assert(!timers.timers[0].alert_pending);
+    assert(iw_service_advance(&service, 60000u) == 0u);
+    assert(iw_service_alerts_read(&service, &alerts) && alerts.count == IW_ALERT_CAPACITY - 1u);
+}
+
 int main(void)
 {
     test_duplicate_expiry_and_session();
@@ -698,6 +748,7 @@ int main(void)
     test_brightness_rejection_has_no_model_side_effect();
     test_d11_service_t16_deadline_and_snapshots();
     test_d11_service_t17_background_and_lap_capacity();
+    test_d12_t18_simultaneous_sources();
     puts("service tests passed");
     return 0;
 }

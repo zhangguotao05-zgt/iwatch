@@ -39,6 +39,8 @@ static uint8_t home_attempts;
 static uint8_t rollback_failures;
 static uint32_t generation, next_argument;
 static uint32_t product_wait=UINT32_MAX;
+static uint32_t alert_scan_tick;
+static iw_alert_record_t hidden_alert;
 
 extern void iw_gui_cancel_input(void);
 
@@ -113,7 +115,12 @@ static void product_action(uint16_t id,uint32_t argument,void *context)
 {
     route_page_t *p=context;
     if (!p->scope.alive || !p->scope.visible) return;
-    if (id==IW_ACTION_BACK) (void)request((route_request_t){0},true);
+    if (id==IW_ACTION_BACK) {
+        if (p->product && (p->route.page_id == IW_PAGE_ALERT_TIMER ||
+                           p->route.page_id == IW_PAGE_ALERT_ALARM))
+            hidden_alert = p->product->model.selected_alert;
+        (void)request((route_request_t){0},true);
+    }
     else if (initialized && iw_font_port_is_owner())
         (void)request((route_request_t){.kind=REQUEST_OPEN,.argument=argument,.page_id=id},false);
 }
@@ -355,6 +362,10 @@ bool iw_router_back(void)
     if (!initialized || !iw_font_port_is_owner()) return false;
     gui_app_route_snapshot_t snapshot;
     (void)gui_app_get_route_snapshot(&snapshot);
+    route_page_t *page = snapshot_page(&snapshot, false);
+    if (page && page->product && (page->route.page_id == IW_PAGE_ALERT_TIMER ||
+                                  page->route.page_id == IW_PAGE_ALERT_ALARM))
+        hidden_alert = page->product->model.selected_alert;
     rt_base_t level = rt_hw_interrupt_disable();
     bool command_pending = requested.kind != REQUEST_NONE;
     rt_hw_interrupt_enable(level);
@@ -368,6 +379,10 @@ static bool home_request(bool recovery)
     if (home_target && !recovery) return true;
     gui_app_route_snapshot_t snapshot;
     (void)gui_app_get_route_snapshot(&snapshot);
+    route_page_t *page = snapshot_page(&snapshot, false);
+    if (page && page->product && (page->route.page_id == IW_PAGE_ALERT_TIMER ||
+                                  page->route.page_id == IW_PAGE_ALERT_ALARM))
+        hidden_alert = page->product->model.selected_alert;
     /* 锁定绝对目标，重复按键不会在转场完成前反向切换。 */
     bool product=!strcmp(snapshot.app_id,"iwface") || !strcmp(snapshot.app_id,"iwlist");
     if (product) home_target=!recovery && !snapshot.busy && snapshot.page_count==1 && !strcmp(snapshot.app_id,"iwlist") ? "iwface" : "iwlist";
@@ -427,6 +442,29 @@ bool iw_router_process(void)
     product_wait=iw_product_process();
     gui_app_route_snapshot_t snapshot;
     (void)gui_app_get_route_snapshot(&snapshot);
+    if ((uint32_t)(lv_tick_get() - alert_scan_tick) >= 250u &&
+        navigator.state == IW_NAV_IDLE && !snapshot.busy && snapshot.resumed &&
+        !home_target && !fault_unwind &&
+        observed_route(&snapshot, false).page_id != IW_PAGE_ALERT_TIMER &&
+        observed_route(&snapshot, false).page_id != IW_PAGE_ALERT_ALARM) {
+        struct { iw_snapshot_header_t header; iw_alert_snapshot_t model; } alerts = {0};
+        size_t bytes = 0;
+        alert_scan_tick = lv_tick_get();
+        if (iw_snapshot_read(IW_SNAPSHOT_ALERTS, &alerts, sizeof(alerts), &bytes) == IW_SNAPSHOT_OK &&
+            alerts.model.count <= IW_ALERT_CAPACITY)
+            for (unsigned i = 0; i < alerts.model.count; i++) {
+                const iw_alert_record_t *record = &alerts.model.records[i];
+                if (record->state != IW_ALERT_PRESENTING) continue;
+                if (hidden_alert.source_type != record->source_type ||
+                    hidden_alert.entity_id != record->entity_id ||
+                    hidden_alert.occurrence != record->occurrence)
+                    (void)request((route_request_t){.kind=REQUEST_OPEN,
+                          .page_id=record->source_type == IW_ALERT_SOURCE_TIMER ?
+                                   IW_PAGE_ALERT_TIMER : IW_PAGE_ALERT_ALARM,
+                          .argument=record->entity_id}, false);
+                break;
+            }
+    }
     rt_base_t level = rt_hw_interrupt_disable();
     bool work = requested.kind != REQUEST_NONE || requested_back || home_target;
     rt_hw_interrupt_enable(level);

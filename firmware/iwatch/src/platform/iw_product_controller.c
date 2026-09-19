@@ -57,6 +57,41 @@ static void chronographs(iw_product_page_t *p) {
     }
 }
 
+static void alarms_alerts(iw_product_page_t *p) {
+    size_t bytes = 0;
+    if (p->page_id == IW_PAGE_ALARM_LIST || p->page_id == IW_PAGE_ALARM_EDIT) {
+        struct { iw_snapshot_header_t header; iw_alarm_snapshot_t model; } value = {0};
+        if (iw_snapshot_read(IW_SNAPSHOT_ALARMS, &value, sizeof(value), &bytes) == IW_SNAPSHOT_OK &&
+            value.model.count <= IW_ALARM_CAPACITY) {
+            p->model.alarms = value.model;
+            if (p->page_id == IW_PAGE_ALARM_LIST && p->model.message == IW_TEXT_ALARMS_FULL &&
+                value.model.count < IW_ALARM_CAPACITY) p->model.message = IW_TEXT_COUNT;
+        }
+    }
+    if (p->page_id == IW_PAGE_ALERT_TIMER || p->page_id == IW_PAGE_ALERT_ALARM ||
+        p->page_id == IW_PAGE_LAUNCHER_LIST) {
+        struct { iw_snapshot_header_t header; iw_alert_snapshot_t model; } value = {0};
+        iw_alert_source_t source = p->page_id == IW_PAGE_ALERT_TIMER ?
+                                   IW_ALERT_SOURCE_TIMER : IW_ALERT_SOURCE_ALARM;
+        bytes = 0;
+        if (iw_snapshot_read(IW_SNAPSHOT_ALERTS, &value, sizeof(value), &bytes) == IW_SNAPSHOT_OK &&
+            value.model.count <= IW_ALERT_CAPACITY) {
+            p->model.alerts = value.model;
+            memset(&p->model.selected_alert, 0, sizeof(p->model.selected_alert));
+            for (unsigned i = 0; i < value.model.count; i++) {
+                const iw_alert_record_t *record = &value.model.records[i];
+                if (p->page_id == IW_PAGE_LAUNCHER_LIST) {
+                    if (!p->model.selected_alert.entity_id &&
+                        record->state != IW_ALERT_SNOOZED)
+                        p->model.selected_alert = *record;
+                } else if (record->source_type == source &&
+                           record->entity_id == p->argument)
+                    p->model.selected_alert = *record;
+            }
+        }
+    }
+}
+
 bool iw_product_set_profile(iw_theme_quality_t quality, bool large_text, bool reduced_motion) {
     if (!iw_font_port_is_owner() || !iw_theme_effects(quality, reduced_motion)) return false;
     profile_quality = quality;
@@ -149,6 +184,42 @@ static void submit_stopwatch(iw_product_page_t *p, iw_opcode_t opcode) {
         p->model.message = IW_TEXT_OPERATION_FAILED;
 }
 
+static void submit_alarm_apply(iw_product_page_t *p) {
+    iw_command_t command;
+    uint32_t handle;
+    if (p->request || !iw_alarm_draft_runtime_store(&p->model.alarm_edit, &handle)) {
+        p->model.message = IW_TEXT_OPERATION_FAILED;
+        return;
+    }
+    iw_command_init(&command, 1u, 1u, p->page_id, p->generation, IW_OPCODE_ALARM_APPLY);
+    if (!iw_command_encode_alarm_apply(&command, handle,
+                                       p->model.alarm_edit.expected_revision) ||
+        !send(p, &command)) {
+        (void)iw_alarm_draft_runtime_discard(handle);
+        p->model.message = IW_TEXT_OPERATION_FAILED;
+    }
+}
+
+static void submit_alarm_delete(iw_product_page_t *p) {
+    iw_command_t command;
+    if (p->request || !p->model.alarm_edit.alarm_id) return;
+    iw_command_init(&command, 1u, 1u, p->page_id, p->generation, IW_OPCODE_ALARM_DELETE);
+    if (!iw_command_encode_alarm_delete(&command, p->model.alarm_edit.alarm_id,
+                                        p->model.alarm_edit.expected_revision) || !send(p, &command))
+        p->model.message = IW_TEXT_OPERATION_FAILED;
+}
+
+static void submit_alert_control(iw_product_page_t *p, iw_opcode_t opcode) {
+    const iw_alert_record_t *record = &p->model.selected_alert;
+    iw_command_t command;
+    if (p->request || !record->entity_id || !record->occurrence) return;
+    iw_command_init(&command, 1u, 1u, p->page_id, p->generation, opcode);
+    if (!iw_command_encode_alert_control(&command,
+                                         (iw_alert_source_t)record->source_type,
+                                         record->entity_id, record->occurrence) || !send(p, &command))
+        p->model.message = IW_TEXT_OPERATION_FAILED;
+}
+
 static void submit_clock_edit(iw_product_page_t *p) {
     if (p->request) return;
     capabilities(&p->model);
@@ -184,6 +255,49 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
     }
     if (id == IW_ACTION_TIME_SAVE) {
         submit_clock_edit(p);
+        return;
+    }
+    if (id == IW_ACTION_ALARM_ADD) {
+        p->navigate(IW_PAGE_ALARM_EDIT, 0u, p->context);
+        return;
+    }
+    if (id >= IW_ACTION_ALARM_OPEN_BASE && id < IW_ACTION_ALARM_OPEN_BASE + IW_ALARM_CAPACITY) {
+        unsigned index = id - IW_ACTION_ALARM_OPEN_BASE;
+        if (index < p->model.alarms.count)
+            p->navigate(IW_PAGE_ALARM_EDIT, p->model.alarms.alarms[index].alarm_id, p->context);
+        return;
+    }
+    if (id >= IW_ACTION_ALARM_HOUR_MINUS && id <= IW_ACTION_ALARM_MINUTE_PLUS) {
+        iw_alarm_edit_t *edit = &p->model.alarm_edit;
+        if (id == IW_ACTION_ALARM_HOUR_MINUS) edit->hour = (uint8_t)((edit->hour + 23u) % 24u);
+        else if (id == IW_ACTION_ALARM_HOUR_PLUS) edit->hour = (uint8_t)((edit->hour + 1u) % 24u);
+        else if (id == IW_ACTION_ALARM_MINUTE_MINUS) edit->minute = (uint8_t)((edit->minute + 59u) % 60u);
+        else edit->minute = (uint8_t)((edit->minute + 1u) % 60u);
+        p->dirty = true;
+        return;
+    }
+    if (id >= IW_ACTION_ALARM_WEEKDAY_BASE && id < IW_ACTION_ALARM_WEEKDAY_BASE + 7u) {
+        p->model.alarm_edit.weekday_mask ^= (uint8_t)(1u << (id - IW_ACTION_ALARM_WEEKDAY_BASE));
+        p->dirty = true;
+        return;
+    }
+    if (id == IW_ACTION_ALARM_ENABLE) {
+        p->model.alarm_edit.enabled ^= 1u;
+        p->dirty = true;
+        return;
+    }
+    if (id == IW_ACTION_ALARM_SAVE) { submit_alarm_apply(p); return; }
+    if (id == IW_ACTION_ALARM_DELETE) { submit_alarm_delete(p); return; }
+    if (id == IW_ACTION_ALERT_ACK || id == IW_ACTION_ALERT_SNOOZE) {
+        submit_alert_control(p, id == IW_ACTION_ALERT_ACK ?
+                             IW_OPCODE_ACK_ALERT : IW_OPCODE_SNOOZE_ALERT);
+        return;
+    }
+    if (id == IW_ACTION_ALERT_OPEN && p->model.selected_alert.entity_id) {
+        const iw_alert_record_t *record = &p->model.selected_alert;
+        p->navigate(record->source_type == IW_ALERT_SOURCE_TIMER ?
+                    IW_PAGE_ALERT_TIMER : IW_PAGE_ALERT_ALARM,
+                    record->entity_id, p->context);
         return;
     }
     if (id >= IW_ACTION_TIMER_PRESET_1M && id <= IW_ACTION_TIMER_PRESET_10M) {
@@ -270,10 +384,35 @@ bool iw_product_create(iw_product_page_t *p, uint16_t id, uint32_t argument,
     (void)iw_clock_read(&p->model.clock);
     (void)iw_brightness_read(&p->model.brightness);
     chronographs(p);
+    alarms_alerts(p);
     capabilities(&p->model);
     if (id == IW_PAGE_TIME && !iw_time_draft_begin(&p->model.draft, &p->model.clock)) return false;
     if (id == IW_PAGE_TIME && p->model.draft.needs_calibration) p->model.message = IW_TEXT_CALIBRATE;
     if (id != IW_PAGE_TIME) p->model.draft.editing = IW_EDIT_NONE;
+    if (id == IW_PAGE_ALARM_EDIT) {
+        iw_alarm_edit_t *edit = &p->model.alarm_edit;
+        iw_calendar_fields_t local;
+        bool found = false;
+        edit->hour = iw_clock_local_fields(&p->model.clock, &local) ? local.hour : 7u;
+        edit->minute = iw_clock_local_fields(&p->model.clock, &local) ? local.minute : 0u;
+        edit->enabled = 1u;
+        memcpy(edit->label, "闹钟", sizeof("闹钟"));
+        if (argument)
+            for (unsigned i = 0; i < p->model.alarms.count; i++)
+                if (p->model.alarms.alarms[i].alarm_id == argument) {
+                    const iw_alarm_t *alarm = &p->model.alarms.alarms[i];
+                    edit->alarm_id = alarm->alarm_id;
+                    edit->expected_revision = alarm->revision;
+                    edit->hour = alarm->hour;
+                    edit->minute = alarm->minute;
+                    edit->weekday_mask = alarm->weekday_mask;
+                    edit->enabled = alarm->enabled;
+                    memcpy(edit->label, alarm->label, IW_ALARM_LABEL_BYTES);
+                    found = true;
+                    break;
+                }
+        if (argument && !found) return false;
+    }
     p->exiting = false;
     if (!iw_product_view_create(&p->view, lv_screen_active(), id, &p->model, action, stop, p)) return false;
     p->next = pages;
@@ -349,6 +488,13 @@ uint32_t iw_product_process(void) {
                     p->navigate(IW_ACTION_BACK, 0u, p->context);
                 if (p->page_id == IW_PAGE_TIMER_DETAIL && result.opcode == IW_OPCODE_TIMER_CANCEL && p->visible)
                     p->navigate(IW_ACTION_BACK, 0u, p->context);
+                if (p->page_id == IW_PAGE_ALARM_EDIT && p->visible &&
+                    (result.opcode == IW_OPCODE_ALARM_APPLY || result.opcode == IW_OPCODE_ALARM_DELETE))
+                    p->navigate(IW_ACTION_BACK, 0u, p->context);
+                if ((p->page_id == IW_PAGE_ALERT_TIMER || p->page_id == IW_PAGE_ALERT_ALARM) &&
+                    p->visible && (result.opcode == IW_OPCODE_ACK_ALERT ||
+                                   result.opcode == IW_OPCODE_SNOOZE_ALERT))
+                    p->navigate(IW_ACTION_BACK, 0u, p->context);
             } else if (result.code == IW_RESULT_CAPACITY && p->page_id == IW_PAGE_STOPWATCH)
                 p->model.message = IW_TEXT_LAPS_FULL;
             else if (result.code == IW_RESULT_CAPACITY && p->page_id == IW_PAGE_TIMER_LIST)
@@ -359,6 +505,7 @@ uint32_t iw_product_process(void) {
                                    : p->page_id == IW_PAGE_BRIGHTNESS ? IW_TEXT_BRIGHTNESS_FAILED
                                                                       : IW_TEXT_OPERATION_FAILED;
             chronographs(p);
+            alarms_alerts(p);
         } else if (p->request && iw_ui_command_delayed(&commands, p->session, p->request, now)) {
             if (p->model.message != IW_TEXT_CONFIRMING) {
                 p->model.message = IW_TEXT_CONFIRMING;
@@ -392,6 +539,7 @@ uint32_t iw_product_process(void) {
             (void)iw_clock_read(&p->model.clock);
             (void)iw_brightness_read(&p->model.brightness);
             chronographs(p);
+            alarms_alerts(p);
             capabilities(&p->model);
             p->last_poll = now;
             p->dirty = true;

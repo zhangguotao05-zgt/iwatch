@@ -134,10 +134,11 @@ static void draw_icon(lv_layer_t *layer, const lv_area_t *a, unsigned icon, uint
                                       {9, 9, 13, 13}, {35, 35, 39, 39}, {9, 39, 13, 35}, {35, 13, 39, 9}};
         for (unsigned i = 0; i < 8 && !iw_gui_fault_pending(); i++)
             icon_line(layer, a, color, rays[i][0], rays[i][1], rays[i][2], rays[i][3]);
-    } else if (icon == IW_ICON_CLOCK || icon == IW_ICON_TIMER || icon == IW_ICON_STOPWATCH) {
+    } else if (icon == IW_ICON_CLOCK || icon == IW_ICON_TIMER ||
+               icon == IW_ICON_STOPWATCH || icon == IW_ICON_ALARM) {
         icon_line(layer, a, color, 24, 12, 24, 25);
         icon_line(layer, a, color, 24, 25, 33, 30);
-        if (icon == IW_ICON_STOPWATCH) {
+        if (icon == IW_ICON_STOPWATCH || icon == IW_ICON_ALARM) {
             icon_line(layer, a, color, 18, 4, 30, 4);
             icon_line(layer, a, color, 24, 4, 24, 8);
         }

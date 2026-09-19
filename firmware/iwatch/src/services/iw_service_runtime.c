@@ -229,6 +229,10 @@ int iw_service_runtime_init(void)
                                     IW_CAP_STATE_UNKNOWN, 0);
     (void)iw_service_set_capability(&runtime_service, IW_CAP_STORAGE,
                                     IW_CAP_STATE_ABSENT, -RT_ERROR);
+    (void)iw_service_set_capability(&runtime_service, IW_CAP_HAPTIC,
+                                    IW_CAP_STATE_ABSENT, -RT_ERROR);
+    (void)iw_service_set_capability(&runtime_service, IW_CAP_SOUND,
+                                    IW_CAP_STATE_ABSENT, -RT_ERROR);
 
     result = rt_mutex_init(&runtime_mutex, "iw_svc", RT_IPC_FLAG_PRIO);
     if (result != RT_EOK) return result;
@@ -357,6 +361,24 @@ bool iw_stopwatch_summary_runtime_read(iw_stopwatch_summary_t *summary)
     return success;
 }
 
+bool iw_alarm_draft_runtime_store(const iw_alarm_edit_t *edit, uint32_t *handle)
+{
+    bool success;
+    if (!edit || !handle || !runtime_lock()) return false;
+    success = iw_service_alarm_draft_store(&runtime_service, edit, handle);
+    runtime_unlock();
+    return success;
+}
+
+bool iw_alarm_draft_runtime_discard(uint32_t handle)
+{
+    bool success;
+    if (!runtime_lock()) return false;
+    success = iw_service_alarm_draft_discard(&runtime_service, handle);
+    runtime_unlock();
+    return success;
+}
+
 bool iw_display_runtime_set_available(bool available, int32_t device_error)
 {
     bool success;
@@ -477,6 +499,7 @@ static iw_client_session_t diagnostic_client;
 static uint32_t diagnostic_last_clock_request;
 static uint32_t diagnostic_last_brightness_request;
 static uint32_t diagnostic_last_chrono_request;
+static uint32_t diagnostic_last_d12_request;
 static uint32_t diagnostic_brightness_sequence;
 
 static bool diagnostic_prepare_client(uint32_t session)
@@ -486,6 +509,7 @@ static bool diagnostic_prepare_client(uint32_t session)
     diagnostic_last_clock_request = 0u;
     diagnostic_last_brightness_request = 0u;
     diagnostic_last_chrono_request = 0u;
+    diagnostic_last_d12_request = 0u;
     diagnostic_brightness_sequence = 0u;
     return true;
 }
@@ -772,3 +796,139 @@ static void iw_chrono_result(void)
     }
 }
 MSH_CMD_EXPORT(iw_chrono_result, Show and acknowledge the last chronograph result);
+
+static bool d12_number(const char *text, uint32_t *value)
+{
+    char *end;
+    unsigned long parsed;
+    if (!text || !value || !*text || *text == '-') return false;
+    parsed = strtoul(text, &end, 0);
+    if (end == text || *end || parsed > UINT32_MAX) return false;
+    *value = (uint32_t)parsed;
+    return true;
+}
+
+static int d12_submit(iw_command_t *command)
+{
+    iw_submit_status_t status = iw_command_submit(command);
+    if (status == IW_SUBMIT_QUEUED || status == IW_SUBMIT_DUPLICATE)
+        diagnostic_last_d12_request = command->request_id;
+    rt_kprintf("d12 request=%u opcode=%u submit=%u\n", (unsigned)command->request_id,
+               (unsigned)command->opcode, (unsigned)status);
+    return status == IW_SUBMIT_QUEUED || status == IW_SUBMIT_DUPLICATE ? RT_EOK : -RT_ERROR;
+}
+
+static int iw_alarm_add_diag(int argc, char **argv)
+{
+    uint32_t hour, minute, weekdays, session, request, handle;
+    iw_alarm_edit_t edit = {0};
+    iw_command_t command;
+    if (argc != 4 || !d12_number(argv[1], &hour) || !d12_number(argv[2], &minute) ||
+        !d12_number(argv[3], &weekdays) || hour > 23u || minute > 59u ||
+        weekdays > 0x7fu) return -RT_EINVAL;
+    edit.hour = (uint8_t)hour;
+    edit.minute = (uint8_t)minute;
+    edit.weekday_mask = (uint8_t)weekdays;
+    edit.enabled = 1u;
+    memcpy(edit.label, "Alarm", sizeof("Alarm"));
+    if (!iw_alarm_draft_runtime_store(&edit, &handle)) return -RT_EFULL;
+    if (!iw_request_allocate(&session, &request)) {
+        (void)iw_alarm_draft_runtime_discard(handle);
+        return -RT_EFULL;
+    }
+    iw_command_init(&command, session, request, IW_DIAGNOSTIC_PAGE_ID, 1u,
+                    IW_OPCODE_ALARM_APPLY);
+    if (!iw_command_encode_alarm_apply(&command, handle, 0u)) {
+        (void)iw_alarm_draft_runtime_discard(handle);
+        return -RT_EINVAL;
+    }
+    int status = d12_submit(&command);
+    if (status != RT_EOK) (void)iw_alarm_draft_runtime_discard(handle);
+    return status;
+}
+MSH_CMD_EXPORT(iw_alarm_add_diag, Create a session-only alarm);
+
+static int iw_alarm_delete_diag(int argc, char **argv)
+{
+    uint32_t id, revision, session, request;
+    iw_command_t command;
+    if (argc != 3 || !d12_number(argv[1], &id) || !d12_number(argv[2], &revision) ||
+        !iw_request_allocate(&session, &request)) return -RT_EINVAL;
+    iw_command_init(&command, session, request, IW_DIAGNOSTIC_PAGE_ID, 1u,
+                    IW_OPCODE_ALARM_DELETE);
+    if (!iw_command_encode_alarm_delete(&command, id, revision)) return -RT_EINVAL;
+    return d12_submit(&command);
+}
+MSH_CMD_EXPORT(iw_alarm_delete_diag, Delete an alarm by ID and revision);
+
+static int iw_alert_diag(int argc, char **argv)
+{
+    uint32_t source, id, occurrence, session, request;
+    iw_opcode_t opcode;
+    iw_command_t command;
+    if (argc != 5 || !d12_number(argv[2], &source) || !d12_number(argv[3], &id) ||
+        !d12_number(argv[4], &occurrence) ||
+        (source != IW_ALERT_SOURCE_TIMER && source != IW_ALERT_SOURCE_ALARM) ||
+        !iw_request_allocate(&session, &request)) return -RT_EINVAL;
+    if (!strcmp(argv[1], "ack")) opcode = IW_OPCODE_ACK_ALERT;
+    else if (!strcmp(argv[1], "snooze")) opcode = IW_OPCODE_SNOOZE_ALERT;
+    else return -RT_EINVAL;
+    iw_command_init(&command, session, request, IW_DIAGNOSTIC_PAGE_ID, 1u, opcode);
+    if (!iw_command_encode_alert_control(&command, (iw_alert_source_t)source,
+                                         id, occurrence)) return -RT_EINVAL;
+    return d12_submit(&command);
+}
+MSH_CMD_EXPORT(iw_alert_diag, Acknowledge or snooze one exact alert occurrence);
+
+static void iw_alert_stat(void)
+{
+    static struct { iw_snapshot_header_t header; iw_alarm_snapshot_t model; } alarms;
+    static struct { iw_snapshot_header_t header; iw_alert_snapshot_t model; } alerts;
+    size_t bytes = 0u;
+    if (iw_snapshot_read(IW_SNAPSHOT_ALARMS, &alarms, sizeof(alarms), &bytes) != IW_SNAPSHOT_OK ||
+        alarms.model.count > IW_ALARM_CAPACITY) return;
+    rt_kprintf("alarms revision=%u count=%u missed_late=%u\n",
+               (unsigned)alarms.model.revision, (unsigned)alarms.model.count,
+               (unsigned)alarms.model.missed_late);
+    for (unsigned i = 0; i < alarms.model.count; i++) {
+        const iw_alarm_t *a = &alarms.model.alarms[i];
+        rt_kprintf("alarm id=%u revision=%u %02u:%02u mask=%u enabled=%u occurrence=%u due_utc_ms=%llu\n",
+                   (unsigned)a->alarm_id, (unsigned)a->revision, (unsigned)a->hour,
+                   (unsigned)a->minute, (unsigned)a->weekday_mask, (unsigned)a->enabled,
+                   (unsigned)a->occurrence, (unsigned long long)a->next_due_utc_ms);
+    }
+    if (iw_snapshot_read(IW_SNAPSHOT_ALERTS, &alerts, sizeof(alerts), &bytes) != IW_SNAPSHOT_OK ||
+        alerts.model.count > IW_ALERT_CAPACITY) return;
+    rt_kprintf("alerts revision=%u count=%u output=%u\n", (unsigned)alerts.model.revision,
+               (unsigned)alerts.model.count, (unsigned)IW_ALERT_OUTPUT_VISUAL);
+    for (unsigned i = 0; i < alerts.model.count; i++) {
+        const iw_alert_record_t *a = &alerts.model.records[i];
+        rt_kprintf("alert source=%u id=%u occurrence=%u state=%u missed=%u first_mono_ms=%llu\n",
+                   (unsigned)a->source_type, (unsigned)a->entity_id,
+                   (unsigned)a->occurrence, (unsigned)a->state,
+                   (unsigned)a->missed_count,
+                   (unsigned long long)a->first_due_mono_ms);
+    }
+}
+MSH_CMD_EXPORT(iw_alert_stat, Show bounded alarm and alert snapshots);
+
+static void iw_d12_result(void)
+{
+    iw_result_t result;
+    uint32_t session = iw_service_current_session();
+    iw_result_lookup_t lookup = iw_result_get(session, diagnostic_last_d12_request, &result);
+    if (lookup != IW_RESULT_LOOKUP_FOUND) {
+        rt_kprintf("d12 result request=%u lookup=%u\n",
+                   (unsigned)diagnostic_last_d12_request, (unsigned)lookup);
+        return;
+    }
+    rt_kprintf("d12 result request=%u state=%u code=%u opcode=%u revision=%u\n",
+               (unsigned)result.request_id, (unsigned)result.state, (unsigned)result.code,
+               (unsigned)result.opcode, (unsigned)result.model_revision);
+    if (result.state == IW_RESULT_STATE_TERMINAL) {
+        iw_result_token_t token = {result.session_id, result.request_id,
+                                   result.ledger_generation};
+        rt_kprintf("d12 result ack=%u\n", (unsigned)iw_result_ack(&token));
+    }
+}
+MSH_CMD_EXPORT(iw_d12_result, Show and acknowledge the last D12 diagnostic result);

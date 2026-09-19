@@ -90,6 +90,21 @@ typedef enum {
     IW_TEXT_LAPS_FULL,
     IW_TEXT_TIMERS_FULL,
     IW_TEXT_OPERATION_FAILED,
+    IW_TEXT_ALARM,
+    IW_TEXT_ADD_ALARM,
+    IW_TEXT_NO_ALARMS,
+    IW_TEXT_ALARMS_FULL,
+    IW_TEXT_ONCE,
+    IW_TEXT_REPEAT,
+    IW_TEXT_ENABLED,
+    IW_TEXT_DISABLED,
+    IW_TEXT_SAVE,
+    IW_TEXT_DELETE_ALARM,
+    IW_TEXT_STOP_ALERT,
+    IW_TEXT_SNOOZE,
+    IW_TEXT_VISUAL_ONLY,
+    IW_TEXT_MISSED,
+    IW_TEXT_ALERT,
     IW_TEXT_COUNT
 } iw_product_text_id_t;
 
@@ -181,6 +196,21 @@ static const char *const iw_product_texts[] = {
     "计次已满，秒表继续运行",
     "计时器已满",
     "操作失败，请重试",
+    "闹钟",
+    "添加闹钟",
+    "暂无闹钟",
+    "闹钟已满",
+    "仅一次",
+    "重复",
+    "已开启",
+    "已关闭",
+    "保存",
+    "删除闹钟并停止当前提醒",
+    "停止",
+    "稍后 9 分钟",
+    "仅视觉提醒",
+    "错过",
+    "提醒",
 };
 _Static_assert(sizeof(iw_product_texts) / sizeof(iw_product_texts[0]) == IW_TEXT_COUNT, "文案编号必须与清单一致");
 

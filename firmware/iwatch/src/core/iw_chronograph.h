@@ -137,6 +137,10 @@ iw_chrono_status_t iw_timer_restart(iw_chronograph_t *chronograph,
                                     uint32_t timer_id,
                                     uint32_t expected_revision,
                                     iw_timer_view_t *updated);
+iw_chrono_status_t iw_timer_alert_check(const iw_chronograph_t *chronograph,
+                                        uint32_t timer_id, uint32_t occurrence);
+iw_chrono_status_t iw_timer_alert_ack(iw_chronograph_t *chronograph,
+                                      uint32_t timer_id, uint32_t occurrence);
 bool iw_timer_snapshot_read(const iw_chronograph_t *chronograph,
                             uint64_t now_ms,
                             iw_timer_snapshot_t *snapshot);

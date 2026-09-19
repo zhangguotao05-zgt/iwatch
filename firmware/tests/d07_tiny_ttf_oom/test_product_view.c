@@ -291,6 +291,30 @@ static void scene_boundaries(iw_product_model_t *m) {
     assert(iw_product_scene_build(&scene, IW_PAGE_TIMER_LIST, m));
     assert(iw_product_scene_hit(&scene, 80, 174, 0) >= 0 && !has_text(&scene, "计时器已满"));
     m->message = IW_TEXT_LAPS_FULL;
+    m->alarms.count = IW_ALARM_CAPACITY;
+    for (unsigned i = 0; i < IW_ALARM_CAPACITY; i++) {
+        m->alarms.alarms[i].alarm_id = i + 1u;
+        m->alarms.alarms[i].hour = 7u;
+        m->alarms.alarms[i].minute = (uint8_t)i;
+        m->alarms.alarms[i].enabled = 1u;
+    }
+    m->message = IW_TEXT_COUNT;
+    assert(iw_product_scene_build(&scene, IW_PAGE_ALARM_LIST, m));
+    assert(has_text(&scene, "闹钟已满"));
+    bool add_disabled = false;
+    for (unsigned i = 0; i < scene.count; i++)
+        if (scene.nodes[i].action == IW_ACTION_ALARM_ADD)
+            add_disabled = scene.nodes[i].disabled;
+    assert(add_disabled);
+    m->alarm_edit = (iw_alarm_edit_t){.hour = 7u, .minute = 30u, .enabled = 1u};
+    m->clock.valid = 1u;
+    assert(iw_product_scene_build(&scene, IW_PAGE_ALARM_EDIT, m));
+    assert(has_text(&scene, "07:30"));
+    m->selected_alert = (iw_alert_record_t){.source_type = IW_ALERT_SOURCE_ALARM,
+        .entity_id = 1u, .occurrence = 1u, .state = IW_ALERT_PRESENTING};
+    assert(iw_product_scene_build(&scene, IW_PAGE_ALERT_ALARM, m));
+    assert(has_text(&scene, "仅视觉提醒"));
+    assert(iw_product_scene_hit(&scene, 280, 354, 0) >= 0);
     m->stopwatch.state = IW_STOPWATCH_RUNNING;
     m->stopwatch.lap_count = 1u;
     assert(iw_product_scene_build(&scene, IW_PAGE_STOPWATCH, m));

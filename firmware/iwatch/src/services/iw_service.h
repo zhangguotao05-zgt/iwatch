@@ -7,12 +7,16 @@
 
 #include "iw_time.h"
 #include "iw_chronograph.h"
+#include "iw_alarms.h"
+#include "iw_alerts.h"
+#include "iw_alert_output.h"
 
 #define IW_COMMAND_VERSION 1u
 #define IW_COMMAND_CAPACITY 16u
 #define IW_RESULT_LEDGER_CAPACITY 32u
 #define IW_CAPABILITY_CAPACITY 8u
 #define IW_RESULT_PAYLOAD_BYTES 12u
+#define IW_ALARM_DRAFT_CAPACITY 2u
 #define IW_BRIGHTNESS_MIN 5u
 #define IW_BRIGHTNESS_MAX 100u
 #define IW_BRIGHTNESS_DEFAULT 100u
@@ -29,6 +33,7 @@ typedef enum
     IW_OPCODE_ACK_ALERT = 0x0200,
     IW_OPCODE_SNOOZE_ALERT = 0x0201,
     IW_OPCODE_ALARM_APPLY = 0x0300,
+    IW_OPCODE_ALARM_DELETE = 0x0301,
     IW_OPCODE_STOPWATCH_START = 0x0400,
     IW_OPCODE_STOPWATCH_PAUSE = 0x0401,
     IW_OPCODE_STOPWATCH_RESET = 0x0402,
@@ -87,6 +92,26 @@ typedef struct
 {
     uint32_t expected_revision;
 } iw_stopwatch_control_payload_t;
+
+typedef struct
+{
+    uint32_t entity_id;
+    uint32_t occurrence;
+    uint16_t source_type;
+    uint16_t reserved;
+} iw_alert_control_payload_t;
+
+typedef struct
+{
+    uint32_t edit_handle;
+    uint32_t expected_revision;
+} iw_alarm_apply_payload_t;
+
+typedef struct
+{
+    uint32_t alarm_id;
+    uint32_t expected_revision;
+} iw_alarm_delete_payload_t;
 
 _Static_assert(sizeof(iw_set_brightness_payload_t) == 12u,
                "亮度命令载荷必须保持 12 字节");
@@ -219,7 +244,9 @@ typedef enum
     IW_CAP_CLOCK = 1,
     IW_CAP_RTC_BACKUP = 2,
     IW_CAP_DISPLAY = 3,
-    IW_CAP_STORAGE = 4
+    IW_CAP_STORAGE = 4,
+    IW_CAP_HAPTIC = 5,
+    IW_CAP_SOUND = 6
 } iw_capability_id_t;
 
 typedef enum
@@ -249,7 +276,9 @@ typedef enum
     IW_SNAPSHOT_SERVICE = 3,
     IW_SNAPSHOT_BRIGHTNESS = 4,
     IW_SNAPSHOT_TIMERS = 5,
-    IW_SNAPSHOT_STOPWATCH = 6
+    IW_SNAPSHOT_STOPWATCH = 6,
+    IW_SNAPSHOT_ALARMS = 7,
+    IW_SNAPSHOT_ALERTS = 8
 } iw_snapshot_topic_t;
 
 typedef struct
@@ -308,15 +337,27 @@ _Static_assert(sizeof(iw_service_slot_t) <= 96u, "单个结果账本槽不得超
 
 typedef struct
 {
+    iw_alarm_edit_t edit;
+    uint32_t handle;
+    uint32_t request_id;
+} iw_alarm_draft_slot_t;
+
+typedef struct
+{
     iw_time_state_t *time_state;
     iw_service_slot_t slots[IW_RESULT_LEDGER_CAPACITY];
     iw_capability_entry_t capabilities[IW_CAPABILITY_CAPACITY];
     iw_service_stats_t stats;
     iw_brightness_snapshot_t brightness;
     iw_chronograph_t chronograph;
+    iw_alarms_t alarms;
+    iw_alerts_t alerts;
+    iw_alert_output_t alert_output;
+    iw_alarm_draft_slot_t alarm_drafts[IW_ALARM_DRAFT_CAPACITY];
     uint8_t queue[IW_COMMAND_CAPACITY];
     uint32_t session_id;
     uint32_t next_slot_generation;
+    uint32_t next_alarm_draft_generation;
     uint32_t capability_revision;
     uint8_t queue_head;
     uint8_t queue_count;
@@ -360,6 +401,18 @@ bool iw_command_encode_stopwatch_control(iw_command_t *command,
                                          uint32_t expected_revision);
 bool iw_command_decode_stopwatch_control(const iw_command_t *command,
                                          iw_stopwatch_control_payload_t *payload);
+bool iw_command_encode_alert_control(iw_command_t *command, iw_alert_source_t source,
+                                     uint32_t entity_id, uint32_t occurrence);
+bool iw_command_decode_alert_control(const iw_command_t *command,
+                                     iw_alert_control_payload_t *payload);
+bool iw_command_encode_alarm_apply(iw_command_t *command, uint32_t edit_handle,
+                                   uint32_t expected_revision);
+bool iw_command_decode_alarm_apply(const iw_command_t *command,
+                                   iw_alarm_apply_payload_t *payload);
+bool iw_command_encode_alarm_delete(iw_command_t *command, uint32_t alarm_id,
+                                    uint32_t expected_revision);
+bool iw_command_decode_alarm_delete(const iw_command_t *command,
+                                    iw_alarm_delete_payload_t *payload);
 
 bool iw_client_session_init(iw_client_session_t *client, uint32_t session_id);
 bool iw_client_next_request(iw_client_session_t *client, uint32_t *request_id);
@@ -389,6 +442,10 @@ bool iw_service_note_brightness_applied(iw_service_t *service,
                                         int32_t device_error);
 bool iw_service_brightness_read(const iw_service_t *service,
                                  iw_brightness_snapshot_t *snapshot);
+/* 草稿由服务复制保存；成功受理后冻结到对应 request，执行后释放。 */
+bool iw_service_alarm_draft_store(iw_service_t *service, const iw_alarm_edit_t *edit,
+                                  uint32_t *handle);
+bool iw_service_alarm_draft_discard(iw_service_t *service, uint32_t handle);
 unsigned iw_service_advance(iw_service_t *service, uint64_t mono_ms);
 bool iw_service_timers_read(const iw_service_t *service,
                             uint64_t mono_ms,
@@ -399,6 +456,8 @@ bool iw_service_stopwatch_read(const iw_service_t *service,
 bool iw_service_stopwatch_summary_read(const iw_service_t *service,
                                        uint64_t mono_ms,
                                        iw_stopwatch_summary_t *summary);
+bool iw_service_alarms_read(const iw_service_t *service, iw_alarm_snapshot_t *snapshot);
+bool iw_service_alerts_read(const iw_service_t *service, iw_alert_snapshot_t *snapshot);
 iw_result_lookup_t iw_service_result_get(const iw_service_t *service,
                                          uint32_t session_id,
                                          uint32_t request_id,

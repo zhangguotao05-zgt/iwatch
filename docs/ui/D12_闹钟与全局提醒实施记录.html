@@ -1,0 +1,26 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="iwatch D12 闹钟与全局提醒实施、构建及实机验收记录"><title>D12 闹钟与全局提醒实施记录 · iwatch</title>
+<link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
+<header><h1>D12 闹钟与全局提醒实施记录</h1><p class="doc-meta">2026-09-19 · Issue #14 · M2 · T18/T19 · 开发中</p></header>
+<section><h2>范围</h2>
+<p>D12 在 D11 单调计时基础上增加 16 个会话内闹钟、8 个计时器加 16 个闹钟的独立提醒槽、精确发生确认与九分钟稍后提醒。应用列表增加闹钟入口；提醒可从当前页面自动打开，Home 或返回仅隐藏画面，不确认提醒，应用列表保留重进入口。</p>
+<p>开发板尚无已验收的马达或扬声器驱动。服务将 SOUND、HAPTIC 标为缺失，只启用视觉提醒。输出仲裁模型覆盖单一活动源与 30 秒上限，但实机不会声称已发声或振动。闹钟和提醒目前在 RAM 中，断电保持待 D15 存储修复后处理；<code>flash1</code> 的既有 FAL 报错不由 D12 掩盖。</p></section>
+<section><h2>所有权与关键路径</h2>
+<table><thead><tr><th>模块</th><th>职责</th><th>边界</th></tr></thead><tbody>
+<tr><td><code>core/iw_alarms</code></td><td>固定容量闹钟、下一次到期、本地日期高水位与错过计数。</td><td>无可信 RTC 时不响；校时或时区变化只重新计算未来到期，不连发历史事件。</td></tr>
+<tr><td><code>core/iw_alerts</code></td><td>24 个按源分区的提醒槽，同一源的新发生合并、旧 occurrence 拒绝确认。</td><td>8 个计时器与 16 个闹钟同到期仍各占一槽；账本不依赖页面生命周期。</td></tr>
+<tr><td><code>core/iw_alert_output</code></td><td>按稳定顺序选择一个活动源，限制最长输出时间。</td><td>硬件能力缺失时仅视觉；自动停声和隐藏页面都不等于 ACK。</td></tr>
+<tr><td><code>services/iw_service</code></td><td>草稿句柄、命令结果、闹钟及提醒快照；单线程推进业务。</td><td>草稿复制进服务固定池，命令不保存 GUI 指针；ACK 与稍后提醒按源、ID、occurrence 精确匹配。</td></tr>
+<tr><td><code>gui_core/platform</code></td><td>闹钟列表／编辑、全局提醒页、自动打开及隐藏后的重进。</td><td>只在 app_watch 线程创建或销毁 LVGL 对象，服务快照在模型锁内有界复制。</td></tr>
+</tbody></table>
+<p>诊断命令 <code>iw_alarm_add_diag</code>、<code>iw_alarm_delete_diag</code>、<code>iw_alert_stat</code>、<code>iw_alert_diag</code> 和 <code>iw_d12_result</code> 可从 COM10 读取模型及 ACK 结果。串口入队成功仅表示受理，必须结合终态结果和快照判定业务结果。</p></section>
+<section><h2>验收矩阵</h2>
+<table><thead><tr><th>层级</th><th>检查</th><th>状态</th></tr></thead><tbody>
+<tr><td>主机核心</td><td>T18 8+16 同时到期、固定槽、稳定确认；T19 回拨、前调、迟到、同源合并、旧 ACK、稍后提醒与常规到期重合、删除释放；命令及容量边界。</td><td>已通过，待最终归档</td></tr>
+<tr><td>主机 GUI</td><td>新页面布局、触摸动作、返回、字体与页面生命周期故障注入。</td><td>已通过，待最终归档</td></tr>
+<tr><td>目标构建</td><td>GCC／Keil 源码身份、6 MiB 镜像槽、字体预算、map 来源及 COM255 DryRun。</td><td>待执行</td></tr>
+<tr><td>开发板</td><td>COM9 刷入并校验；COM10 启动、闹钟创建／编辑／删除、真实到期、隐藏／重进、ACK／稍后、旧页面与内存回归。</td><td>待执行</td></tr>
+</tbody></table>
+<p>主机证明精确竞争和容量边界；实机只记录实际执行的场景。#8 长文与输入性能、#10 显示异常继续独立跟踪。本记录在目标构建和实机完成后补入镜像哈希、原始日志哈希与观察结果，未取得架构审批前 Issue #14 保持打开。</p></section>
+</main></body></html>

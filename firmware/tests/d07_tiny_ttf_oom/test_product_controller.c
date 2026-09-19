@@ -42,6 +42,12 @@ bool iw_brightness_read(iw_brightness_snapshot_t *v) {
 iw_snapshot_status_t iw_snapshot_read(iw_snapshot_topic_t t, void *v, size_t capacity, size_t *required) {
     return iw_service_snapshot_read(&model, t, v, capacity, required);
 }
+bool iw_alarm_draft_runtime_store(const iw_alarm_edit_t *edit, uint32_t *handle) {
+    return iw_service_alarm_draft_store(&model, edit, handle);
+}
+bool iw_alarm_draft_runtime_discard(uint32_t handle) {
+    return iw_service_alarm_draft_discard(&model, handle);
+}
 static void navigate(uint16_t id, uint32_t argument, void *context) {
     assert(context == &model);
     navigations++;

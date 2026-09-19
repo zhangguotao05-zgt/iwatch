@@ -112,9 +112,10 @@ static int gui_app_run(const char *name)
 
 static iw_snapshot_status_t iw_snapshot_read(iw_snapshot_topic_t topic, void *output, size_t capacity, size_t *required)
 {
-    assert(topic == IW_SNAPSHOT_CAPABILITIES);
-    assert(iw_service_set_capability(&service, IW_CAP_DISPLAY,
-        display_available ? IW_CAP_STATE_AVAILABLE : IW_CAP_STATE_FAULT, 0));
+    assert(topic == IW_SNAPSHOT_CAPABILITIES || topic == IW_SNAPSHOT_ALERTS);
+    if (topic == IW_SNAPSHOT_CAPABILITIES)
+        assert(iw_service_set_capability(&service, IW_CAP_DISPLAY,
+            display_available ? IW_CAP_STATE_AVAILABLE : IW_CAP_STATE_FAULT, 0));
     /* 真实服务序列化与调用约束参与回归，只替换运行时互斥及时间采样。 */
     return iw_service_snapshot_read(&service, topic, output, capacity, required);
 }
