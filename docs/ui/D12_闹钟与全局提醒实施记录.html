@@ -19,8 +19,9 @@
 <table><thead><tr><th>层级</th><th>检查</th><th>状态</th></tr></thead><tbody>
 <tr><td>主机核心</td><td>T18 8+16 同时到期、固定槽、稳定确认；T19 回拨、前调、迟到、同源合并、旧 ACK、稍后提醒与常规到期重合、删除释放；命令及容量边界。</td><td>已通过，待最终归档</td></tr>
 <tr><td>主机 GUI</td><td>新页面布局、触摸动作、返回、字体与页面生命周期故障注入。</td><td>已通过，待最终归档</td></tr>
-<tr><td>目标构建</td><td>GCC／Keil 源码身份、6 MiB 镜像槽、字体预算、map 来源及 COM255 DryRun。</td><td>待执行</td></tr>
+<tr><td>目标构建</td><td>GCC／Keil 从同一源码提交独立构建；身份、6 MiB 镜像槽、字体预算、map 来源及 COM255 DryRun。</td><td>通过</td></tr>
 <tr><td>开发板</td><td>COM9 刷入并校验；COM10 启动、闹钟创建／编辑／删除、真实到期、隐藏／重进、ACK／稍后、旧页面与内存回归。</td><td>待执行</td></tr>
 </tbody></table>
-<p>主机证明精确竞争和容量边界；实机只记录实际执行的场景。#8 长文与输入性能、#10 显示异常继续独立跟踪。本记录在目标构建和实机完成后补入镜像哈希、原始日志哈希与观察结果，未取得架构审批前 Issue #14 保持打开。</p></section>
+<p>构建基线为源码提交 <code>0c76c76ae3a912bc72e1e51f54f3a3cf66932551</code>，固定派生 SDK 为 <code>421126d9…</code> 加受控补丁。GCC <code>main.bin</code> 为 1,935,588 B、SHA-256 <code>20b7ac52459289719988567366259f8b3c17bf502059dc2942236f721d4952ac</code>，占 6 MiB 槽 30.765%；Keil 为 1,860,456 B、SHA-256 <code>a983264ad7fcef1bc5a9a87caff87be1cd657fd632d1c9073f9c70b2a8c363ad</code>，占 29.571%。两份归档的内嵌身份分别以 <code>0c76c76ae3a9 / e49d1172a874 / gcc</code> 与 <code>/ keil</code> 结尾；正式字体 418 字、71,076 B，预算和两套 COM255 DryRun 通过。两套三件套各自独立，不能混刷。</p>
+<p>主机证明精确竞争和容量边界；实机只记录实际执行的场景。#8 长文与输入性能、#10 显示异常继续独立跟踪。本记录在实机完成后补入原始日志哈希与观察结果，未取得架构审批前 Issue #14 保持打开。</p></section>
 </main></body></html>
