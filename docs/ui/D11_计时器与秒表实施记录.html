@@ -2,7 +2,7 @@
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="iwatch D11 计时器与秒表实施及验收记录"><title>D11 计时器与秒表实施记录 · iwatch</title>
 <link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
-<header><h1>D11 计时器与秒表实施记录</h1><p class="doc-meta">2026-09-18 · Issue #13 · M2 · T16/T17</p></header>
+<header><h1>D11 计时器与秒表实施记录</h1><p class="doc-meta">2026-09-18～19 · Issue #13 · M2 · T16/T17 · 待架构复核</p></header>
 <section><h2>1. 范围与边界</h2>
 <p>D11 实现 8 个并行计时器、1 个秒表和最多 100 条计次记录，打通固定容量核心、服务命令、版本化快照、应用入口和页面恢复。计时使用 64 位单调毫秒，不读取日历时间计算剩余值；RTC 校时不会改变运行或暂停中的计时器与秒表。</p>
 <p>提醒页面、声音/振动互斥、16 个闹钟和 24 槽全局提醒队列属于 D12。D11 只保留计时器的 occurrence 与 alert_pending，证明到期只登记一次，不伪造完整提醒输出。重启连续性尚未启用持久化，因此冷启动后不承诺恢复活动计时。</p></section>
@@ -30,12 +30,29 @@
 <figure><img src="assets/d11-chronograph/d11-11.png" width="195" height="225" alt="Q1 运行计时器详情"><figcaption>运行详情</figcaption></figure>
 <figure><img src="assets/d11-chronograph/d11-14.png" width="195" height="225" alt="Q1 秒表计次"><figcaption>秒表计次</figcaption></figure>
 </div></section>
-<section><h2>5. 验证计划与当前结果</h2>
+<section><h2>5. 验证结果</h2>
 <table><thead><tr><th>层级</th><th>覆盖</th><th>状态</th></tr></thead><tbody>
 <tr><td>主机核心</td><td>T16 截止时刻与暂停/取消；RTC 无关；容量、饱和和失败无副作用；T17 后台到期及第 101 圈。</td><td>通过</td></tr>
 <tr><td>主机 GUI</td><td>新页面布局、字体、路由 ID 参数、1,000 轮生命周期、离页结果 ACK、退出后恢复。</td><td>通过</td></tr>
-<tr><td>GCC / Keil</td><td>干净切换、身份、资源预算、布局及烧录 DryRun。</td><td>待本源码提交后执行</td></tr>
-<tr><td>开发板</td><td>创建/暂停/继续/取消/重启、退出后到期、秒表计次、按键返回、20%/80%、内存回收。</td><td>待刷入复验</td></tr>
+<tr><td>GCC / Keil</td><td>从源码 <code>a928b330082e</code> 干净构建、镜像内嵌身份、资源预算、布局、归档和 COM255 烧录 DryRun。</td><td>通过；两工具链镜像独立</td></tr>
+<tr><td>开发板</td><td>GCC 三件套经 COM9 写入；COM10 记录到期、离页运行、100 圈容量、返回、20%/80% 亮度及同状态内存；操作者确认计时器页面触摸和 KEY1。</td><td>通过本轮范围；待架构复核</td></tr>
 </tbody></table>
+<h3>构建与容量</h3>
+<table><thead><tr><th>工具链</th><th>main.bin</th><th>6 MiB 槽占用</th><th>SHA-256</th></tr></thead><tbody>
+<tr><td>GCC</td><td>1,923,608 B</td><td>30.575%</td><td><code>0ec7ba078331724d8b421ef6d2d4f3307fbb04998b8e2aa4cf071dfd84706ce3</code></td></tr>
+<tr><td>Keil</td><td>1,848,392 B</td><td>29.379%</td><td><code>ce70cf15c8e8142953a50f9217a6613b35439771fed756f8462e192af301012e</code></td></tr>
+</tbody></table>
+<p>两份归档的 <code>git_head</code> 均为 <code>a928b330082e8a1fe5e292bf73d12dfb85bb76bc</code>，嵌入标签分别为 <code>a928b330082e / 00e6430805da / gcc</code> 和 <code>a928b330082e / 00e6430805da / keil</code>；map 工具链标记与产物分别对应。字体文件 69,004 B、位图字体 51,335 B、链接图片 866,577 B，预算通过。身份 JSON 的“未刷入”是构建时快照，板测状态由下方独立记录给出。</p>
+<h3>实机与原始证据</h3>
+<p>GCC 的 Bootloader、main 和 FTab 按归档清单经 COM9 写入并校验；未访问 J-Link。COM10 原始数据 133,381 B，SHA-256 <code>5c140182c677f4cf87ec33a844a1df612b112771c5abefeb1893d77e9de53ddb</code>；时间线 SHA-256 <code>e6c0080c694f79d77c431c11226c303b49a5d32e7ee9e1f40d73b2b260ecc36c</code>。5,254 段接收偏移连续，说明采集程序保存的数据没有内部缺口，不证明物理链路绝无丢字节。</p>
+<table><thead><tr><th>场景</th><th>本轮观察</th></tr></thead><tbody>
+<tr><td>触摸与实体键</td><td>操作者确认计时器创建、暂停、继续和 KEY1 返回正常；没有把串口命令当作实屏点击证据。</td></tr>
+<tr><td>离页到期</td><td>3 秒计时器在表盘前台到期，连续读取均为 <code>occurrence=1, alert=1</code>；页面创建的 60 秒计时器到期登记 occurrence 2，重启后为 occurrence 3。此处只证明 pending 登记，提醒输出由 D12 实现。</td></tr>
+<tr><td>秒表离页和容量</td><td>离开秒表页期间经过时间从 564 ms 增至 4,593 ms；重新进入保留状态。100 次 lap 成功，第 101 次返回 CAPACITY，原有 100 圈及 RUNNING 状态保留。暂停后 3 秒内两次读取均为 118,011 ms；复位后为 IDLE、0 ms、0 圈。</td></tr>
+<tr><td>往返与资源</td><td>串口自动执行 10 轮计时器列表／秒表页开关。同一应用列表前台状态的 11 份主堆样本均为 80,020 B，字体引用为 7；字形池在缓存回收中由 36,636 B 降至 35,508 B，未见逐轮增长。该状态有后台对象，不能与冷启动基线直接比较。</td></tr>
+<tr><td>显示与输入</td><td>20% 与 80% 目标／实际亮度和 ACK 对应；最后为 80%。本窗口触摸溢出 0，显示恢复 0、fault_pending 0，未见 HardFault、断言或 LCD timeout；不据此关闭 #8、#10。</td></tr>
+</tbody></table>
+<p>原始目录 <code>logs/board-validation-20260918-d11/</code> 仅本机可用，未入库：含 <code>serial-raw.bin</code>、<code>timeline.jsonl</code>、<code>commands.txt</code>、两份构建身份、两份 DryRun、烧录进度与 <code>board-validation.json</code>。可运行 <code>py -3.14 tools/d11_verify.py logs/board-validation-20260918-d11</code> 复核原始数据，脚本在仓库内。烧录进度文件只保留进度百分比，不能单独作为写后校验的完整输出；本轮完成状态来自执行流程与随后的启动和功能窗口。主机测试、构建身份、开发板诊断和操作者实屏确认分别记录，互不替代。</p>
+<p>最终主机核心脚本和 46 项 Python 回归通过（其中一项可选环境测试跳过）；46 份 HTML 的本地链接、锚点和 90 项校验和通过。T16 的截止同刻竞争及 RTC 校时独立性由主机状态机测试覆盖；本轮没有在硬件上精确注入同毫秒边界。没有实机断电保持、真实内存耗尽或完整提醒输出验收。Issue #13 保持打开，等待架构师复核。</p>
 <p>长文和输入性能继续由 Issue #8 跟踪；半黑半白显示异常继续由 Issue #10 跟踪。D11 不以二者已关闭作为前提，也不把未复现写成已修复。</p></section>
 </main></body></html>
