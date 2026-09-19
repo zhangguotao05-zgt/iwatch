@@ -9,7 +9,7 @@
       "state": "launcher",
       "file": "d11-00.png",
       "rgb565_sha256": "0d2b2226316896ab3ccac798ed68a138d92c51e034c92091aab53cf8e7ccfcee",
-      "png_sha256": "2c9aa592375a5a633794cf7b2ed8a34e11915ca2fc567cecffa286d9339f32b1"
+      "png_sha256": "5c8a616ce88fd497ec93c05b6b5d7ee363ab556f603db93ff7cd3472d66786ad"
     },
     {
       "quality": "Q0",
@@ -18,7 +18,7 @@
       "state": "timer-empty",
       "file": "d11-01.png",
       "rgb565_sha256": "9a616bc955a0d71e4f47b8e3a6e1487479423008f69c9039708ca4956b4038a3",
-      "png_sha256": "f866168fed4d5817b1550f3ad883d4d335cbaabee6ff1f4295eccfb9343e96d4"
+      "png_sha256": "cc263be231e2893a575931e8a8b9485220dc4bd73dc4d345a7bc8be0e06fef33"
     },
     {
       "quality": "Q0",
@@ -27,7 +27,7 @@
       "state": "timer-mixed",
       "file": "d11-02.png",
       "rgb565_sha256": "00aff7d5fdc2100a4b2944b6e8a2313186664e51959eac7033a111111f168a8c",
-      "png_sha256": "d331b655a05d2d9558560bfa8e90f0875212764e5f7b030b5143c177ba0edd84"
+      "png_sha256": "2851413f6ea3a0f291bda7c8fffc06d1dfe3b749745ad737ef34f7cd6fd2ddd0"
     },
     {
       "quality": "Q0",
@@ -36,7 +36,7 @@
       "state": "timer-running",
       "file": "d11-03.png",
       "rgb565_sha256": "62919eb505f70436ca5888f8c23701030debe578af0f880ec2abf8b0f1b90694",
-      "png_sha256": "49a8cce76980baa1bdd773bd3bbbb7b49b43923601cb63f6c9212864c4b64c74"
+      "png_sha256": "fcccb2ff07def8b57711fd2b1ca5940e60d618d7557845a1f19fd425c6fd4b09"
     },
     {
       "quality": "Q0",
@@ -45,7 +45,7 @@
       "state": "timer-paused",
       "file": "d11-04.png",
       "rgb565_sha256": "9af4f3c873caec0cc2ed557b1b8260bab1882771eaa2ea26727a07c3d4b6f3dd",
-      "png_sha256": "d2015ee6a427dcf565d1a5caa07adc1d466500f444ad1f720cdd1bca8f9fddac"
+      "png_sha256": "03454fd02845909beb6c4abad0053e890ee35e045f080e42239a3d724ce89940"
     },
     {
       "quality": "Q0",
@@ -54,7 +54,7 @@
       "state": "timer-expired",
       "file": "d11-05.png",
       "rgb565_sha256": "eaaa8950d8bfa3aaca1d8f2e56afcbe96c304885759ef0407002fb00dfbf3475",
-      "png_sha256": "a72da2972a1cc3ca8fbc37344258e68b13c7579ffdef512136310b4718e4ab02"
+      "png_sha256": "a3fc8bb7c112b0ea140b767aa1231c0f886bfceb59c8cd9b0baf4c367826a289"
     },
     {
       "quality": "Q0",
@@ -63,232 +63,268 @@
       "state": "stopwatch-running",
       "file": "d11-06.png",
       "rgb565_sha256": "7e006c241f4d9b715faaa16250eb2db86ab5129b28f88e6e772341a00bf171b0",
-      "png_sha256": "84eae6c6bbca2513118b2ffffdf3d47114eac415e5a900511d600d3dea7f2d2f"
+      "png_sha256": "6f1674b0710c13ca6fd6651565bee1d5988c13306438bb027d130b20049d311f"
     },
     {
       "quality": "Q0",
       "large_text": false,
       "reduced_motion": false,
-      "state": "stopwatch-full-paused",
+      "state": "stopwatch-full-running",
       "file": "d11-07.png",
-      "rgb565_sha256": "d799c36b6c74ada0fe15cdfca7f2f36f4c3574617446b2f0e494c55cc5e98a01",
-      "png_sha256": "228d8e294f452b8ccba9319d2e42cb365a5175f0301180545590e4e0a3de4bd6"
+      "rgb565_sha256": "93a0c2d673dcb948b169cb7a38b56b0bdd72ec9dcabdc241e75f3e0a03267bdd",
+      "png_sha256": "ac50f020a74b4735c2a88cb0c78c608cb90ef48b846594727f8eaeec876501c8"
     },
     {
-      "quality": "Q1",
+      "quality": "Q0",
       "large_text": false,
       "reduced_motion": false,
-      "state": "launcher",
+      "state": "timer-full",
       "file": "d11-08.png",
-      "rgb565_sha256": "0d2b2226316896ab3ccac798ed68a138d92c51e034c92091aab53cf8e7ccfcee",
-      "png_sha256": "2c9aa592375a5a633794cf7b2ed8a34e11915ca2fc567cecffa286d9339f32b1"
+      "rgb565_sha256": "f165aa359d089cdecc65f9172dd36c80c9a78433945ae98d2acebdbbbc01d647",
+      "png_sha256": "9a59c3cc218ab5c19913c44bc9333d9d0e70e7bb22adf1dd74754b57e1b8a22e"
     },
     {
       "quality": "Q1",
       "large_text": false,
       "reduced_motion": false,
-      "state": "timer-empty",
+      "state": "launcher",
       "file": "d11-09.png",
-      "rgb565_sha256": "dbf9b75543000d7af5af189b0303336d708051e5c4a5feb7d05a81b99d448e5b",
-      "png_sha256": "b6bf59fa3b142b42ebe7f26dc6aa1d609e381eca6b15d218cf41d16dc8e26fe6"
-    },
-    {
-      "quality": "Q1",
-      "large_text": false,
-      "reduced_motion": false,
-      "state": "timer-mixed",
-      "file": "d11-10.png",
-      "rgb565_sha256": "18a322ce993bf9ebca4473ce2b66b129b586158a7ccc42c5a0ba491812ebcdc0",
-      "png_sha256": "f91661936e1501a44dd8a26f934411c296413c674bc084eb8a8ca455deb360f8"
-    },
-    {
-      "quality": "Q1",
-      "large_text": false,
-      "reduced_motion": false,
-      "state": "timer-running",
-      "file": "d11-11.png",
-      "rgb565_sha256": "480a61ff3177251e37289da616e1a47eebdb88dee6f87e5956709bd5c89756f3",
-      "png_sha256": "214db87165a9ee6835f6103532a297aae564e9617ccdd6987b316df28c04d63d"
-    },
-    {
-      "quality": "Q1",
-      "large_text": false,
-      "reduced_motion": false,
-      "state": "timer-paused",
-      "file": "d11-12.png",
-      "rgb565_sha256": "cce27ee68ebdb6829e055fb81481c6cf1f73e6436cc2580ab9f44d010b336f55",
-      "png_sha256": "bd3125d50a56575d199bccff12bb8835f3c20728233d68b645d81d64780f8047"
-    },
-    {
-      "quality": "Q1",
-      "large_text": false,
-      "reduced_motion": false,
-      "state": "timer-expired",
-      "file": "d11-13.png",
-      "rgb565_sha256": "a630602527612ff2483a0eed9f9ccfab229f3d4d3020e3fd0cf3328f40de16a8",
-      "png_sha256": "08fa8046d879777449c3d30216179c420c0949c7ff87e4e7bfd518783ccc8bd7"
-    },
-    {
-      "quality": "Q1",
-      "large_text": false,
-      "reduced_motion": false,
-      "state": "stopwatch-running",
-      "file": "d11-14.png",
-      "rgb565_sha256": "d1f8930de9f43e9b7cb7ff5e10bb55e5aa934930b799bb37bf5ce59123e2af1a",
-      "png_sha256": "0bff2393922dfc8e9b4b9280b405eedec1f96690fd7f76ac6fbdbfe7d67ee521"
-    },
-    {
-      "quality": "Q1",
-      "large_text": false,
-      "reduced_motion": false,
-      "state": "stopwatch-full-paused",
-      "file": "d11-15.png",
-      "rgb565_sha256": "dd490d9ceebc8e21420de1b8043899f5001b035987497f996fa294be302ce985",
-      "png_sha256": "f3733dc762dd502f19aafa3ef97b2c9bb7b1a216566bc34d0ef3f5c407a341ec"
-    },
-    {
-      "quality": "Q1",
-      "large_text": true,
-      "reduced_motion": false,
-      "state": "launcher",
-      "file": "d11-16.png",
-      "rgb565_sha256": "65f7adc63fc908165939b06263d9d259c39d84754e7616c4ef9e7adf6c5bb0a6",
-      "png_sha256": "d83231b5638298834eb961c79750410fdebaeee90929e1cee158588b58498720"
-    },
-    {
-      "quality": "Q1",
-      "large_text": true,
-      "reduced_motion": false,
-      "state": "timer-empty",
-      "file": "d11-17.png",
-      "rgb565_sha256": "130fc9f0855071c1df31bd74271e0dab71902d8060ee05fdefd138c9c3c71bda",
-      "png_sha256": "7c567e2c73dd856192eb5cd04ee8bfb7487f466bc94da4558725f51785590179"
-    },
-    {
-      "quality": "Q1",
-      "large_text": true,
-      "reduced_motion": false,
-      "state": "timer-mixed",
-      "file": "d11-18.png",
-      "rgb565_sha256": "0c90a54dcd0cbf1ba2e5dfaed9ef72403dea42974e1b525b3c99e2295fa4c7a3",
-      "png_sha256": "6a90023bf3ef8c1a877bce7c8bf0bc844f652757012534d33ebb8b4b28b10555"
-    },
-    {
-      "quality": "Q1",
-      "large_text": true,
-      "reduced_motion": false,
-      "state": "timer-running",
-      "file": "d11-19.png",
-      "rgb565_sha256": "ab3c8543c2c8e9be5831b883f62c9c0a987219ff5d8635659532d767fd0da7ef",
-      "png_sha256": "6d5ea430538bc1e35fe794a318ebdc19f2969ae9ae6364d044f6379daff4dbce"
-    },
-    {
-      "quality": "Q1",
-      "large_text": true,
-      "reduced_motion": false,
-      "state": "timer-paused",
-      "file": "d11-20.png",
-      "rgb565_sha256": "36f42e2ddc4883fec8b001321b786a46ffecfb40facf2bb8e8dd218c04ed46a4",
-      "png_sha256": "aa982f20a2e12113d7766a44b1350cff7d58de5b21abf24232d7b51a51bf9deb"
-    },
-    {
-      "quality": "Q1",
-      "large_text": true,
-      "reduced_motion": false,
-      "state": "timer-expired",
-      "file": "d11-21.png",
-      "rgb565_sha256": "903f764429865cedac0b8acacc9cc8618d792371666a44f098c620df683b58a3",
-      "png_sha256": "1725009aac5fe49f7b1d1939a94560b822f79e6f6d87e4375d40c301662f57ac"
-    },
-    {
-      "quality": "Q1",
-      "large_text": true,
-      "reduced_motion": false,
-      "state": "stopwatch-running",
-      "file": "d11-22.png",
-      "rgb565_sha256": "2cae9fe5f5fcd97f978e66b1d7bd6f026822f805222c1de097f02001c28b46b6",
-      "png_sha256": "117959463fdec2ef66925e2e357cbc515e90d18765e985035fd8531d12eea864"
-    },
-    {
-      "quality": "Q1",
-      "large_text": true,
-      "reduced_motion": false,
-      "state": "stopwatch-full-paused",
-      "file": "d11-23.png",
-      "rgb565_sha256": "cc5138139e6f8a186671e511e97a0d0c7f1f04f1455b18788cad4acca968ba43",
-      "png_sha256": "da6d5d574ab2d1b7bfff73fca660327e0dff1ff955f03af912279125f85c7c19"
-    },
-    {
-      "quality": "Q1",
-      "large_text": false,
-      "reduced_motion": true,
-      "state": "launcher",
-      "file": "d11-24.png",
       "rgb565_sha256": "0d2b2226316896ab3ccac798ed68a138d92c51e034c92091aab53cf8e7ccfcee",
-      "png_sha256": "2c9aa592375a5a633794cf7b2ed8a34e11915ca2fc567cecffa286d9339f32b1"
+      "png_sha256": "5c8a616ce88fd497ec93c05b6b5d7ee363ab556f603db93ff7cd3472d66786ad"
+    },
+    {
+      "quality": "Q1",
+      "large_text": false,
+      "reduced_motion": false,
+      "state": "timer-empty",
+      "file": "d11-10.png",
+      "rgb565_sha256": "dbf9b75543000d7af5af189b0303336d708051e5c4a5feb7d05a81b99d448e5b",
+      "png_sha256": "9737054395f1993a8d0a5cfcc22f280a2e360af3fc1607ed0aa2d63ebbc55c0c"
+    },
+    {
+      "quality": "Q1",
+      "large_text": false,
+      "reduced_motion": false,
+      "state": "timer-mixed",
+      "file": "d11-11.png",
+      "rgb565_sha256": "18a322ce993bf9ebca4473ce2b66b129b586158a7ccc42c5a0ba491812ebcdc0",
+      "png_sha256": "5253d75a71b0d2eb370f0bdf60795077ebcfaefc5676a03509954b8a10d76266"
+    },
+    {
+      "quality": "Q1",
+      "large_text": false,
+      "reduced_motion": false,
+      "state": "timer-running",
+      "file": "d11-12.png",
+      "rgb565_sha256": "480a61ff3177251e37289da616e1a47eebdb88dee6f87e5956709bd5c89756f3",
+      "png_sha256": "9847dfda1b203e00cf9256bd11d6c5f3163b4bd4b9b3aaa8d03ca7c4ec6a6ec7"
+    },
+    {
+      "quality": "Q1",
+      "large_text": false,
+      "reduced_motion": false,
+      "state": "timer-paused",
+      "file": "d11-13.png",
+      "rgb565_sha256": "cce27ee68ebdb6829e055fb81481c6cf1f73e6436cc2580ab9f44d010b336f55",
+      "png_sha256": "4e8404a17c8470253518c326d889ce6b2b7e9f182e30c2c8de2020f4a01b6897"
+    },
+    {
+      "quality": "Q1",
+      "large_text": false,
+      "reduced_motion": false,
+      "state": "timer-expired",
+      "file": "d11-14.png",
+      "rgb565_sha256": "a630602527612ff2483a0eed9f9ccfab229f3d4d3020e3fd0cf3328f40de16a8",
+      "png_sha256": "7aff541987d4a338c5f6549733267bc2434def3c3c78d8717448b4ce56fca245"
+    },
+    {
+      "quality": "Q1",
+      "large_text": false,
+      "reduced_motion": false,
+      "state": "stopwatch-running",
+      "file": "d11-15.png",
+      "rgb565_sha256": "d1f8930de9f43e9b7cb7ff5e10bb55e5aa934930b799bb37bf5ce59123e2af1a",
+      "png_sha256": "52b488f94649567d9398d69e6932a261dfae8a159888a01a51efadeb948abaf5"
+    },
+    {
+      "quality": "Q1",
+      "large_text": false,
+      "reduced_motion": false,
+      "state": "stopwatch-full-running",
+      "file": "d11-16.png",
+      "rgb565_sha256": "6238fefbeb44ad617f104ae747445546e8085b0578a212adb0ec2f756482cccc",
+      "png_sha256": "230adfcf2906dee8b81af968aa6fab8179e35ceafd74619c13e3a4aa75468971"
+    },
+    {
+      "quality": "Q1",
+      "large_text": false,
+      "reduced_motion": false,
+      "state": "timer-full",
+      "file": "d11-17.png",
+      "rgb565_sha256": "5e9cf1d637655f0141d472d51ff76def2bd460cc41276bb5d379e588416eada5",
+      "png_sha256": "f52fcd9152abe6a4ca045b2b2ca6dc0d2ec401117349acdc535c3c8b3cb9aa56"
+    },
+    {
+      "quality": "Q1",
+      "large_text": true,
+      "reduced_motion": false,
+      "state": "launcher",
+      "file": "d11-18.png",
+      "rgb565_sha256": "65f7adc63fc908165939b06263d9d259c39d84754e7616c4ef9e7adf6c5bb0a6",
+      "png_sha256": "44e13ddfba7afb55810d537df9c4eca1f56b2552d81ab8f8a34c84adf79c098c"
+    },
+    {
+      "quality": "Q1",
+      "large_text": true,
+      "reduced_motion": false,
+      "state": "timer-empty",
+      "file": "d11-19.png",
+      "rgb565_sha256": "130fc9f0855071c1df31bd74271e0dab71902d8060ee05fdefd138c9c3c71bda",
+      "png_sha256": "90c12901b256c6fc5d8f2536b2c9ab7fa3d341bce3a46e0d0e56647c6182b632"
+    },
+    {
+      "quality": "Q1",
+      "large_text": true,
+      "reduced_motion": false,
+      "state": "timer-mixed",
+      "file": "d11-20.png",
+      "rgb565_sha256": "0c90a54dcd0cbf1ba2e5dfaed9ef72403dea42974e1b525b3c99e2295fa4c7a3",
+      "png_sha256": "7870a2a48d9bbe2c8151b8b6d253dc3eebcf749bd73203663bbca0a36301a76c"
+    },
+    {
+      "quality": "Q1",
+      "large_text": true,
+      "reduced_motion": false,
+      "state": "timer-running",
+      "file": "d11-21.png",
+      "rgb565_sha256": "ab3c8543c2c8e9be5831b883f62c9c0a987219ff5d8635659532d767fd0da7ef",
+      "png_sha256": "4be892e3ec33731f00de79234c513d4915f92df611e5a11367fa77f720f52247"
+    },
+    {
+      "quality": "Q1",
+      "large_text": true,
+      "reduced_motion": false,
+      "state": "timer-paused",
+      "file": "d11-22.png",
+      "rgb565_sha256": "36f42e2ddc4883fec8b001321b786a46ffecfb40facf2bb8e8dd218c04ed46a4",
+      "png_sha256": "4c092bf0c27dfb259a1e5732fd56002b724911cc84983c79d22fc976f5bdbfc3"
+    },
+    {
+      "quality": "Q1",
+      "large_text": true,
+      "reduced_motion": false,
+      "state": "timer-expired",
+      "file": "d11-23.png",
+      "rgb565_sha256": "903f764429865cedac0b8acacc9cc8618d792371666a44f098c620df683b58a3",
+      "png_sha256": "76a0c7038f2579f241da5894d1783c7ffed6418667840a65fe687bcb375e634d"
+    },
+    {
+      "quality": "Q1",
+      "large_text": true,
+      "reduced_motion": false,
+      "state": "stopwatch-running",
+      "file": "d11-24.png",
+      "rgb565_sha256": "2cae9fe5f5fcd97f978e66b1d7bd6f026822f805222c1de097f02001c28b46b6",
+      "png_sha256": "e964b3d5544dd7d025192ec5dcb7feeb65ff164c3680708ef2d5a6b2d282960a"
+    },
+    {
+      "quality": "Q1",
+      "large_text": true,
+      "reduced_motion": false,
+      "state": "stopwatch-full-running",
+      "file": "d11-25.png",
+      "rgb565_sha256": "54cb7670508f55959cc20fc13912f417ad52801b2b5d86e6ca93ad682a90c30b",
+      "png_sha256": "2e9a29de8a002443ce771b79192c04475fbdf85f966c6798c923e2b5dbe67451"
+    },
+    {
+      "quality": "Q1",
+      "large_text": true,
+      "reduced_motion": false,
+      "state": "timer-full",
+      "file": "d11-26.png",
+      "rgb565_sha256": "51497283462321c2ad1970c9ec291871e75d9545600209723695e00317ddd95f",
+      "png_sha256": "8181b1c8168543600674a752a7e8ad7b18c854578cc0b5dcfae7e2855e7922a3"
+    },
+    {
+      "quality": "Q1",
+      "large_text": false,
+      "reduced_motion": true,
+      "state": "launcher",
+      "file": "d11-27.png",
+      "rgb565_sha256": "0d2b2226316896ab3ccac798ed68a138d92c51e034c92091aab53cf8e7ccfcee",
+      "png_sha256": "5c8a616ce88fd497ec93c05b6b5d7ee363ab556f603db93ff7cd3472d66786ad"
     },
     {
       "quality": "Q1",
       "large_text": false,
       "reduced_motion": true,
       "state": "timer-empty",
-      "file": "d11-25.png",
+      "file": "d11-28.png",
       "rgb565_sha256": "dbf9b75543000d7af5af189b0303336d708051e5c4a5feb7d05a81b99d448e5b",
-      "png_sha256": "b6bf59fa3b142b42ebe7f26dc6aa1d609e381eca6b15d218cf41d16dc8e26fe6"
+      "png_sha256": "9737054395f1993a8d0a5cfcc22f280a2e360af3fc1607ed0aa2d63ebbc55c0c"
     },
     {
       "quality": "Q1",
       "large_text": false,
       "reduced_motion": true,
       "state": "timer-mixed",
-      "file": "d11-26.png",
+      "file": "d11-29.png",
       "rgb565_sha256": "18a322ce993bf9ebca4473ce2b66b129b586158a7ccc42c5a0ba491812ebcdc0",
-      "png_sha256": "f91661936e1501a44dd8a26f934411c296413c674bc084eb8a8ca455deb360f8"
+      "png_sha256": "5253d75a71b0d2eb370f0bdf60795077ebcfaefc5676a03509954b8a10d76266"
     },
     {
       "quality": "Q1",
       "large_text": false,
       "reduced_motion": true,
       "state": "timer-running",
-      "file": "d11-27.png",
+      "file": "d11-30.png",
       "rgb565_sha256": "480a61ff3177251e37289da616e1a47eebdb88dee6f87e5956709bd5c89756f3",
-      "png_sha256": "214db87165a9ee6835f6103532a297aae564e9617ccdd6987b316df28c04d63d"
+      "png_sha256": "9847dfda1b203e00cf9256bd11d6c5f3163b4bd4b9b3aaa8d03ca7c4ec6a6ec7"
     },
     {
       "quality": "Q1",
       "large_text": false,
       "reduced_motion": true,
       "state": "timer-paused",
-      "file": "d11-28.png",
+      "file": "d11-31.png",
       "rgb565_sha256": "cce27ee68ebdb6829e055fb81481c6cf1f73e6436cc2580ab9f44d010b336f55",
-      "png_sha256": "bd3125d50a56575d199bccff12bb8835f3c20728233d68b645d81d64780f8047"
+      "png_sha256": "4e8404a17c8470253518c326d889ce6b2b7e9f182e30c2c8de2020f4a01b6897"
     },
     {
       "quality": "Q1",
       "large_text": false,
       "reduced_motion": true,
       "state": "timer-expired",
-      "file": "d11-29.png",
+      "file": "d11-32.png",
       "rgb565_sha256": "a630602527612ff2483a0eed9f9ccfab229f3d4d3020e3fd0cf3328f40de16a8",
-      "png_sha256": "08fa8046d879777449c3d30216179c420c0949c7ff87e4e7bfd518783ccc8bd7"
+      "png_sha256": "7aff541987d4a338c5f6549733267bc2434def3c3c78d8717448b4ce56fca245"
     },
     {
       "quality": "Q1",
       "large_text": false,
       "reduced_motion": true,
       "state": "stopwatch-running",
-      "file": "d11-30.png",
+      "file": "d11-33.png",
       "rgb565_sha256": "d1f8930de9f43e9b7cb7ff5e10bb55e5aa934930b799bb37bf5ce59123e2af1a",
-      "png_sha256": "0bff2393922dfc8e9b4b9280b405eedec1f96690fd7f76ac6fbdbfe7d67ee521"
+      "png_sha256": "52b488f94649567d9398d69e6932a261dfae8a159888a01a51efadeb948abaf5"
     },
     {
       "quality": "Q1",
       "large_text": false,
       "reduced_motion": true,
-      "state": "stopwatch-full-paused",
-      "file": "d11-31.png",
-      "rgb565_sha256": "dd490d9ceebc8e21420de1b8043899f5001b035987497f996fa294be302ce985",
-      "png_sha256": "f3733dc762dd502f19aafa3ef97b2c9bb7b1a216566bc34d0ef3f5c407a341ec"
+      "state": "stopwatch-full-running",
+      "file": "d11-34.png",
+      "rgb565_sha256": "6238fefbeb44ad617f104ae747445546e8085b0578a212adb0ec2f756482cccc",
+      "png_sha256": "230adfcf2906dee8b81af968aa6fab8179e35ceafd74619c13e3a4aa75468971"
+    },
+    {
+      "quality": "Q1",
+      "large_text": false,
+      "reduced_motion": true,
+      "state": "timer-full",
+      "file": "d11-35.png",
+      "rgb565_sha256": "5e9cf1d637655f0141d472d51ff76def2bd460cc41276bb5d379e588416eada5",
+      "png_sha256": "f52fcd9152abe6a4ca045b2b2ca6dc0d2ec401117349acdc535c3c8b3cb9aa56"
     }
   ]
 }

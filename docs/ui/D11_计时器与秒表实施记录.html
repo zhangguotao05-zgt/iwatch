@@ -2,7 +2,7 @@
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="iwatch D11 计时器与秒表实施及验收记录"><title>D11 计时器与秒表实施记录 · iwatch</title>
 <link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
-<header><h1>D11 计时器与秒表实施记录</h1><p class="doc-meta">2026-09-18～19 · Issue #13 · M2 · T16/T17 · 待架构复核</p></header>
+<header><h1>D11 计时器与秒表实施记录</h1><p class="doc-meta">2026-09-18～19 · Issue #13 · M2 · T16/T17 · 增量整改待新镜像板验</p></header>
 <section><h2>1. 范围与边界</h2>
 <p>D11 实现 8 个并行计时器、1 个秒表和最多 100 条计次记录，打通固定容量核心、服务命令、版本化快照、应用入口和页面恢复。计时使用 64 位单调毫秒，不读取日历时间计算剩余值；RTC 校时不会改变运行或暂停中的计时器与秒表。</p>
 <p>提醒页面、声音/振动互斥、16 个闹钟和 24 槽全局提醒队列属于 D12。D11 只保留计时器的 occurrence 与 alert_pending，证明到期只登记一次，不伪造完整提醒输出。重启连续性尚未启用持久化，因此冷启动后不承诺恢复活动计时。</p></section>
@@ -24,20 +24,21 @@
 <section><h2>4. 页面与资源</h2>
 <p>应用列表新增“计时器”和“秒表”真实入口。计时器列表提供 1、3、5、10 分钟快捷创建并列出活动实例；详情页按状态显示暂停、继续、取消或重新开始。秒表页显示十分之一秒、开始/暂停、计次/复位及最近 8 圈，完整 100 圈仍保存在服务快照中。</p>
 <p>页面沿用 IW-VISUAL-2.0 的 390×450 安全区、Q0/Q1、正常/大字号和减弱动效。新增正式文案后，字体由 389 字符、65,752 B 更新为 406 字符、69,004 B，SHA-256 为 <code>58fd17879dca9c8fb48af7bdff7896aecb8a8ef4671ed2cc01726803c554fb4d</code>；仍低于 131,072 B 上限。</p>
-<p><a href="assets/d11-chronograph/manifest.json">32 张同源静态帧及哈希</a>覆盖应用入口、空/混合计时器、运行/暂停/结束详情、秒表运行/满 100 圈暂停，以及 Q0、Q1、大字号和减弱动效。帧由生产 View 主机软件渲染，不作为实屏、单调时钟精度或硬件性能证据。</p>
+<p><a href="assets/d11-chronograph/manifest.json">36 张同源静态帧及哈希</a>覆盖应用入口、空/混合/满 8 个计时器、运行/暂停/结束详情、秒表运行/满 100 圈运行，以及 Q0、Q1、大字号和减弱动效。帧由生产 View 主机软件渲染，不作为实屏、单调时钟精度或硬件性能证据。</p>
 <div style="display:flex;flex-wrap:wrap;gap:16px">
-<figure><img src="assets/d11-chronograph/d11-10.png" width="195" height="225" alt="Q1 计时器列表"><figcaption>计时器列表</figcaption></figure>
-<figure><img src="assets/d11-chronograph/d11-11.png" width="195" height="225" alt="Q1 运行计时器详情"><figcaption>运行详情</figcaption></figure>
-<figure><img src="assets/d11-chronograph/d11-14.png" width="195" height="225" alt="Q1 秒表计次"><figcaption>秒表计次</figcaption></figure>
+<figure><img src="assets/d11-chronograph/d11-11.png" width="195" height="225" alt="Q1 计时器列表"><figcaption>计时器列表</figcaption></figure>
+<figure><img src="assets/d11-chronograph/d11-12.png" width="195" height="225" alt="Q1 运行计时器详情"><figcaption>运行详情</figcaption></figure>
+<figure><img src="assets/d11-chronograph/d11-16.png" width="195" height="225" alt="Q1 秒表计次已满"><figcaption>计次已满</figcaption></figure>
+<figure><img src="assets/d11-chronograph/d11-17.png" width="195" height="225" alt="Q1 计时器已满"><figcaption>计时器已满</figcaption></figure>
 </div></section>
 <section><h2>5. 验证结果</h2>
 <table><thead><tr><th>层级</th><th>覆盖</th><th>状态</th></tr></thead><tbody>
 <tr><td>主机核心</td><td>T16 截止时刻与暂停/取消；RTC 无关；容量、饱和和失败无副作用；T17 后台到期及第 101 圈。</td><td>通过</td></tr>
 <tr><td>主机 GUI</td><td>新页面布局、字体、路由 ID 参数、1,000 轮生命周期、离页结果 ACK、退出后恢复。</td><td>通过</td></tr>
-<tr><td>GCC / Keil</td><td>从源码 <code>a928b330082e</code> 干净构建、镜像内嵌身份、资源预算、布局、归档和 COM255 烧录 DryRun。</td><td>通过；两工具链镜像独立</td></tr>
-<tr><td>开发板</td><td>GCC 三件套经 COM9 写入；COM10 记录到期、离页运行、100 圈容量、返回、20%/80% 亮度及同状态内存；操作者确认计时器页面触摸和 KEY1。</td><td>通过本轮范围；待架构复核</td></tr>
+<tr><td>GCC / Keil</td><td>原源码 <code>a928b330082e</code> 干净构建、镜像内嵌身份、资源预算、布局、归档和 COM255 烧录 DryRun。</td><td>原镜像通过；整改源码待重新构建</td></tr>
+<tr><td>开发板</td><td>原 GCC 三件套经 COM9 写入；COM10 记录到期、离页运行、100 圈容量、返回、20%/80% 亮度及同状态内存；操作者确认计时器页面触摸和 KEY1。</td><td>下述架构整改的新镜像尚未刷入；旧板测不可继承</td></tr>
 </tbody></table>
-<h3>构建与容量</h3>
+<h3>原镜像构建与容量（整改前）</h3>
 <table><thead><tr><th>工具链</th><th>main.bin</th><th>6 MiB 槽占用</th><th>SHA-256</th></tr></thead><tbody>
 <tr><td>GCC</td><td>1,923,608 B</td><td>30.575%</td><td><code>0ec7ba078331724d8b421ef6d2d4f3307fbb04998b8e2aa4cf071dfd84706ce3</code></td></tr>
 <tr><td>Keil</td><td>1,848,392 B</td><td>29.379%</td><td><code>ce70cf15c8e8142953a50f9217a6613b35439771fed756f8462e192af301012e</code></td></tr>
@@ -55,4 +56,9 @@
 <p>原始目录 <code>logs/board-validation-20260918-d11/</code> 仅本机可用，未入库：含 <code>serial-raw.bin</code>、<code>timeline.jsonl</code>、<code>commands.txt</code>、两份构建身份、两份 DryRun、烧录进度与 <code>board-validation.json</code>。可运行 <code>py -3.14 tools/d11_verify.py logs/board-validation-20260918-d11</code> 复核原始数据，脚本在仓库内。烧录进度文件只保留进度百分比，不能单独作为写后校验的完整输出；本轮完成状态来自执行流程与随后的启动和功能窗口。主机测试、构建身份、开发板诊断和操作者实屏确认分别记录，互不替代。</p>
 <p>最终主机核心脚本和 46 项 Python 回归通过（其中一项可选环境测试跳过）；46 份 HTML 的本地链接、锚点和 90 项校验和通过。T16 的截止同刻竞争及 RTC 校时独立性由主机状态机测试覆盖；本轮没有在硬件上精确注入同毫秒边界。没有实机断电保持、真实内存耗尽或完整提醒输出验收。Issue #13 保持打开，等待架构师复核。</p>
 <p>长文和输入性能继续由 Issue #8 跟踪；半黑半白显示异常继续由 Issue #10 跟踪。D11 不以二者已关闭作为前提，也不把未复现写成已修复。</p></section>
+<section><h2>6. 架构复核增量整改</h2>
+<p>架构复核发现三项局部缺陷，原验收结论暂缓。计时器 RESTART 现在只接受 EXPIRED，RUNNING／PAUSED 在截止前使用正确 revision 请求也返回 CONFLICT，状态、全局 revision、occurrence 和输出保持不变；截止同刻仍先推进到期，再以新 revision 请求重新开始。核心单测覆盖这些边界。</p>
+<p>满 8 个计时器时，快捷创建按钮禁用，“计时器已满”显示在按钮下方、第一条列表上方；满 100 圈且仍运行时，“计次”禁用，提示取代按钮下方的“计次记录”。暂停后的“复位”仍可用。控制器对服务返回的 CAPACITY 也选择相应提示；绕过界面直接提交时，服务仍拒绝。主机测试断言提示位于 390×450 可见区、禁用填充和命中测试，36 张同源帧包含 Q0／Q1、字号／动效以及两类满容量场景。</p>
+<p><code>tools/d11_verify.py</code> 现在要求全窗口的每个触摸溢出采样都为 0，缺失采样也失败；故障检查包括实际串口格式 <code>Assertion failed</code> 和 <code>draw_core timeout</code>。独立反例测试分别注入早期／末尾非零计数、断言与绘制超时，均被拒绝；旧原始记录重新验证通过，四个溢出计数采样都为 0。原始日志未因脚本漏洞被判定为实际发生故障。</p>
+<p>整改源码的主机核心脚本、正式字体确定性校验、完整 View 故障注入和 1,000 轮生命周期矩阵通过；字体字符集与二进制仍为 406 字／69,004 B，清单仅更新输入源码哈希。目标 GCC／Keil 和新固件实机状态待更新，Issue #13 保持打开。</p></section>
 </main></body></html>

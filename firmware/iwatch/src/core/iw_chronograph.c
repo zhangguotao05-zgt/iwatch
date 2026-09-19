@@ -190,7 +190,8 @@ iw_chrono_status_t iw_timer_restart(iw_chronograph_t *chronograph,
     (void)iw_chronograph_advance(chronograph, now_ms);
     timer = find_timer(chronograph, timer_id);
     if (!timer) return IW_CHRONO_ABSENT;
-    if (timer->revision != expected_revision) return IW_CHRONO_CONFLICT;
+    if (timer->revision != expected_revision || timer->state != IW_TIMER_EXPIRED)
+        return IW_CHRONO_CONFLICT;
     if (!can_change(chronograph, timer) || chronograph->next_occurrence == 0u ||
             UINT64_MAX - now_ms < timer->duration_ms)
         return IW_CHRONO_CAPACITY;

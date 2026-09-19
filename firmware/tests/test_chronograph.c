@@ -73,6 +73,37 @@ static void test_timer_capacity_restart_and_failure_atomicity(void)
     assert(memcmp(&before, &saturated, sizeof(saturated)) == 0);
 }
 
+static void test_restart_requires_expired_state(void)
+{
+    iw_chronograph_t c, before;
+    iw_timer_view_t timer, unchanged;
+
+    assert(iw_chronograph_init(&c));
+    assert(iw_timer_create(&c, 0u, 1000u, &timer) == IW_CHRONO_OK);
+    before = c;
+    unchanged = timer;
+    assert(iw_timer_restart(&c, 100u, timer.timer_id, timer.revision, &unchanged) ==
+           IW_CHRONO_CONFLICT);
+    assert(memcmp(&c, &before, sizeof(c)) == 0);
+    assert(memcmp(&unchanged, &timer, sizeof(timer)) == 0);
+
+    assert(iw_timer_pause(&c, 100u, timer.timer_id, timer.revision, &timer) == IW_CHRONO_OK);
+    before = c;
+    unchanged = timer;
+    assert(iw_timer_restart(&c, 200u, timer.timer_id, timer.revision, &unchanged) ==
+           IW_CHRONO_CONFLICT);
+    assert(memcmp(&c, &before, sizeof(c)) == 0);
+    assert(memcmp(&unchanged, &timer, sizeof(timer)) == 0);
+    assert(iw_timer_resume(&c, 200u, timer.timer_id, timer.revision, &timer) == IW_CHRONO_OK);
+    assert(iw_timer_restart(&c, 1100u, timer.timer_id, timer.revision, &timer) == IW_CHRONO_CONFLICT);
+    iw_timer_snapshot_t snapshot;
+    assert(iw_timer_snapshot_read(&c, 1100u, &snapshot));
+    assert(snapshot.timers[0].state == IW_TIMER_EXPIRED);
+    assert(iw_timer_restart(&c, 1100u, timer.timer_id, snapshot.timers[0].revision, &timer) ==
+           IW_CHRONO_OK);
+    assert(timer.state == IW_TIMER_RUNNING && timer.occurrence == 2u);
+}
+
 static void test_background_expiry_and_stopwatch_lap_101(void)
 {
     iw_chronograph_t c, before;
@@ -115,6 +146,7 @@ int main(void)
     test_deadline_wins_pause_and_cancel();
     test_pause_ignores_wall_clock_and_resume();
     test_timer_capacity_restart_and_failure_atomicity();
+    test_restart_requires_expired_state();
     test_background_expiry_and_stopwatch_lap_101();
     puts("chronograph tests passed");
     return 0;

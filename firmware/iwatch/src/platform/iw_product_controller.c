@@ -344,6 +344,8 @@ uint32_t iw_product_process(void) {
                     p->navigate(IW_ACTION_BACK, 0u, p->context);
             } else if (result.code == IW_RESULT_CAPACITY && p->page_id == IW_PAGE_STOPWATCH)
                 p->model.message = IW_TEXT_LAPS_FULL;
+            else if (result.code == IW_RESULT_CAPACITY && p->page_id == IW_PAGE_TIMER_LIST)
+                p->model.message = IW_TEXT_TIMERS_FULL;
             else
                 p->model.message = result.code == IW_RESULT_STATE_CONFLICT && p->page_id == IW_PAGE_TIME ? IW_TEXT_TIME_CONFLICT
                                    : p->page_id == IW_PAGE_TIME ? IW_TEXT_TIME_FAILED

@@ -139,15 +139,18 @@ static bool timer_list(iw_product_scene_t *s, const iw_product_model_t *m) {
         IW_TEXT_ONE_MINUTE, IW_TEXT_THREE_MINUTES,
         IW_TEXT_FIVE_MINUTES, IW_TEXT_TEN_MINUTES};
     char text[64];
+    bool full = m->timers.count >= IW_TIMER_CAPACITY || m->message == IW_TEXT_TIMERS_FULL;
     if (!header(s, m, TEXT(TIMER)) ||
         !label(s, 24, 128, 342, 20, IW_PRODUCT_SECONDARY, 0, false, TEXT(QUICK_START)))
         return false;
     for (unsigned i = 0; i < 4; i++)
         if (!button(s, 18 + (int)(i % 2u) * 184, 144 + (int)(i / 2u) * 72, 170, 60,
-                    IW_ACTION_TIMER_PRESET_1M + i, m->pending, false,
+                    IW_ACTION_TIMER_PRESET_1M + i, m->pending || full, false,
                     iw_product_texts[preset_texts[i]]))
-            return false;
-    int y = 304;
+        return false;
+    int y = full ? 324 : 304;
+    if (full && !label(s, 24, 310, 342, 20, IW_PRODUCT_WARNING, 0, false, TEXT(TIMERS_FULL)))
+        return false;
     if (!m->timers.count)
         return label(s, 30, y + 70, 330, 26, IW_PRODUCT_SECONDARY, 1, false, TEXT(NO_TIMERS));
     for (unsigned i = 0; i < m->timers.count; i++) {
@@ -185,6 +188,9 @@ static bool timer_detail(iw_product_scene_t *s, const iw_product_model_t *m) {
 
 static bool stopwatch_page(iw_product_scene_t *s, const iw_product_model_t *m) {
     char elapsed[32], row[80];
+    bool full = m->stopwatch.state == IW_STOPWATCH_RUNNING &&
+                (m->stopwatch.lap_count >= IW_STOPWATCH_LAP_CAPACITY ||
+                 m->message == IW_TEXT_LAPS_FULL);
     format_elapsed(m->stopwatch.elapsed_ms, true, elapsed, sizeof(elapsed));
     if (!header(s, m, TEXT(STOPWATCH)) ||
         !label(s, 20, 210, 350, 80, IW_PRODUCT_WHITE, 1, false, elapsed) ||
@@ -192,9 +198,10 @@ static bool stopwatch_page(iw_product_scene_t *s, const iw_product_model_t *m) {
                 m->stopwatch.state == IW_STOPWATCH_RUNNING ? TEXT(PAUSE) : TEXT(START)) ||
         !button(s, 202, 238, 170, 64,
                 m->stopwatch.state == IW_STOPWATCH_RUNNING ? IW_ACTION_STOPWATCH_LAP : IW_ACTION_STOPWATCH_RESET,
-                m->pending || (m->stopwatch.state == IW_STOPWATCH_IDLE && !m->stopwatch.lap_count), false,
+                m->pending || full || (m->stopwatch.state == IW_STOPWATCH_IDLE && !m->stopwatch.lap_count), false,
                 m->stopwatch.state == IW_STOPWATCH_RUNNING ? TEXT(LAP) : TEXT(RESET)) ||
-        !label(s, 24, 340, 342, 20, IW_PRODUCT_SECONDARY, 0, false, TEXT(LAP_RECORD)))
+        !label(s, 24, 340, 342, 20, full ? IW_PRODUCT_WARNING : IW_PRODUCT_SECONDARY, 0, false,
+               full ? TEXT(LAPS_FULL) : TEXT(LAP_RECORD)))
         return false;
     int y = 354;
     for (unsigned i = 0; i < m->stopwatch.visible_laps; i++) {
@@ -208,8 +215,6 @@ static bool stopwatch_page(iw_product_scene_t *s, const iw_product_model_t *m) {
             return false;
         y += 66;
     }
-    if (m->stopwatch.lap_count >= IW_STOPWATCH_LAP_CAPACITY)
-        return label(s, 24, y + 30, 342, 20, IW_PRODUCT_WARNING, 0, false, TEXT(LAPS_FULL));
     return true;
 }
 
@@ -399,7 +404,9 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
     default:
         return false;
     }
-    if (m->message < IW_TEXT_COUNT) {
+    if (m->message < IW_TEXT_COUNT &&
+            !(id == IW_PAGE_TIMER_LIST && m->message == IW_TEXT_TIMERS_FULL) &&
+            !(id == IW_PAGE_STOPWATCH && m->message == IW_TEXT_LAPS_FULL)) {
         /* 错误文案随正文滚动，不能覆盖固定的取消/设置按钮。 */
         ok = ok && label(s, 18, s->content_height + 36, 354, 20, IW_PRODUCT_WARNING, 1, false,
                          iw_product_texts[m->message]);

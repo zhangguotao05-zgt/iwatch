@@ -220,6 +220,19 @@ int test_product_controller(size_t loops) {
     (void)iw_product_process();
     assert(page.model.stopwatch.lap_count == 1u);
     assert(iw_product_destroy(&page));
+    for (unsigned i = 1u; i < IW_TIMER_CAPACITY; i++)
+        assert(iw_timer_create(&model.chronograph, 5000u, 60000u, NULL) == IW_CHRONO_OK);
+    memset(&page, 0, sizeof(page));
+    assert(iw_product_create(&page, IW_PAGE_TIMER_LIST, 0u, 200005u, true,
+                             navigate, stop, &model));
+    assert(page.model.timers.count == IW_TIMER_CAPACITY);
+    /* 直接注入动作可绕过禁用态；服务仍须拒绝满容量命令。 */
+    page.view.action(IW_ACTION_TIMER_PRESET_1M, 0, true, page.view.context);
+    assert(page.request);
+    finish();
+    (void)iw_product_process();
+    assert(!page.request && page.model.message == IW_TEXT_TIMERS_FULL);
+    assert(iw_product_destroy(&page));
     assert(iw_font_collect());
     assert(test_font_live_bytes() == bytes && test_font_live_blocks() == blocks);
     printf("product_controller loops=%zu detached_ack=ok preview_final=ok time_navigation=ok asserts=0 "

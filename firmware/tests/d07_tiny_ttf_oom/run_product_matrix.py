@@ -30,7 +30,7 @@ def main():
     print(run_case(executable, font, 'component_product_boundaries', 0), flush=True)
     for variant in range(56):
         print(run_case(executable, font, 'component_product_render', variant), flush=True)
-    for variant in range(32):
+    for variant in range(36):
         print(run_case(executable, font, 'component_d11_render', variant), flush=True)
 
 if __name__ == '__main__':

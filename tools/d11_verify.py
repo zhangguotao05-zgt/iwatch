@@ -33,6 +33,7 @@ def verify(folder):
         r"timer id=2 revision=(\d+) state=(\d+) duration_ms=60000 "
         r"remaining_ms=(\d+) occurrence=(\d+) alert=(\d+)", text)
     memory = [int(value) for value in re.findall(r"font main base=\d+ used=(\d+)", text)]
+    touch_counts = [int(count) for count in re.findall(r"\btouch overflow=(\d+)\b", text)]
     checks = {
         "lap_capacity": laps.count(1) == 100 and laps.count(7) == 1,
         "lap_state": bool(re.search(r"stopwatch revision=102 state=1 elapsed_ms=\d+ laps=100", text)),
@@ -45,9 +46,10 @@ def verify(folder):
         "off_page_expired": "timer id=1 revision=2 state=3 duration_ms=3000 remaining_ms=0 occurrence=1 alert=1" in text,
         "memory_stable": len(memory) >= 11 and len(set(memory[-11:])) == 1,
         "service_acks": "submitted=111 duplicate=0 rejected=0 completed=111 ack=111" in text,
-        "touch_overflow": "touch overflow=0" in text,
+        "touch_overflow": bool(touch_counts) and all(count == 0 for count in touch_counts),
         "brightness": "desired=20/2 applied=20/2" in text and "desired=80/3 applied=80/3" in text,
-        "no_fault": re.search(r"HardFault|assert failed|lcd timeout", text, re.IGNORECASE) is None,
+        "no_fault": re.search(r"HardFault|Assertion failed|draw_core timeout|lcd timeout",
+                              text, re.IGNORECASE) is None,
     }
     failures = [name for name, passed in checks.items() if not passed]
     if failures:
@@ -60,6 +62,7 @@ def verify(folder):
         "timeline_sha256": digest(timeline_path),
         "rx_events": len(received),
         "rx_offsets_contiguous": True,
+        "touch_samples": len(touch_counts),
         "checks": checks,
         "lap_success": laps.count(1),
         "lap_capacity": laps.count(7),

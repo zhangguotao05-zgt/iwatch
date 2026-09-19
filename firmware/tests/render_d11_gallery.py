@@ -38,11 +38,11 @@ def main():
         {'quality': 'Q1', 'large_text': False, 'reduced_motion': True},
     ]
     states = ['launcher', 'timer-empty', 'timer-mixed', 'timer-running',
-              'timer-paused', 'timer-expired', 'stopwatch-running', 'stopwatch-full-paused']
+              'timer-paused', 'timer-expired', 'stopwatch-running', 'stopwatch-full-running', 'timer-full']
     frames = []
-    for number in range(32):
+    for number in range(len(profiles) * len(states)):
         source = args.input / f'gallery-{500 + number}-0.rgb565'
-        frames.append((number, dict(profiles[number // 8], state=states[number % 8]),
+        frames.append((number, dict(profiles[number // len(states)], state=states[number % len(states)]),
                        source.read_bytes()))
     args.output.mkdir(parents=True, exist_ok=True)
     manifest = {'fixture': 'D11-VIS-FIXTURE-01',

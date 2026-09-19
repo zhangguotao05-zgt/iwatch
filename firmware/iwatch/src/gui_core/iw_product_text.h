@@ -88,6 +88,7 @@ typedef enum {
     IW_TEXT_RESET,
     IW_TEXT_LAP_RECORD,
     IW_TEXT_LAPS_FULL,
+    IW_TEXT_TIMERS_FULL,
     IW_TEXT_OPERATION_FAILED,
     IW_TEXT_COUNT
 } iw_product_text_id_t;
@@ -178,6 +179,7 @@ static const char *const iw_product_texts[] = {
     "复位",
     "计次记录",
     "计次已满，秒表继续运行",
+    "计时器已满",
     "操作失败，请重试",
 };
 _Static_assert(sizeof(iw_product_texts) / sizeof(iw_product_texts[0]) == IW_TEXT_COUNT, "文案编号必须与清单一致");

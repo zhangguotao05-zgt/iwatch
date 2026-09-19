@@ -250,6 +250,43 @@ static void scene_boundaries(iw_product_model_t *m) {
         .elapsed_ms = 12340u, .laps = {{12340u, 12340u}}};
     assert(iw_product_scene_build(&scene, IW_PAGE_STOPWATCH, m));
     assert(has_text(&scene, "00:12.3") && has_text(&scene, "计次"));
+    m->stopwatch.lap_count = IW_STOPWATCH_LAP_CAPACITY;
+    m->stopwatch.visible_laps = 8u;
+    assert(iw_product_scene_build(&scene, IW_PAGE_STOPWATCH, m));
+    assert(has_text(&scene, "计次已满，秒表继续运行"));
+    bool lap_disabled = false;
+    for (unsigned i = 0; i < scene.count; i++) {
+        if (scene.nodes[i].action == IW_ACTION_STOPWATCH_LAP) {
+            lap_disabled = scene.nodes[i].disabled;
+            assert(scene.nodes[i].fill == IW_PRODUCT_DISABLED_SURFACE);
+        }
+        if (!strcmp(scene.nodes[i].text, "计次已满，秒表继续运行"))
+            assert(scene.nodes[i].y >= 302 && scene.nodes[i].y + scene.nodes[i].height <= 450);
+    }
+    assert(lap_disabled && iw_product_scene_hit(&scene, 250, 270, 0) == -1);
+    m->stopwatch.state = IW_STOPWATCH_PAUSED;
+    assert(iw_product_scene_build(&scene, IW_PAGE_STOPWATCH, m));
+    bool reset_enabled = false;
+    for (unsigned i = 0; i < scene.count; i++)
+        if (scene.nodes[i].action == IW_ACTION_STOPWATCH_RESET) reset_enabled = !scene.nodes[i].disabled;
+    assert(reset_enabled);
+    m->stopwatch = (iw_stopwatch_view_model_t){0};
+
+    m->timers.count = IW_TIMER_CAPACITY;
+    assert(iw_product_scene_build(&scene, IW_PAGE_TIMER_LIST, m));
+    assert(has_text(&scene, "计时器已满"));
+    unsigned disabled_presets = 0;
+    for (unsigned i = 0; i < scene.count; i++) {
+        if (scene.nodes[i].action >= IW_ACTION_TIMER_PRESET_1M &&
+            scene.nodes[i].action <= IW_ACTION_TIMER_PRESET_10M) {
+            assert(scene.nodes[i].disabled && scene.nodes[i].fill == IW_PRODUCT_DISABLED_SURFACE);
+            disabled_presets++;
+        }
+        if (!strcmp(scene.nodes[i].text, "计时器已满"))
+            assert(scene.nodes[i].y >= 276 && scene.nodes[i].y + scene.nodes[i].height <= 450);
+    }
+    assert(disabled_presets == 4 && iw_product_scene_hit(&scene, 80, 174, 0) == -1);
+    m->timers.count = 1u;
     assert(iw_product_scene_build(&scene, IW_PAGE_DISPLAY, m));
     bool unavailable_found = false;
     for (unsigned i = 0; i < scene.count; i++) {
@@ -378,8 +415,8 @@ static void render_probe_cases(void) {
 
 static void d11_render_case(lv_display_t *display, iw_product_view_t *view,
                             iw_product_model_t *m, size_t number) {
-    unsigned profile = (unsigned)(number / 8u);
-    unsigned state = (unsigned)(number % 8u);
+    unsigned profile = (unsigned)(number / 9u);
+    unsigned state = (unsigned)(number % 9u);
     uint16_t page = IW_PAGE_LAUNCHER_LIST;
     m->quality = profile ? IW_THEME_Q1 : IW_THEME_Q0;
     m->large_text = profile == 2u;
@@ -400,11 +437,17 @@ static void d11_render_case(lv_display_t *display, iw_product_view_t *view,
     } else if (state >= 3u && state <= 5u) {
         page = IW_PAGE_TIMER_DETAIL;
         m->selected_timer = m->timers.timers[state - 3u];
+    } else if (state == 8u) {
+        page = IW_PAGE_TIMER_LIST;
+        m->timers.count = IW_TIMER_CAPACITY;
+        for (unsigned i = 3u; i < IW_TIMER_CAPACITY; i++)
+            m->timers.timers[i] = (iw_timer_view_t){.timer_id = 11u + i, .revision = 2u,
+                .duration_ms = 60000u, .remaining_ms = 42500u, .state = IW_TIMER_RUNNING};
     } else if (state >= 6u) {
         page = IW_PAGE_STOPWATCH;
         m->stopwatch = (iw_stopwatch_view_model_t){.revision = 9u,
             .lap_count = state == 7u ? 100u : 3u,
-            .state = state == 7u ? IW_STOPWATCH_PAUSED : IW_STOPWATCH_RUNNING,
+            .state = IW_STOPWATCH_RUNNING,
             .visible_laps = 3u, .elapsed_ms = 75430u,
             .laps = {{75430u, 23110u}, {52320u, 25200u}, {27120u, 27120u}}};
     }
