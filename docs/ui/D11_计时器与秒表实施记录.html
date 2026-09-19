@@ -2,7 +2,7 @@
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="iwatch D11 计时器与秒表实施及验收记录"><title>D11 计时器与秒表实施记录 · iwatch</title>
 <link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
-<header><h1>D11 计时器与秒表实施记录</h1><p class="doc-meta">2026-09-18～19 · Issue #13 · M2 · T16/T17 · 增量整改待新镜像板验</p></header>
+<header><h1>D11 计时器与秒表实施记录</h1><p class="doc-meta">2026-09-18～19 · Issue #13 · M2 · T16/T17 · 增量整改待架构复核</p></header>
 <section><h2>1. 范围与边界</h2>
 <p>D11 实现 8 个并行计时器、1 个秒表和最多 100 条计次记录，打通固定容量核心、服务命令、版本化快照、应用入口和页面恢复。计时使用 64 位单调毫秒，不读取日历时间计算剩余值；RTC 校时不会改变运行或暂停中的计时器与秒表。</p>
 <p>提醒页面、声音/振动互斥、16 个闹钟和 24 槽全局提醒队列属于 D12。D11 只保留计时器的 occurrence 与 alert_pending，证明到期只登记一次，不伪造完整提醒输出。重启连续性尚未启用持久化，因此冷启动后不承诺恢复活动计时。</p></section>
@@ -35,8 +35,8 @@
 <table><thead><tr><th>层级</th><th>覆盖</th><th>状态</th></tr></thead><tbody>
 <tr><td>主机核心</td><td>T16 截止时刻与暂停/取消；RTC 无关；容量、饱和和失败无副作用；T17 后台到期及第 101 圈。</td><td>通过</td></tr>
 <tr><td>主机 GUI</td><td>新页面布局、字体、路由 ID 参数、1,000 轮生命周期、离页结果 ACK、退出后恢复。</td><td>通过</td></tr>
-<tr><td>GCC / Keil</td><td>原源码 <code>a928b330082e</code> 干净构建、镜像内嵌身份、资源预算、布局、归档和 COM255 烧录 DryRun。</td><td>原镜像通过；整改源码待重新构建</td></tr>
-<tr><td>开发板</td><td>原 GCC 三件套经 COM9 写入；COM10 记录到期、离页运行、100 圈容量、返回、20%/80% 亮度及同状态内存；操作者确认计时器页面触摸和 KEY1。</td><td>下述架构整改的新镜像尚未刷入；旧板测不可继承</td></tr>
+<tr><td>GCC / Keil</td><td>原源码 <code>a928b330082e</code> 与整改源码 <code>639863c26549</code> 分别干净构建、检查镜像内嵌身份、资源预算、布局、归档和 COM255 烧录 DryRun。</td><td>两轮、双工具链通过</td></tr>
+<tr><td>开发板</td><td>原 GCC 镜像记录到期、离页运行和亮度；整改 GCC 镜像重新写入并验证满容量可见反馈、服务拒绝和反复进退。</td><td>整改镜像通过相关页面实机复验；原记录保持历史证据</td></tr>
 </tbody></table>
 <h3>原镜像构建与容量（整改前）</h3>
 <table><thead><tr><th>工具链</th><th>main.bin</th><th>6 MiB 槽占用</th><th>SHA-256</th></tr></thead><tbody>
@@ -60,5 +60,19 @@
 <p>架构复核发现三项局部缺陷，原验收结论暂缓。计时器 RESTART 现在只接受 EXPIRED，RUNNING／PAUSED 在截止前使用正确 revision 请求也返回 CONFLICT，状态、全局 revision、occurrence 和输出保持不变；截止同刻仍先推进到期，再以新 revision 请求重新开始。核心单测覆盖这些边界。</p>
 <p>满 8 个计时器时，快捷创建按钮禁用，“计时器已满”显示在按钮下方、第一条列表上方；满 100 圈且仍运行时，“计次”禁用，提示取代按钮下方的“计次记录”。暂停后的“复位”仍可用。控制器对服务返回的 CAPACITY 也选择相应提示；绕过界面直接提交时，服务仍拒绝。主机测试断言提示位于 390×450 可见区、禁用填充和命中测试，36 张同源帧包含 Q0／Q1、字号／动效以及两类满容量场景。</p>
 <p><code>tools/d11_verify.py</code> 现在要求全窗口的每个触摸溢出采样都为 0，缺失采样也失败；故障检查包括实际串口格式 <code>Assertion failed</code> 和 <code>draw_core timeout</code>。独立反例测试分别注入早期／末尾非零计数、断言与绘制超时，均被拒绝；旧原始记录重新验证通过，四个溢出计数采样都为 0。原始日志未因脚本漏洞被判定为实际发生故障。</p>
-<p>整改源码的主机核心脚本、正式字体确定性校验、完整 View 故障注入和 1,000 轮生命周期矩阵通过；字体字符集与二进制仍为 406 字／69,004 B，清单仅更新输入源码哈希。目标 GCC／Keil 和新固件实机状态待更新，Issue #13 保持打开。</p></section>
+<p>整改源码 <code>639863c26549</code> 的主机核心脚本、正式字体确定性校验、完整 View 故障注入和 1,000 轮生命周期矩阵通过；字体字符集与二进制仍为 406 字／69,004 B，清单仅更新输入源码哈希。GUI 矩阵包含 37 个构造、47 个绘制和三个各 5 个真实排版分配失败点，36 张重新生成的画面哈希与清单一致。</p>
+<table><thead><tr><th>整改镜像</th><th>main.bin</th><th>SHA-256</th><th>结果</th></tr></thead><tbody>
+<tr><td>GCC</td><td>1,923,784 B</td><td><code>caddbbdb96577a497583c2a8dbaf604a458be9dc80a9f51126eec9983c1a1bb7</code></td><td>身份、预算、布局、COM255 DryRun 通过</td></tr>
+<tr><td>Keil</td><td>1,848,624 B</td><td><code>b868b5c9b3e6e3baa087aa1bab25d2718ce17b92cfd3d1df1eecedbfa58a5420</code></td><td>身份、预算、布局、COM255 DryRun 通过</td></tr>
+</tbody></table>
+<p>两套新镜像内嵌身份均指向 <code>639863c265494a3ae6c2fb6b850c460e2619da58</code>，输入摘要 <code>cc3205f38c37</code>，工具链后缀各自独立。归档复核前发现本机 SDK 工作树处于干净原版；按固定哈希的受控补丁恢复并通过 <code>verify-derived</code> 后，GCC／Keil 的 <code>build_identity verify</code> 均通过。此过程仅恢复验证环境，没有修改镜像或重刷。整改 GCC 的 Bootloader、main 和 FTab 经 COM9 依清单写入并校验；完整烧录会话保存在下述本地原始目录，不以旧镜像板测替代。</p>
+<h3>整改镜像实机复验</h3>
+<p>COM10 新原始窗口为 125,264 B，SHA-256 <code>17281fe1d199c9ff8eb466c3425130ce98ce73a5485d4d0d1a8b3f4d68a226cc</code>；时间线 SHA-256 <code>7254bcf25dd4674033db64f0a6a48dc7d7b7f605def5ad5fa095b80349c0d803</code>。4,884 段接收偏移连续，只证明采集程序保存的窗口内部无缺口。启动识别到 CO5300 与 FT6146；既有 <code>flash1</code> FAL 报错仍留待 D15。</p>
+<table><thead><tr><th>检查项</th><th>新镜像观察</th></tr></thead><tbody>
+<tr><td>计时器上限</td><td>8 次创建成功，第 9 次返回 CAPACITY；快照仍为 8 个、revision 9。操作者确认“计时器已满”在预设按钮附近完整可见，新增按钮禁用。</td></tr>
+<tr><td>秒表上限</td><td>100 次计次成功，第 101 次返回 CAPACITY；快照仍为 RUNNING、100 圈、revision 102。操作者确认“计次已满”可见且计次按钮变灰，暂停后开始和复位可用；随后实机快照为 IDLE、0 ms、0 圈。</td></tr>
+<tr><td>反复进退与内存</td><td>回到同一应用列表状态后，追加 13 轮计时器／秒表页面往返。最后 10 次主堆均为 51,352 B，字体引用均为 2；字形池在 12,932～13,660 B 间波动，未观察到逐轮增长。冷启动主堆为 46,040 B、字形池 4,932 B，存在缓存驻留，不宣称恢复到冷启动数值。</td></tr>
+<tr><td>输入与故障</td><td>四次触摸溢出采样均为 0；服务累计提交、完成与 ACK 均为 113，队列归零。全窗口未见 <code>Assertion failed</code>、<code>draw_core timeout</code>、HardFault 或 LCD timeout。该窗口不代表 #8、#10 已解决。</td></tr>
+</tbody></table>
+<p>新原始目录 <code>logs/board-validation-20260919-d11-fix/</code> 仅本机可用，未入库：含完整 COM9 烧录 transcript、COM10 原始字节、时间线、命令、分析脚本及 <code>board-validation.json</code>。可运行 <code>py -3.14 logs/board-validation-20260919-d11-fix/analyze.py</code> 重算哈希、检查接收连续性、容量响应、内存样本和全窗口故障。实机未精确注入 RUNNING／PAUSED 的 RESTART 竞争；该项由主机状态机测试覆盖。Issue #13 保持打开，等待架构师审批；D12 提醒输出仍未实现。</p></section>
 </main></body></html>
