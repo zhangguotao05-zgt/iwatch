@@ -21,6 +21,10 @@ foreach ($path in @($PythonPath, $PatchedSdkPath, $BaseSdkPath)) {
     if (-not (Test-Path -LiteralPath $path)) { throw "路径不存在: $path" }
 }
 
+# Python 子测试使用同一对 SDK 路径，不回退到机器上的默认目录。
+$env:IWATCH_BASE_SDK = [IO.Path]::GetFullPath($BaseSdkPath)
+$env:IWATCH_PATCHED_SDK = [IO.Path]::GetFullPath($PatchedSdkPath)
+
 # 先验证基础 SDK 与派生 SDK，避免主机测试落在手工修改的源码上。
 & $PythonPath (Join-Path $firmwareDir 'sdk_patch.py') verify-base --sdk $BaseSdkPath
 if ($LASTEXITCODE -ne 0) { throw '固定 SDK 校验失败。' }

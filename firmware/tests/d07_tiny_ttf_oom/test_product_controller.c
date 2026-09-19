@@ -232,6 +232,30 @@ int test_product_controller(size_t loops) {
     finish();
     (void)iw_product_process();
     assert(!page.request && page.model.message == IW_TEXT_TIMERS_FULL);
+    /* 容量拒绝后，其他页面释放槽位；返回列表必须按新快照恢复创建。 */
+    iw_product_resume(&page, false);
+    static iw_product_page_t detail;
+    memset(&detail, 0, sizeof(detail));
+    assert(iw_product_create(&detail, IW_PAGE_TIMER_DETAIL,
+                             page.model.timers.timers[0].timer_id, 200006u, true,
+                             navigate, stop, &model));
+    detail.view.action(IW_ACTION_TIMER_CANCEL, 0, true, detail.view.context);
+    finish();
+    (void)iw_product_process();
+    assert(!detail.request && last_destination == IW_ACTION_BACK);
+    assert(iw_product_destroy(&detail));
+    iw_product_resume(&page, true);
+    lv_tick_inc(300u);
+    (void)iw_product_process();
+    assert(page.model.timers.count == IW_TIMER_CAPACITY - 1u &&
+           page.model.message == IW_TEXT_COUNT);
+    assert(iw_product_scene_hit(&page.view.scene, 80, 174, 0) >= 0);
+    page.view.action(IW_ACTION_TIMER_PRESET_1M, 0, true, page.view.context);
+    assert(page.request);
+    finish();
+    (void)iw_product_process();
+    assert(!page.request && page.model.timers.count == IW_TIMER_CAPACITY &&
+           page.model.message == IW_TEXT_COUNT);
     assert(iw_product_destroy(&page));
     assert(iw_font_collect());
     assert(test_font_live_bytes() == bytes && test_font_live_blocks() == blocks);

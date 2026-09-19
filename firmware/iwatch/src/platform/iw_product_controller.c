@@ -31,6 +31,9 @@ static void chronographs(iw_product_page_t *p) {
     if (iw_snapshot_read(IW_SNAPSHOT_TIMERS, &timers, sizeof(timers), &bytes) == IW_SNAPSHOT_OK &&
         timers.model.count <= IW_TIMER_CAPACITY) {
         p->model.timers = timers.model;
+        if (p->page_id == IW_PAGE_TIMER_LIST && p->model.message == IW_TEXT_TIMERS_FULL &&
+            timers.model.count < IW_TIMER_CAPACITY)
+            p->model.message = IW_TEXT_COUNT;
         memset(&p->model.selected_timer, 0, sizeof(p->model.selected_timer));
         for (unsigned i = 0; i < timers.model.count; i++)
             if (timers.model.timers[i].timer_id == p->argument)
@@ -39,6 +42,10 @@ static void chronographs(iw_product_page_t *p) {
     bytes = 0;
     if (iw_snapshot_read(IW_SNAPSHOT_STOPWATCH, &stopwatch, sizeof(stopwatch), &bytes) == IW_SNAPSHOT_OK &&
         stopwatch.model.lap_count <= IW_STOPWATCH_LAP_CAPACITY) {
+        if (p->page_id == IW_PAGE_STOPWATCH && p->model.message == IW_TEXT_LAPS_FULL &&
+            (stopwatch.model.state != IW_STOPWATCH_RUNNING ||
+             stopwatch.model.lap_count < IW_STOPWATCH_LAP_CAPACITY))
+            p->model.message = IW_TEXT_COUNT;
         p->model.stopwatch.revision = stopwatch.model.revision;
         p->model.stopwatch.lap_count = stopwatch.model.lap_count;
         p->model.stopwatch.state = stopwatch.model.state;

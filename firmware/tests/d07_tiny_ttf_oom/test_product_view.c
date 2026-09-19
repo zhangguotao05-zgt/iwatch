@@ -287,6 +287,16 @@ static void scene_boundaries(iw_product_model_t *m) {
     }
     assert(disabled_presets == 4 && iw_product_scene_hit(&scene, 80, 174, 0) == -1);
     m->timers.count = 1u;
+    m->message = IW_TEXT_TIMERS_FULL;
+    assert(iw_product_scene_build(&scene, IW_PAGE_TIMER_LIST, m));
+    assert(iw_product_scene_hit(&scene, 80, 174, 0) >= 0 && !has_text(&scene, "计时器已满"));
+    m->message = IW_TEXT_LAPS_FULL;
+    m->stopwatch.state = IW_STOPWATCH_RUNNING;
+    m->stopwatch.lap_count = 1u;
+    assert(iw_product_scene_build(&scene, IW_PAGE_STOPWATCH, m));
+    assert(iw_product_scene_hit(&scene, 250, 270, 0) >= 0 &&
+           !has_text(&scene, "计次已满，秒表继续运行"));
+    m->message = IW_TEXT_COUNT;
     assert(iw_product_scene_build(&scene, IW_PAGE_DISPLAY, m));
     bool unavailable_found = false;
     for (unsigned i = 0; i < scene.count; i++) {

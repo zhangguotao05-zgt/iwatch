@@ -139,7 +139,7 @@ static bool timer_list(iw_product_scene_t *s, const iw_product_model_t *m) {
         IW_TEXT_ONE_MINUTE, IW_TEXT_THREE_MINUTES,
         IW_TEXT_FIVE_MINUTES, IW_TEXT_TEN_MINUTES};
     char text[64];
-    bool full = m->timers.count >= IW_TIMER_CAPACITY || m->message == IW_TEXT_TIMERS_FULL;
+    bool full = m->timers.count >= IW_TIMER_CAPACITY;
     if (!header(s, m, TEXT(TIMER)) ||
         !label(s, 24, 128, 342, 20, IW_PRODUCT_SECONDARY, 0, false, TEXT(QUICK_START)))
         return false;
@@ -189,8 +189,7 @@ static bool timer_detail(iw_product_scene_t *s, const iw_product_model_t *m) {
 static bool stopwatch_page(iw_product_scene_t *s, const iw_product_model_t *m) {
     char elapsed[32], row[80];
     bool full = m->stopwatch.state == IW_STOPWATCH_RUNNING &&
-                (m->stopwatch.lap_count >= IW_STOPWATCH_LAP_CAPACITY ||
-                 m->message == IW_TEXT_LAPS_FULL);
+                m->stopwatch.lap_count >= IW_STOPWATCH_LAP_CAPACITY;
     format_elapsed(m->stopwatch.elapsed_ms, true, elapsed, sizeof(elapsed));
     if (!header(s, m, TEXT(STOPWATCH)) ||
         !label(s, 20, 210, 350, 80, IW_PRODUCT_WHITE, 1, false, elapsed) ||
