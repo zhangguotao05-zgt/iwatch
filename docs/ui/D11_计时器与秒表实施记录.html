@@ -2,7 +2,7 @@
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="iwatch D11 计时器与秒表实施及验收记录"><title>D11 计时器与秒表实施记录 · iwatch</title>
 <link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
-<header><h1>D11 计时器与秒表实施记录</h1><p class="doc-meta">2026-09-18～19 · Issue #13 · M2 · T16/T17 · 增量整改待架构复核</p></header>
+<header><h1>D11 计时器与秒表实施记录</h1><p class="doc-meta">2026-09-18～19 · Issue #13 · M2 · T16/T17 · 容量恢复增量待架构复核</p></header>
 <section><h2>1. 范围与边界</h2>
 <p>D11 实现 8 个并行计时器、1 个秒表和最多 100 条计次记录，打通固定容量核心、服务命令、版本化快照、应用入口和页面恢复。计时使用 64 位单调毫秒，不读取日历时间计算剩余值；RTC 校时不会改变运行或暂停中的计时器与秒表。</p>
 <p>提醒页面、声音/振动互斥、16 个闹钟和 24 槽全局提醒队列属于 D12。D11 只保留计时器的 occurrence 与 alert_pending，证明到期只登记一次，不伪造完整提醒输出。重启连续性尚未启用持久化，因此冷启动后不承诺恢复活动计时。</p></section>
@@ -75,4 +75,15 @@
 <tr><td>输入与故障</td><td>四次触摸溢出采样均为 0；服务累计提交、完成与 ACK 均为 113，队列归零。全窗口未见 <code>Assertion failed</code>、<code>draw_core timeout</code>、HardFault 或 LCD timeout。该窗口不代表 #8、#10 已解决。</td></tr>
 </tbody></table>
 <p>新原始目录 <code>logs/board-validation-20260919-d11-fix/</code> 仅本机可用，未入库：含完整 COM9 烧录 transcript、COM10 原始字节、时间线、命令、分析脚本及 <code>board-validation.json</code>。可运行 <code>py -3.14 logs/board-validation-20260919-d11-fix/analyze.py</code> 重算哈希、检查接收连续性、容量响应、内存样本和全窗口故障。实机未精确注入 RUNNING／PAUSED 的 RESTART 竞争；该项由主机状态机测试覆盖。Issue #13 保持打开，等待架构师审批；D12 提醒输出仍未实现。</p></section>
+<section><h2>7. 容量释放后按钮恢复与 SDK 基线隔离</h2>
+<p>架构复核在整改镜像上复现“服务拒绝新增、取消一个、列表仍有旧的满额提示且四个新增按钮保持禁用”。根因是 View 将旧的 <code>TIMERS_FULL</code> 消息与最新计时器数量作“或”判断，页面恢复后旧消息覆盖了容量已释放的快照。本次修复让按钮与提示只取当前有效快照的数量；控制器收到有效且不足上限的快照时清除旧满额消息。秒表计次使用同一规则，避免 100 圈提示在重置后残留。服务层的容量拒绝保持不变。</p>
+<p>主机回归加入真实控制器／服务／View 流程：列表为 7 个时，外部占用最后一个名额，页面新增被拒；取消一项返回后，计数为 7、提示清除、四个按钮恢复可点，再次新增成功。View 测试同时覆盖“旧满额消息＋当前未满”的计时器和秒表状态。干净原版 SDK 单独固定于 <code>C:\OpenSiFli\_workspaces\iwatch-sdk-base-d11</code>，提交 <code>421126d9f476ed8e2a6f0b0ca28a9f241c182e65</code>，与受控补丁 SDK 分离；测试包装脚本将已校验的 Base/Patched 路径传给嵌套 Python 检查。完整核心回归 46 项通过、1 项可选环境检查跳过，GUI 回归 38 项通过，故障注入和生命周期矩阵通过。未重置或修改本机另一个非干净 SDK 目录。</p>
+<p>本次固件源码提交 <code>e6fc348b973d6ada69417d1c854186911a470bad</code>。GCC 和 Keil 均从该提交重构建，归档 <code>git_head</code> 与内嵌标签一致，资源预算与 COM255 DryRun 通过。36 张 D11 静态帧重新生成后与清单哈希一致，说明本次状态修复没有改变既有画面基线。</p>
+<table><thead><tr><th>工具链</th><th>main.bin</th><th>SHA-256</th><th>身份</th></tr></thead><tbody>
+<tr><td>GCC</td><td>1,923,832 B，6 MiB 槽 30.578%</td><td><code>f2e55d6ba0a9276098038c6e8acd4d9c4073b4e8bdade93f23f62b92f29881f9</code></td><td><code>e6fc348b973d / d11acf263c18 / gcc</code></td></tr>
+<tr><td>Keil</td><td>1,848,648 B，6 MiB 槽 29.383%</td><td><code>efe88a103bf8a7c13d9eaae82ca0ee182255d28fd2c64958e195bd17c85bb03c</code></td><td><code>e6fc348b973d / d11acf263c18 / keil</code></td></tr>
+</tbody></table>
+<p>GCC 三件套经 COM9 写入并校验。COM10 新原始窗口为 37,060 B，SHA-256 <code>a8497327c968974bf57dd6147e85f08ad498ce763cf4c9925891f6363fc29cfb</code>；时间线 SHA-256 <code>e3e6479a9668cf4b41716a32630ce171ae8a933bb8deb54081a0b0d98694edf9</code>，1,266 段接收偏移连续。原始目录 <code>logs/board-validation-20260919-d11-recovery/</code> 仅本机可用，未入库，含完整烧录输出、原始字节、时间线、命令与可复算脚本。启动识别 CO5300 与 FT6146；既有 <code>flash1</code> FAL 报错继续归 D15。</p>
+<p>串口先创建 8 个计时器，第 9 次返回 CAPACITY 且快照保持 8 个；操作者实屏确认满额按钮禁用、详情页取消后四个新增按钮恢复、再次新增成功。随后快照为 8 个，出现新 ID 9。自动往返 5 次后，同一应用列表前台状态的 6 份主堆样本为 50,552～50,588 B、字形池为 11,240～11,340 B，字体引用均为 2；没有观察到逐轮增长。三个触摸溢出采样均为 0，服务 11 次提交、完成、ACK 对齐；全窗口未见 HardFault、断言或 LCD timeout。新建的 60 秒计时器后来正常到期，不将 pending 登记冒称 D12 提醒输出已实现。</p>
+<p>主机测试精确覆盖容量拒绝与页面恢复的竞争；实机覆盖满额、取消、再次新增和页面往返，没有人为注入同一个快照竞态。主机、构建和实机结论分开使用。Issue #13 继续打开，待架构师复核此项增量后再决定 D11 收口；#8、#10 与 D12 均不随本次关闭。</p></section>
 </main></body></html>

@@ -13,7 +13,7 @@
 <li><a href="#tests">9. 测试矩阵与判定标准</a></li>
 <li><a href="#records">10. 开发记录与提交要求</a></li></ul></nav><main>
 <h1>模块接口与开发任务 v1</h1>
-<p class="doc-meta">2026-09-19 · D01–D10 已按各自审批收口 · D11 局部整改待新镜像板验 · 接口开发基线：<code>83db910</code></p>
+<p class="doc-meta">2026-09-19 · D01–D10 已按各自审批收口 · D11 增量板验完成、待架构复核 · 接口开发基线：<code>83db910</code></p>
 <p>本文规定模块所有权、接口输入输出、资源限制和开发依赖。D04–D06 对应的时间、命令、结果、快照和显示 mailbox 已经落到头文件；其余接口仍是后续实现契约。功能行为见 <a href="功能逻辑与页面契约_v1.html">页面契约</a>，实现证据见 <a href="D04-D05_实施记录.html">D04–D05</a> 与 <a href="D06_显示目标与会话亮度实施记录.html">D06 实施记录</a>。</p>
 
 <section id="owners"><h2>1. 模块所有权与允许依赖</h2>
@@ -200,7 +200,7 @@ typedef struct {
 <tr><td><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/9">D08 · #9</a> · M1.1</td><td>scope、navigator、页面注册表、返回合并策略。<a href="D08_页面作用域与路由实施记录.html">实施记录</a>：按“接受已知风险”收口，验收基线 5c51f54、固件源码 82ab706；基础实现及已验证功能通过，负责人同意继续 D09。半黑半白转入 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/10">#10</a>，未定位、后续未复现；性能跟踪 #8。保留首次异常、采集缺口与原始证据，不代表异常已修复或产品发布验收通过。</td><td>D05、D07；T13、T14。</td></tr>
 <tr><td><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/11">D09 · #11</a> · M1.1 · 已审批收口</td><td>双键输入语义、表冠旋转注入、全局仲裁。<a href="D09_双键语义与输入仲裁实施记录.html">实施记录</a>。</td><td>D03、D08；T05、T15。实际 KEY2 和旋钮按硬件条件记录。</td></tr>
 <tr><td><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/12">D10 · #12</a> · M1.2 · 已收口</td><td><a href="D10_首批七页实施记录.html">实施记录</a>与<a href="D10_界面完善与复核交接.html">增量复核记录</a>已通过架构审批；七页、服务、视觉证据和最终构建身份闭环。</td><td>D04–D09；T07、T11–T15。#8、#10、V-DIFF-08 和 flash1 边界继续独立跟踪。</td></tr>
-<tr><td><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/13">D11 · #13</a> · M2 · 整改待架构复核</td><td><a href="D11_计时器与秒表实施记录.html">实施记录</a>：固定容量核心、命令／快照和三个页面已实现；状态限制、满容量反馈及日志反例通过主机回归。整改 GCC／Keil 已归档，新 GCC 镜像通过 COM9／COM10 容量和页面复验；原 GCC 板测保留为旧镜像历史证据。</td><td>D10；T16、T17。#13 暂不关闭。</td></tr>
+<tr><td><a href="https://github.com/zhangguotao05-zgt/iwatch/issues/13">D11 · #13</a> · M2 · 容量恢复增量待架构复核</td><td><a href="D11_计时器与秒表实施记录.html">实施记录</a>：固定容量核心、命令／快照和三个页面已实现。e6fc348 修复容量释放后按钮不恢复及测试 SDK 基线混用；全量主机回归、双工具链归档和 COM9／COM10 满额→取消→再次新增复验通过。此前板测保留为历史证据。</td><td>D10；T16、T17。#13 暂不关闭。</td></tr>
 <tr><td>D12 · M2</td><td>16 闹钟、24 提醒槽、互斥输出、全局提醒页。</td><td>D11；T18、T19。</td></tr>
 <tr><td>D13 · M3</td><td>控制中心、通知、叠放、切换器、输入锁、水锁、表盘选择/编辑。</td><td>D12；T14、T15、T20。</td></tr>
 <tr><td>D14 · M3</td><td>蜂窝桌面与复杂表盘性能样例，改进可中断转场。</td><td>D10；T22、T23。未通过时保留 Q0/Q1 和完成后返回。</td></tr>
