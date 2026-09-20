@@ -2,7 +2,7 @@
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="iwatch D12 闹钟与全局提醒实施、构建及实机验收记录"><title>D12 闹钟与全局提醒实施记录 · iwatch</title>
 <link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
-<header><h1>D12 闹钟与全局提醒实施记录</h1><p class="doc-meta">2026-09-19 · Issue #14 · M2 · T18/T19 · 开发中</p></header>
+<header><h1>D12 闹钟与全局提醒实施记录</h1><p class="doc-meta">2026-09-20 · Issue #14 · M2 · T18/T19 · 待架构复核</p></header>
 <section><h2>范围</h2>
 <p>D12 在 D11 单调计时基础上增加 16 个会话内闹钟、8 个计时器加 16 个闹钟的独立提醒槽、精确发生确认与九分钟稍后提醒。应用列表增加闹钟入口；提醒可从当前页面自动打开，Home 或返回仅隐藏画面，不确认提醒，应用列表保留重进入口。</p>
 <p>开发板尚无已验收的马达或扬声器驱动。服务将 SOUND、HAPTIC 标为缺失，只启用视觉提醒。输出仲裁模型覆盖单一活动源与 30 秒上限，但实机不会声称已发声或振动。闹钟和提醒目前在 RAM 中，断电保持待 D15 存储修复后处理；<code>flash1</code> 的既有 FAL 报错不由 D12 掩盖。</p></section>
@@ -17,11 +17,22 @@
 <p>诊断命令 <code>iw_alarm_add_diag</code>、<code>iw_alarm_delete_diag</code>、<code>iw_alert_stat</code>、<code>iw_alert_diag</code> 和 <code>iw_d12_result</code> 可从 COM10 读取模型及 ACK 结果。串口入队成功仅表示受理，必须结合终态结果和快照判定业务结果。</p></section>
 <section><h2>验收矩阵</h2>
 <table><thead><tr><th>层级</th><th>检查</th><th>状态</th></tr></thead><tbody>
-<tr><td>主机核心</td><td>T18 8+16 同时到期、固定槽、稳定确认；T19 回拨、前调、迟到、同源合并、旧 ACK、稍后提醒与常规到期重合、删除释放；命令及容量边界。</td><td>已通过，待最终归档</td></tr>
-<tr><td>主机 GUI</td><td>新页面布局、触摸动作、返回、字体与页面生命周期故障注入。</td><td>已通过，待最终归档</td></tr>
+<tr><td>主机核心</td><td>T18 8+16 同时到期、固定槽、稳定确认；T19 回拨、前调、迟到、同源合并、旧 ACK、稍后提醒与常规到期重合、删除释放；命令及容量边界。</td><td>通过</td></tr>
+<tr><td>主机 GUI</td><td>新页面布局、触摸动作、返回、字体与页面生命周期故障注入。</td><td>通过</td></tr>
 <tr><td>目标构建</td><td>GCC／Keil 从同一源码提交独立构建；身份、6 MiB 镜像槽、字体预算、map 来源及 COM255 DryRun。</td><td>通过</td></tr>
-<tr><td>开发板</td><td>COM9 刷入并校验；COM10 启动、闹钟创建／编辑／删除、真实到期、隐藏／重进、ACK／稍后、旧页面与内存回归。</td><td>待执行</td></tr>
+<tr><td>开发板</td><td>COM9 刷入并校验；COM10 启动、闹钟创建／编辑／删除、真实到期、隐藏／重进、ACK／稍后、容量边界和内存回归。</td><td>功能通过；启动后一次显示超时按 #10 跟踪</td></tr>
 </tbody></table>
 <p>构建基线为源码提交 <code>0c76c76ae3a912bc72e1e51f54f3a3cf66932551</code>，固定派生 SDK 为 <code>421126d9…</code> 加受控补丁。GCC <code>main.bin</code> 为 1,935,588 B、SHA-256 <code>20b7ac52459289719988567366259f8b3c17bf502059dc2942236f721d4952ac</code>，占 6 MiB 槽 30.765%；Keil 为 1,860,456 B、SHA-256 <code>a983264ad7fcef1bc5a9a87caff87be1cd657fd632d1c9073f9c70b2a8c363ad</code>，占 29.571%。两份归档的内嵌身份分别以 <code>0c76c76ae3a9 / e49d1172a874 / gcc</code> 与 <code>/ keil</code> 结尾；正式字体 418 字、71,076 B，预算和两套 COM255 DryRun 通过。两套三件套各自独立，不能混刷。</p>
-<p>主机证明精确竞争和容量边界；实机只记录实际执行的场景。#8 长文与输入性能、#10 显示异常继续独立跟踪。本记录在实机完成后补入原始日志哈希与观察结果，未取得架构审批前 Issue #14 保持打开。</p></section>
+<p>主机证明精确竞争和容量边界；实机只记录实际执行的场景。#8 长文与输入性能、#10 显示异常继续独立跟踪。未取得架构审批前 Issue #14 保持打开。</p></section>
+<section><h2>开发板验证 · 2026-09-20</h2>
+<p>COM9 采用 GCC 归档烧录 Bootloader、main 和 FTab，三件套均写入并校验；未访问 J-Link。COM10 以 1,000,000 baud 从 09:13:12 至 09:32:55 连续采集，覆盖刷写后的首次启动和一次软件重启。RTC 起初无效，经命令校时后可用，软件重启后仍有效；<code>flash1</code> FAL 报错仍存在。</p>
+<table><thead><tr><th>场景</th><th>板上结果</th></tr></thead><tbody>
+<tr><td>单项提醒</td><td>3 秒计时器到期自动打开提醒页，点击“稍后提醒”后返回闹钟列表；09:21 闹钟真实到期自动打开提醒页，点击“停止”返回。两次屏幕文字、触摸和返回均由操作者确认正常；旧 occurrence 的 ACK 得到 ABSENT，快照不变。</td></tr>
+<tr><td>容量与串行确认</td><td>先创建 16 个同分钟闹钟及 8 个 3 秒计时器；到 09:26 的快照中，24 条提醒全部保留，计时器 8 条、闹钟 16 条，无 missed 记录。第 17 个闹钟和第 9 个计时器的终态均为容量拒绝。24 次按源、ID、occurrence 的 ACK 均成功，提醒数归零。计时器是在约 9 秒内依次创建，并非实机精确同一时刻到期；严格同到期竞争由主机测试覆盖。</td></tr>
+<tr><td>页面与数据回收</td><td>提醒页可用 KEY1 隐藏，并从应用列表顶部重新打开；串口确认后正常返回。16 个测试闹钟删除成功；随后操作者在屏幕上完成一次新建、修改、删除，最终闹钟和提醒均为 0。服务终态为 submitted/completed/ack = 69/69/69，queue、active、ledger 均为 0。</td></tr>
+<tr><td>内存与输入</td><td>闹钟列表重复进退的两次同状态采样均为主堆 54,056 B、字形池 17,288 B；界面编辑删除后的根页为 54,120 B、17,136 B，不能把不同页面历史的绝对值直接比较。7 次触摸采样的 overflow 均为 0，未见 HardFault 或断言。</td></tr>
+<tr><td>显示异常</td><td>软件重启后出现一次 <code>draw_core timeout</code>；驱动执行 PowerOff→PowerOn、重新识别 CO5300，最终 <code>recovery=1 fault_pending=0</code>。操作者随后确认画面、触摸和 KEY1 正常。根因未定位，保留 #10；这次记录不能写成“全程无显示故障”。</td></tr>
+</tbody></table>
+<p>本机原始证据位于 <code>logs/board-validation-20260919-d12/</code>，该目录不入库：<code>serial-raw.bin</code> 88,622 B，SHA-256 <code>70eace688519ae3effc02d6d840b6b6fa2d070c373c7805e9ff39aa0f81e7881</code>；<code>timeline.jsonl</code> SHA-256 <code>8be80fe7aa048bd5c892a744a63802ed4351605010c4951135f3a8d57880c277</code>；<code>flash-gcc-transcript.txt</code> SHA-256 <code>2ef2e459ee57a06e0a4a1e2bb9dd2a488c74a8544a1356c7af681f2585a031e1</code>。时间线含 3,008 段连续接收、228 条已发送命令，无偏移缺口。可运行 <code>py -3.14 tools/d12_verify.py logs/board-validation-20260919-d12 --raw-sha256 70eace688519ae3effc02d6d840b6b6fa2d070c373c7805e9ff39aa0f81e7881</code> 复核；对触摸溢出、缺失提醒、断言、恢复计数和接收偏移五种篡改样本均会拒绝。</p>
+<p>D12 本轮完成视觉提醒与会话内闹钟的功能实机验证；实体发声、振动、断电保存以及真实内存耗尽注入没有板上通过证据。#8、#10 保持打开，Issue #14 待架构复核后再决定收口。</p></section>
 </main></body></html>
