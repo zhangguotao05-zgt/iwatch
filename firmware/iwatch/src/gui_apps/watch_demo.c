@@ -28,6 +28,7 @@
 #include "iw_font.h"
 #include "iw_gui_owner.h"
 #include "iw_router.h"
+#include "iw_routes.h"
 #include "iw_render_probe.h"
 #include "iw_font_port.h"
 #include "cpu_usage_profiler.h"
