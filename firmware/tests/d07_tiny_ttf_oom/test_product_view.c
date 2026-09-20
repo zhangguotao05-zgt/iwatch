@@ -315,6 +315,10 @@ static void scene_boundaries(iw_product_model_t *m) {
     assert(iw_product_scene_build(&scene, IW_PAGE_ALERT_ALARM, m));
     assert(has_text(&scene, "仅视觉提醒"));
     assert(iw_product_scene_hit(&scene, 280, 354, 0) >= 0);
+    m->selected_alert.state = IW_ALERT_HELD;
+    assert(iw_product_scene_build(&scene, IW_PAGE_ALERT_ALARM, m));
+    assert(iw_product_scene_hit(&scene, 80, 354, 0) == -1);
+    assert(iw_product_scene_hit(&scene, 280, 354, 0) >= 0);
     m->stopwatch.state = IW_STOPWATCH_RUNNING;
     m->stopwatch.lap_count = 1u;
     assert(iw_product_scene_build(&scene, IW_PAGE_STOPWATCH, m));

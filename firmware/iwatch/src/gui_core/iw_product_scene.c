@@ -282,7 +282,8 @@ static bool alert_page(iw_product_scene_t *s, const iw_product_model_t *m,
                  timer_source ? TEXT(TIMER) : TEXT(ALARM)) &&
            label(s, 20, 284, 350, 20, IW_PRODUCT_SECONDARY, 1, false,
                  alert->missed_count ? detail : TEXT(VISUAL_ONLY)) &&
-           button(s, 18, 324, 170, 70, IW_ACTION_ALERT_SNOOZE, m->pending, true,
+           button(s, 18, 324, 170, 70, IW_ACTION_ALERT_SNOOZE,
+                  m->pending || alert->state == IW_ALERT_HELD, true,
                   TEXT(SNOOZE)) &&
            button(s, 202, 324, 170, 70, IW_ACTION_ALERT_ACK, m->pending, true,
                   TEXT(STOP_ALERT));

@@ -85,6 +85,7 @@ iw_alert_status_t iw_alerts_note(iw_alerts_t *alerts, iw_alert_source_t source,
     record->occurrence = occurrence;
     record->last_due_utc_ms = due_utc_ms;
     record->snooze_due_mono_ms = 0u;
+    record->presentation_epoch = 1u;
     record->state = IW_ALERT_PENDING;
     alerts->revision++;
     return IW_ALERT_OK;
@@ -130,8 +131,11 @@ iw_alert_status_t iw_alerts_snooze(iw_alerts_t *alerts, iw_alert_source_t source
     if (!record) return IW_ALERT_ABSENT;
     if (record->occurrence != occurrence) return IW_ALERT_CONFLICT;
     if (record->state == IW_ALERT_SNOOZED) return IW_ALERT_UNCHANGED;
+    if (record->state != IW_ALERT_PENDING && record->state != IW_ALERT_PRESENTING)
+        return IW_ALERT_CONFLICT;
     if (UINT64_MAX - now_mono_ms < IW_ALERT_SNOOZE_MS ||
-        alerts->revision == UINT32_MAX) return IW_ALERT_NO_CAPACITY;
+        alerts->revision == UINT32_MAX || record->presentation_epoch == UINT32_MAX)
+        return IW_ALERT_NO_CAPACITY;
     record->snooze_due_mono_ms = now_mono_ms + IW_ALERT_SNOOZE_MS;
     record->state = IW_ALERT_SNOOZED;
     alerts->revision++;
@@ -151,13 +155,30 @@ iw_alert_status_t iw_alerts_remove_source(iw_alerts_t *alerts,
     return IW_ALERT_OK;
 }
 
+iw_alert_status_t iw_alerts_hold_alarm(iw_alerts_t *alerts, uint32_t entity_id)
+{
+    iw_alert_record_t *record;
+    if (!alerts || !entity_id) return IW_ALERT_INVALID;
+    record = find_record(alerts, IW_ALERT_SOURCE_ALARM, entity_id);
+    if (!record) return IW_ALERT_ABSENT;
+    if (record->state == IW_ALERT_HELD) return IW_ALERT_UNCHANGED;
+    if (alerts->revision == UINT32_MAX) return IW_ALERT_NO_CAPACITY;
+    record->snooze_due_mono_ms = 0u;
+    record->state = IW_ALERT_HELD;
+    alerts->revision++;
+    return IW_ALERT_OK;
+}
+
 unsigned iw_alerts_advance(iw_alerts_t *alerts, uint64_t now_mono_ms)
 {
     unsigned due = 0u;
     if (!alerts) return 0u;
     for (unsigned i = 0; i < IW_ALERT_CAPACITY; i++)
         if (alerts->records[i].state == IW_ALERT_SNOOZED &&
-            now_mono_ms >= alerts->records[i].snooze_due_mono_ms) due++;
+            now_mono_ms >= alerts->records[i].snooze_due_mono_ms) {
+            if (alerts->records[i].presentation_epoch == UINT32_MAX) return 0u;
+            due++;
+        }
     if ((uint64_t)alerts->revision + due > UINT32_MAX) return 0u;
     for (unsigned i = 0; i < IW_ALERT_CAPACITY; i++) {
         iw_alert_record_t *record = &alerts->records[i];
@@ -165,6 +186,7 @@ unsigned iw_alerts_advance(iw_alerts_t *alerts, uint64_t now_mono_ms)
             now_mono_ms < record->snooze_due_mono_ms) continue;
         record->state = IW_ALERT_PENDING;
         record->snooze_due_mono_ms = 0u;
+        record->presentation_epoch++;
         alerts->revision++;
     }
     return due;

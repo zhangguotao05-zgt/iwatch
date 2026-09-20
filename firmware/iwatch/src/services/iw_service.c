@@ -966,10 +966,11 @@ iw_take_status_t iw_service_take_next(iw_service_t *service, iw_service_work_t *
         }
         alarm_edit = draft->edit;
         memset(draft, 0, sizeof(*draft));
-        alarm_status = iw_alarms_apply(&service->alarms, &alarm_edit,
+        alarm_status = iw_alarms_apply(&service->alarms, &service->alerts, &alarm_edit,
                                        &clock, &applied_alarm);
         memset(slot->result.payload, 0, sizeof(slot->result.payload));
         if (alarm_status == IW_ALARM_OK) {
+            refresh_alert_output(service, clock.mono_ms);
             write_u32(&slot->result.payload[0], applied_alarm.alarm_id);
             write_u32(&slot->result.payload[4], applied_alarm.revision);
             slot->result.model_revision = service->alarms.revision;
@@ -1011,7 +1012,7 @@ iw_take_status_t iw_service_take_next(iw_service_t *service, iw_service_work_t *
                                          alert_control.occurrence);
             if (alert_status == IW_ALERT_OK &&
                 alert_control.source_type == IW_ALERT_SOURCE_TIMER)
-                (void)iw_timer_alert_ack(&service->chronograph,
+                (void)iw_timer_alert_ack(&service->chronograph, clock.mono_ms,
                                          alert_control.entity_id,
                                          alert_control.occurrence);
         } else {
@@ -1246,6 +1247,12 @@ bool iw_service_timers_read(const iw_service_t *service,
                             iw_timer_snapshot_t *snapshot)
 {
     return service && iw_timer_snapshot_read(&service->chronograph, mono_ms, snapshot);
+}
+
+bool iw_service_timer_history_read(const iw_service_t *service,
+                                   iw_timer_history_snapshot_t *snapshot)
+{
+    return service && iw_timer_history_read(&service->chronograph, snapshot);
 }
 
 bool iw_service_stopwatch_read(const iw_service_t *service,

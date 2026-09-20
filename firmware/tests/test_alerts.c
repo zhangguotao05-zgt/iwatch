@@ -35,13 +35,15 @@ static void recurrence_and_snooze(void)
     iw_alert_record_t selected;
     assert(iw_alerts_init(&alerts));
     assert(iw_alerts_note(&alerts, IW_ALERT_SOURCE_ALARM, 3u, 7u, 1000u, 2000u) == IW_ALERT_OK);
+    assert(alerts.records[IW_ALERT_TIMER_CAPACITY].presentation_epoch == 1u);
     assert(iw_alerts_note(&alerts, IW_ALERT_SOURCE_ALARM, 3u, 7u, 1000u, 2000u) == IW_ALERT_UNCHANGED);
     assert(iw_alerts_present(&alerts, IW_ALERT_SOURCE_ALARM, 3u, 7u) == IW_ALERT_OK);
     assert(iw_alerts_snooze(&alerts, IW_ALERT_SOURCE_ALARM, 3u, 7u, 2000u) == IW_ALERT_OK);
     assert(!iw_alerts_select(&alerts, &selected));
     assert(iw_alerts_advance(&alerts, 2000u + IW_ALERT_SNOOZE_MS - 1u) == 0u);
     assert(iw_alerts_advance(&alerts, 2000u + IW_ALERT_SNOOZE_MS) == 1u);
-    assert(iw_alerts_select(&alerts, &selected) && selected.occurrence == 7u);
+    assert(iw_alerts_select(&alerts, &selected) && selected.occurrence == 7u &&
+           selected.presentation_epoch == 2u);
 
     assert(iw_alerts_note(&alerts, IW_ALERT_SOURCE_ALARM, 3u, 8u, 3000u, 4000u) == IW_ALERT_OK);
     assert(iw_alerts_snapshot_read(&alerts, &snapshot) && snapshot.count == 1u);
@@ -51,6 +53,27 @@ static void recurrence_and_snooze(void)
     assert(iw_alerts_ack(&alerts, IW_ALERT_SOURCE_ALARM, 3u, 7u) == IW_ALERT_CONFLICT);
     assert(iw_alerts_snapshot_read(&alerts, &snapshot) && snapshot.records[0].occurrence == 8u);
     assert(iw_alerts_ack(&alerts, IW_ALERT_SOURCE_ALARM, 3u, 8u) == IW_ALERT_OK);
+    assert(iw_alerts_snapshot_read(&alerts, &snapshot) && snapshot.count == 0u);
+}
+
+static void disabling_retains_record_without_rearming(void)
+{
+    iw_alerts_t alerts, before;
+    iw_alert_snapshot_t snapshot;
+    iw_alert_record_t selected;
+    assert(iw_alerts_init(&alerts));
+    assert(iw_alerts_note(&alerts, IW_ALERT_SOURCE_ALARM, 5u, 9u, 1000u, 1000u) == IW_ALERT_OK);
+    assert(iw_alerts_snooze(&alerts, IW_ALERT_SOURCE_ALARM, 5u, 9u, 2000u) == IW_ALERT_OK);
+    assert(iw_alerts_hold_alarm(&alerts, 5u) == IW_ALERT_OK);
+    assert(iw_alerts_snapshot_read(&alerts, &snapshot) && snapshot.count == 1u);
+    assert(snapshot.records[0].state == IW_ALERT_HELD &&
+           snapshot.records[0].snooze_due_mono_ms == 0u);
+    before = alerts;
+    assert(iw_alerts_snooze(&alerts, IW_ALERT_SOURCE_ALARM, 5u, 9u, 3000u) == IW_ALERT_CONFLICT);
+    assert(memcmp(&before, &alerts, sizeof(alerts)) == 0);
+    assert(iw_alerts_advance(&alerts, 2000u + IW_ALERT_SNOOZE_MS) == 0u);
+    assert(!iw_alerts_select(&alerts, &selected));
+    assert(iw_alerts_ack(&alerts, IW_ALERT_SOURCE_ALARM, 5u, 9u) == IW_ALERT_OK);
     assert(iw_alerts_snapshot_read(&alerts, &snapshot) && snapshot.count == 0u);
 }
 
@@ -80,6 +103,7 @@ int main(void)
 {
     simultaneous_sources();
     recurrence_and_snooze();
+    disabling_retains_record_without_rearming();
     capacity_and_failure_are_atomic();
     return 0;
 }

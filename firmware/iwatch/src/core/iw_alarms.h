@@ -63,7 +63,8 @@ typedef struct {
 } iw_alarms_t;
 
 bool iw_alarms_init(iw_alarms_t *alarms);
-iw_alarm_status_t iw_alarms_apply(iw_alarms_t *alarms, const iw_alarm_edit_t *edit,
+iw_alarm_status_t iw_alarms_apply(iw_alarms_t *alarms, iw_alerts_t *alerts,
+                                  const iw_alarm_edit_t *edit,
                                   const iw_clock_snapshot_t *clock, iw_alarm_t *applied);
 iw_alarm_status_t iw_alarms_delete(iw_alarms_t *alarms, iw_alerts_t *alerts,
                                    uint32_t alarm_id, uint32_t expected_revision);

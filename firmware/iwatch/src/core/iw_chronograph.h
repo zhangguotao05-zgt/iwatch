@@ -84,6 +84,29 @@ typedef struct
     iw_timer_view_t timers[IW_TIMER_CAPACITY];
 } iw_timer_snapshot_t;
 
+typedef enum
+{
+    IW_TIMER_HISTORY_CANCELLED = 1,
+    IW_TIMER_HISTORY_ACKNOWLEDGED = 2
+} iw_timer_history_outcome_t;
+
+typedef struct
+{
+    uint64_t completed_mono_ms;
+    uint32_t timer_id;
+    uint32_t duration_ms;
+    uint32_t occurrence;
+    uint8_t outcome;
+    uint8_t reserved[3];
+} iw_timer_history_entry_t;
+
+typedef struct
+{
+    uint8_t count;
+    uint8_t reserved[3];
+    iw_timer_history_entry_t entries[IW_TIMER_CAPACITY];
+} iw_timer_history_snapshot_t;
+
 typedef struct
 {
     uint32_t revision;
@@ -106,10 +129,13 @@ typedef struct
 typedef struct
 {
     iw_timer_t timers[IW_TIMER_CAPACITY];
+    iw_timer_history_entry_t history[IW_TIMER_CAPACITY];
     iw_stopwatch_t stopwatch;
     uint32_t timer_revision;
     uint32_t next_timer_id;
     uint32_t next_occurrence;
+    uint8_t history_count;
+    uint8_t history_next;
 } iw_chronograph_t;
 
 bool iw_chronograph_init(iw_chronograph_t *chronograph);
@@ -140,10 +166,13 @@ iw_chrono_status_t iw_timer_restart(iw_chronograph_t *chronograph,
 iw_chrono_status_t iw_timer_alert_check(const iw_chronograph_t *chronograph,
                                         uint32_t timer_id, uint32_t occurrence);
 iw_chrono_status_t iw_timer_alert_ack(iw_chronograph_t *chronograph,
-                                      uint32_t timer_id, uint32_t occurrence);
+                                      uint64_t now_ms, uint32_t timer_id,
+                                      uint32_t occurrence);
 bool iw_timer_snapshot_read(const iw_chronograph_t *chronograph,
                             uint64_t now_ms,
                             iw_timer_snapshot_t *snapshot);
+bool iw_timer_history_read(const iw_chronograph_t *chronograph,
+                           iw_timer_history_snapshot_t *snapshot);
 iw_chrono_status_t iw_stopwatch_start(iw_chronograph_t *chronograph,
                                       uint64_t now_ms,
                                       uint32_t expected_revision);

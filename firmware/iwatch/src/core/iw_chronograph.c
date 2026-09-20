@@ -45,6 +45,19 @@ static void changed(iw_chronograph_t *chronograph, iw_timer_t *timer)
     timer->revision++;
 }
 
+static void save_timer_history(iw_chronograph_t *chronograph, const iw_timer_t *timer,
+                               uint64_t now_ms, iw_timer_history_outcome_t outcome)
+{
+    iw_timer_history_entry_t *entry = &chronograph->history[chronograph->history_next];
+    *entry = (iw_timer_history_entry_t){.completed_mono_ms = now_ms,
+                                        .timer_id = timer->timer_id,
+                                        .duration_ms = timer->duration_ms,
+                                        .occurrence = timer->occurrence,
+                                        .outcome = (uint8_t)outcome};
+    chronograph->history_next = (uint8_t)((chronograph->history_next + 1u) % IW_TIMER_CAPACITY);
+    if (chronograph->history_count < IW_TIMER_CAPACITY) chronograph->history_count++;
+}
+
 bool iw_chronograph_init(iw_chronograph_t *chronograph)
 {
     if (!chronograph) return false;
@@ -174,6 +187,7 @@ iw_chrono_status_t iw_timer_cancel(iw_chronograph_t *chronograph,
     if (timer->revision != expected_revision || timer->state == IW_TIMER_EXPIRED)
         return IW_CHRONO_CONFLICT;
     if (!can_change(chronograph, timer)) return IW_CHRONO_CAPACITY;
+    save_timer_history(chronograph, timer, now_ms, IW_TIMER_HISTORY_CANCELLED);
     chronograph->timer_revision++;
     memset(timer, 0, sizeof(*timer));
     return IW_CHRONO_OK;
@@ -227,14 +241,16 @@ iw_chrono_status_t iw_timer_alert_check(const iw_chronograph_t *chronograph,
 }
 
 iw_chrono_status_t iw_timer_alert_ack(iw_chronograph_t *chronograph,
-                                      uint32_t timer_id, uint32_t occurrence)
+                                      uint64_t now_ms, uint32_t timer_id,
+                                      uint32_t occurrence)
 {
     iw_chrono_status_t status = iw_timer_alert_check(chronograph, timer_id, occurrence);
     iw_timer_t *timer;
     if (status != IW_CHRONO_OK) return status;
     timer = find_timer(chronograph, timer_id);
-    timer->alert_pending = 0u;
-    changed(chronograph, timer);
+    save_timer_history(chronograph, timer, now_ms, IW_TIMER_HISTORY_ACKNOWLEDGED);
+    chronograph->timer_revision++;
+    memset(timer, 0, sizeof(*timer));
     return IW_CHRONO_OK;
 }
 
@@ -248,6 +264,20 @@ bool iw_timer_snapshot_read(const iw_chronograph_t *chronograph,
     for (unsigned i = 0; i < IW_TIMER_CAPACITY; i++)
         if (chronograph->timers[i].state != IW_TIMER_UNUSED)
             timer_view(&chronograph->timers[i], now_ms, &snapshot->timers[snapshot->count++]);
+    return true;
+}
+
+bool iw_timer_history_read(const iw_chronograph_t *chronograph,
+                           iw_timer_history_snapshot_t *snapshot)
+{
+    if (!chronograph || !snapshot) return false;
+    memset(snapshot, 0, sizeof(*snapshot));
+    snapshot->count = chronograph->history_count;
+    for (unsigned i = 0; i < snapshot->count; i++) {
+        unsigned index = (chronograph->history_next + IW_TIMER_CAPACITY -
+                          snapshot->count + i) % IW_TIMER_CAPACITY;
+        snapshot->entries[i] = chronograph->history[index];
+    }
     return true;
 }
 

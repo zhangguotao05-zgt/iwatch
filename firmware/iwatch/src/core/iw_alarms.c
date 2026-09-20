@@ -57,13 +57,14 @@ bool iw_alarms_init(iw_alarms_t *alarms)
     return true;
 }
 
-iw_alarm_status_t iw_alarms_apply(iw_alarms_t *alarms, const iw_alarm_edit_t *edit,
+iw_alarm_status_t iw_alarms_apply(iw_alarms_t *alarms, iw_alerts_t *alerts,
+                                  const iw_alarm_edit_t *edit,
                                   const iw_clock_snapshot_t *clock, iw_alarm_t *applied)
 {
     iw_alarm_t *slot;
     iw_alarm_t next;
     bool creating;
-    if (!alarms || !edit || !clock || edit->hour > 23u || edit->minute > 59u ||
+    if (!alarms || !alerts || !edit || !clock || edit->hour > 23u || edit->minute > 59u ||
         edit->weekday_mask > 0x7fu || edit->enabled > 1u ||
         !memchr(edit->label, '\0', IW_ALARM_LABEL_BYTES)) return IW_ALARM_INVALID;
     creating = edit->alarm_id == 0u;
@@ -84,6 +85,11 @@ iw_alarm_status_t iw_alarms_apply(iw_alarms_t *alarms, const iw_alarm_edit_t *ed
     next.enabled = edit->enabled;
     memcpy(next.label, edit->label, IW_ALARM_LABEL_BYTES);
     next.next_due_utc_ms = next_due(&next, clock);
+    if (!creating && !next.enabled) {
+        iw_alert_status_t held = iw_alerts_hold_alarm(alerts, next.alarm_id);
+        if (held != IW_ALERT_OK && held != IW_ALERT_UNCHANGED && held != IW_ALERT_ABSENT)
+            return IW_ALARM_NO_CAPACITY;
+    }
     *slot = next;
     if (creating) alarms->next_alarm_id++;
     alarms->revision++;

@@ -17,7 +17,8 @@ typedef enum {
 typedef enum {
     IW_ALERT_PENDING = 1,
     IW_ALERT_PRESENTING = 2,
-    IW_ALERT_SNOOZED = 3
+    IW_ALERT_SNOOZED = 3,
+    IW_ALERT_HELD = 4
 } iw_alert_state_t;
 
 typedef enum {
@@ -36,6 +37,7 @@ typedef struct {
     uint32_t entity_id;
     uint32_t occurrence;
     uint32_t missed_count;
+    uint32_t presentation_epoch;
     uint8_t source_type;
     uint8_t state;
     uint8_t reserved[2];
@@ -66,6 +68,7 @@ iw_alert_status_t iw_alerts_snooze(iw_alerts_t *alerts, iw_alert_source_t source
                                    uint64_t now_mono_ms);
 iw_alert_status_t iw_alerts_remove_source(iw_alerts_t *alerts,
                                           iw_alert_source_t source, uint32_t entity_id);
+iw_alert_status_t iw_alerts_hold_alarm(iw_alerts_t *alerts, uint32_t entity_id);
 unsigned iw_alerts_advance(iw_alerts_t *alerts, uint64_t now_mono_ms);
 bool iw_alerts_select(const iw_alerts_t *alerts, iw_alert_record_t *record);
 bool iw_alerts_snapshot_read(const iw_alerts_t *alerts, iw_alert_snapshot_t *snapshot);

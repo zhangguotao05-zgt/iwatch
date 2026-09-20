@@ -457,7 +457,8 @@ bool iw_router_process(void)
                 if (record->state != IW_ALERT_PRESENTING) continue;
                 if (hidden_alert.source_type != record->source_type ||
                     hidden_alert.entity_id != record->entity_id ||
-                    hidden_alert.occurrence != record->occurrence)
+                    hidden_alert.occurrence != record->occurrence ||
+                    hidden_alert.presentation_epoch != record->presentation_epoch)
                     (void)request((route_request_t){.kind=REQUEST_OPEN,
                           .page_id=record->source_type == IW_ALERT_SOURCE_TIMER ?
                                    IW_PAGE_ALERT_TIMER : IW_PAGE_ALERT_ALARM,

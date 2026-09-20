@@ -692,6 +692,7 @@ static void test_d12_t18_simultaneous_sources(void)
     iw_alert_snapshot_t alerts;
     iw_alarm_snapshot_t alarms;
     iw_timer_snapshot_t timers;
+    iw_timer_history_snapshot_t history;
     iw_command_t command;
     iw_result_t result;
     int64_t utc_seconds = 0;
@@ -729,9 +730,63 @@ static void test_d12_t18_simultaneous_sources(void)
     result = execute_software(&service, &command);
     assert(result.code == IW_RESULT_OK_APPLIED);
     assert(iw_service_timers_read(&service, 60000u, &timers));
-    assert(!timers.timers[0].alert_pending);
+    assert(timers.count == IW_TIMER_CAPACITY - 1u);
+    assert(iw_service_timer_history_read(&service, &history) && history.count == 1u);
+    assert(history.entries[0].outcome == IW_TIMER_HISTORY_ACKNOWLEDGED);
     assert(iw_service_advance(&service, 60000u) == 0u);
     assert(iw_service_alerts_read(&service, &alerts) && alerts.count == IW_ALERT_CAPACITY - 1u);
+}
+
+static void test_d12_disable_snoozed_alarm_via_commands(void)
+{
+    iw_time_state_t time_state;
+    iw_service_t service;
+    iw_alarm_edit_t edit = {0};
+    iw_alarm_snapshot_t alarms;
+    iw_alert_snapshot_t alerts;
+    iw_command_t command;
+    int64_t utc_seconds = 0;
+    uint32_t handle;
+    assert(iw_time_calendar_to_utc_seconds(2026, 9u, 18u, 7u, 59u, 0u, &utc_seconds));
+    assert(iw_time_init(&time_state, 0u, 1000u, utc_seconds, 0, IW_TIME_SOURCE_RTC) == IW_TIME_OK);
+    assert(iw_service_init(&service, &time_state, 42u));
+    edit.hour = 8u;
+    edit.weekday_mask = 0x7fu;
+    edit.enabled = 1u;
+    memcpy(edit.label, "Alarm", sizeof("Alarm"));
+    assert(iw_service_alarm_draft_store(&service, &edit, &handle));
+    iw_command_init(&command, 42u, 1u, 0x0400u, 1u, IW_OPCODE_ALARM_APPLY);
+    assert(iw_command_encode_alarm_apply(&command, handle, 0u));
+    assert(execute_software(&service, &command).code == IW_RESULT_OK_APPLIED);
+    assert(iw_service_advance(&service, 0u) == 0u);
+    iw_time_sample(&time_state, 60000u);
+    assert(iw_service_advance(&service, 60000u) == 1u);
+    assert(iw_service_alerts_read(&service, &alerts) && alerts.count == 1u);
+    iw_command_init(&command, 42u, 2u, 0x0401u, 1u, IW_OPCODE_SNOOZE_ALERT);
+    assert(iw_command_encode_alert_control(&command, IW_ALERT_SOURCE_ALARM,
+                                           alerts.records[0].entity_id,
+                                           alerts.records[0].occurrence));
+    assert(execute_software(&service, &command).code == IW_RESULT_OK_APPLIED);
+    assert(iw_service_alarms_read(&service, &alarms) && alarms.count == 1u);
+    edit.alarm_id = alarms.alarms[0].alarm_id;
+    edit.expected_revision = alarms.alarms[0].revision;
+    edit.enabled = 0u;
+    assert(iw_service_alarm_draft_store(&service, &edit, &handle));
+    iw_command_init(&command, 42u, 3u, 0x0400u, 1u, IW_OPCODE_ALARM_APPLY);
+    assert(iw_command_encode_alarm_apply(&command, handle, edit.expected_revision));
+    assert(execute_software(&service, &command).code == IW_RESULT_OK_APPLIED);
+    assert(iw_service_alerts_read(&service, &alerts) && alerts.count == 1u &&
+           alerts.records[0].state == IW_ALERT_HELD &&
+           alerts.records[0].snooze_due_mono_ms == 0u);
+    iw_time_sample(&time_state, 60000u + IW_ALERT_SNOOZE_MS);
+    assert(iw_service_advance(&service, 60000u + IW_ALERT_SNOOZE_MS) == 0u);
+    assert(!service.alert_output.active);
+    iw_command_init(&command, 42u, 4u, 0x0401u, 1u, IW_OPCODE_ACK_ALERT);
+    assert(iw_command_encode_alert_control(&command, IW_ALERT_SOURCE_ALARM,
+                                           alerts.records[0].entity_id,
+                                           alerts.records[0].occurrence));
+    assert(execute_software(&service, &command).code == IW_RESULT_OK_APPLIED);
+    assert(iw_service_alerts_read(&service, &alerts) && alerts.count == 0u);
 }
 
 int main(void)
@@ -749,6 +804,7 @@ int main(void)
     test_d11_service_t16_deadline_and_snapshots();
     test_d11_service_t17_background_and_lap_capacity();
     test_d12_t18_simultaneous_sources();
+    test_d12_disable_snoozed_alarm_via_commands();
     puts("service tests passed");
     return 0;
 }

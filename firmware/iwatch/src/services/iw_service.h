@@ -450,6 +450,8 @@ unsigned iw_service_advance(iw_service_t *service, uint64_t mono_ms);
 bool iw_service_timers_read(const iw_service_t *service,
                             uint64_t mono_ms,
                             iw_timer_snapshot_t *snapshot);
+bool iw_service_timer_history_read(const iw_service_t *service,
+                                   iw_timer_history_snapshot_t *snapshot);
 bool iw_service_stopwatch_read(const iw_service_t *service,
                                uint64_t mono_ms,
                                iw_stopwatch_snapshot_t *snapshot);

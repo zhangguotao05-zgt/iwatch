@@ -73,6 +73,30 @@ static void test_timer_capacity_restart_and_failure_atomicity(void)
     assert(memcmp(&before, &saturated, sizeof(saturated)) == 0);
 }
 
+static void test_ack_releases_active_slot_and_keeps_separate_history(void)
+{
+    iw_chronograph_t c;
+    iw_timer_view_t created;
+    iw_timer_snapshot_t active;
+    iw_timer_history_snapshot_t history;
+    assert(iw_chronograph_init(&c));
+    for (unsigned i = 0; i < IW_TIMER_CAPACITY; i++)
+        assert(iw_timer_create(&c, 0u, 1000u, &created) == IW_CHRONO_OK);
+    assert(iw_chronograph_advance(&c, 1000u) == IW_TIMER_CAPACITY);
+    assert(iw_timer_snapshot_read(&c, 1000u, &active));
+    for (unsigned i = 0; i < active.count; i++)
+        assert(iw_timer_alert_ack(&c, 1100u + i, active.timers[i].timer_id,
+                                  active.timers[i].occurrence) == IW_CHRONO_OK);
+    assert(iw_timer_snapshot_read(&c, 1100u, &active) && active.count == 0u);
+    assert(iw_timer_history_read(&c, &history) && history.count == IW_TIMER_CAPACITY);
+    for (unsigned i = 0; i < history.count; i++)
+        assert(history.entries[i].outcome == IW_TIMER_HISTORY_ACKNOWLEDGED &&
+               history.entries[i].timer_id == i + 1u);
+    assert(iw_timer_create(&c, 1200u, 1000u, &created) == IW_CHRONO_OK);
+    assert(created.timer_id == IW_TIMER_CAPACITY + 1u);
+    assert(iw_timer_alert_ack(&c, 1200u, 1u, 1u) == IW_CHRONO_ABSENT);
+}
+
 static void test_restart_requires_expired_state(void)
 {
     iw_chronograph_t c, before;
@@ -143,6 +167,7 @@ static void test_background_expiry_and_stopwatch_lap_101(void)
 
 int main(void)
 {
+    test_ack_releases_active_slot_and_keeps_separate_history();
     test_deadline_wins_pause_and_cancel();
     test_pause_ignores_wall_clock_and_resume();
     test_timer_capacity_restart_and_failure_atomicity();
