@@ -2,8 +2,8 @@
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="iwatch D13-B 控制中心、通知、智能叠放和应用切换器实施记录"><title>D13-B 系统覆盖层与通知实施记录 · iwatch</title>
 <link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
-<header><h1>D13-B 系统覆盖层与通知实施记录</h1><p class="doc-meta">2026-09-20 · Issue #15 · 设计基线 <code>c7617c2</code> · 阻塞整改候选，待架构复核</p></header>
-<p class="note">本页记录 B 阶段模型、页面、失效路径和本轮整改。它不是 D13 总体验收，也不包含 C 阶段的普通输入锁、全面水锁和表盘会话配置。当前不推送、不烧录；目标构建身份须在候选源码提交后重新生成。#8、#10、D15 继续独立跟踪。</p>
+<header><h1>D13-B 系统覆盖层与通知实施记录</h1><p class="doc-meta">2026-09-20 · Issue #15 · 设计基线 <code>c7617c2</code> · 候选实现已完成，待架构复核</p></header>
+<p class="note">本页记录 B 阶段模型、页面、失效路径和本轮整改。它不是 D13 总体验收，也不包含 C 阶段的普通输入锁、全面水锁和表盘会话配置。当前候选已完成 GCC／Keil 本地构建和身份归档，仅供架构复核；不推送、不烧录、不继承旧镜像身份。#8、#10、D15 继续独立跟踪。</p>
 <section><h2>已实现范围</h2><table><thead><tr><th>部分</th><th>实现</th><th>边界</th></tr></thead><tbody>
 <tr><td>控制中心</td><td>复用亮度目标、预览和确认状态；显示设置入口可用。</td><td>水锁和普通输入锁入口按 A 阶段要求显示“未接入”并禁用，C 阶段才启用。</td></tr>
 <tr><td>通知中心</td><td>固定 32 条普通通知账本；列表／详情、UTF-8 边界截断、已读、删除和稳定 ID＋revision。</td><td>首期没有联网生产者；诊断注入带“本机测试”来源。D12 的 24 槽关键提醒只做摘要投影，不进入普通账本。</td></tr>
@@ -20,6 +20,6 @@
 <tr><td>路由与失效</td><td>双计时器失效不跳另一实体、多个闹钟乱序取最早到期、提醒／切换器点击前复核、失效详情回 App 首页或显示“应用不可用”通过；重复操作由既有 OOM／超时矩阵覆盖。</td></tr>
 <tr><td>输入</td><td>亮度拖动使用新命中区；切换器真实左右滑动只发出前进／后退动作，不触发卡片打开。</td></tr>
 <tr><td>回归</td><td>干净基础 SDK <code>C:\OpenSiFli\_workspaces\iwatch-sdk-base-d11</code> 与派生补丁 SDK 均验证通过；D07 主机矩阵共 38 项 Python 测试、59 个字体故障点、1000 轮生命周期和 4046 次像素提交对照全部通过。</td></tr>
-</tbody></table><h2>目标构建基线</h2><p>本轮源码候选提交后必须重新执行 GCC／Keil 双工具链构建和身份校验，SDK 固定为 <code>421126d9</code>；构建身份、镜像大小、SHA-256 和工具链来源以 <code>firmware/iwatch/project/artifacts/DEV_A128_NAND/{gcc,keil}/build_identity.json</code> 及同目录镜像为准。目标构建完成前不继承旧镜像身份，本轮未烧录开发板，以下结论不包含实机验收。</p></section>
-<section><h2>下一步</h2><ol><li>先以本页和源码候选提交申请架构复核；复核通过后再生成绑定当前 HEAD 的 GCC／Keil 归档。</li><li>构建身份与资源预算通过后，才在开发板上抽查控制中心、通知、叠放和切换器的显示、触摸、KEY1 返回，并保留 COM10 原始日志。</li><li>C 阶段再实现两种锁和表盘管理；D13 整体在 B、C 阶段均通过后才收口。</li></ol></section>
+</tbody></table><h2>目标构建基线</h2><p>候选实现已使用干净基础 SDK 与受控补丁 SDK 完成 GCC／Keil 双工具链构建和身份校验，SDK 固定为 <code>421126d9</code>；构建身份、镜像大小、SHA-256 和工具链来源以 <code>firmware/iwatch/project/artifacts/DEV_A128_NAND/{gcc,keil}/build_identity.json</code> 及同目录镜像为准。两套身份绑定同一候选源码提交，当前只作为架构复核证据，本轮未烧录开发板，以下结论不包含实机验收。</p></section>
+<section><h2>下一步</h2><ol><li>以本页、源码候选提交和双工具链归档申请架构复核；复核通过后才允许推送或在开发板上烧录。</li><li>获得批准后，在开发板上抽查控制中心、通知、叠放和切换器的显示、触摸、KEY1 返回，并保留 COM10 原始日志。</li><li>C 阶段再实现两种锁和表盘管理；D13 整体在 B、C 阶段均通过后才收口。</li></ol></section>
 </main></body></html>
