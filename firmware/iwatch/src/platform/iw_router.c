@@ -19,7 +19,13 @@
 enum { ROUTE_SLOTS = IW_NAV_MAX_APPS * IW_NAV_MAX_DEPTH };
 typedef enum { REQUEST_NONE, REQUEST_OPEN, REQUEST_STAT, REQUEST_BURST, REQUEST_PROFILE,
                REQUEST_PROBE, REQUEST_OVERLAY_HOME, REQUEST_TEST_NOTICE } request_kind_t;
-typedef struct { request_kind_t kind; uint32_t argument; uint16_t page_id; } route_request_t;
+typedef struct {
+    request_kind_t kind;
+    uint32_t argument;
+    uint16_t page_id;
+    uint8_t recent_index;
+    bool recent_open;
+} route_request_t;
 typedef struct {
     iw_scope_t scope;
     iw_route_t route;
@@ -203,7 +209,8 @@ static void product_action(uint16_t id,uint32_t argument,void *context)
             if (route && route->support == IW_ROUTE_READY &&
                 (capabilities() & route->required_capabilities) == route->required_capabilities)
                 (void)request((route_request_t){.kind=REQUEST_OPEN,.argument=target.argument,
-                                                .page_id=target.page_id},false);
+                                                .page_id=target.page_id, .recent_open=true,
+                                                .recent_index=(uint8_t)index},false);
             else recent_mark_unavailable(p, index);
         }
         return;
@@ -381,7 +388,8 @@ static uint32_t capabilities(void)
     return available;
 }
 
-static void begin_request(iw_nav_action_t action_kind, uint32_t argument, uint16_t target_id,const gui_app_route_snapshot_t *snapshot)
+static iw_nav_result_t begin_request(iw_nav_action_t action_kind, uint32_t argument,
+                                     uint16_t target_id,const gui_app_route_snapshot_t *snapshot)
 {
     iw_nav_observation_t actual = {.current = observed_route(snapshot, false),
         .back = snapshot->back_valid ? observed_route(snapshot, true) : (iw_route_t){0},
@@ -393,13 +401,13 @@ static void begin_request(iw_nav_action_t action_kind, uint32_t argument, uint16
           actual.current.page_id != IW_PAGE_NOTIFICATION_LIST))) {
         rt_kprintf("nav overlay rejected target=%04x current=%04x\n", target_id,
                    actual.current.page_id);
-        return;
+        return IW_NAV_INVALID;
     }
     iw_nav_result_t result = iw_nav_begin(&navigator, action_kind, (iw_route_t){target_id ? target_id : IW_PAGE_DIAGNOSTICS, argument},
                                          &actual, action_kind == IW_NAV_PUSH ? capabilities() : 0);
     rt_kprintf("nav request action=%u arg=%lu result=%u seq=%lu\n", (unsigned)action_kind,
         (unsigned long)argument, (unsigned)result, (unsigned long)navigator.sequence);
-    if (result != IW_NAV_OK) return;
+    if (result != IW_NAV_OK) return result;
     if (action_kind == IW_NAV_PUSH && argument > next_argument) next_argument = argument;
     route_page_t *leaving = snapshot_page(snapshot,false);
     pending_overlay_source[0] = '\0';
@@ -418,9 +426,12 @@ static void begin_request(iw_nav_action_t action_kind, uint32_t argument, uint16
     } else {
         unsigned slot = 0;
         while (slot < ROUTE_SLOTS && pages[slot]) slot++;
-        if (slot == ROUTE_SLOTS || generation == UINT32_MAX) { iw_nav_abort(&navigator, navigator.sequence); return; }
+        if (slot == ROUTE_SLOTS || generation == UINT32_MAX) {
+            iw_nav_abort(&navigator, navigator.sequence);
+            return IW_NAV_CAPACITY;
+        }
         route_page_t *page = rt_calloc(1, sizeof(*page));
-        if (!page) { iw_nav_abort(&navigator, navigator.sequence); return; }
+        if (!page) { iw_nav_abort(&navigator, navigator.sequence); return IW_NAV_FAILED; }
         page->route = navigator.candidate;
         (void)iw_scope_init(&page->scope, page->route.page_id, ++generation);
         (void)snprintf(page->sdk_name, sizeof(page->sdk_name), "n%08lx", (unsigned long)generation);
@@ -429,7 +440,11 @@ static void begin_request(iw_nav_action_t action_kind, uint32_t argument, uint16
         if (admitted != RT_EOK) release_page(page);
     }
     if (admitted == RT_EOK) { iw_gui_cancel_input(); iw_nav_prepared(&navigator, navigator.sequence); }
-    else iw_nav_abort(&navigator, navigator.sequence);
+    else {
+        iw_nav_abort(&navigator, navigator.sequence);
+        return IW_NAV_FAILED;
+    }
+    return IW_NAV_OK;
 }
 
 static void print_stat(const gui_app_route_snapshot_t *snapshot)
@@ -692,7 +707,10 @@ bool iw_router_process(void)
     }
     else if (!fault_unwind && !rolling_back &&
              (command.kind == REQUEST_OPEN || command.kind == REQUEST_BURST)) {
-        begin_request(IW_NAV_PUSH, command.argument,command.page_id, &snapshot);
+        iw_nav_result_t nav_result = begin_request(IW_NAV_PUSH, command.argument,
+                                                   command.page_id, &snapshot);
+        if (command.recent_open && nav_result == IW_NAV_UNAVAILABLE)
+            recent_mark_unavailable(snapshot_page(&snapshot, false), command.recent_index);
         if (command.kind == REQUEST_BURST) back = true;
     }
     if (iw_nav_take_back(&navigator)) back = true;

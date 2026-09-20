@@ -60,6 +60,8 @@ static bool held_transition, hold_after_resume, reject_send, reject_page;
 static unsigned reject_back, reject_home;
 static const char *active_app = "Main", *next_app;
 static bool display_available = true;
+static bool flip_display_after_first_read;
+static unsigned capability_reads;
 static iw_service_t service;
 static iw_time_state_t service_time;
 static bool (*ready_callback)(void);
@@ -127,9 +129,13 @@ static int gui_app_run(const char *name)
 static iw_snapshot_status_t iw_snapshot_read(iw_snapshot_topic_t topic, void *output, size_t capacity, size_t *required)
 {
     assert(topic == IW_SNAPSHOT_CAPABILITIES || topic == IW_SNAPSHOT_ALERTS);
-    if (topic == IW_SNAPSHOT_CAPABILITIES)
+    if (topic == IW_SNAPSHOT_CAPABILITIES) {
+        bool available = display_available;
+        if (flip_display_after_first_read && capability_reads++ == 0u)
+            display_available = false;
         assert(iw_service_set_capability(&service, IW_CAP_DISPLAY,
-            display_available ? IW_CAP_STATE_AVAILABLE : IW_CAP_STATE_FAULT, 0));
+            available ? IW_CAP_STATE_AVAILABLE : IW_CAP_STATE_FAULT, 0));
+    }
     /* 真实服务序列化与调用约束参与回归，只替换运行时互斥及时间采样。 */
     return iw_service_snapshot_read(&service, topic, output, capacity, required);
 }
@@ -417,6 +423,18 @@ int test_product_router(lv_display_t *display,size_t loops)
            switcher->product->model.message == IW_TEXT_APP_UNAVAILABLE);
     display_available = true;
     iw_page_resume_t capability_resume = {.route = {IW_PAGE_STOPWATCH, 0u}};
+    assert(iw_recent_record(&recent_apps, &capability_resume));
+    /* 预检通过后能力再失效，导航层的拒绝也必须反馈到切换器。 */
+    flip_display_after_first_read = true;
+    capability_reads = 0;
+    unsigned capability_race_count = recent_apps.count;
+    switcher->product->view.action(IW_ACTION_RECENT_OPEN_BASE, 0, true,
+                                   switcher->product->view.context);
+    process();
+    assert(depth == 2 && recent_apps.count == capability_race_count - 1u &&
+           switcher->product->model.message == IW_TEXT_APP_UNAVAILABLE);
+    flip_display_after_first_read = false;
+    display_available = true;
     assert(iw_recent_record(&recent_apps, &capability_resume));
     /* D13-B：真实触发切换器的删除与失效打开路径，不能只验证页面能创建。 */
     unsigned recent_before_remove = recent_apps.count;
