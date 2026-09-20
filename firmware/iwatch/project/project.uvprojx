@@ -5644,23 +5644,16 @@
           <GroupName>Iwatch_core</GroupName>
           <Files>
             <File>
-              <FileName>iw_chronograph.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\src\core\iw_chronograph.c</FilePath>
-            </File>
-          </Files>
-          <Files>
-            <File>
-              <FileName>iw_notifications.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\src\core\iw_notifications.c</FilePath>
-            </File>
-          </Files>
-          <Files>
-            <File>
               <FileName>iw_alarms.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\src\core\iw_alarms.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>iw_alert_output.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\core\iw_alert_output.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -5672,9 +5665,9 @@
           </Files>
           <Files>
             <File>
-              <FileName>iw_alert_output.c</FileName>
+              <FileName>iw_chronograph.c</FileName>
               <FileType>1</FileType>
-              <FilePath>..\src\core\iw_alert_output.c</FilePath>
+              <FilePath>..\src\core\iw_chronograph.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -5703,6 +5696,13 @@
               <FileName>iw_keys.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\src\core\iw_keys.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>iw_notifications.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\core\iw_notifications.c</FilePath>
             </File>
           </Files>
           <Files>
@@ -5776,13 +5776,6 @@
           </Files>
           <Files>
             <File>
-              <FileName>iw_recent_apps.c</FileName>
-              <FileType>1</FileType>
-              <FilePath>..\src\gui_core\iw_recent_apps.c</FilePath>
-            </File>
-          </Files>
-          <Files>
-            <File>
               <FileName>iw_product_scene.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\src\gui_core\iw_product_scene.c</FilePath>
@@ -5793,6 +5786,13 @@
               <FileName>iw_product_view.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\src\gui_core\iw_product_view.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>iw_recent_apps.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\gui_core\iw_recent_apps.c</FilePath>
             </File>
           </Files>
           <Files>
