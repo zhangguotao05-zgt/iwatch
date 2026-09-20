@@ -15,6 +15,8 @@ extern size_t test_font_live_blocks(void);
 extern size_t test_font_allocation_sequence(void);
 extern unsigned test_font_assert_count(void);
 extern void test_component_capture(lv_display_t *, lv_obj_t *, unsigned);
+extern bool test_component_capture_region_has_ink(lv_display_t *, lv_obj_t *, unsigned,
+                                                   unsigned, unsigned, unsigned);
 
 static const uint16_t product_pages[] = {IW_PAGE_FACE,    IW_PAGE_LAUNCHER_LIST, IW_PAGE_SETTINGS,
                                          IW_PAGE_DISPLAY, IW_PAGE_BRIGHTNESS,    IW_PAGE_TIME,
@@ -95,7 +97,7 @@ static void picker_cases(lv_indev_t *input, iw_product_view_t *view, iw_product_
     m->large_text = false;
 }
 
-static void input_cases(iw_product_view_t *view, iw_product_model_t *m) {
+static void input_cases(lv_display_t *display, iw_product_view_t *view, iw_product_model_t *m) {
     lv_indev_t *input = lv_indev_create();
     assert(input);
     lv_indev_set_type(input, LV_INDEV_TYPE_POINTER);
@@ -178,6 +180,8 @@ static void input_cases(iw_product_view_t *view, iw_product_model_t *m) {
     touch(input, 120, 240, false);
     assert(pointer_actions == 1 && pointer_finals == 1 &&
            pointer_action == IW_ACTION_RECENT_NEXT);
+    /* 删除文字必须实际进入像素缓冲，避免只有不可见命中区的假通过。 */
+    assert(test_component_capture_region_has_ink(display, view->surface, 300u, 134u, 40u, 26u));
     assert(iw_product_view_destroy(view));
     m->recent_apps = NULL;
 
@@ -339,7 +343,8 @@ static void d13_scene_boundaries(iw_product_model_t *m)
             open_geometry = node->x == 107 && node->y == 370 &&
                            node->width == 176 && node->height == 60;
         if (node->action == IW_ACTION_RECENT_REMOVE_BASE)
-            remove_action = node->width == 56 && node->height == 56;
+            remove_action = node->width == 56 && node->height == 56 && node->font_px > 0 &&
+                            node->text[0] != '\0';
         if (node->action == IW_ACTION_RECENT_NEXT || node->action == IW_ACTION_RECENT_PREVIOUS)
             horizontal_controls = true;
     }
@@ -640,7 +645,7 @@ int test_product_view(lv_display_t *display, size_t number, unsigned mode) {
     } else if (mode >= 5 && mode <= 7) {
         allocations = line_case(display, mode - 5, number);
     } else if (mode == 4) {
-        input_cases(&view, &m);
+        input_cases(display, &view, &m);
     } else if (mode == 3) {
         assert(iw_product_view_create(&view, lv_screen_active(), IW_PAGE_FACE, &m, NULL, NULL, NULL));
         lv_obj_update_layout(view.surface);

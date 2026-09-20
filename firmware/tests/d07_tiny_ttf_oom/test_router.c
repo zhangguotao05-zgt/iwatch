@@ -408,6 +408,16 @@ int test_product_router(lv_display_t *display,size_t loops)
     assert(iw_router_open(IW_PAGE_SWITCHER)); process(); assert(depth == 2);
     route_page_t *switcher = find_page(stack[1].data);
     assert(switcher && switcher->product && switcher->product->model.recent_apps == &recent_apps);
+    /* 显示能力在切换器打开后失效时，点击必须留在切换器并清理无效历史。 */
+    display_available = false;
+    unsigned capability_before_open = recent_apps.count;
+    switcher->product->view.action(IW_ACTION_RECENT_OPEN_BASE, 0, true,
+                                   switcher->product->view.context);
+    assert(depth == 2 && recent_apps.count == capability_before_open - 1u &&
+           switcher->product->model.message == IW_TEXT_APP_UNAVAILABLE);
+    display_available = true;
+    iw_page_resume_t capability_resume = {.route = {IW_PAGE_STOPWATCH, 0u}};
+    assert(iw_recent_record(&recent_apps, &capability_resume));
     /* D13-B：真实触发切换器的删除与失效打开路径，不能只验证页面能创建。 */
     unsigned recent_before_remove = recent_apps.count;
     assert(recent_before_remove > 0u);

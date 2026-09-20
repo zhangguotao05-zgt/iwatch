@@ -50,6 +50,9 @@ static uint32_t product_wait=UINT32_MAX;
 static uint32_t alert_scan_tick;
 static iw_alert_record_t hidden_alert;
 
+/* 最近应用点击前必须读取当前能力快照；提前声明避免严格工具链的隐式声明。 */
+static uint32_t capabilities(void);
+
 static bool primary_overlay(uint16_t id)
 {
     return id == IW_PAGE_CONTROL_CENTER || id == IW_PAGE_NOTIFICATION_LIST ||
@@ -197,7 +200,8 @@ static void product_action(uint16_t id,uint32_t argument,void *context)
                     route = iw_route_find(target.page_id);
                 }
             }
-            if (route && route->support == IW_ROUTE_READY)
+            if (route && route->support == IW_ROUTE_READY &&
+                (capabilities() & route->required_capabilities) == route->required_capabilities)
                 (void)request((route_request_t){.kind=REQUEST_OPEN,.argument=target.argument,
                                                 .page_id=target.page_id},false);
             else recent_mark_unavailable(p, index);

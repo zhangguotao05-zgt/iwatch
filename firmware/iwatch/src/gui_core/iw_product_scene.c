@@ -527,7 +527,8 @@ static bool app_switcher(iw_product_scene_t *s, const iw_product_model_t *m)
              available ? IW_PRODUCT_WHITE : IW_PRODUCT_DISABLED, IW_PRODUCT_SURFACE, 30, 1,
              open_action, true, false, name) ||
         !button(s, 107, 370, 176, 60, open_action, false, true, TEXT(OPEN)) ||
-        !add(s, 292, 122, 56, 56, 0, 0, IW_PRODUCT_SECONDARY, 0, 0, 1,
+        /* 删除区必须有可见的正式文字；仅保留命中区会让用户误以为卡片不可操作。 */
+        !add(s, 292, 122, 56, 56, 157, 20, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 24, 1,
              remove_action, true, false, TEXT(DELETE)) ||
         !add(s, 0, 204, 56, 56, 0, 0, focus ? IW_PRODUCT_WHITE : IW_PRODUCT_DISABLED,
              0, 0, 0, IW_ACTION_RECENT_PREVIOUS, true, focus == 0u, "") ||

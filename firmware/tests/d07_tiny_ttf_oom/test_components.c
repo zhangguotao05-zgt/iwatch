@@ -444,6 +444,33 @@ void test_component_capture(lv_display_t *display, lv_obj_t *content, unsigned v
     }
 }
 
+bool test_component_capture_region_has_ink(lv_display_t *display, lv_obj_t *content,
+                                           unsigned x, unsigned y, unsigned width,
+                                           unsigned height)
+{
+    lv_display_set_color_format(display, LV_COLOR_FORMAT_RGB565);
+    lv_display_set_buffers(display, render_buffer, NULL, sizeof(render_buffer), LV_DISPLAY_RENDER_MODE_FULL);
+    lv_display_set_flush_cb(display, render_flush);
+    lv_obj_update_layout(content);
+    lv_obj_scroll_to_y(content, 0, LV_ANIM_OFF);
+    memset(render_buffer, 0, sizeof(render_buffer));
+    unsigned before_flush = flushes;
+    lv_obj_invalidate(lv_screen_active());
+    lv_refr_now(display);
+    assert(flushes > before_flush && !iw_gui_fault_pending() && !test_font_assert_count());
+    assert(x + width <= 390u && y + height <= 450u);
+    bool ink = false;
+    for (unsigned row = y; row < y + height && !ink; row++)
+        for (unsigned col = x; col < x + width; col++)
+        {
+            uint16_t pixel;
+            memcpy(&pixel, render_buffer + 2u * (row * 390u + col), sizeof(pixel));
+            /* 文字抗锯齿后未必每个可见像素都是纯白，但必须明显亮于卡片底色。 */
+            if (pixel > 0x8000u) { ink = true; break; }
+        }
+    return ink;
+}
+
 static int render_case(lv_display_t *display, unsigned mode)
 {
     iw_component_t frame = {0}, items[4] = {0};
