@@ -27,6 +27,7 @@
 - [D10 首批七页实施记录](docs/ui/D10_首批七页实施记录.html)
 - [D11 计时器与秒表实施记录](docs/ui/D11_计时器与秒表实施记录.html)
 - [D12 闹钟与全局提醒实施记录](docs/ui/D12_闹钟与全局提醒实施记录.html)
+- [D13 系统覆盖层与表盘管理设计 v1](docs/ui/D13_系统覆盖层与表盘管理设计_v1.html)
 - [Series 11 界面覆盖计划](docs/UI复刻计划_watchOS26.html)
 - [固件构建与调试](firmware/README.html)
 - [硬件原理图 v0.3](hardware/原理图_v0.3_封装与接口完善/阅读说明.html)
