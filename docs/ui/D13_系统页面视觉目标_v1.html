@@ -1,0 +1,73 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="D13-A 系统覆盖层与表盘管理的九张 390×450 页面代表稿、几何及状态差异">
+<title>D13 系统页面视觉目标 v1 · iwatch</title><link rel="stylesheet" href="../assets/engineering.css">
+<style>
+@font-face{font-family:IWatchReference;src:url("../../firmware/iwatch/src/resource/fonts/DroidSansFallback.source.ttf") format("truetype");font-weight:400;font-display:swap}
+.screen-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:26px;margin:20px 0}.screen-grid figure{margin:0;min-width:0}.watch-screen{display:block;max-width:390px;width:100%;aspect-ratio:390/450;margin:auto;border:1px solid #4b5360;border-radius:42px;background:#000;font-family:IWatchReference,sans-serif;font-synthesis:none}.watch-screen text{fill:#fff;font-weight:400}.watch-screen .sub{fill:#b9bbc6}.watch-screen .blue{fill:#0a84ff}.watch-screen .green{fill:#30d158}.watch-screen .muted{fill:#91939d}.watch-screen .title{font-size:30px}.watch-screen .body{font-size:26px}.watch-screen .small{font-size:22px}.watch-screen .note{font-size:20px}.watch-screen .digit{font-size:64px}.screen-grid figcaption{margin-top:10px;line-height:1.55;font-size:14px}.small-text{color:#b9bbc6;font-size:14px}table{min-width:700px}td,th{vertical-align:top}@media(max-width:650px){.screen-grid{grid-template-columns:1fr}}
+</style></head><body><main>
+<header><h1>D13 系统页面视觉目标 v1</h1><p class="doc-meta">2026-09-20 · D13-A v2 配套稿 · 390×450 · 待架构复核，非固件截图</p></header>
+<p>以下图是项目的<strong>坐标和层级目标</strong>，不是 Apple 原厂画面，也不是当前开发板输出。设计样例采用本地有效时钟 10:09、计时器 05:20 和一条标记为本机测试的普通通知；运行时只能使用真实快照。预览用仓库中的 DroidSansFallback 源字体，目标固件仍须生成正式子集并核查字符、字形池和 Q0/Q1。每张图按裸屏 390×450 绘制；外层 42 px 圆角只是文档观看遮罩。</p>
+<p>沿用 <a href="Apple_Watch界面复刻定稿_v2.html#geometry">D10 几何规范</a>：常规内容 x=18…372；标题 30 px、正文 26 px、次级 22 px、注释 20 px；独立触摸区至少 56×56，按钮高 60、圆角 30。返回圆按钮命中区 (20,18,56,56)，固定正文从 y=104 开始；锁页为无触摸页面，显示的 KEY1 指令是实体按键，不画假触摸按钮。下方详细表中位置均为左上角 x,y,w,h，字号是目标固件像素字号。</p>
+
+<div class="screen-grid">
+<figure id="control"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-label="控制中心代表稿"><rect width="390" height="450" rx="42" fill="#000"/><text x="28" y="88" class="title">控制中心</text><text x="348" y="43" text-anchor="end" class="small">10:09</text>
+<rect x="18" y="110" width="354" height="112" rx="24" fill="#242426"/><text x="36" y="149" class="small">亮度</text><rect x="36" y="164" width="318" height="46" rx="23" fill="#44464d"/><rect x="36" y="164" width="250" height="46" rx="23" fill="#f3f3f7"/><text x="340" y="151" text-anchor="end" class="note sub">80%</text>
+<rect x="18" y="238" width="170" height="126" rx="24" fill="#0a84ff"/><circle cx="103" cy="278" r="21" fill="none" stroke="#fff" stroke-width="3"/><path d="M103 261v34M87 278h32" stroke="#fff" stroke-width="3"/><text x="103" y="344" text-anchor="middle" class="small">水锁</text>
+<rect x="202" y="238" width="170" height="126" rx="24" fill="#242426"/><circle cx="287" cy="278" r="20" fill="none" stroke="#fff" stroke-width="3"/><circle cx="287" cy="278" r="9" fill="#fff"/><text x="287" y="344" text-anchor="middle" class="small">显示设置</text><text x="195" y="408" text-anchor="middle" class="note muted">仅显示已接入的控制</text></svg><figcaption>控制中心：只有亮度、水锁和真实设置入口。无线、电池与支付没有来源，不画假开关。</figcaption></figure>
+
+<figure id="notification-list"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-label="通知列表代表稿"><rect width="390" height="450" rx="42" fill="#000"/><text x="28" y="88" class="title">通知</text><text x="348" y="43" text-anchor="end" class="small">10:09</text>
+<text x="34" y="132" class="note sub">待处理提醒</text><rect x="18" y="146" width="354" height="106" rx="24" fill="#30252a"/><rect x="18" y="146" width="7" height="106" rx="3" fill="#ff453a"/><text x="42" y="186" class="body">计时器结束</text><text x="42" y="224" class="small sub">点开后可停止或稍后</text>
+<text x="34" y="292" class="note sub">普通通知</text><rect x="18" y="304" width="354" height="104" rx="24" fill="#242426"/><circle cx="48" cy="335" r="6" fill="#0a84ff"/><text x="65" y="344" class="small">本机测试</text><text x="34" y="384" class="note sub">这是一条设计样例通知</text></svg><figcaption>通知列表：关键提醒和普通通知分组；普通通知的示例明确标“本机测试”。空态显示“暂无通知”。</figcaption></figure>
+
+<figure id="notification-detail"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-label="普通通知详情代表稿"><rect width="390" height="450" rx="42" fill="#000"/><circle cx="48" cy="46" r="24" fill="#242426"/><path d="M54 34l-12 12 12 12" stroke="#fff" stroke-width="3" fill="none"/><text x="348" y="43" text-anchor="end" class="small">10:09</text><text x="348" y="88" text-anchor="end" class="title">通知详情</text>
+<rect x="18" y="112" width="354" height="232" rx="24" fill="#242426"/><text x="38" y="153" class="small">本机测试</text><line x1="38" y1="170" x2="352" y2="170" stroke="#555760"/><text x="38" y="211" class="body">这是一条本地通知</text><text x="38" y="251" class="small sub">打开详情后标记为已读</text><text x="38" y="295" class="note muted">时间：10:09</text>
+<rect x="18" y="366" width="354" height="60" rx="30" fill="#5c2528"/><text x="195" y="406" text-anchor="middle" class="body">删除通知</text></svg><figcaption>普通通知详情：仅该条在成功打开后变已读；“删除”不能 ACK 闹钟。关键提醒详情复用 D12 的停止／稍后动作。</figcaption></figure>
+
+<figure id="stack"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-label="智能叠放代表稿"><rect width="390" height="450" rx="42" fill="#000"/><text x="28" y="88" class="title">智能叠放</text><text x="348" y="43" text-anchor="end" class="small">10:09</text>
+<rect x="18" y="112" width="354" height="134" rx="24" fill="#242426"/><text x="38" y="152" class="small sub">正在进行</text><text x="38" y="215" class="digit">05:20</text><text x="344" y="221" text-anchor="end" class="note blue">计时器</text>
+<rect x="18" y="260" width="354" height="132" rx="24" fill="#242426"/><text x="38" y="302" class="small sub">下次闹钟</text><text x="38" y="357" class="body">明天 07:00</text><circle cx="195" cy="421" r="5" fill="#fff"/><circle cx="213" cy="421" r="5" fill="#555760"/></svg><figcaption>叠放：首期按确定性规则排列真实计时器和下次闹钟；没有对应数据时替换成明确空态，不生成预测卡片。</figcaption></figure>
+
+<figure id="switcher"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-label="App 切换器代表稿"><rect width="390" height="450" rx="42" fill="#000"/><text x="28" y="88" class="title">最近使用</text><text x="348" y="43" text-anchor="end" class="small">10:09</text>
+<rect x="42" y="110" width="306" height="244" rx="30" fill="#242426" stroke="#51535d"/><circle cx="195" cy="177" r="36" fill="#0a84ff"/><circle cx="195" cy="177" r="23" fill="none" stroke="#fff" stroke-width="3"/><path d="M195 154v23l16 11" stroke="#fff" stroke-width="3" fill="none"/><text x="195" y="260" text-anchor="middle" class="title">秒表</text><text x="195" y="307" text-anchor="middle" class="small sub">继续上次页面</text>
+<rect x="107" y="370" width="176" height="60" rx="30" fill="#203a5f"/><text x="195" y="409" text-anchor="middle" class="body">打开</text></svg><figcaption>切换器：最多 6 个历史 App；样例无缩略图，用图标和名称降级。选择失效详情时退回该 App 首页。</figcaption></figure>
+
+<figure id="input-lock"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-label="普通输入锁代表稿"><rect width="390" height="450" rx="42" fill="#000"/><text x="195" y="83" text-anchor="middle" class="small sub">输入已锁定</text><text x="195" y="177" text-anchor="middle" class="digit">10:09</text><rect x="165" y="215" width="60" height="52" rx="12" fill="none" stroke="#fff" stroke-width="4"/><path d="M177 218v-12a18 18 0 0 1 36 0v12" fill="none" stroke="#fff" stroke-width="4"/>
+<text x="195" y="331" text-anchor="middle" class="small">按住 KEY1 两秒</text><rect x="46" y="352" width="298" height="12" rx="6" fill="#35363d"/><rect x="46" y="352" width="191" height="12" rx="6" fill="#0a84ff"/><text x="195" y="406" text-anchor="middle" class="note sub">松开后解除 · 非密码保护</text></svg><figcaption>普通输入锁：锁定期间无可点触摸控件；长按进度仅为视觉反馈，达到两秒后仍须松开 KEY1。</figcaption></figure>
+
+<figure id="water-lock"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-label="水锁代表稿"><rect width="390" height="450" rx="42" fill="#000"/><text x="195" y="83" text-anchor="middle" class="small sub">水锁已开启</text><path d="M195 143c-23 34-37 53-37 74a37 37 0 0 0 74 0c0-21-14-40-37-74z" fill="#0a84ff"/><path d="M177 222a20 20 0 0 0 18 10" fill="none" stroke="#fff" stroke-width="3"/>
+<text x="195" y="306" text-anchor="middle" class="small">触摸暂不可用</text><text x="195" y="341" text-anchor="middle" class="note sub">按住 KEY1 两秒后松开</text><rect x="46" y="359" width="298" height="12" rx="6" fill="#35363d"/><rect x="46" y="359" width="145" height="12" rx="6" fill="#0a84ff"/><text x="195" y="413" text-anchor="middle" class="note muted">不代表设备具备防水保证</text></svg><figcaption>水锁：提醒到达时只显示非敏感“有待处理提醒”摘要，输入仍由水锁拥有；不画未接入的排水效果。</figcaption></figure>
+
+<figure id="face-picker"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-label="表盘选择代表稿"><rect width="390" height="450" rx="42" fill="#000"/><text x="28" y="88" class="title">表盘</text><text x="348" y="43" text-anchor="end" class="small">10:09</text>
+<rect x="74" y="110" width="242" height="235" rx="35" fill="#15161b" stroke="#555760"/><text x="195" y="161" text-anchor="middle" class="note sub">模块·本地</text><text x="195" y="242" text-anchor="middle" class="digit">10:09</text><rect x="107" y="264" width="176" height="54" rx="18" fill="#242426"/><text x="195" y="300" text-anchor="middle" class="note">计时器 05:20</text>
+<rect x="14" y="207" width="56" height="56" rx="28" fill="#242426"/><path d="M49 222l-13 13 13 13" fill="none" stroke="#fff" stroke-width="3"/><rect x="320" y="207" width="56" height="56" rx="28" fill="#242426"/><path d="M341 222l13 13-13 13" fill="none" stroke="#fff" stroke-width="3"/>
+<rect x="18" y="366" width="170" height="60" rx="30" fill="#242426"/><text x="103" y="405" text-anchor="middle" class="body">编辑</text><rect x="202" y="366" width="170" height="60" rx="30" fill="#204a31"/><text x="287" y="405" text-anchor="middle" class="body">选用</text></svg><figcaption>表盘选择：中心一张真实预览，两侧为静态项目名／图元；编辑和选用均需真实成功后才修改会话配置。</figcaption></figure>
+
+<figure id="face-editor"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-label="表盘编辑代表稿"><rect width="390" height="450" rx="42" fill="#000"/><circle cx="48" cy="46" r="24" fill="#242426"/><path d="M54 34l-12 12 12 12" stroke="#fff" stroke-width="3" fill="none"/><text x="348" y="43" text-anchor="end" class="small">10:09</text><text x="348" y="88" text-anchor="end" class="title">编辑表盘</text>
+<rect x="102" y="105" width="186" height="124" rx="24" fill="#15161b" stroke="#555760"/><text x="195" y="184" text-anchor="middle" class="body">10:09</text><text x="195" y="216" text-anchor="middle" class="note blue">模块·本地</text>
+<text x="28" y="263" class="small">配色</text><circle cx="178" cy="252" r="23" fill="#0a84ff" stroke="#fff" stroke-width="3"/><circle cx="251" cy="252" r="23" fill="#30d158"/><circle cx="324" cy="252" r="23" fill="#ff9f0a"/>
+<rect x="18" y="286" width="354" height="64" rx="22" fill="#242426"/><text x="38" y="328" class="small">中心槽</text><text x="350" y="328" text-anchor="end" class="small sub">活动计时器</text>
+<rect x="18" y="366" width="170" height="60" rx="30" fill="#242426"/><text x="103" y="405" text-anchor="middle" class="body">取消</text><rect x="202" y="366" width="170" height="60" rx="30" fill="#204a31"/><text x="287" y="405" text-anchor="middle" class="body">应用</text></svg><figcaption>表盘编辑：草稿配色与中心槽；左下／右下入口在同一可滚动正文中。底部操作固定，失败仍显示旧表盘。</figcaption></figure>
+</div>
+
+<section id="geometry"><h2>坐标、字号和命中区</h2><table><thead><tr><th>页面</th><th>主要几何（x,y,w,h）</th><th>独立命中与滚动</th><th>主要状态</th></tr></thead><tbody>
+<tr><td>控制中心</td><td>标题基线 (28,88)，亮度卡 (18,110,354,112)，滑条 (36,164,318,46)，水锁／显示 (18/202,238,170,126)</td><td>滑条触摸 (32,156,326,60)；两卡整块 ≥170×126；正文视口 y=104…426</td><td>80% 已应用／应用中／显示驱动不可用；缺能力时不显示假控制</td></tr>
+<tr><td>通知列表／详情</td><td>两类分组 y=132/292；卡 (18,146,354,106) 与 (18,304,354,104)；详情正文 (18,112,354,232)，删除 (18,366,354,60)</td><td>整卡点击，详情正文滚动；删除区 354×60。返回 56×56</td><td>双空态／仅关键／仅普通／已读／旧 ID／UTF-8 长文；关键提醒走 D12 动作</td></tr>
+<tr><td>智能叠放</td><td>第一卡 (18,112,354,134)，第二卡 (18,260,354,132)，页点 y=421</td><td>整卡点击，纵向滚动不触发普通点击；最多 8 卡，屏幕只保留可见和相邻卡</td><td>活动优先、无计时器、RTC 无效、提醒插入、来源失效</td></tr>
+<tr><td>切换器</td><td>可见卡 (42,110,306,244)，打开 (107,370,176,60)</td><td>卡片 306×244；按钮 176×60；横向切换，最多 6 历史／3 可见对象</td><td>空历史、失效详情、无缩略图、卡片删除、App 不可用</td></tr>
+<tr><td>输入锁／水锁</td><td>中心标题 y=83，进度条 (46,352/359,298,12)，KEY1 说明 y=331/341</td><td>屏幕无触摸命中；实体 KEY1 连续 2,000 ms＋真实松开；KEY2 无动作</td><td>按压进度、按键缺失时不允许进入、恢复层、仅视觉提醒摘要</td></tr>
+<tr><td>表盘选择</td><td>中心预览 (74,110,242,235)，左右箭头 (14/320,207,56,56)，编辑／选用 (18/202,366,170,60)</td><td>箭头 56×56，两按钮 170×60；中心预览只读；最大三卡一活预览</td><td>数字／模块、无数据槽、预览失败、选用失败保留旧配置</td></tr>
+<tr><td>表盘编辑</td><td>预览 (102,105,186,124)，配色圆心 (178/251/324,252)、直径 46，中心槽 (18,286,354,64)，底部按钮 y=366</td><td>配色命中 56×56；槽整行 354×64；正文可滚且底部固定</td><td>草稿修改、取消、revision 冲突、能力不可用、应用失败</td></tr>
+</tbody></table>
+<p>大字号样本沿用正文 30、次级 26，卡片按真实 line height 增高；标题保持 30，固定底部按钮不被正文覆盖。Q0/Q1 和减弱动效只改变材质及动画，不改变命中区或数据语义。关键文本或错误不能靠缩到 20 px 以下解决；长文进入滚动视口。所有触摸区需做 <code>0≤x, 0≤y, x+w≤390, y+h≤450</code> 布局断言。</p></section>
+
+<section id="differences"><h2>参考差异与后续对照</h2>
+<table><thead><tr><th>差异号</th><th>本项目目标</th><th>原因及验收边界</th></tr></thead><tbody>
+<tr><td>D13-V01 · 尺寸／字体</td><td>390×450 重排，DroidSansFallback Regular 与项目自绘基础图形</td><td>Apple Watch Series 11 46 mm 官方尺寸 416×496；不拉伸整屏，也不嵌入 Apple 字体／图标。字号与视觉重量逐项记录差异。</td></tr>
+<tr><td>D13-V02 · 控制中心</td><td>仅亮度、水锁、显示设置；无电池百分比与无线状态假图</td><td>本机尚无可读回 Provider；未来接入后另做页面和能力验收。</td></tr>
+<tr><td>D13-V03 · 通知</td><td>32 条本地普通通知＋独立 24 槽关键提醒；没有远程推送内容</td><td>普通通知默认为空，诊断注入标“本机测试”；参考结构可学，不能假冒微信或系统推送。</td></tr>
+<tr><td>D13-V04 · 叠放／切换器</td><td>确定性业务卡排序、图标与名称回退</td><td>不模拟原厂预测能力；不因缩略图失败分配 351,000 B 全屏缓冲。</td></tr>
+<tr><td>D13-V05 · 锁与表盘</td><td>KEY1 长按退出，两个项目自有表盘及会话草稿</td><td>无密码安全、摘腕检测、排水硬件和断电保存；“模块·本地”不是 Apple 原厂资源复制。</td></tr>
+</tbody></table>
+<p>参考来源和 R01–R05 的证据等级沿用 <a href="Apple_Watch界面复刻定稿_v2.html#reference">D10 官方参考清单</a>；本稿未获得 D13 每页、每个系统小版本的 Apple 原机截图，因此是待复核的工程视觉目标，不能写成“逐像素一致”。D13-B/C 应固定演示 fixture 生成生产 View 的主机同源帧，记录坐标／字形／资源版本；D13-D 再对照实屏，分别保留视觉、功能、性能结论。</p></section>
+</main></body></html>

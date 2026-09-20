@@ -3,6 +3,7 @@
 <meta name="description" content="iwatch D13 系统覆盖层、输入锁与表盘管理实施设计"><title>D13 系统覆盖层与表盘管理设计 · iwatch</title>
 <link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
 <header><h1>D13 系统覆盖层与表盘管理设计 v1</h1><p class="doc-meta">2026-09-20 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/15">Issue #15</a> · D13-A · 设计待复核，尚非功能验收</p></header>
+<p><strong>历史稿，未获 D13-A 批准。</strong>本页保留首次审查的原貌；输入优先级、Home、普通通知、历史写入、视觉和表盘失败规则已在<a href="D13_系统覆盖层与表盘管理设计_v2.html">设计 v2</a>修订。后续实施不得以本页为准。</p>
 <section><h2>现有基础与边界</h2>
 <p>D12 以审批基线 <code>62f0686</code>、固件源码 <code>9fa21c8</code> 收口。D08 已有页面作用域、8 级导航和 6 项历史；D09 已识别双键、旋转注入与水锁长按；D10 提供 390×450 的主题、字体和正式页面；D12 提供会话内闹钟及提醒快照。当前 <code>IW_PAGE_CONTROL_CENTER</code> 等页面 ID 已预留，但多数描述符仍是 RESERVED／OVERLAY，不能把 ID 存在当作页面可用。控制中心和切换器的键意图也尚未接到产品路由。</p>
 <p>本任务只显示本机已实现且可读回的状态：亮度、有效时钟、活动计时器、闹钟及提醒、已运行 App 的有界历史。没有联网、电池量、支付、健康读数或佩戴检测的真实 Provider 时，不画可交互的假开关或假读数。D13 数据仅在会话内有效；断电保存、<code>flash1</code> FAL 修复归 D15。#8 性能、#10 显示异常保持独立。</p></section>
