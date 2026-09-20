@@ -24,7 +24,8 @@
 </tbody></table>
 <p>构建基线为源码提交 <code>0c76c76ae3a912bc72e1e51f54f3a3cf66932551</code>，固定派生 SDK 为 <code>421126d9…</code> 加受控补丁。GCC <code>main.bin</code> 为 1,935,588 B、SHA-256 <code>20b7ac52459289719988567366259f8b3c17bf502059dc2942236f721d4952ac</code>，占 6 MiB 槽 30.765%；Keil 为 1,860,456 B、SHA-256 <code>a983264ad7fcef1bc5a9a87caff87be1cd657fd632d1c9073f9c70b2a8c363ad</code>，占 29.571%。两份归档的内嵌身份分别以 <code>0c76c76ae3a9 / e49d1172a874 / gcc</code> 与 <code>/ keil</code> 结尾；正式字体 418 字、71,076 B，预算和两套 COM255 DryRun 通过。两套三件套各自独立，不能混刷。</p>
 <p>主机证明精确竞争和容量边界；实机只记录实际执行的场景。#8 长文与输入性能、#10 显示异常继续独立跟踪。未取得架构审批前 Issue #14 保持打开。</p></section>
-<section><h2>开发板验证 · 2026-09-20</h2>
+<section><h2>初版开发板验证 · 2026-09-20（历史记录）</h2>
+<p>以下记录对应源码 <code>0c76c76</code>。后续架构复核发现稍后提醒重开、计时器 ACK 容量释放和禁用闹钟撤销稍后三处遗漏；这份初版记录不能作为三项整改通过的证据。整改和新固件复验见下一节。</p>
 <p>COM9 采用 GCC 归档烧录 Bootloader、main 和 FTab，三件套均写入并校验；未访问 J-Link。COM10 以 1,000,000 baud 从 09:13:12 至 09:32:55 连续采集，覆盖刷写后的首次启动和一次软件重启。RTC 起初无效，经命令校时后可用，软件重启后仍有效；<code>flash1</code> FAL 报错仍存在。</p>
 <table><thead><tr><th>场景</th><th>板上结果</th></tr></thead><tbody>
 <tr><td>单项提醒</td><td>3 秒计时器到期自动打开提醒页，点击“稍后提醒”后返回闹钟列表；09:21 闹钟真实到期自动打开提醒页，点击“停止”返回。两次屏幕文字、触摸和返回均由操作者确认正常；旧 occurrence 的 ACK 得到 ABSENT，快照不变。</td></tr>
@@ -34,5 +35,12 @@
 <tr><td>显示异常</td><td>软件重启后出现一次 <code>draw_core timeout</code>；驱动执行 PowerOff→PowerOn、重新识别 CO5300，最终 <code>recovery=1 fault_pending=0</code>。操作者随后确认画面、触摸和 KEY1 正常。根因未定位，保留 #10；这次记录不能写成“全程无显示故障”。</td></tr>
 </tbody></table>
 <p>本机原始证据位于 <code>logs/board-validation-20260919-d12/</code>，该目录不入库：<code>serial-raw.bin</code> 88,622 B，SHA-256 <code>70eace688519ae3effc02d6d840b6b6fa2d070c373c7805e9ff39aa0f81e7881</code>；<code>timeline.jsonl</code> SHA-256 <code>8be80fe7aa048bd5c892a744a63802ed4351605010c4951135f3a8d57880c277</code>；<code>flash-gcc-transcript.txt</code> SHA-256 <code>2ef2e459ee57a06e0a4a1e2bb9dd2a488c74a8544a1356c7af681f2585a031e1</code>。时间线含 3,008 段连续接收、228 条已发送命令，无偏移缺口。可运行 <code>py -3.14 tools/d12_verify.py logs/board-validation-20260919-d12 --raw-sha256 70eace688519ae3effc02d6d840b6b6fa2d070c373c7805e9ff39aa0f81e7881</code> 复核；对触摸溢出、缺失提醒、断言、恢复计数和接收偏移五种篡改样本均会拒绝。</p>
-<p>D12 本轮完成视觉提醒与会话内闹钟的功能实机验证；实体发声、振动、断电保存以及真实内存耗尽注入没有板上通过证据。#8、#10 保持打开，Issue #14 待架构复核后再决定收口。</p></section>
+<p>初版完成了视觉提醒与会话内闹钟的基本路径；实体发声、振动、断电保存以及真实内存耗尽注入没有板上通过证据。#8、#10 保持打开，Issue #14 待架构复核后再决定收口。</p></section>
+<section><h2>三项状态整改与复验 · 2026-09-20</h2>
+<p>整改固件源码提交为 <code>9fa21c86800ffabaf802cf2b2f1757102f28e4f7</code>。稍后提醒再次到期时增加展示轮次，路由只隐藏旧轮次，使同一 occurrence 可以自动重新打开，同时仍按精确 ID 和 occurrence 处理确认。计时器提醒确认后，将摘要写入独立的 8 条历史环并释放活动槽。闹钟由用户禁用时撤销稍后期限，待确认记录进入 HELD 状态，既不自动响也不被当作 ACK，之后仍可明确确认。</p>
+<p>主机回归包含架构复现的计时器和闹钟稍后重开、8 次确认后再创建、禁用闹钟保留待确认记录；四项独立复现均通过。正式核心回归和 GUI 生命周期、故障注入通过；Python 检查 46 项通过，字体重复生成检查因本机缺少 FontTools 跳过。GCC 和 Keil 从同一源码提交分别构建，归档文件哈希复核均无差异，map 工具链标记分别为 gcc、keil。GCC <code>main.bin</code> 为 1,935,980 B、SHA-256 <code>e6111beffc3205650fcf72dee8b8ea61122535aedd911a94fa894d9575f641ce</code>；Keil 为 1,860,808 B、SHA-256 <code>206d29870c89829a145acea8a2a9000c50dad6018a0e32471eb9bfedb05ea44e</code>。两套三件套的 COM9 DryRun、身份和资源预算均通过。</p>
+<p>开发板经 COM9 写入并校验 GCC 三件套，只操作 CH342 的 COM9／COM10，未访问 J-Link。COM10 启动识别 CO5300 与 FT6146，RTC 经命令校时。先使 8 个计时器到期并占满活动槽，第 9 次创建得到容量拒绝；8 条提醒逐条 ACK 后活动计时器数从 8 回到 0，再创建成功。串口输入过快时有一次拼接成无效命令，随后降低发送速率并依据终态结果确认实际成功创建的 8 项，不把发送行数当成功数。</p>
+<p>计时器 <code>id=10, occurrence=10</code> 稍后 9 分钟，记录从 SNOOZED 回到 PRESENTING，路由自动再次打开提醒页；操作者点“停止”后，提醒和活动计时器均归零。闹钟 <code>id=1, occurrence=1</code> 稍后后由操作者在页面禁用保存，读回 <code>enabled=0</code>、提醒状态 HELD。原稍后命令至到期后读数间隔 559.821 秒，未重新弹出；随后串口 ACK 这条保留记录并删除测试闹钟，最终闹钟、提醒和计时器均为 0。GUI Home 注入返回根页，触摸溢出 5 次采样均为 0，采集窗口内未见 HardFault、断言或显示绘制超时。</p>
+<p>这次板测证明正常使用路径和真实九分钟单调时钟到期；没有在板上注入内存耗尽或精确竞态。起始与结束时页面栈和缓存状态不同，主堆数值不能作为“无泄漏”的同状态对照。启动仍出现既有 <code>flash1</code> FAL 报错，持久化属于 D15；#8、#10 继续单独跟踪。Issue #14 在架构师复核前保持打开。</p>
+<p>原始材料仅存本机 <code>logs/board-validation-20260920-d12-fix/</code>，不入库：<code>serial-raw.bin</code> 31,702 B、SHA-256 <code>58deed5f4c510d6e38c5b1051c2bdcffd9f13b1fb955a94e062b8aaec3b44980</code>；<code>timeline.jsonl</code> SHA-256 <code>5b22d1c8776a2e53ebbc53ff432d84f62d699668fa4683a8a296675d3d484fc3</code>；<code>flash-gcc-transcript.txt</code> SHA-256 <code>9bf4d0b79e278d599334c7c0b4d41fae7c7cb6c93c067cc6febd419da0ea0d14</code>。时间线包含 1,086 段连续接收、117 条已发送命令；<code>verify.py</code> 复核原始字节、偏移、三项结果及故障格式，结果见 <code>verify-result.json</code>。这些文件在本机可供复核，公开仓库只保留本页的摘要与校验值。</p></section>
 </main></body></html>
