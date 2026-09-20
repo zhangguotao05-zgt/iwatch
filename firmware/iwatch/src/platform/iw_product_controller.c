@@ -15,6 +15,48 @@ static const iw_ui_command_port_t command_port = {iw_request_allocate, iw_servic
                                                   iw_command_submit, iw_result_get, iw_result_ack};
 static iw_ui_commands_t commands = {.port = &command_port};
 static iw_product_page_t *pages;
+static iw_notification_store_t notification_store;
+
+static void notification_projection(iw_product_model_t *model)
+{
+    memset(model->notification_ids, 0, sizeof(model->notification_ids));
+    for (unsigned i = 0; i < IW_NOTIFICATION_CAPACITY && i < notification_store.count; i++)
+        model->notification_ids[i] = notification_store.records[notification_store.count - 1u - i].id;
+}
+
+bool iw_product_notification_add(iw_notification_source_t source,
+                                 const char *text, size_t bytes)
+{
+    if (!iw_font_port_is_owner()) return false;
+    iw_clock_snapshot_t clock;
+    bool time_valid = iw_clock_read(&clock) && clock.valid && clock.utc_ms >= 0 &&
+                      clock.utc_ms / 1000 <= UINT32_MAX;
+    if (iw_notification_insert(&notification_store, source, text, bytes, time_valid,
+                               time_valid ? (uint32_t)(clock.utc_ms / 1000) : 0u,
+                               NULL) != IW_NOTIFICATION_OK) return false;
+    for (iw_product_page_t *p = pages; p; p = p->next)
+        if (p->page_id == IW_PAGE_NOTIFICATION_LIST) {
+            notification_projection(&p->model);
+            p->dirty = true;
+        }
+    return true;
+}
+
+void iw_product_set_recent(iw_product_page_t *page, const iw_recent_apps_t *recent)
+{
+    if (!page || !iw_font_port_is_owner()) return;
+    page->model.recent_apps = recent;
+    page->dirty = true;
+}
+
+static void refresh_notification_pages(void)
+{
+    for (iw_product_page_t *p = pages; p; p = p->next)
+        if (p->page_id == IW_PAGE_NOTIFICATION_LIST) {
+            notification_projection(&p->model);
+            p->dirty = true;
+        }
+}
 static iw_theme_quality_t profile_quality = IW_THEME_Q1;
 static bool profile_large, profile_reduced;
 
@@ -59,7 +101,8 @@ static void chronographs(iw_product_page_t *p) {
 
 static void alarms_alerts(iw_product_page_t *p) {
     size_t bytes = 0;
-    if (p->page_id == IW_PAGE_ALARM_LIST || p->page_id == IW_PAGE_ALARM_EDIT) {
+    if (p->page_id == IW_PAGE_ALARM_LIST || p->page_id == IW_PAGE_ALARM_EDIT ||
+        p->page_id == IW_PAGE_SMART_STACK) {
         struct { iw_snapshot_header_t header; iw_alarm_snapshot_t model; } value = {0};
         if (iw_snapshot_read(IW_SNAPSHOT_ALARMS, &value, sizeof(value), &bytes) == IW_SNAPSHOT_OK &&
             value.model.count <= IW_ALARM_CAPACITY) {
@@ -69,7 +112,7 @@ static void alarms_alerts(iw_product_page_t *p) {
         }
     }
     if (p->page_id == IW_PAGE_ALERT_TIMER || p->page_id == IW_PAGE_ALERT_ALARM ||
-        p->page_id == IW_PAGE_LAUNCHER_LIST) {
+        p->page_id == IW_PAGE_LAUNCHER_LIST || p->page_id == IW_PAGE_NOTIFICATION_LIST) {
         struct { iw_snapshot_header_t header; iw_alert_snapshot_t model; } value = {0};
         iw_alert_source_t source = p->page_id == IW_PAGE_ALERT_TIMER ?
                                    IW_ALERT_SOURCE_TIMER : IW_ALERT_SOURCE_ALARM;
@@ -253,6 +296,11 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
         p->navigate(IW_ACTION_BACK, 0u, p->context);
         return;
     }
+    if (id == IW_ACTION_FACE_NOTIFICATIONS || id == IW_ACTION_FACE_STACK) {
+        p->navigate(id == IW_ACTION_FACE_NOTIFICATIONS ? IW_PAGE_NOTIFICATION_LIST :
+                    IW_PAGE_SMART_STACK, 0u, p->context);
+        return;
+    }
     if (id == IW_ACTION_TIME_SAVE) {
         submit_clock_edit(p);
         return;
@@ -298,6 +346,47 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
         p->navigate(record->source_type == IW_ALERT_SOURCE_TIMER ?
                     IW_PAGE_ALERT_TIMER : IW_PAGE_ALERT_ALARM,
                     record->entity_id, p->context);
+        return;
+    }
+    if (id >= IW_ACTION_NOTIFICATION_OPEN_BASE &&
+        id < IW_ACTION_NOTIFICATION_OPEN_BASE + IW_NOTIFICATION_CAPACITY) {
+        uint32_t notification_id = p->model.notification_ids[id - IW_ACTION_NOTIFICATION_OPEN_BASE];
+        if (iw_notification_find(&notification_store, notification_id))
+            p->navigate(IW_PAGE_NOTIFICATION_DETAIL, notification_id, p->context);
+        else {
+            p->model.message = IW_TEXT_NOTIFICATION_CHANGED;
+            p->dirty = true;
+        }
+        return;
+    }
+    if (id == IW_ACTION_NOTIFICATION_DELETE) {
+        iw_notification_t *selected = &p->model.selected_notification;
+        if (!p->model.selected_notification_valid ||
+            iw_notification_delete(&notification_store, selected->id,
+                                   selected->revision) != IW_NOTIFICATION_OK) {
+            p->model.message = IW_TEXT_NOTIFICATION_CHANGED;
+            p->dirty = true;
+        } else {
+            refresh_notification_pages();
+            p->navigate(IW_ACTION_BACK, 0u, p->context);
+        }
+        return;
+    }
+    if (id == IW_ACTION_STACK_TIMER) {
+        for (unsigned i = 0; i < p->model.timers.count; i++) {
+            const iw_timer_view_t *timer = &p->model.timers.timers[i];
+            if (timer->state == IW_TIMER_RUNNING && timer->timer_id) {
+                p->navigate(IW_PAGE_TIMER_DETAIL, timer->timer_id, p->context);
+                return;
+            }
+        }
+        p->model.message = IW_TEXT_OPERATION_FAILED;
+        p->dirty = true;
+        return;
+    }
+    if (id == IW_ACTION_STACK_ALARM) {
+        if (p->model.alarms.count) p->navigate(IW_PAGE_ALARM_LIST, 0u, p->context);
+        else { p->model.message = IW_TEXT_OPERATION_FAILED; p->dirty = true; }
         return;
     }
     if (id >= IW_ACTION_TIMER_PRESET_1M && id <= IW_ACTION_TIMER_PRESET_10M) {
@@ -375,7 +464,8 @@ bool iw_product_create(iw_product_page_t *p, uint16_t id, uint32_t argument,
     p->context = context;
     p->model = (iw_product_model_t){.message = IW_TEXT_COUNT, .back = back,
         .hardware = "SF32LB58 A128 QSPI", .firmware = IW_BUILD_TAG, .quality = profile_quality,
-        .large_text = profile_large, .reduced_motion = profile_reduced};
+        .large_text = profile_large, .reduced_motion = profile_reduced,
+        .notifications = &notification_store};
 #if defined(__ARMCOMPILER_VERSION)
     p->model.toolchain = "Arm Compiler " __VERSION__;
 #elif defined(__GNUC__)
@@ -385,6 +475,13 @@ bool iw_product_create(iw_product_page_t *p, uint16_t id, uint32_t argument,
     (void)iw_brightness_read(&p->model.brightness);
     chronographs(p);
     alarms_alerts(p);
+    if (id == IW_PAGE_NOTIFICATION_LIST) notification_projection(&p->model);
+    if (id == IW_PAGE_NOTIFICATION_DETAIL) {
+        const iw_notification_t *selected = iw_notification_find(&notification_store, argument);
+        if (!selected) return false;
+        p->model.selected_notification = *selected;
+        p->model.selected_notification_valid = true;
+    }
     capabilities(&p->model);
     if (id == IW_PAGE_TIME && !iw_time_draft_begin(&p->model.draft, &p->model.clock)) return false;
     if (id == IW_PAGE_TIME && p->model.draft.needs_calibration) p->model.message = IW_TEXT_CALIBRATE;
@@ -415,6 +512,15 @@ bool iw_product_create(iw_product_page_t *p, uint16_t id, uint32_t argument,
     }
     p->exiting = false;
     if (!iw_product_view_create(&p->view, lv_screen_active(), id, &p->model, action, stop, p)) return false;
+    if (id == IW_PAGE_NOTIFICATION_DETAIL && !p->model.selected_notification.read) {
+        iw_notification_t *selected = &p->model.selected_notification;
+        if (iw_notification_mark_read(&notification_store, selected->id,
+                                      selected->revision) == IW_NOTIFICATION_OK) {
+            const iw_notification_t *updated = iw_notification_find(&notification_store, selected->id);
+            if (updated) *selected = *updated;
+            refresh_notification_pages();
+        }
+    }
     p->next = pages;
     pages = p;
     p->linked = true;
@@ -534,7 +640,8 @@ uint32_t iw_product_process(void) {
         if (wait > 50u) wait = 50u;
         if (view_wait < wait) wait = view_wait;
         uint32_t poll_ms = p->page_id == IW_PAGE_STOPWATCH ? 100u :
-                           (p->page_id == IW_PAGE_TIMER_LIST || p->page_id == IW_PAGE_TIMER_DETAIL) ? 250u : 1000u;
+                           (p->page_id == IW_PAGE_TIMER_LIST || p->page_id == IW_PAGE_TIMER_DETAIL ||
+                            p->page_id == IW_PAGE_SMART_STACK) ? 250u : 1000u;
         if ((uint32_t)(now - p->last_poll) >= poll_ms) {
             (void)iw_clock_read(&p->model.clock);
             (void)iw_brightness_read(&p->model.brightness);

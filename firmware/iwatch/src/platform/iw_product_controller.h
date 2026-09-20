@@ -21,6 +21,10 @@ void iw_product_resume(iw_product_page_t *page, bool visible);
 bool iw_product_destroy(iw_product_page_t *page);
 bool iw_product_back(iw_product_page_t *page);
 bool iw_product_rotate(iw_product_page_t *page, int32_t steps);
+void iw_product_set_recent(iw_product_page_t *page, const iw_recent_apps_t *recent);
+/* 普通通知首期只允许 GUI owner 的具名本机生产者；无生产者时保持空态。 */
+bool iw_product_notification_add(iw_notification_source_t source,
+                                 const char *text, size_t bytes);
 /* 仅供 GUI 线程验收切换；不写入用户设置，也不改变草稿和命令状态。 */
 bool iw_product_set_profile(iw_theme_quality_t quality, bool large_text, bool reduced_motion);
 /* 全局客户端持续处理离页结果；返回下一次检查期限，单位毫秒。 */

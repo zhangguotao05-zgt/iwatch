@@ -222,6 +222,66 @@ static bool has_text(const iw_product_scene_t *scene, const char *text) {
         if (!strcmp(scene->nodes[i].text, text)) return true;
     return false;
 }
+static bool has_fragment(const iw_product_scene_t *scene, const char *text) {
+    for (unsigned i = 0; i < scene->count; i++)
+        if (strstr(scene->nodes[i].text, text)) return true;
+    return false;
+}
+
+static void d13_scene_boundaries(iw_product_model_t *m)
+{
+    static iw_product_scene_t scene;
+    static iw_notification_store_t notifications;
+    static iw_recent_apps_t recent;
+    m->selected_alert = (iw_alert_record_t){0};
+    m->timers.count = 0;
+    m->alarms.count = 0;
+    assert(iw_product_scene_build(&scene, IW_PAGE_CONTROL_CENTER, m));
+    assert(has_text(&scene, "控制中心") && has_text(&scene, "未接入"));
+    assert(iw_product_scene_hit(&scene, 270, 250, 0) == -1);
+    assert(iw_product_scene_hit(&scene, 110, 340, 0) >= 0);
+    m->notifications = &notifications;
+    assert(iw_product_scene_build(&scene, IW_PAGE_NOTIFICATION_LIST, m));
+    assert(has_text(&scene, "暂无通知"));
+    uint32_t id;
+    for (unsigned i = 0; i < 4; i++) {
+        assert(iw_notification_insert(&notifications, IW_NOTIFICATION_DIAGNOSTIC,
+                                      "本机测试", strlen("本机测试"), false, 0, &id) == IW_NOTIFICATION_OK);
+        m->notification_ids[i] = id;
+    }
+    m->selected_alert = (iw_alert_record_t){.entity_id = 1u,
+                                            .source_type = IW_ALERT_SOURCE_TIMER};
+    assert(iw_product_scene_build(&scene, IW_PAGE_NOTIFICATION_LIST, m));
+    assert(has_text(&scene, "待处理提醒") && has_fragment(&scene, "本机测试"));
+    for (unsigned i = 4; i < IW_NOTIFICATION_CAPACITY; i++) {
+        assert(iw_notification_insert(&notifications, IW_NOTIFICATION_DIAGNOSTIC,
+                                      "本机测试", strlen("本机测试"), false, 0, &id) == IW_NOTIFICATION_OK);
+        m->notification_ids[i] = id;
+    }
+    assert(iw_product_scene_build(&scene, IW_PAGE_NOTIFICATION_LIST, m));
+    assert(scene.count <= IW_PRODUCT_NODES && iw_product_scene_scroll_limit(&scene) > 2000);
+    m->selected_notification = notifications.records[0];
+    m->selected_notification_valid = true;
+    memset(m->selected_notification.text, 'A', 255);
+    m->selected_notification.text[255] = '\0';
+    assert(iw_product_scene_build(&scene, IW_PAGE_NOTIFICATION_DETAIL, m));
+    assert(iw_product_scene_scroll_limit(&scene) > 0 && has_text(&scene, "删除"));
+    assert(iw_product_scene_build(&scene, IW_PAGE_SMART_STACK, m));
+    assert(has_text(&scene, "暂无活动计时器") && has_text(&scene, "暂无下次闹钟"));
+    m->recent_apps = &recent;
+    assert(iw_product_scene_build(&scene, IW_PAGE_SWITCHER, m));
+    assert(has_text(&scene, "暂无最近应用"));
+    iw_page_resume_t resume = {.route = {IW_PAGE_STOPWATCH, 0}};
+    assert(iw_recent_record(&recent, &resume));
+    assert(iw_product_scene_build(&scene, IW_PAGE_SWITCHER, m));
+    assert(has_text(&scene, "秒表"));
+    for (unsigned i = 0; i < scene.count; i++) {
+        const iw_product_node_t *n = &scene.nodes[i];
+        assert(n->x >= 0 && n->x + n->width <= 390);
+        if (n->fixed) assert(n->y >= 0 && n->y + n->height <= 450);
+    }
+    iw_recent_clear(&recent);
+}
 
 static void scene_boundaries(iw_product_model_t *m) {
     static iw_product_scene_t scene;
@@ -506,6 +566,7 @@ int test_product_view(lv_display_t *display, size_t number, unsigned mode) {
     } else if (mode == 8) {
         render_probe_cases();
         scene_boundaries(&m);
+        d13_scene_boundaries(&m);
     } else if (mode >= 5 && mode <= 7) {
         allocations = line_case(display, mode - 5, number);
     } else if (mode == 4) {

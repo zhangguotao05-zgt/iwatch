@@ -69,6 +69,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'D12 闹钟调度测试编译失败。' }
     & ./test_alarms.exe
     if ($LASTEXITCODE -ne 0) { throw 'D12 T18/T19 闹钟调度测试失败。' }
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$coreDir" /Fetest_notifications.exe (Join-Path $PSScriptRoot 'test_notifications.c') (Join-Path $coreDir 'iw_notifications.c')
+    if ($LASTEXITCODE -ne 0) { throw 'D13 普通通知账本编译失败。' }
+    & ./test_notifications.exe
+    if ($LASTEXITCODE -ne 0) { throw 'D13 普通通知账本测试失败。' }
     & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$platformDir" "/I$PSScriptRoot/mocks" /Fetest_time_rtc.exe (Join-Path $PSScriptRoot 'test_time_rtc.c') (Join-Path $platformDir 'iw_time_rtc.c')
     if ($LASTEXITCODE -ne 0) { throw 'RTC 可信标记与会话测试编译失败。' }
     & ./test_time_rtc.exe
@@ -94,6 +98,10 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'D08 作用域与导航测试编译失败。' }
     & ./test_navigation.exe
     if ($LASTEXITCODE -ne 0) { throw 'D08 作用域与导航测试失败。' }
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$guiCoreDir" /Fetest_recent_apps.exe (Join-Path $PSScriptRoot 'test_recent_apps.c') (Join-Path $guiCoreDir 'iw_recent_apps.c') (Join-Path $guiCoreDir 'iw_routes.c')
+    if ($LASTEXITCODE -ne 0) { throw 'D13 最近 App 测试编译失败。' }
+    & ./test_recent_apps.exe
+    if ($LASTEXITCODE -ne 0) { throw 'D13 最近 App 测试失败。' }
     & py -3 (Join-Path $PSScriptRoot 'generate_lifecycle_test.py')
     if ($LASTEXITCODE -ne 0) { throw '生命周期测试生成失败。' }
     foreach ($page in @('clock', 'menu', 'status', 'simple', 'dial', 'rotate_bg')) {

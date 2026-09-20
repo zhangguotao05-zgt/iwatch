@@ -1,5 +1,6 @@
 #include "iw_router.h"
 #include "iw_navigator.h"
+#include "iw_recent_apps.h"
 #include "iw_scope.h"
 #include "iw_components.h"
 #include "iw_font_port.h"
@@ -16,7 +17,8 @@
 #include <string.h>
 
 enum { ROUTE_SLOTS = IW_NAV_MAX_APPS * IW_NAV_MAX_DEPTH };
-typedef enum { REQUEST_NONE, REQUEST_OPEN, REQUEST_STAT, REQUEST_BURST, REQUEST_PROFILE, REQUEST_PROBE } request_kind_t;
+typedef enum { REQUEST_NONE, REQUEST_OPEN, REQUEST_STAT, REQUEST_BURST, REQUEST_PROFILE,
+               REQUEST_PROBE, REQUEST_OVERLAY_HOME, REQUEST_TEST_NOTICE } request_kind_t;
 typedef struct { request_kind_t kind; uint32_t argument; uint16_t page_id; } route_request_t;
 typedef struct {
     iw_scope_t scope;
@@ -31,16 +33,33 @@ typedef struct {
 /* 这里只登记资源所有者，不记录栈顺序；返回目标每次从 SiFli 的快照取得。 */
 static route_page_t *pages[ROUTE_SLOTS], *candidate;
 static iw_navigator_t navigator;
+static iw_recent_apps_t recent_apps;
+static char overlay_source[16], overlay_root_name[16], pending_overlay_source[16];
+static char overlay_cleanup[16];
+static uint16_t overlay_root_id;
 static route_request_t requested;
 static bool requested_back, initialized, rolling_back, fault_unwind;
 static bool recovery_blocked;
 static const char *home_target;
+static iw_page_resume_t home_leaving;
+static bool home_has_leaving;
 static uint8_t home_attempts;
 static uint8_t rollback_failures;
 static uint32_t generation, next_argument;
 static uint32_t product_wait=UINT32_MAX;
 static uint32_t alert_scan_tick;
 static iw_alert_record_t hidden_alert;
+
+static bool primary_overlay(uint16_t id)
+{
+    return id == IW_PAGE_CONTROL_CENTER || id == IW_PAGE_NOTIFICATION_LIST ||
+           id == IW_PAGE_SMART_STACK || id == IW_PAGE_SWITCHER;
+}
+
+static bool overlay_page(uint16_t id)
+{
+    return primary_overlay(id) || id == IW_PAGE_NOTIFICATION_DETAIL;
+}
 
 extern void iw_gui_cancel_input(void);
 
@@ -115,6 +134,43 @@ static void product_action(uint16_t id,uint32_t argument,void *context)
 {
     route_page_t *p=context;
     if (!p->scope.alive || !p->scope.visible) return;
+    if (p->route.page_id == IW_PAGE_SWITCHER &&
+        id >= IW_ACTION_RECENT_REMOVE_BASE && id < IW_ACTION_RECENT_REMOVE_BASE + IW_NAV_HISTORY) {
+        unsigned index = id - IW_ACTION_RECENT_REMOVE_BASE;
+        if (index < recent_apps.count) {
+            (void)iw_recent_remove(&recent_apps, recent_apps.count - 1u - index);
+            iw_product_set_recent(p->product, &recent_apps);
+        }
+        return;
+    }
+    if (p->route.page_id == IW_PAGE_SWITCHER &&
+        id >= IW_ACTION_RECENT_OPEN_BASE && id < IW_ACTION_RECENT_OPEN_BASE + IW_NAV_HISTORY) {
+        unsigned index = id - IW_ACTION_RECENT_OPEN_BASE;
+        const iw_recent_entry_t *entry = index < recent_apps.count ?
+            iw_recent_get(&recent_apps, recent_apps.count - 1u - index) : NULL;
+        if (entry && initialized && iw_font_port_is_owner()) {
+            iw_route_t target = entry->resume.route;
+            if (target.page_id == IW_PAGE_TIMER_DETAIL) {
+                struct { iw_snapshot_header_t header; iw_timer_snapshot_t model; } timers = {0};
+                size_t bytes = 0;
+                bool valid = false;
+                if (iw_snapshot_read(IW_SNAPSHOT_TIMERS, &timers, sizeof(timers), &bytes) == IW_SNAPSHOT_OK &&
+                    timers.model.count <= IW_TIMER_CAPACITY)
+                    for (unsigned i = 0; i < timers.model.count; i++)
+                        if (timers.model.timers[i].timer_id == target.argument) valid = true;
+                if (!valid) target = (iw_route_t){IW_PAGE_TIMER_LIST, 0};
+            }
+            const iw_route_descriptor_t *route = iw_route_find(target.page_id);
+            if (route && route->support == IW_ROUTE_READY)
+                (void)request((route_request_t){.kind=REQUEST_OPEN,.argument=target.argument,
+                                                .page_id=target.page_id},false);
+            else {
+                (void)iw_recent_remove(&recent_apps, recent_apps.count - 1u - index);
+                iw_product_set_recent(p->product, &recent_apps);
+            }
+        }
+        return;
+    }
     if (id==IW_ACTION_BACK) {
         if (p->product && (p->route.page_id == IW_PAGE_ALERT_TIMER ||
                            p->route.page_id == IW_PAGE_ALERT_ALARM))
@@ -134,8 +190,11 @@ static bool create_view(route_page_t *page)
         (void)gui_app_get_route_snapshot(&snapshot);
         bool back=page->route.page_id!=IW_PAGE_FACE && page->route.page_id!=IW_PAGE_LAUNCHER_LIST &&
             !(page->route.page_id==IW_PAGE_SETTINGS && !strcmp(snapshot.app_id,"iwlist"));
-        return iw_product_create(page->product,page->route.page_id,page->route.argument,page->scope.token.generation,
-            back,product_action,quiesce,page);
+        if (!iw_product_create(page->product,page->route.page_id,page->route.argument,page->scope.token.generation,
+                               back,product_action,quiesce,page)) return false;
+        if (page->route.page_id == IW_PAGE_SWITCHER)
+            iw_product_set_recent(page->product, &recent_apps);
+        return true;
     }
     char title[48], detail[96];
     (void)snprintf(title, sizeof(title), iw_router_texts[0], (unsigned long)page->route.argument);
@@ -212,6 +271,10 @@ static void dispatch_page(route_page_t *page,gui_app_msg_type_t message)
         break;
     case GUI_APP_MSG_ONSTOP:
         page->stopped = true;
+        if (overlay_root_id && !strcmp(page->sdk_name, overlay_root_name)) {
+            overlay_root_id = 0;
+            overlay_source[0] = overlay_root_name[0] = '\0';
+        }
         iw_scope_stop(&page->scope);
         if (page->product) (void)iw_product_destroy(page->product);
         else (void)iw_component_destroy(&page->frame);
@@ -287,6 +350,14 @@ static void begin_request(iw_nav_action_t action_kind, uint32_t argument, uint16
         .back = snapshot->back_valid ? observed_route(snapshot, true) : (iw_route_t){0},
         .running_apps = snapshot->running_apps, .depth = snapshot->page_count,
         .busy = snapshot->busy};
+    if (action_kind == IW_NAV_PUSH &&
+        ((primary_overlay(target_id) && overlay_root_id && overlay_page(actual.current.page_id)) ||
+         (target_id == IW_PAGE_NOTIFICATION_DETAIL &&
+          actual.current.page_id != IW_PAGE_NOTIFICATION_LIST))) {
+        rt_kprintf("nav overlay rejected target=%04x current=%04x\n", target_id,
+                   actual.current.page_id);
+        return;
+    }
     iw_nav_result_t result = iw_nav_begin(&navigator, action_kind, (iw_route_t){target_id ? target_id : IW_PAGE_DIAGNOSTICS, argument},
                                          &actual, action_kind == IW_NAV_PUSH ? capabilities() : 0);
     rt_kprintf("nav request action=%u arg=%lu result=%u seq=%lu\n", (unsigned)action_kind,
@@ -294,6 +365,9 @@ static void begin_request(iw_nav_action_t action_kind, uint32_t argument, uint16
     if (result != IW_NAV_OK) return;
     if (action_kind == IW_NAV_PUSH && argument > next_argument) next_argument = argument;
     route_page_t *leaving = snapshot_page(snapshot,false);
+    pending_overlay_source[0] = '\0';
+    if (action_kind == IW_NAV_PUSH && primary_overlay(target_id) && leaving)
+        memcpy(pending_overlay_source, leaving->sdk_name, sizeof(pending_overlay_source));
     if (leaving && (leaving->frame.object || leaving->product)) {
         iw_page_resume_t resume = {.route = leaving->route,
             .scroll_y = leaving->product ? leaving->product->view.scroll_y : lv_obj_get_scroll_y(iw_screen_frame_content(&leaving->frame))};
@@ -325,11 +399,12 @@ static void print_stat(const gui_app_route_snapshot_t *snapshot)
 {
     unsigned live = 0;
     for (unsigned i = 0; i < ROUTE_SLOTS; i++) if (pages[i]) live++;
-    rt_kprintf("nav state=%u seq=%lu current=%04x:%lu sdk=%s/%s apps=%u depth=%u busy=%u live=%u history=%u commit=%lu abort=%lu back=%u\n",
+    rt_kprintf("nav state=%u seq=%lu current=%04x:%lu sdk=%s/%s apps=%u depth=%u busy=%u live=%u history=%u recent=%u commit=%lu abort=%lu back=%u\n",
         (unsigned)navigator.state, (unsigned long)navigator.sequence, navigator.current.page_id,
         (unsigned long)navigator.current.argument, snapshot->app_id, snapshot->page_id,
         snapshot->running_apps, snapshot->page_count, (unsigned)snapshot->busy, live,
-        navigator.history_count, (unsigned long)navigator.committed, (unsigned long)navigator.aborted,
+        navigator.history_count, recent_apps.count,
+        (unsigned long)navigator.committed, (unsigned long)navigator.aborted,
         (unsigned)navigator.pending_back);
 }
 
@@ -354,6 +429,10 @@ void iw_router_init(void)
 {
     if (initialized || !iw_font_port_is_owner()) return;
     gui_app_set_resources_ready(iw_font_port_render_idle);
+    memset(&recent_apps, 0, sizeof(recent_apps));
+    overlay_source[0] = overlay_root_name[0] = overlay_cleanup[0] = '\0';
+    overlay_root_id = 0;
+    home_has_leaving = false;
     initialized = true;
 }
 
@@ -380,6 +459,10 @@ static bool home_request(bool recovery)
     gui_app_route_snapshot_t snapshot;
     (void)gui_app_get_route_snapshot(&snapshot);
     route_page_t *page = snapshot_page(&snapshot, false);
+    home_has_leaving = !recovery && page && page->product && page->scope.visible;
+    if (home_has_leaving)
+        home_leaving = (iw_page_resume_t){.route = page->route,
+            .scroll_y = page->product->view.scroll_y};
     if (page && page->product && (page->route.page_id == IW_PAGE_ALERT_TIMER ||
                                   page->route.page_id == IW_PAGE_ALERT_ALARM))
         hidden_alert = page->product->model.selected_alert;
@@ -395,7 +478,30 @@ static bool home_request(bool recovery)
     return true;
 }
 
-bool iw_router_home(void) { return home_request(false); }
+bool iw_router_overlay_visible(void)
+{
+    if (!initialized || !iw_font_port_is_owner()) return false;
+    gui_app_route_snapshot_t snapshot;
+    (void)gui_app_get_route_snapshot(&snapshot);
+    return overlay_page(observed_route(&snapshot, false).page_id);
+}
+
+bool iw_router_alert_visible(void)
+{
+    if (!initialized || !iw_font_port_is_owner()) return false;
+    gui_app_route_snapshot_t snapshot;
+    (void)gui_app_get_route_snapshot(&snapshot);
+    uint16_t id = observed_route(&snapshot, false).page_id;
+    return id == IW_PAGE_ALERT_TIMER || id == IW_PAGE_ALERT_ALARM;
+}
+
+bool iw_router_home(void)
+{
+    if (iw_router_alert_visible()) return iw_router_back();
+    if (iw_router_overlay_visible() && overlay_root_id)
+        return request((route_request_t){.kind=REQUEST_OVERLAY_HOME}, false);
+    return home_request(false);
+}
 bool iw_router_recover(void) { return home_request(true); }
 
 bool iw_router_rotate(int32_t steps)
@@ -419,6 +525,8 @@ static void home_process(const gui_app_route_snapshot_t *snapshot)
     bool same_app = !strcmp(snapshot->app_id, home_target);
     if (same_app && !strcmp(snapshot->page_id, "root") && snapshot->resumed) {
         if (!restore_root(snapshot_page(snapshot,false))) return;
+        if (home_has_leaving) (void)iw_recent_record(&recent_apps, &home_leaving);
+        home_has_leaving = false;
         rt_kprintf("nav home target=%s confirmed\n", home_target);
         home_target = NULL;
         return;
@@ -426,6 +534,7 @@ static void home_process(const gui_app_route_snapshot_t *snapshot)
     if (home_attempts == 3u) {
         rt_kprintf("nav home target=%s failed\n", home_target);
         home_target = NULL;
+        home_has_leaving = false;
         iw_gui_fault_raise();
         return;
     }
@@ -502,6 +611,18 @@ bool iw_router_process(void)
         rollback_failures = 0;
     }
     if (command.kind == REQUEST_STAT) print_stat(&snapshot);
+    else if (command.kind == REQUEST_TEST_NOTICE) {
+        static const char diagnostic[] = "本机测试";
+        bool added = iw_product_notification_add(IW_NOTIFICATION_DIAGNOSTIC,
+                                                  diagnostic, sizeof(diagnostic) - 1u);
+        rt_kprintf("notification diagnostic inserted=%u\n", (unsigned)added);
+    }
+    else if (command.kind == REQUEST_OVERLAY_HOME) {
+        if (overlay_root_id && overlay_source[0] && !snapshot.busy &&
+            gui_app_goback_to_page(overlay_source) == RT_EOK)
+            iw_gui_cancel_input();
+        else if (!snapshot.busy) (void)home_request(true);
+    }
     else if (command.kind == REQUEST_PROBE) {
         if (command.argument == 2u) {
             iw_render_probe_overhead_reset();
@@ -555,6 +676,11 @@ bool iw_router_process(void)
             if (!snapshot.busy && iw_route_equal(visible, navigator.current)) {
                 iw_nav_abort(&navigator, navigator.sequence);
                 rolling_back = false;
+                route_page_t *restored = snapshot_page(&snapshot, false);
+                if (restored && restored->product && overlay_page(restored->route.page_id)) {
+                    restored->product->model.message = IW_TEXT_OPERATION_FAILED;
+                    restored->product->dirty = true;
+                }
             }
         } else if (snapshot.resumed && iw_route_equal(visible, navigator.candidate)) {
             iw_nav_resumed(&navigator, navigator.sequence, visible);
@@ -562,13 +688,37 @@ bool iw_router_process(void)
         } else if (!snapshot.busy) {
             if (candidate && !candidate->started) release_page(candidate);
             iw_nav_abort(&navigator, navigator.sequence);
+            route_page_t *restored = snapshot_page(&snapshot, false);
+            if (restored && restored->product && overlay_page(restored->route.page_id)) {
+                restored->product->model.message = IW_TEXT_OPERATION_FAILED;
+                restored->product->dirty = true;
+            }
         }
     }
     if (!snapshot.busy && !fault_unwind &&
         (navigator.state == IW_NAV_COMMITTED || navigator.state == IW_NAV_ABORTED)) {
+        if (navigator.state == IW_NAV_COMMITTED && navigator.action == IW_NAV_PUSH) {
+            const iw_route_descriptor_t *from = iw_route_find(navigator.leaving.route.page_id);
+            const iw_route_descriptor_t *to = iw_route_find(navigator.candidate.page_id);
+            if (to && primary_overlay(to->page_id) && candidate && pending_overlay_source[0]) {
+                overlay_root_id = to->page_id;
+                memcpy(overlay_source, pending_overlay_source, sizeof(overlay_source));
+                memcpy(overlay_root_name, candidate->sdk_name, sizeof(overlay_root_name));
+            } else if (from && to && primary_overlay(from->page_id) &&
+                       to->app_id != IW_APP_SYSTEM && overlay_root_id && overlay_root_name[0]) {
+                memcpy(overlay_cleanup, overlay_root_name, sizeof(overlay_cleanup));
+            }
+            if (from && to && (to->page_id == IW_PAGE_SWITCHER ||
+                               (to->app_id != IW_APP_SYSTEM && from->app_id != to->app_id)))
+                (void)iw_recent_record(&recent_apps, &navigator.leaving);
+        }
         print_stat(&snapshot);
         candidate = NULL;
         (void)iw_nav_settle(&navigator);
+        if (overlay_cleanup[0] && !snapshot.busy) {
+            gui_app_remove_page(overlay_cleanup);
+            overlay_cleanup[0] = '\0';
+        }
     } else if (navigator.state == IW_NAV_IDLE && !snapshot.busy) {
         navigator.current = observed_route(&snapshot, false);
         rolling_back = false;
@@ -613,11 +763,13 @@ static void iw_nav(int argc, char **argv)
         accepted = request((route_request_t){REQUEST_PROFILE, argument}, false);
     }
     else if (argc == 2 && !strcmp(argv[1], "stat")) accepted = request((route_request_t){REQUEST_STAT, 0}, false);
+    else if (argc == 2 && !strcmp(argv[1], "test-notice"))
+        accepted = request((route_request_t){.kind=REQUEST_TEST_NOTICE}, false);
     else if (argc == 3 && !strcmp(argv[1], "page") && parse_argument(argv[2], &argument) && argument <= UINT16_MAX)
         accepted = request((route_request_t){.kind=REQUEST_OPEN,.page_id=(uint16_t)argument},false);
     else if (argc == 3 && (!strcmp(argv[1], "open") || !strcmp(argv[1], "burst")) && parse_argument(argv[2], &argument))
         accepted = request((route_request_t){!strcmp(argv[1], "open") ? REQUEST_OPEN : REQUEST_BURST, argument}, false);
-    else { rt_kprintf("iw_nav open <id> | burst <id> | page <page_id> | profile <q:0|1> <large:0|1> <reduced:0|1> | probe start|stop|reset|report | back | stat\n"); return; }
+    else { rt_kprintf("iw_nav open <id> | burst <id> | page <page_id> | profile <q:0|1> <large:0|1> <reduced:0|1> | probe start|stop|reset|report | test-notice | back | stat\n"); return; }
     rt_kprintf("nav queued=%u\n", (unsigned)accepted);
 }
 MSH_CMD_EXPORT(iw_nav, D08 navigation diagnostics);

@@ -428,6 +428,11 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
                         v->picker_offset < -PICKER_STEP_PX / 2 ? 1 : 0;
             if (steps && v->action) v->action(IW_ACTION_PICK_STEP, steps, true, v->context);
             picker_snap(v);
+        } else if (v->dragging && v->scene.page_id == IW_PAGE_FACE && v->action) {
+            if (v->press_y < 104 && y - v->press_y >= 64)
+                v->action(IW_ACTION_FACE_NOTIFICATIONS, 0, true, v->context);
+            else if (v->press_y >= 320 && v->press_y - y >= 64)
+                v->action(IW_ACTION_FACE_STACK, 0, true, v->context);
         } else if (click && v->action) v->action(action, 0, true, v->context);
     }
     if (code == LV_EVENT_RELEASED) {

@@ -1,0 +1,22 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="iwatch D13-B 控制中心、通知、智能叠放和应用切换器实施记录"><title>D13-B 系统覆盖层与通知实施记录 · iwatch</title>
+<link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
+<header><h1>D13-B 系统覆盖层与通知实施记录</h1><p class="doc-meta">2026-09-20 · Issue #15 · 设计基线 <code>c7617c2</code> · B 阶段开发中</p></header>
+<p class="note">本页记录 B 阶段已经落地的模型、页面和测试。它不是 D13 总体验收，也不包含 C 阶段的普通输入锁、全面水锁和表盘会话配置。#8、#10、D15 继续独立跟踪。</p>
+<section><h2>已实现范围</h2><table><thead><tr><th>部分</th><th>实现</th><th>边界</th></tr></thead><tbody>
+<tr><td>控制中心</td><td>复用亮度目标、预览和确认状态；显示设置入口可用。</td><td>水锁和普通输入锁入口按 A 阶段要求显示“未接入”并禁用，C 阶段才启用。</td></tr>
+<tr><td>通知中心</td><td>固定 32 条普通通知账本；列表／详情、UTF-8 边界截断、已读、删除和稳定 ID＋revision。</td><td>首期没有联网生产者；诊断注入带“本机测试”来源。D12 的 24 槽关键提醒只做摘要投影，不进入普通账本。</td></tr>
+<tr><td>智能叠放</td><td>只从计时器和闹钟快照生成活动卡；计时器详情使用稳定 timer_id。</td><td>没有快照或实体失效时禁用卡片，不生成示例数据。</td></tr>
+<tr><td>应用切换器</td><td>读取 6 项值类型最近 App；Home 和跨 App 提交在目标根页确认后写入，系统页不占名额。</td><td>详情实体失效时退回应用首页；首页也失效时移除卡片。</td></tr>
+</tbody></table></section>
+<section><h2>所有权和失败路径</h2><p>普通通知存储由 GUI owner 串行访问，固定结构编译期限制在 12 KiB 内。页面只保存 ID、revision 和按值复制的详情；页面销毁不会留下 LVGL 指针。打开详情成功创建并首次绘制后才标记已读，删除使用详情时的 revision，冲突只显示“通知已变化”并留在当前页。</p>
+<p>最近 App 摘要不持有页面指针。离开 App 时保存 route、参数、滚动位置和实体选择；Home 只有在目标根页恢复且快照确认后提交。控制中心转业务页的候选失败时不写历史，原页面继续保留；成功确认后再清理覆盖页。重复打开在导航事务忙时被合并或拒绝，不创建第二个候选根。</p></section>
+<section><h2>主机验证</h2><table><thead><tr><th>测试层</th><th>结果</th></tr></thead><tbody>
+<tr><td>核心模型</td><td>普通通知 UTF-8 截断、陈旧 revision、已读优先淘汰、全未读淘汰、计数饱和无副作用通过。</td></tr>
+<tr><td>场景布局</td><td>控制中心、通知空态／提醒摘要／32 条滚动、详情长文、叠放空态、切换器空态／最近秒表布局边界通过；节点均在 390×450 内。</td></tr>
+<tr><td>路由</td><td>覆盖层 Home 回来源、业务跳转失败回滚、目标确认后清理、Home 后最近秒表可见、失效详情回退通过。</td></tr>
+<tr><td>回归</td><td>现有核心和 GUI 回归通过；D07 主机矩阵 59 个分配失败点、1000 轮生命周期和像素对照保持通过。</td></tr>
+</tbody></table><p>本轮尚未生成目标 GCC／Keil 新镜像，也没有烧录开发板；板上验收将在源码提交固定、双工具链身份归档后进行。</p></section>
+<section><h2>下一步</h2><ol><li>完成 GCC／Keil 编译和资源预算，确认新字体子集、构建身份及 map 来源。</li><li>在开发板上抽查控制中心、通知、叠放和切换器的显示、触摸、KEY1 返回，并保留 COM10 原始日志。</li><li>由架构师复核 B 阶段证据；C 阶段再实现两种锁和表盘管理。</li></ol></section>
+</main></body></html>

@@ -107,6 +107,7 @@ add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c test_epic_glyph.c test_font
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/services/iw_service.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core/iw_time.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core/iw_chronograph.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core/iw_notifications.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core/iw_alarms.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core/iw_alerts.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core/iw_alert_output.c"
@@ -116,6 +117,7 @@ add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c test_epic_glyph.c test_font
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_theme.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_scope.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_routes.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_recent_apps.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_navigator.c")
 target_include_directories(test_tiny_ttf_oom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core")
 target_include_directories(test_tiny_ttf_oom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform")

@@ -289,6 +289,184 @@ static bool alert_page(iw_product_scene_t *s, const iw_product_model_t *m,
                   TEXT(STOP_ALERT));
 }
 
+static const char *recent_name(uint16_t app_id)
+{
+    switch (app_id) {
+    case IW_APP_SETTINGS: return TEXT(SETTINGS);
+    case IW_APP_TIMER: return TEXT(TIMER);
+    case IW_APP_STOPWATCH: return TEXT(STOPWATCH);
+    case IW_APP_ALARM: return TEXT(ALARM);
+    default: return TEXT(NOT_CONNECTED);
+    }
+}
+
+static bool notification_label(iw_product_scene_t *s, int y, const char *source,
+                               const char *body, unsigned action)
+{
+    char excerpt[IW_PRODUCT_TEXT_BYTES];
+    size_t length = strlen(body);
+    if (length >= sizeof(excerpt)) {
+        length = sizeof(excerpt) - 1u;
+        while (length && (((unsigned char)body[length] & 0xc0u) == 0x80u)) length--;
+    }
+    memcpy(excerpt, body, length);
+    excerpt[length] = '\0';
+    return add(s, 18, y, 354, 82, 0, 0, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE,
+               22, 0, action, false, false, "") &&
+           label(s, 34, y + 30, 322, 20, IW_PRODUCT_SECONDARY, 0, false, source) &&
+           label(s, 34, y + 66, 322, 26, IW_PRODUCT_WHITE, 0, false, excerpt);
+}
+
+static bool notification_row(iw_product_scene_t *s, int y, const iw_notification_t *entry,
+                             unsigned action)
+{
+    const char *source = entry->source == IW_NOTIFICATION_DIAGNOSTIC ?
+                         TEXT(LOCAL_TEST) : TEXT(LOCAL_NOTIFICATIONS);
+    char row[IW_PRODUCT_TEXT_BYTES];
+    size_t prefix = strlen(source);
+    if (prefix + 2u >= sizeof(row)) return false;
+    memcpy(row, source, prefix);
+    row[prefix++] = ' ';
+    size_t length = strlen(entry->text);
+    if (length > sizeof(row) - prefix - 1u) {
+        length = sizeof(row) - prefix - 1u;
+        while (length && (((unsigned char)entry->text[length] & 0xc0u) == 0x80u)) length--;
+    }
+    memcpy(row + prefix, entry->text, length);
+    row[prefix + length] = '\0';
+    return add(s, 18, y, 354, 68, y + 44, 22,
+               entry->read ? IW_PRODUCT_SECONDARY : IW_PRODUCT_WHITE,
+               IW_PRODUCT_SURFACE, 22, 0, action, false, false, row);
+}
+
+static bool control_center(iw_product_scene_t *s, const iw_product_model_t *m)
+{
+    return header(s, m, TEXT(CONTROL_CENTER)) &&
+           brightness_control(s, m, 112) &&
+           button(s, 18, 214, 170, 78, IW_PAGE_WATER_LOCK, true, false,
+                  TEXT(WATER_LOCK)) &&
+           button(s, 202, 214, 170, 78, IW_PAGE_LOCK, true, false,
+                  TEXT(INPUT_LOCK)) &&
+           label(s, 30, 285, 146, 20, IW_PRODUCT_DISABLED, 1, false,
+                 TEXT(NOT_CONNECTED)) &&
+           label(s, 214, 285, 146, 20, IW_PRODUCT_DISABLED, 1, false,
+                 TEXT(NOT_CONNECTED)) &&
+           button(s, 18, 310, 354, 60, IW_PAGE_DISPLAY, false, false,
+                  TEXT(DISPLAY_SETTINGS)) &&
+           label(s, 30, 408, 330, 20, IW_PRODUCT_SECONDARY, 1, false,
+                 TEXT(SESSION_ONLY));
+}
+
+static bool notification_list(iw_product_scene_t *s, const iw_product_model_t *m)
+{
+    if (!header(s, m, TEXT(NOTIFICATIONS))) return false;
+    int y = 112;
+    if (m->selected_alert.entity_id) {
+        if (!label(s, 24, y + 22, 342, 20, IW_PRODUCT_SECONDARY, 0, false,
+                   TEXT(PENDING_ALERTS)) ||
+            !notification_label(s, y + 34, TEXT(ALERT),
+                                m->selected_alert.source_type == IW_ALERT_SOURCE_TIMER ?
+                                TEXT(TIMER) : TEXT(ALARM), IW_ACTION_ALERT_OPEN)) return false;
+        y += 138;
+    }
+    if (!label(s, 24, y + 22, 342, 20, IW_PRODUCT_SECONDARY, 0, false,
+               TEXT(LOCAL_NOTIFICATIONS))) return false;
+    y += 34;
+    unsigned shown = 0;
+    for (unsigned i = 0; i < IW_NOTIFICATION_CAPACITY; i++) {
+        const iw_notification_t *entry = iw_notification_find(m->notifications,
+                                                               m->notification_ids[i]);
+        if (!entry) continue;
+        if (!notification_row(s, y, entry, IW_ACTION_NOTIFICATION_OPEN_BASE + i)) return false;
+        y += 76;
+        shown++;
+    }
+    if (!shown && !m->selected_alert.entity_id)
+        return label(s, 30, 250, 330, 26, IW_PRODUCT_SECONDARY, 1, false,
+                     TEXT(NO_NOTIFICATIONS));
+    return true;
+}
+
+static bool notification_detail(iw_product_scene_t *s, const iw_product_model_t *m)
+{
+    if (!header(s, m, TEXT(NOTIFICATIONS))) return false;
+    if (!m->selected_notification_valid)
+        return label(s, 30, 240, 330, 26, IW_PRODUCT_WARNING, 1, false,
+                     TEXT(NOTIFICATION_CHANGED));
+    const iw_notification_t *entry = &m->selected_notification;
+    if (!label(s, 24, 148, 342, 22, IW_PRODUCT_SECONDARY, 0, false,
+               entry->source == IW_NOTIFICATION_DIAGNOSTIC ? TEXT(LOCAL_TEST) :
+               TEXT(LOCAL_NOTIFICATIONS))) return false;
+    char received[32];
+    const char *when = TEXT(TIME_INVALID);
+    if (entry->time_valid) {
+        iw_clock_snapshot_t clock = m->clock;
+        iw_calendar_fields_t local;
+        clock.utc_ms = (int64_t)entry->received_utc * 1000;
+        clock.valid = 1;
+        if (iw_clock_local_fields(&clock, &local)) {
+            (void)snprintf(received, sizeof(received), "%02u/%02u %02u:%02u",
+                           local.month, local.day, local.hour, local.minute);
+            when = received;
+        }
+    }
+    if (!label(s, 24, 182, 342, 20, IW_PRODUCT_SECONDARY, 0, false, when)) return false;
+    const unsigned char *text = (const unsigned char *)entry->text;
+    size_t length = strlen(entry->text), offset = 0;
+    int y = 206;
+    while (offset < length) {
+        size_t end = offset;
+        while (end < length && end - offset < 90u) {
+            unsigned char c = text[end];
+            size_t width = c < 0x80u ? 1u : c < 0xe0u ? 2u : c < 0xf0u ? 3u : 4u;
+            if (end + width > length || end + width - offset > 90u) break;
+            end += width;
+        }
+        if (end == offset) return false;
+        char chunk[IW_PRODUCT_TEXT_BYTES];
+        memcpy(chunk, text + offset, end - offset);
+        chunk[end - offset] = '\0';
+        if (!add(s, 24, y, 342, 122, y + 28, 26, IW_PRODUCT_WHITE, 0, 0, 0,
+                 0, false, false, chunk)) return false;
+        s->nodes[s->count - 1u].multiline = true;
+        offset = end;
+        y += 126;
+    }
+    return button(s, 18, y + 16, 354, 60, IW_ACTION_NOTIFICATION_DELETE,
+                  false, false, TEXT(DELETE));
+}
+
+static bool smart_stack(iw_product_scene_t *s, const iw_product_model_t *m)
+{
+    bool running = false, alarm = false;
+    for (unsigned i = 0; i < m->timers.count; i++)
+        if (m->timers.timers[i].state == IW_TIMER_RUNNING) running = true;
+    for (unsigned i = 0; i < m->alarms.count; i++)
+        if (m->alarms.alarms[i].enabled) alarm = true;
+    return header(s, m, TEXT(SMART_STACK)) &&
+           button(s, 18, 118, 354, 106, IW_ACTION_STACK_TIMER, !running, false,
+                  running ? TEXT(TIMER) : TEXT(NO_ACTIVE_TIMER)) &&
+           button(s, 18, 238, 354, 106, IW_ACTION_STACK_ALARM, !alarm, false,
+                  alarm ? TEXT(ALARM) : TEXT(NO_NEXT_ALARM));
+}
+
+static bool app_switcher(iw_product_scene_t *s, const iw_product_model_t *m)
+{
+    if (!header(s, m, TEXT(APP_SWITCHER))) return false;
+    unsigned count = m->recent_apps ? m->recent_apps->count : 0u;
+    if (!count) return label(s, 30, 245, 330, 26, IW_PRODUCT_SECONDARY, 1,
+                             false, TEXT(NO_RECENT_APPS));
+    for (unsigned i = 0; i < count && i < 6u; i++) {
+        const iw_recent_entry_t *entry = iw_recent_get(m->recent_apps, count - 1u - i);
+        int y = 114 + (int)i * 112;
+        if (!entry || !button(s, 18, y, 270, 96, IW_ACTION_RECENT_OPEN_BASE + i,
+                              false, false, recent_name(entry->app_id)) ||
+            !button(s, 300, y + 18, 72, 60, IW_ACTION_RECENT_REMOVE_BASE + i,
+                    false, false, "X")) return false;
+    }
+    return true;
+}
+
 static bool time_page(iw_product_scene_t *s, const iw_product_model_t *m) {
     const iw_time_draft_t *d = &m->draft;
     char text[48];
@@ -357,6 +535,21 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
     unsigned body = m->large_text ? 30u : 26u;
     char value[48];
     switch (id) {
+    case IW_PAGE_CONTROL_CENTER:
+        ok = control_center(s, m);
+        break;
+    case IW_PAGE_NOTIFICATION_LIST:
+        ok = notification_list(s, m);
+        break;
+    case IW_PAGE_NOTIFICATION_DETAIL:
+        ok = notification_detail(s, m);
+        break;
+    case IW_PAGE_SMART_STACK:
+        ok = smart_stack(s, m);
+        break;
+    case IW_PAGE_SWITCHER:
+        ok = app_switcher(s, m);
+        break;
     case IW_PAGE_FACE:
         ok = face(s, m);
         break;
@@ -496,9 +689,13 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
     if (m->message < IW_TEXT_COUNT &&
             !(id == IW_PAGE_TIMER_LIST && m->message == IW_TEXT_TIMERS_FULL) &&
             !(id == IW_PAGE_STOPWATCH && m->message == IW_TEXT_LAPS_FULL)) {
-        /* 错误文案随正文滚动，不能覆盖固定的取消/设置按钮。 */
-        ok = ok && label(s, 18, s->content_height + 36, 354, 20, IW_PRODUCT_WARNING, 1, false,
-                         iw_product_texts[m->message]);
+        bool overlay = id == IW_PAGE_CONTROL_CENTER || id == IW_PAGE_NOTIFICATION_LIST ||
+                       id == IW_PAGE_NOTIFICATION_DETAIL || id == IW_PAGE_SMART_STACK ||
+                       id == IW_PAGE_SWITCHER;
+        if (overlay) s->clip_bottom = 408;
+        /* 覆盖页的错误紧邻操作区显示；长列表底部的提示可能永远不在视野内。 */
+        ok = ok && label(s, 18, overlay ? 434 : s->content_height + 36, 354, 20,
+                         IW_PRODUCT_WARNING, 1, overlay, iw_product_texts[m->message]);
         if (ok) s->nodes[s->count - 1].multiline = true;
     }
     if (m->large_text) {

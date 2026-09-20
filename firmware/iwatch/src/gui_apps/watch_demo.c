@@ -495,13 +495,18 @@ static bool input_signal(iw_key_signal_t signal)
     iw_input_context_t context = iw_key_port_context();
     if (iw_recovery_visible()) context = IW_INPUT_RECOVERY;
     else if (context < IW_INPUT_OVERLAY && iw_components_demo_active()) context = IW_INPUT_OVERLAY;
+    else if (context < IW_INPUT_ALERT && iw_router_alert_visible()) context = IW_INPUT_ALERT;
+    else if (context < IW_INPUT_OVERLAY && iw_router_overlay_visible()) context = IW_INPUT_OVERLAY;
     iw_input_intent_t intent = iw_keys_intent(signal, context);
     rt_kprintf("key intent=%u context=%u\n", (unsigned)intent, (unsigned)context);
     switch (intent) {
     case IW_INTENT_HOME: return iw_router_home();
+    case IW_INTENT_CONTROL: return iw_router_open(IW_PAGE_CONTROL_CENTER);
+    case IW_INTENT_SWITCHER: return iw_router_open(IW_PAGE_SWITCHER);
     case IW_INTENT_DISMISS:
         if (context == IW_INPUT_OVERLAY && iw_components_demo_active()) return iw_components_demo_home();
-        /* 尚未接入真实告警/编辑页；诊断上下文只消费，不穿透到下层页面。 */
+        if (context == IW_INPUT_ALERT) return iw_router_back();
+        if (context == IW_INPUT_OVERLAY) return iw_router_home();
         break;
     case IW_INTENT_RECOVER:
         iw_gui_fault_dismiss();

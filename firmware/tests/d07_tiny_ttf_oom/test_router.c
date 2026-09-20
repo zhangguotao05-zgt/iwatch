@@ -54,6 +54,8 @@ static fake_page_t stack[8];
 static unsigned depth, dispatch_index;
 static int queued;
 static fake_page_t queued_page;
+static char queued_removal[16];
+static unsigned queued_target_index;
 static bool held_transition, hold_after_resume, reject_send, reject_page;
 static unsigned reject_back, reject_home;
 static const char *active_app = "Main", *next_app;
@@ -96,10 +98,22 @@ static int gui_app_goback(void)
 }
 static int gui_app_goback_to_page(const char *name)
 {
-    assert(!strcmp(name, "root") && !queued);
+    assert(!queued);
     if (reject_back) { reject_back--; return -1; }
-    queued = 3;
-    return RT_EOK;
+    for (unsigned i = 0; i < depth; i++)
+        if (!strcmp(stack[i].name, name)) {
+            queued_target_index = i;
+            queued = 3;
+            return RT_EOK;
+        }
+    return -1;
+}
+
+static void gui_app_remove_page(const char *name)
+{
+    assert(!queued && strlen(name) < sizeof(queued_removal));
+    memcpy(queued_removal, name, strlen(name) + 1u);
+    queued = 5;
 }
 
 static int gui_app_run(const char *name)
@@ -153,6 +167,15 @@ static void gui_app_process_pending(void)
         notify_page(depth, GUI_APP_MSG_ONRESUME);
         depth++;
         if (hold_after_resume) { held_transition = true; hold_after_resume = false; }
+    } else if (operation == 5) {
+        for (unsigned i = 1; i + 1 < depth; i++)
+            if (!strcmp(stack[i].name, queued_removal)) {
+                notify_page(i, GUI_APP_MSG_ONSTOP);
+                lv_obj_delete(stack[i].screen);
+                memmove(&stack[i], &stack[i + 1], (depth - i - 1u) * sizeof(stack[0]));
+                memset(&stack[--depth], 0, sizeof(stack[0]));
+                break;
+            }
     } else if (operation==4 && (!strcmp(next_app,"iwface") || !strcmp(next_app,"iwlist"))) {
         lv_obj_t *new_screen=route_screen_create(); assert(new_screen);
         notify_page(depth-1,GUI_APP_MSG_ONPAUSE);
@@ -165,7 +188,7 @@ static void gui_app_process_pending(void)
         active_app=next_app; stack[0].screen=new_screen; memcpy(stack[0].name,"root",5); depth=1;
         notify_page(0,GUI_APP_MSG_ONSTART); notify_page(0,GUI_APP_MSG_ONRESUME);
     } else {
-        unsigned target = operation >= 3 ? 0 : depth - 2;
+        unsigned target = operation == 3 ? queued_target_index : operation == 4 ? 0 : depth - 2;
         if (operation == 4) active_app = next_app;
         notify_page(depth - 1, GUI_APP_MSG_ONPAUSE);
         lv_scr_load(stack[target].screen);
@@ -360,6 +383,32 @@ int test_product_router(lv_display_t *display,size_t loops)
         assert(p && p->product && p->product->view.surface && !p->failed && p->scope.visible);
         assert(iw_font_collect());
     }
+    /* 覆盖层的 Home 回原来源；业务跳转确认后删除覆盖页，再按正常栈返回。 */
+    assert(iw_router_open(IW_PAGE_SETTINGS)); process(); assert(depth == 2);
+    assert(iw_router_open(IW_PAGE_CONTROL_CENTER)); process(); assert(depth == 3);
+    assert(overlay_root_id == IW_PAGE_CONTROL_CENTER && iw_router_overlay_visible());
+    assert(iw_router_home()); process(); assert(depth == 2);
+    assert(!overlay_root_id && !iw_router_overlay_visible());
+    assert(iw_router_open(IW_PAGE_CONTROL_CENTER)); process(); assert(depth == 3);
+    reject_page = true;
+    assert(iw_router_open(IW_PAGE_DISPLAY)); process();
+    assert(depth == 3 && overlay_root_id == IW_PAGE_CONTROL_CENTER);
+    route_page_t *control = find_page(stack[2].data);
+    assert(control && control->product && control->product->model.message == IW_TEXT_OPERATION_FAILED);
+    assert(iw_router_open(IW_PAGE_DISPLAY)); process(); process();
+    assert(depth == 3 && !overlay_root_id);
+    assert(iw_router_back()); process(); assert(depth == 2);
+    assert(iw_router_home()); process(); assert(depth == 1);
+    assert(iw_router_open(IW_PAGE_STOPWATCH)); process(); assert(depth == 2);
+    assert(iw_router_home()); process(); assert(depth == 1);
+    bool recent_stopwatch = false;
+    for (unsigned i = 0; i < recent_apps.count; i++)
+        if (recent_apps.entries[i].app_id == IW_APP_STOPWATCH) recent_stopwatch = true;
+    assert(recent_stopwatch);
+    assert(iw_router_open(IW_PAGE_SWITCHER)); process(); assert(depth == 2);
+    route_page_t *switcher = find_page(stack[1].data);
+    assert(switcher && switcher->product && switcher->product->model.recent_apps == &recent_apps);
+    assert(iw_router_home()); process(); assert(depth == 1 && !overlay_root_id);
     notify_page(0,GUI_APP_MSG_ONSTOP); process();
     assert(iw_font_collect());
     for (unsigned i=0;i<ROUTE_SLOTS;i++) assert(!pages[i]);

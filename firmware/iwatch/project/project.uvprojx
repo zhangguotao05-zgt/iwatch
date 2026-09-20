@@ -5651,6 +5651,13 @@
           </Files>
           <Files>
             <File>
+              <FileName>iw_notifications.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\core\iw_notifications.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
               <FileName>iw_alarms.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\src\core\iw_alarms.c</FilePath>
@@ -5765,6 +5772,13 @@
               <FileName>iw_navigator.c</FileName>
               <FileType>1</FileType>
               <FilePath>..\src\gui_core\iw_navigator.c</FilePath>
+            </File>
+          </Files>
+          <Files>
+            <File>
+              <FileName>iw_recent_apps.c</FileName>
+              <FileType>1</FileType>
+              <FilePath>..\src\gui_core\iw_recent_apps.c</FilePath>
             </File>
           </Files>
           <Files>

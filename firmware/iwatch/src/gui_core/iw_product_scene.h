@@ -5,6 +5,8 @@
 #include "iw_routes.h"
 #include "iw_product_text.h"
 #include "iw_theme.h"
+#include "iw_notifications.h"
+#include "iw_recent_apps.h"
 
 #define IW_PRODUCT_NODES 48u
 #define IW_PRODUCT_TEXT_BYTES 128u
@@ -58,7 +60,15 @@ enum {
     IW_ACTION_ALARM_DELETE,
     IW_ACTION_ALERT_ACK,
     IW_ACTION_ALERT_SNOOZE,
-    IW_ACTION_ALERT_OPEN
+    IW_ACTION_ALERT_OPEN,
+    IW_ACTION_STACK_TIMER,
+    IW_ACTION_STACK_ALARM,
+    IW_ACTION_NOTIFICATION_DELETE,
+    IW_ACTION_FACE_NOTIFICATIONS,
+    IW_ACTION_FACE_STACK,
+    IW_ACTION_NOTIFICATION_OPEN_BASE = 0x1200,
+    IW_ACTION_RECENT_OPEN_BASE = 0x1240,
+    IW_ACTION_RECENT_REMOVE_BASE = 0x1280
 };
 typedef struct {
     int16_t x, y, width, height, baseline;
@@ -93,11 +103,16 @@ typedef struct {
     iw_alert_record_t selected_alert;
     iw_stopwatch_view_model_t stopwatch;
     iw_time_draft_t draft;
+    const iw_notification_store_t *notifications;
+    const iw_recent_apps_t *recent_apps;
+    iw_notification_t selected_notification;
+    uint32_t notification_ids[IW_NOTIFICATION_CAPACITY];
     const char *hardware, *firmware, *toolchain;
     iw_product_text_id_t message;
     uint8_t preview_level;
     iw_theme_quality_t quality;
     bool back, large_text, pending, display_available, time_available, reduced_motion;
+    bool selected_notification_valid;
 } iw_product_model_t;
 /* 固定容量；全部字符串复制。输出不引用页面草稿或临时格式化缓冲。 */
 bool iw_product_scene_build(iw_product_scene_t *scene, uint16_t page_id, const iw_product_model_t *model);

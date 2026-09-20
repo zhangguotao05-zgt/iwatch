@@ -5,8 +5,8 @@
 <link rel="stylesheet" href="../assets/engineering.css">
 <style>table{min-width:700px}td,th{vertical-align:top}code{overflow-wrap:anywhere}.note{border-left:4px solid #0a84ff;padding:12px 18px;background:#162133}.small{color:#b9bbc6}</style>
 </head><body><main>
-<header><h1>D13 系统覆盖层与表盘管理设计 v2</h1><p class="doc-meta">2026-09-20 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/15">Issue #15</a> · D13-A 重新申请架构复核 · 仅设计，不是功能验收</p></header>
-<p class="note">D12 审批基线 <code>62f0686</code>、固件源码 <code>9fa21c8</code> 保持不变。本版修正 v1 的输入优先级和 Home 口径，恢复 32 条普通通知的独立契约，并冻结覆盖层、历史、表盘与 390×450 视觉目标。针对 v2 复核，再补齐覆盖层转业务页的事务及 Back 落点、控制中心普通锁产品入口。在 v2 获批前不进入 D13-B；本版没有修改固件、目标构建或开发板。</p>
+<header><h1>D13 系统覆盖层与表盘管理设计 v2</h1><p class="doc-meta">2026-09-20 · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/15">Issue #15</a> · D13-A 审批基线 <code>c7617c2</code> · 仅设计，不是功能验收</p></header>
+<p class="note">D12 审批基线 <code>62f0686</code>、固件源码 <code>9fa21c8</code> 保持不变。本版修正 v1 的输入优先级和 Home 口径，恢复 32 条普通通知的独立契约，并冻结覆盖层、历史、表盘与 390×450 视觉目标。覆盖层转业务页的事务及 Back 落点、控制中心普通锁产品入口已补齐；架构以 <code>c7617c2</code> 批准 D13-A，允许开始 B。此审批仅针对设计，不代表 B 功能通过。</p>
 
 <section id="decisions"><h2>六项设计决定</h2><table><thead><tr><th>复核项</th><th>v2 冻结结果</th><th>B/C 阶段验证门槛</th></tr></thead><tbody>
 <tr><td>输入优先级与解锁</td><td>恢复 → 水锁 → 普通输入锁 → 关键提醒 → 普通覆盖层 → 页面 → 全局。视觉层可以显示提醒，但锁优先拥有输入。两种锁均由 KEY1 连续按住至少 2,000 ms 后真实松开确认；普通锁无密码或安全认证含义。</td><td>锁期间触摸、KEY2、KEY1 短按不穿透；故障与重启有退出路径。</td></tr>
@@ -21,7 +21,7 @@
 <p>D09 的语义识别器先处理原始按下／释放，再由当前 GUI 上下文唯一消费。<strong>输入优先级</strong>严格为应急恢复、<code>IW_INPUT_WATER</code>、<code>IW_INPUT_LOCKED</code>、<code>IW_INPUT_ALERT</code>、<code>IW_INPUT_OVERLAY</code>、页面编辑／滚动、NORMAL 全局。<strong>画面 Z 序</strong>与输入所有权分开：关键提醒可以显示在锁页上方，但锁定时只显示不含敏感详情的“有待处理提醒”；提醒按钮和触摸仍不可用，解锁后才重新读取 D12 快照并显示可操作内容。不能因提醒出现而切换到 ALERT 输入上下文。</p>
 <p>水锁沿用 D09 KEY1（开发板的表冠按压替代）连续按住 2,000 ms 解锁。普通输入锁也选 KEY1 连续按住至少 2,000 ms、<strong>松开后</strong>才解除；两者由上下文区分，KEY1 长按只产生一次 UNLOCK，不补发单击／Home，KEY2、旋转与触摸均不得解锁。达到阈值仅显示进度完成，释放前仍保持锁定。锁定前已按下的键和触点全部取消；解锁后等真实物理释放与下一次完整新触点，禁止跨页残留手势。普通锁只防误触，不宣称密码保护、摘腕检测或持久锁定。</p>
 <p>进入锁页采用 GUI owner 的事务：确认 KEY1 可读且退出路径有效 → 取消现有输入 → 创建并首次绘制锁页 → 切换输入上下文。创建／绘制失败则保留原页和原上下文，锁入口显示不可用。锁页存活中发生字体 OOM、页面故障或显示恢复失败时，停止计时器与回调、取消输入、撤销锁上下文，再由预创建应急层接管；应急层 KEY1 单击回应用列表。重启后会话锁状态清零。显示恢复成功但锁页仍有效时重绘锁页、保持锁上下文；不可确认时进入应急层，不显示未锁定的旧页面。GPIO 卡死或 KEY1 缺失时禁止开启锁；硬件 RESET 是最后的物理退出，不冒称软件可解开损坏按键。</p>
-<p>当前 <code>iw_keys_intent()</code> 对 <code>IW_INPUT_LOCKED</code> 固定返回 NONE；识别器也只有 <code>water_lock</code> 模式才采用 2,000 ms 阈值，并在达到阈值时、<strong>尚未松手</strong>就发出 <code>IW_KEY_UNLOCK</code>。因此 C 阶段必须一并修改识别器的锁模式与边沿状态：达到阈值只置待确认，释放边沿才输出一次 UNLOCK；在释放前取消、页面故障或再次切上下文都清除候选。普通锁和水锁共用时长与释放门控，但分别保留上下文；更新既有 D09 水锁主机及实机回归，不能只改 <code>IW_INPUT_LOCKED → NONE</code> 的意图映射。输入上下文和可见页面须在同一 GUI 安全点提交。D09 已批准的触摸溢出取消、短临界区、GUI 独占 LVGL 与恢复优先级继续有效；v2 不把尚未修改的代码说成已支持。</p></section>
+<p>当前 <code>iw_keys_intent()</code> 对 <code>IW_INPUT_LOCKED</code> 固定返回 NONE；识别器也只有 <code>water_lock</code> 模式才采用 2,000 ms 阈值，并在达到阈值时、<strong>尚未松手</strong>就发出 <code>IW_KEY_UNLOCK</code>。因此 C 阶段必须一并修改识别器的锁模式与边沿状态：达到阈值只置待确认，释放边沿才输出一次 UNLOCK；在释放前取消、页面故障或再次切上下文都清除候选。普通锁和水锁共用时长与释放门控，但分别保留上下文；更新既有 D09 水锁主机及实机回归，不能只改 <code>IW_INPUT_LOCKED → NONE</code> 的意图映射。输入上下文和可见页面须在同一 GUI 安全点提交。D09 已批准的触摸溢出取消、短临界区、GUI 独占 LVGL 与恢复优先级继续有效；v2 不把尚未修改的代码说成已支持。</p>
 <p><strong>普通输入锁的产品入口固定为控制中心底部整行“输入锁”</strong>，见<a href="D13_系统页面视觉目标_v1.html#control">控制中心稿</a>。D13-B 尚无锁页和可靠的松手解锁时，该行显示“未接入”且禁用，不能通过串口诊断入口替代产品入口；D13-C 完成 KEY1 可读／退出路径自检、故障回退和输入回归后才启用。点击时仍按上一段的 GUI 事务处理：成功关闭控制中心并进入锁页，解锁后返回进入控制中心前按值记录的来源 B；准备或首次绘制失败则保留控制中心、其滚动位置及原输入上下文，并显示不可用原因。来源已失效时按表盘→应用列表→应急层回退。</p></section>
 
 <section id="overlay"><h2>覆盖层状态与 Home／Back 表</h2>
@@ -66,7 +66,7 @@
 
 <section id="gates"><h2>实施次序与验收矩阵</h2>
 <table><thead><tr><th>阶段</th><th>应交付</th><th>通过条件</th></tr></thead><tbody>
-<tr><td>A · 本轮设计</td><td>本 v2、总契约同步、九张视觉稿与 Issue #15</td><td>原六项及补正的两处入口／路由问题均经架构复核，批准后才修改 D13-B 产品代码。</td></tr>
+<tr><td>A · 设计</td><td>本 v2、总契约同步、九张视觉稿与 Issue #15</td><td>原六项及补正的两处入口／路由问题已按 <code>c7617c2</code> 通过架构审批；允许开始 B，未替 B 验收。</td></tr>
 <tr><td>B · 内容</td><td>控制中心、32 条普通通知及关键提醒投影、叠放、切换器；历史统一提交</td><td>主机覆盖通知满额淘汰／UTF-8／旧 ID、Home 首次秒表历史、6＋1 驱逐、8＋1 路由、两层覆盖／提醒插入、OOM 与来源失效；四条<a href="#business-exit">覆盖层转业务页</a>逐项验证成功、失败、Back、历史和选择保留；普通输入锁入口显示“未接入”且不可点击；再做双工具链与实机。</td></tr>
 <tr><td>C · 锁与表盘</td><td>两种锁、可达解锁、两款表盘会话配置与选择／编辑</td><td>普通锁入口通过 KEY1 自检后才启用；验证进入失败保留控制中心、成功关闭覆盖层、解锁回来源 B。1000 轮锁进入退出及上下文竞争、真实松手、应急恢复；表盘草稿取消／revision 冲突／OOM／首帧失败保留旧配置，双堆峰值和无增长。</td></tr>
 <tr><td>D · 综合</td><td>正常／放大、Q0／Q1、最长中文、空态、真实提醒插入、构建身份和开发板复验</td><td>主机、GCC/Keil 身份及预算、COM9 写后校验、COM10 原始日志、人工实屏和性能分别记录；不能把 #8／#10 或 D15 算作已完成。</td></tr>
