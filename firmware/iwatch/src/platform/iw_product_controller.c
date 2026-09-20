@@ -207,6 +207,23 @@ static bool alert_same(const iw_alert_record_t *a, const iw_alert_record_t *b) {
            a->presentation_epoch == b->presentation_epoch && a->state == b->state;
 }
 
+/* 将实体失效映射到用户能采取行动的具体提示，避免用通用错误掩盖状态变化。 */
+static iw_product_text_id_t entity_changed_text(uint16_t page_id)
+{
+    switch (page_id) {
+    case IW_PAGE_TIMER_LIST:
+    case IW_PAGE_TIMER_DETAIL:
+    case IW_PAGE_ALERT_TIMER:
+        return IW_TEXT_TIMER_CHANGED;
+    case IW_PAGE_ALARM_LIST:
+    case IW_PAGE_ALARM_EDIT:
+    case IW_PAGE_ALERT_ALARM:
+        return IW_TEXT_ALARM_CHANGED;
+    default:
+        return IW_TEXT_OPERATION_FAILED;
+    }
+}
+
 bool iw_product_set_profile(iw_theme_quality_t quality, bool large_text, bool reduced_motion) {
     if (!iw_font_port_is_owner() || !iw_theme_effects(quality, reduced_motion)) return false;
     profile_quality = quality;
@@ -390,7 +407,7 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
             p->model.alarms.alarms[index].alarm_id == expected_id)
             p->navigate(IW_PAGE_ALARM_EDIT, expected_id, p->context);
         else {
-            p->model.message = IW_TEXT_NOTIFICATION_CHANGED;
+            p->model.message = IW_TEXT_ALARM_CHANGED;
             p->dirty = true;
         }
         return;
@@ -435,7 +452,8 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
                         IW_PAGE_ALERT_TIMER : IW_PAGE_ALERT_ALARM,
                         record->entity_id, p->context);
         } else {
-            p->model.message = IW_TEXT_NOTIFICATION_CHANGED;
+            p->model.message = expected.source_type == IW_ALERT_SOURCE_TIMER ?
+                               IW_TEXT_TIMER_CHANGED : IW_TEXT_ALARM_CHANGED;
             p->dirty = true;
         }
         return;
@@ -518,7 +536,7 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
             p->model.timers.timers[index].timer_id == expected_id)
             p->navigate(IW_PAGE_TIMER_DETAIL, expected_id, p->context);
         else {
-            p->model.message = IW_TEXT_OPERATION_FAILED;
+            p->model.message = IW_TEXT_TIMER_CHANGED;
             p->dirty = true;
         }
         return;
@@ -729,6 +747,11 @@ uint32_t iw_product_process(void) {
                 p->model.message = IW_TEXT_LAPS_FULL;
             else if (result.code == IW_RESULT_CAPACITY && p->page_id == IW_PAGE_TIMER_LIST)
                 p->model.message = IW_TEXT_TIMERS_FULL;
+            else if ((result.code == IW_RESULT_STATE_CONFLICT || result.code == IW_RESULT_ABSENT) &&
+                     (p->page_id == IW_PAGE_TIMER_LIST || p->page_id == IW_PAGE_TIMER_DETAIL ||
+                      p->page_id == IW_PAGE_ALARM_LIST || p->page_id == IW_PAGE_ALARM_EDIT ||
+                      p->page_id == IW_PAGE_ALERT_TIMER || p->page_id == IW_PAGE_ALERT_ALARM))
+                p->model.message = entity_changed_text(p->page_id);
             else
                 p->model.message = result.code == IW_RESULT_STATE_CONFLICT && p->page_id == IW_PAGE_TIME ? IW_TEXT_TIME_CONFLICT
                                    : p->page_id == IW_PAGE_TIME ? IW_TEXT_TIME_FAILED

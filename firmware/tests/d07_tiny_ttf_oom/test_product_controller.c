@@ -268,7 +268,7 @@ int test_product_controller(size_t loops) {
     assert(iw_timer_cancel(&model.chronograph, 0, stale_timer_id,
                            page.model.timers.timers[0].revision) == IW_CHRONO_OK);
     page.view.action(IW_ACTION_TIMER_OPEN_BASE, 0, true, page.view.context);
-    assert(navigations == before_navigation && page.model.message == IW_TEXT_OPERATION_FAILED);
+    assert(navigations == before_navigation && page.model.message == IW_TEXT_TIMER_CHANGED);
     assert(iw_product_destroy(&page));
 
     /* 叠放入口同样不使用旧缓存：计时器在展示后结束时不得跳入详情页。 */
@@ -293,9 +293,9 @@ int test_product_controller(size_t loops) {
     /* 多个闹钟按槽位乱序时，叠放必须绑定最早到期的稳定 alarm_id。 */
     model.alarms = (iw_alarms_t){0};
     assert(iw_alarms_init(&model.alarms));
-    model.alarms.alarms[0] = (iw_alarm_t){.alarm_id = 21u, .enabled = 1u,
+    model.alarms.alarms[0] = (iw_alarm_t){.alarm_id = 21u, .revision = 1u, .enabled = 1u,
                                            .next_due_utc_ms = 300000u};
-    model.alarms.alarms[1] = (iw_alarm_t){.alarm_id = 22u, .enabled = 1u,
+    model.alarms.alarms[1] = (iw_alarm_t){.alarm_id = 22u, .revision = 1u, .enabled = 1u,
                                            .next_due_utc_ms = 100000u};
     memset(&page, 0, sizeof(page));
     assert(iw_product_create(&page, IW_PAGE_SMART_STACK, 0u, 200007u, true,
@@ -306,6 +306,22 @@ int test_product_controller(size_t loops) {
     page.view.action(IW_ACTION_STACK_ALARM, 0, true, page.view.context);
     assert(navigations == before_navigation && page.model.message == IW_TEXT_ALARM_CHANGED);
     page.view.action(IW_ACTION_STACK_ALARM, 0, true, page.view.context);
+    assert(navigations == before_navigation && page.model.message == IW_TEXT_ALARM_CHANGED);
+    assert(iw_product_destroy(&page));
+
+    /* 闹钟列表的缓存实体失效时也必须给出闹钟专属提示。 */
+    model.alarms.alarms[0] = (iw_alarm_t){.alarm_id = 30u, .revision = 1u,
+                                           .enabled = 1u, .next_due_utc_ms = 200000u};
+    model.alarms.alarms[1] = (iw_alarm_t){.alarm_id = 31u, .revision = 1u,
+                                           .enabled = 1u, .next_due_utc_ms = 200000u};
+    memset(&page, 0, sizeof(page));
+    assert(iw_product_create(&page, IW_PAGE_ALARM_LIST, 0u, 200007u, true,
+                             navigate, stop, &model));
+    before_navigation = navigations;
+    assert(iw_alarms_delete(&model.alarms, &model.alerts,
+                            page.model.alarms.alarms[0].alarm_id,
+                            page.model.alarms.alarms[0].revision) == IW_ALARM_OK);
+    page.view.action(IW_ACTION_ALARM_OPEN_BASE, 0, true, page.view.context);
     assert(navigations == before_navigation && page.model.message == IW_TEXT_ALARM_CHANGED);
     assert(iw_product_destroy(&page));
 
@@ -322,7 +338,7 @@ int test_product_controller(size_t loops) {
                                    created_timer.timer_id) == IW_ALERT_OK);
     before_navigation = navigations;
     page.view.action(IW_ACTION_ALERT_OPEN, 0, true, page.view.context);
-    assert(navigations == before_navigation && page.model.message == IW_TEXT_NOTIFICATION_CHANGED);
+    assert(navigations == before_navigation && page.model.message == IW_TEXT_TIMER_CHANGED);
     assert(iw_product_destroy(&page));
     assert(iw_font_collect());
     assert(test_font_live_bytes() == bytes && test_font_live_blocks() == blocks);
