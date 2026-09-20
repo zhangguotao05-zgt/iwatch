@@ -157,6 +157,7 @@ static void destructor(const lv_obj_class_t *class_p, lv_obj_t *object) {
     v->picker_snapping = false;
     v->surface = NULL;
     v->pressed = -1;
+    v->press_x = v->last_x = 0;
     for (unsigned i = 0; i < sizeof(sizes); i++)
         (void)iw_font_release(&v->fonts[i]);
 }
@@ -261,6 +262,7 @@ bool iw_product_view_create(iw_product_view_t *v, lv_obj_t *parent, uint16_t pag
     v->scene.page_id = page_id;
     v->scene.picker_field = IW_EDIT_NONE;
     v->pressed = -1;
+    v->press_x = v->last_x = 0;
     v->feedback_node = -1;
     v->press_value = 0;
     v->animating = false;
@@ -395,6 +397,7 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
     int x = point.x - surface->base.coords.x1, y = point.y - surface->base.coords.y1;
     if (code == LV_EVENT_PRESSED) {
         v->pressed = (int16_t)iw_product_scene_hit(&v->scene, x, y, v->scroll_y);
+        v->press_x = v->last_x = (int16_t)x;
         v->last_y = v->press_y = (int16_t)y;
         v->dragging = false;
         v->picker_snapping = false;
@@ -404,13 +407,18 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
     uint16_t action = v->pressed >= 0 ? v->scene.nodes[v->pressed].action : 0;
     if (action == IW_ACTION_TRACK) {
         if (v->action)
-            v->action(action, iw_brightness_track_level(x - 18), code == LV_EVENT_RELEASED, v->context);
+            v->action(action, iw_brightness_track_level(x), code == LV_EVENT_RELEASED, v->context);
     } else if (code == LV_EVENT_PRESSING) {
-        if (!v->dragging && (y - v->press_y > 12 || v->press_y - y > 12)) {
+        bool horizontal_switcher = v->scene.page_id == IW_PAGE_SWITCHER;
+        if (!v->dragging && (horizontal_switcher ?
+                             (x - v->press_x > 12 || v->press_x - x > 12) :
+                             (y - v->press_y > 12 || v->press_y - y > 12))) {
             v->dragging = true;
             feedback(v, false);
         }
-        if (v->dragging && v->scene.picker_field != IW_EDIT_NONE &&
+        if (v->dragging && horizontal_switcher) {
+            v->last_x = (int16_t)x;
+        } else if (v->dragging && v->scene.picker_field != IW_EDIT_NONE &&
             v->press_y >= PICKER_TOP && v->press_y < PICKER_BOTTOM) {
             int offset = y - v->press_y;
             v->picker_offset = (int16_t)(offset < -PICKER_STEP_PX ? -PICKER_STEP_PX :
@@ -422,7 +430,13 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
         bool click = !v->dragging && v->pressed >= 0 &&
                      iw_product_scene_hit(&v->scene, x, y, v->scroll_y) == v->pressed;
         v->pressed = -1;
-        if (v->dragging && v->scene.picker_field != IW_EDIT_NONE &&
+        if (v->dragging && v->scene.page_id == IW_PAGE_SWITCHER) {
+            int delta = x - v->press_x;
+            if (delta <= -48 && v->action)
+                v->action(IW_ACTION_RECENT_NEXT, 1, true, v->context);
+            else if (delta >= 48 && v->action)
+                v->action(IW_ACTION_RECENT_PREVIOUS, -1, true, v->context);
+        } else if (v->dragging && v->scene.picker_field != IW_EDIT_NONE &&
             v->press_y >= PICKER_TOP && v->press_y < PICKER_BOTTOM) {
             int steps = v->picker_offset > PICKER_STEP_PX / 2 ? -1 :
                         v->picker_offset < -PICKER_STEP_PX / 2 ? 1 : 0;

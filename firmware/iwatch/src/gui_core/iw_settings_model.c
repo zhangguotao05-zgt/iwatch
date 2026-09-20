@@ -4,8 +4,8 @@
 
 #define SECONDS_PER_DAY INT64_C(86400)
 #define LOCAL_MIN_SECONDS (IW_TIME_MIN_UTC_SECONDS - INT64_C(365) * SECONDS_PER_DAY)
-#define TRACK_FIRST 96
-#define TRACK_LAST 258
+#define TRACK_FIRST 36
+#define TRACK_LAST 354
 
 static bool leap(int year) {
     return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);

@@ -274,16 +274,39 @@ int test_product_controller(size_t loops) {
     /* 叠放入口同样不使用旧缓存：计时器在展示后结束时不得跳入详情页。 */
     model.chronograph = (iw_chronograph_t){0};
     assert(iw_chronograph_init(&model.chronograph));
-    iw_timer_view_t created_timer;
+    iw_timer_view_t created_timer, second_timer;
     assert(iw_timer_create(&model.chronograph, 0, 60000u, &created_timer) == IW_CHRONO_OK);
+    assert(iw_timer_create(&model.chronograph, 0, 120000u, &second_timer) == IW_CHRONO_OK);
     memset(&page, 0, sizeof(page));
     assert(iw_product_create(&page, IW_PAGE_SMART_STACK, 0u, 200007u, true,
                              navigate, stop, &model));
+    assert(page.model.stack_timer_id == created_timer.timer_id);
     assert(iw_timer_cancel(&model.chronograph, 0, created_timer.timer_id,
                            created_timer.revision) == IW_CHRONO_OK);
     before_navigation = navigations;
     page.view.action(IW_ACTION_STACK_TIMER, 0, true, page.view.context);
-    assert(navigations == before_navigation && page.model.message == IW_TEXT_OPERATION_FAILED);
+    assert(navigations == before_navigation && page.model.message == IW_TEXT_TIMER_CHANGED);
+    page.view.action(IW_ACTION_STACK_TIMER, 0, true, page.view.context);
+    assert(navigations == before_navigation && page.model.message == IW_TEXT_TIMER_CHANGED);
+    assert(iw_product_destroy(&page));
+
+    /* 多个闹钟按槽位乱序时，叠放必须绑定最早到期的稳定 alarm_id。 */
+    model.alarms = (iw_alarms_t){0};
+    assert(iw_alarms_init(&model.alarms));
+    model.alarms.alarms[0] = (iw_alarm_t){.alarm_id = 21u, .enabled = 1u,
+                                           .next_due_utc_ms = 300000u};
+    model.alarms.alarms[1] = (iw_alarm_t){.alarm_id = 22u, .enabled = 1u,
+                                           .next_due_utc_ms = 100000u};
+    memset(&page, 0, sizeof(page));
+    assert(iw_product_create(&page, IW_PAGE_SMART_STACK, 0u, 200007u, true,
+                             navigate, stop, &model));
+    assert(page.model.stack_alarm_id == 22u);
+    model.alarms.alarms[1].enabled = 0u;
+    before_navigation = navigations;
+    page.view.action(IW_ACTION_STACK_ALARM, 0, true, page.view.context);
+    assert(navigations == before_navigation && page.model.message == IW_TEXT_ALARM_CHANGED);
+    page.view.action(IW_ACTION_STACK_ALARM, 0, true, page.view.context);
+    assert(navigations == before_navigation && page.model.message == IW_TEXT_ALARM_CHANGED);
     assert(iw_product_destroy(&page));
 
     /* 通知入口在点击前核对 occurrence；实体消失后只显示变化提示。 */

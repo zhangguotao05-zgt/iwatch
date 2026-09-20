@@ -149,15 +149,38 @@ static void input_cases(iw_product_view_t *view, iw_product_model_t *m) {
     assert(iw_product_view_create(view, lv_screen_active(), IW_PAGE_BRIGHTNESS, m, pointer_action_cb, NULL, NULL));
     lv_obj_update_layout(view->surface);
     pointer_actions = pointer_finals = 0;
-    touch(input, 120, 310, true);
-    touch(input, 276, 310, true);
-    touch(input, 276, 310, false);
+    touch(input, 120, 340, true);
+    touch(input, 354, 340, true);
+    touch(input, 354, 340, false);
     assert(pointer_action == IW_ACTION_TRACK && pointer_value == 100 && pointer_finals == 1);
-    touch(input, 120, 310, true);
+    touch(input, 120, 340, true);
     lv_indev_reset(input, NULL);
     touch(input, 120, 310, false);
     assert(pointer_finals == 1);
     assert(iw_product_view_destroy(view));
+
+    /* 切换器使用横向手势；向左滑动只发出下一项动作，不触发卡片打开。 */
+    static iw_recent_apps_t switcher_recent;
+    memset(&switcher_recent, 0, sizeof(switcher_recent));
+    switcher_recent.count = 2;
+    switcher_recent.entries[0].app_id = IW_APP_SETTINGS;
+    switcher_recent.entries[0].resume.route = (iw_route_t){IW_PAGE_SETTINGS, 0};
+    switcher_recent.entries[1].app_id = IW_APP_STOPWATCH;
+    switcher_recent.entries[1].resume.route = (iw_route_t){IW_PAGE_STOPWATCH, 0};
+    m->recent_apps = &switcher_recent;
+    m->recent_index = 0;
+    assert(iw_product_view_create(view, lv_screen_active(), IW_PAGE_SWITCHER, m,
+                                  pointer_action_cb, NULL, NULL));
+    lv_obj_update_layout(view->surface);
+    pointer_actions = pointer_finals = 0;
+    touch(input, 195, 240, true);
+    touch(input, 120, 240, true);
+    touch(input, 120, 240, false);
+    assert(pointer_actions == 1 && pointer_finals == 1 &&
+           pointer_action == IW_ACTION_RECENT_NEXT);
+    assert(iw_product_view_destroy(view));
+    m->recent_apps = NULL;
+
     picker_cases(input, view, m);
     lv_indev_delete(input);
 }
@@ -242,8 +265,17 @@ static void d13_scene_boundaries(iw_product_model_t *m)
     assert(display_hit >= 0 && scene.nodes[display_hit].action == IW_PAGE_DISPLAY);
     assert(iw_product_scene_hit(&scene, 110, 360, 0) == -1);
     bool control_geometry = false;
+    bool brightness_geometry = false;
+    bool track_visual = false;
+    bool track_hit = false;
     for (unsigned i = 0; i < scene.count; i++) {
         const iw_product_node_t *node = &scene.nodes[i];
+        if (node->x == 18 && node->y == 110 && node->width == 354 && node->height == 98)
+            brightness_geometry = true;
+        if (!node->action && node->x == 36 && node->y == 158 &&
+            node->width == 318 && node->height == 40) track_visual = true;
+        if (node->action == IW_ACTION_TRACK)
+            track_hit = node->x == 32 && node->y == 150 && node->width == 326 && node->height == 56;
         if (node->action == IW_PAGE_DISPLAY)
             control_geometry = node->x == 202 && node->y == 220 &&
                                node->width == 170 && node->height == 98;
@@ -251,7 +283,10 @@ static void d13_scene_boundaries(iw_product_model_t *m)
             assert(node->x == 18 && node->y == 330 && node->width == 354 &&
                    node->height == 96 && node->disabled);
     }
-    assert(control_geometry);
+    assert(control_geometry && brightness_geometry && track_visual && track_hit);
+    assert(iw_product_scene_scroll_limit(&scene) == 0);
+    int track_node = iw_product_scene_hit(&scene, 100, 150, 0);
+    assert(track_node >= 0 && scene.nodes[track_node].action == IW_ACTION_TRACK);
     m->notifications = &notifications;
     assert(iw_product_scene_build(&scene, IW_PAGE_NOTIFICATION_LIST, m));
     assert(has_text(&scene, "暂无通知"));
@@ -280,11 +315,14 @@ static void d13_scene_boundaries(iw_product_model_t *m)
     assert(iw_product_scene_scroll_limit(&scene) > 0 && has_text(&scene, "删除"));
     assert(iw_product_scene_build(&scene, IW_PAGE_SMART_STACK, m));
     assert(has_text(&scene, "暂无活动计时器") && has_text(&scene, "暂无下次闹钟"));
-    m->alarms.count = 1u;
-    m->alarms.alarms[0].enabled = 1u;
-    m->alarms.alarms[0].next_due_utc_ms = m->clock.utc_ms + 3600000u;
+    m->alarms.count = 2u;
+    m->alarms.alarms[0] = (iw_alarm_t){.alarm_id = 10u, .enabled = 1u,
+                                       .next_due_utc_ms = (uint64_t)m->clock.utc_ms + 3u * 3600000u};
+    m->alarms.alarms[1] = (iw_alarm_t){.alarm_id = 11u, .enabled = 1u,
+                                       .next_due_utc_ms = (uint64_t)m->clock.utc_ms + 1u * 3600000u};
     assert(iw_product_scene_build(&scene, IW_PAGE_SMART_STACK, m));
     assert(has_fragment(&scene, "闹钟") && has_fragment(&scene, ":"));
+    assert(has_fragment(&scene, "11:"));
     m->recent_apps = &recent;
     assert(iw_product_scene_build(&scene, IW_PAGE_SWITCHER, m));
     assert(has_text(&scene, "暂无最近应用"));
@@ -294,14 +332,18 @@ static void d13_scene_boundaries(iw_product_model_t *m)
     assert(has_text(&scene, "秒表"));
     bool open_geometry = false;
     bool remove_action = false;
+    bool horizontal_controls = false;
     for (unsigned i = 0; i < scene.count; i++) {
         const iw_product_node_t *node = &scene.nodes[i];
         if (node->action == IW_ACTION_RECENT_OPEN_BASE && !strcmp(node->text, "打开"))
             open_geometry = node->x == 107 && node->y == 370 &&
                            node->width == 176 && node->height == 60;
-        if (node->action == IW_ACTION_RECENT_REMOVE_BASE) remove_action = true;
+        if (node->action == IW_ACTION_RECENT_REMOVE_BASE)
+            remove_action = node->width == 56 && node->height == 56;
+        if (node->action == IW_ACTION_RECENT_NEXT || node->action == IW_ACTION_RECENT_PREVIOUS)
+            horizontal_controls = true;
     }
-    assert(open_geometry && remove_action);
+    assert(open_geometry && remove_action && horizontal_controls);
     for (unsigned i = 0; i < scene.count; i++) {
         const iw_product_node_t *n = &scene.nodes[i];
         assert(n->x >= 0 && n->x + n->width <= 390);
@@ -327,6 +369,7 @@ static void scene_boundaries(iw_product_model_t *m) {
     m->timers.revision = 2u;
     m->timers.timers[0] = (iw_timer_view_t){.timer_id = 7u, .revision = 3u,
         .duration_ms = 60000u, .remaining_ms = 42500u, .state = IW_TIMER_RUNNING};
+    m->stack_timer_id = 7u;
     m->selected_timer = m->timers.timers[0];
     assert(iw_product_scene_build(&scene, IW_PAGE_TIMER_LIST, m));
     assert(has_text(&scene, "快速开始") && has_text(&scene, "1 分钟"));
@@ -443,12 +486,12 @@ static void scene_boundaries(iw_product_model_t *m) {
     m->brightness.flags = 0;
     m->display_available = false;
     assert(iw_product_scene_build(&scene, IW_PAGE_BRIGHTNESS, m));
-    assert(has_text(&scene, "--%") && iw_product_scene_hit(&scene, 180, 310, 0) < 0);
+    assert(has_text(&scene, "--%") && iw_product_scene_hit(&scene, 180, 340, 0) < 0);
     m->display_available = true;
     m->brightness.flags = IW_BRIGHTNESS_FLAG_APPLIED_VALID;
     m->brightness.applied = 100;
     assert(iw_product_scene_build(&scene, IW_PAGE_BRIGHTNESS, m));
-    assert(has_text(&scene, "100%") && iw_product_scene_hit(&scene, 180, 310, 0) >= 0);
+    assert(has_text(&scene, "100%") && iw_product_scene_hit(&scene, 180, 340, 0) >= 0);
     m->pending = true;
     m->brightness.desired = 5;
     assert(iw_product_scene_build(&scene, IW_PAGE_BRIGHTNESS, m) && has_text(&scene, "5%"));

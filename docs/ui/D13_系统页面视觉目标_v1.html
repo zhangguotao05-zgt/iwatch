@@ -13,9 +13,9 @@
 <div class="screen-grid">
 <figure id="control"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-label="控制中心代表稿"><rect width="390" height="450" rx="42" fill="#000"/><text x="28" y="88" class="title">控制中心</text><text x="348" y="43" text-anchor="end" class="small">10:09</text>
 <rect x="18" y="110" width="354" height="98" rx="24" fill="#242426"/><text x="36" y="145" class="small">亮度</text><rect x="36" y="158" width="318" height="40" rx="20" fill="#44464d"/><rect x="36" y="158" width="250" height="40" rx="20" fill="#f3f3f7"/><text x="340" y="145" text-anchor="end" class="note sub">80%</text>
-<rect x="18" y="220" width="170" height="98" rx="24" fill="#0a84ff"/><path d="M103 236c-11 16-18 25-18 35a18 18 0 0 0 36 0c0-10-7-19-18-35z" fill="#fff"/><text x="103" y="309" text-anchor="middle" class="small">水锁</text>
+<rect x="18" y="220" width="170" height="98" rx="24" fill="#303136"/><path d="M103 236c-11 16-18 25-18 35a18 18 0 0 0 36 0c0-10-7-19-18-35z" fill="#91939d"/><text x="103" y="278" text-anchor="middle" class="small muted">水锁</text><text x="103" y="302" text-anchor="middle" class="note muted">未接入 C</text>
 <rect x="202" y="220" width="170" height="98" rx="24" fill="#242426"/><circle cx="287" cy="267" r="19" fill="none" stroke="#fff" stroke-width="3"/><circle cx="287" cy="267" r="9" fill="#fff"/><text x="287" y="309" text-anchor="middle" class="small">显示设置</text>
-<rect x="18" y="330" width="354" height="96" rx="24" fill="#1a1a1d"/><rect x="43" y="363" width="34" height="28" rx="7" fill="none" stroke="#91939d" stroke-width="3"/><path d="M49 363v-7a11 11 0 0 1 22 0v7" fill="none" stroke="#91939d" stroke-width="3"/><text x="95" y="370" class="small muted">输入锁</text><text x="95" y="398" class="note muted">未接入 · C 阶段启用</text></svg><figcaption>控制中心：底部整行是普通输入锁的正式入口，图中呈 B 阶段禁用态；C 阶段经 KEY1 解锁自检后启用。水滴图形与水锁页一致；无线、电池与支付没有来源，不画假开关。</figcaption></figure>
+<rect x="18" y="330" width="354" height="96" rx="24" fill="#1a1a1d"/><rect x="43" y="363" width="34" height="28" rx="7" fill="none" stroke="#91939d" stroke-width="3"/><path d="M49 363v-7a11 11 0 0 1 22 0v7" fill="none" stroke="#91939d" stroke-width="3"/><text x="95" y="370" class="small muted">输入锁</text><text x="95" y="398" class="note muted">未接入 C</text></svg><figcaption>控制中心：B 阶段水锁和普通输入锁均显示为禁用的真实能力占位，不提供假解锁入口；C 阶段完成对应按键自检后再启用。无线、电池与支付没有来源，不画假开关。</figcaption></figure>
 
 <figure id="notification-list"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-label="通知列表代表稿"><rect width="390" height="450" rx="42" fill="#000"/><text x="28" y="88" class="title">通知</text><text x="348" y="43" text-anchor="end" class="small">10:09</text>
 <text x="34" y="132" class="note sub">待处理提醒</text><rect x="18" y="146" width="354" height="106" rx="24" fill="#30252a"/><rect x="18" y="146" width="7" height="106" rx="3" fill="#ff453a"/><text x="42" y="186" class="body">计时器结束</text><text x="42" y="224" class="small sub">点开后可停止或稍后</text>
@@ -52,7 +52,7 @@
 </div>
 
 <section id="geometry"><h2>坐标、字号和命中区</h2><table><thead><tr><th>页面</th><th>主要几何（x,y,w,h）</th><th>独立命中与滚动</th><th>主要状态</th></tr></thead><tbody>
-<tr><td>控制中心</td><td>标题基线 (28,88)，亮度卡 (18,110,354,98)，滑条 (36,158,318,40)，水锁／显示 (18/202,220,170,98)，输入锁 (18,330,354,96)</td><td>滑条触摸 (32,150,326,56)；两卡整块 170×98，输入锁整行 354×96；正文视口 y=104…426</td><td>80% 已应用／应用中／显示驱动不可用；B 阶段输入锁禁用并显示“未接入”，C 阶段自检通过后启用；缺能力时不显示假控制</td></tr>
+<tr><td>控制中心</td><td>标题基线 (28,88)，亮度卡 (18,110,354,98)，滑条 (36,158,318,40)，水锁／显示 (18/202,220,170,98)，输入锁 (18,330,354,96)</td><td>滑条触摸 (32,150,326,56)；两卡整块 170×98，输入锁整行 354×96；正文视口 y=104…426</td><td>80% 已应用／应用中／显示驱动不可用；B 阶段水锁和输入锁均显示“未接入 C”并禁用，C 阶段自检通过后启用；缺能力时不显示假控制</td></tr>
 <tr><td>通知列表／详情</td><td>两类分组 y=132/292；卡 (18,146,354,106) 与 (18,304,354,104)；详情正文 (18,112,354,232)，删除 (18,366,354,60)</td><td>整卡点击，详情正文滚动；删除区 354×60。返回 56×56</td><td>双空态／仅关键／仅普通／已读／旧 ID／UTF-8 长文；关键提醒走 D12 动作</td></tr>
 <tr><td>智能叠放</td><td>第一卡 (18,112,354,134)，第二卡 (18,260,354,132)，页点 y=421</td><td>整卡点击，纵向滚动不触发普通点击；最多 8 卡，屏幕只保留可见和相邻卡</td><td>活动优先、无计时器、RTC 无效、提醒插入、来源失效</td></tr>
 <tr><td>切换器</td><td>可见卡 (42,110,306,244)，打开 (107,370,176,60)</td><td>卡片 306×244；按钮 176×60；横向切换，最多 6 历史／3 可见对象</td><td>空历史、失效详情、无缩略图、卡片删除、App 不可用</td></tr>

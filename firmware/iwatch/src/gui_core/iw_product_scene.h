@@ -68,7 +68,9 @@ enum {
     IW_ACTION_FACE_STACK,
     IW_ACTION_NOTIFICATION_OPEN_BASE = 0x1200,
     IW_ACTION_RECENT_OPEN_BASE = 0x1240,
-    IW_ACTION_RECENT_REMOVE_BASE = 0x1280
+    IW_ACTION_RECENT_REMOVE_BASE = 0x1280,
+    IW_ACTION_RECENT_PREVIOUS = 0x12c0,
+    IW_ACTION_RECENT_NEXT
 };
 typedef struct {
     int16_t x, y, width, height, baseline;
@@ -97,7 +99,9 @@ typedef struct {
     iw_brightness_snapshot_t brightness;
     iw_timer_snapshot_t timers;
     iw_timer_view_t selected_timer;
+    uint32_t stack_timer_id;
     iw_alarm_snapshot_t alarms;
+    uint32_t stack_alarm_id;
     iw_alarm_edit_t alarm_edit;
     iw_alert_snapshot_t alerts;
     iw_alert_record_t selected_alert;
@@ -105,6 +109,7 @@ typedef struct {
     iw_time_draft_t draft;
     const iw_notification_store_t *notifications;
     const iw_recent_apps_t *recent_apps;
+    uint8_t recent_index;
     iw_notification_t selected_notification;
     uint32_t notification_ids[IW_NOTIFICATION_CAPACITY];
     const char *hardware, *firmware, *toolchain;

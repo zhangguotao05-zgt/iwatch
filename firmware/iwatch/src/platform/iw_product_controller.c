@@ -46,6 +46,9 @@ void iw_product_set_recent(iw_product_page_t *page, const iw_recent_apps_t *rece
 {
     if (!page || !iw_font_port_is_owner()) return;
     page->model.recent_apps = recent;
+    if (!recent || !recent->count) page->model.recent_index = 0u;
+    else if (page->model.recent_index >= recent->count)
+        page->model.recent_index = (uint8_t)(recent->count - 1u);
     page->dirty = true;
 }
 
@@ -60,6 +63,51 @@ static void refresh_notification_pages(void)
 static iw_theme_quality_t profile_quality = IW_THEME_Q1;
 static bool profile_large, profile_reduced;
 
+/* 叠放只绑定快照中的稳定 ID；数组顺序变化不能改变当前卡片的实体。 */
+static uint32_t select_running_timer(const iw_timer_snapshot_t *snapshot)
+{
+    const iw_timer_view_t *best = NULL;
+    if (!snapshot) return 0u;
+    for (unsigned i = 0; i < snapshot->count; i++) {
+        const iw_timer_view_t *candidate = &snapshot->timers[i];
+        if (candidate->state != IW_TIMER_RUNNING || !candidate->timer_id) continue;
+        if (!best || candidate->remaining_ms < best->remaining_ms ||
+            (candidate->remaining_ms == best->remaining_ms &&
+             candidate->timer_id < best->timer_id)) best = candidate;
+    }
+    return best ? best->timer_id : 0u;
+}
+
+static uint32_t select_next_alarm(const iw_alarm_snapshot_t *snapshot)
+{
+    const iw_alarm_t *best = NULL;
+    if (!snapshot) return 0u;
+    for (unsigned i = 0; i < snapshot->count; i++) {
+        const iw_alarm_t *candidate = &snapshot->alarms[i];
+        if (!candidate->enabled || !candidate->alarm_id || !candidate->next_due_utc_ms) continue;
+        if (!best || candidate->next_due_utc_ms < best->next_due_utc_ms ||
+            (candidate->next_due_utc_ms == best->next_due_utc_ms &&
+             candidate->alarm_id < best->alarm_id)) best = candidate;
+    }
+    return best ? best->alarm_id : 0u;
+}
+
+static const iw_timer_view_t *find_timer(const iw_timer_snapshot_t *snapshot, uint32_t timer_id)
+{
+    if (!snapshot || !timer_id) return NULL;
+    for (unsigned i = 0; i < snapshot->count; i++)
+        if (snapshot->timers[i].timer_id == timer_id) return &snapshot->timers[i];
+    return NULL;
+}
+
+static const iw_alarm_t *find_alarm(const iw_alarm_snapshot_t *snapshot, uint32_t alarm_id)
+{
+    if (!snapshot || !alarm_id) return NULL;
+    for (unsigned i = 0; i < snapshot->count; i++)
+        if (snapshot->alarms[i].alarm_id == alarm_id) return &snapshot->alarms[i];
+    return NULL;
+}
+
 static void chronographs(iw_product_page_t *p) {
     struct {
         iw_snapshot_header_t header;
@@ -70,9 +118,11 @@ static void chronographs(iw_product_page_t *p) {
         iw_stopwatch_snapshot_t model;
     } stopwatch = {0};
     size_t bytes = 0;
+    p->model.stack_timer_id = 0u;
     if (iw_snapshot_read(IW_SNAPSHOT_TIMERS, &timers, sizeof(timers), &bytes) == IW_SNAPSHOT_OK &&
         timers.model.count <= IW_TIMER_CAPACITY) {
         p->model.timers = timers.model;
+        p->model.stack_timer_id = select_running_timer(&timers.model);
         if (p->page_id == IW_PAGE_TIMER_LIST && p->model.message == IW_TEXT_TIMERS_FULL &&
             timers.model.count < IW_TIMER_CAPACITY)
             p->model.message = IW_TEXT_COUNT;
@@ -101,12 +151,14 @@ static void chronographs(iw_product_page_t *p) {
 
 static void alarms_alerts(iw_product_page_t *p) {
     size_t bytes = 0;
+    p->model.stack_alarm_id = 0u;
     if (p->page_id == IW_PAGE_ALARM_LIST || p->page_id == IW_PAGE_ALARM_EDIT ||
         p->page_id == IW_PAGE_SMART_STACK) {
         struct { iw_snapshot_header_t header; iw_alarm_snapshot_t model; } value = {0};
         if (iw_snapshot_read(IW_SNAPSHOT_ALARMS, &value, sizeof(value), &bytes) == IW_SNAPSHOT_OK &&
             value.model.count <= IW_ALARM_CAPACITY) {
             p->model.alarms = value.model;
+            p->model.stack_alarm_id = select_next_alarm(&value.model);
             if (p->page_id == IW_PAGE_ALARM_LIST && p->model.message == IW_TEXT_ALARMS_FULL &&
                 value.model.count < IW_ALARM_CAPACITY) p->model.message = IW_TEXT_COUNT;
         }
@@ -143,6 +195,8 @@ static void refresh_action_snapshots(iw_product_page_t *p) {
     p->model.alarms.count = 0;
     p->model.selected_timer = (iw_timer_view_t){0};
     p->model.selected_alert = (iw_alert_record_t){0};
+    p->model.stack_timer_id = 0u;
+    p->model.stack_alarm_id = 0u;
     chronographs(p);
     alarms_alerts(p);
 }
@@ -151,13 +205,6 @@ static bool alert_same(const iw_alert_record_t *a, const iw_alert_record_t *b) {
     return a && b && a->entity_id && a->source_type == b->source_type &&
            a->entity_id == b->entity_id && a->occurrence == b->occurrence &&
            a->presentation_epoch == b->presentation_epoch && a->state == b->state;
-}
-
-static bool next_alarm_available(const iw_alarm_snapshot_t *snapshot) {
-    if (!snapshot) return false;
-    for (unsigned i = 0; i < snapshot->count; i++)
-        if (snapshot->alarms[i].enabled && snapshot->alarms[i].next_due_utc_ms) return true;
-    return false;
 }
 
 bool iw_product_set_profile(iw_theme_quality_t quality, bool large_text, bool reduced_motion) {
@@ -418,22 +465,44 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
         return;
     }
     if (id == IW_ACTION_STACK_TIMER) {
+        uint32_t expected_id = p->model.stack_timer_id;
         refresh_action_snapshots(p);
-        for (unsigned i = 0; i < p->model.timers.count; i++) {
-            const iw_timer_view_t *timer = &p->model.timers.timers[i];
-            if (timer->state == IW_TIMER_RUNNING && timer->timer_id) {
-                p->navigate(IW_PAGE_TIMER_DETAIL, timer->timer_id, p->context);
-                return;
-            }
+        /* 刷新后继续绑定原卡片；不能因为原实体失效而换成另一个运行中的计时器。 */
+        p->model.stack_timer_id = expected_id;
+        const iw_timer_view_t *timer = find_timer(&p->model.timers, expected_id);
+        if (timer && timer->state == IW_TIMER_RUNNING) {
+            p->navigate(IW_PAGE_TIMER_DETAIL, expected_id, p->context);
+            return;
         }
-        p->model.message = IW_TEXT_OPERATION_FAILED;
+        p->model.message = IW_TEXT_TIMER_CHANGED;
         p->dirty = true;
         return;
     }
     if (id == IW_ACTION_STACK_ALARM) {
+        uint32_t expected_id = p->model.stack_alarm_id;
         refresh_action_snapshots(p);
-        if (next_alarm_available(&p->model.alarms)) p->navigate(IW_PAGE_ALARM_LIST, 0u, p->context);
-        else { p->model.message = IW_TEXT_OPERATION_FAILED; p->dirty = true; }
+        /* 同理保留原闹钟 ID，重复点击仍只报告原卡片已变化。 */
+        p->model.stack_alarm_id = expected_id;
+        const iw_alarm_t *alarm = find_alarm(&p->model.alarms, expected_id);
+        if (alarm && alarm->enabled && alarm->next_due_utc_ms) {
+            p->navigate(IW_PAGE_ALARM_LIST, 0u, p->context);
+            return;
+        }
+        p->model.message = IW_TEXT_ALARM_CHANGED;
+        p->dirty = true;
+        return;
+    }
+    if (p->page_id == IW_PAGE_SWITCHER &&
+        (id == IW_ACTION_RECENT_PREVIOUS || id == IW_ACTION_RECENT_NEXT)) {
+        unsigned count = p->model.recent_apps ? p->model.recent_apps->count : 0u;
+        if (count > 1u) {
+            if (id == IW_ACTION_RECENT_PREVIOUS) {
+                if (p->model.recent_index) p->model.recent_index--;
+            } else if (p->model.recent_index + 1u < count) {
+                p->model.recent_index++;
+            }
+            p->dirty = true;
+        }
         return;
     }
     if (id >= IW_ACTION_TIMER_PRESET_1M && id <= IW_ACTION_TIMER_PRESET_10M) {

@@ -130,6 +130,31 @@ bool iw_router_open(uint16_t id)
     return request((route_request_t){.kind=REQUEST_OPEN,.page_id=id},false);
 }
 
+static void recent_mark_unavailable(route_page_t *page, unsigned index)
+{
+    if (index < recent_apps.count)
+        (void)iw_recent_remove(&recent_apps, recent_apps.count - 1u - index);
+    if (page && page->product) {
+        iw_product_set_recent(page->product, &recent_apps);
+        page->product->model.message = IW_TEXT_APP_UNAVAILABLE;
+        page->product->dirty = true;
+    }
+}
+
+static bool recent_find_app_home(uint16_t app_id, iw_route_t *home)
+{
+    if (!home) return false;
+    for (size_t i = 0; i < iw_route_count(); i++) {
+        const iw_route_descriptor_t *route = iw_route_at(i);
+        if (route->app_id == app_id && route->parent_id == IW_PAGE_LAUNCHER_LIST &&
+            route->support == IW_ROUTE_READY) {
+            *home = (iw_route_t){route->page_id, 0u};
+            return true;
+        }
+    }
+    return false;
+}
+
 static void product_action(uint16_t id,uint32_t argument,void *context)
 {
     route_page_t *p=context;
@@ -148,7 +173,11 @@ static void product_action(uint16_t id,uint32_t argument,void *context)
         unsigned index = id - IW_ACTION_RECENT_OPEN_BASE;
         const iw_recent_entry_t *entry = index < recent_apps.count ?
             iw_recent_get(&recent_apps, recent_apps.count - 1u - index) : NULL;
-        if (entry && initialized && iw_font_port_is_owner()) {
+        if (!entry) {
+            recent_mark_unavailable(p, index);
+            return;
+        }
+        if (initialized && iw_font_port_is_owner()) {
             iw_route_t target = entry->resume.route;
             if (target.page_id == IW_PAGE_TIMER_DETAIL) {
                 struct { iw_snapshot_header_t header; iw_timer_snapshot_t model; } timers = {0};
@@ -161,13 +190,17 @@ static void product_action(uint16_t id,uint32_t argument,void *context)
                 if (!valid) target = (iw_route_t){IW_PAGE_TIMER_LIST, 0};
             }
             const iw_route_descriptor_t *route = iw_route_find(target.page_id);
+            if (!route || route->support != IW_ROUTE_READY) {
+                iw_route_t home;
+                if (recent_find_app_home(entry->app_id, &home)) {
+                    target = home;
+                    route = iw_route_find(target.page_id);
+                }
+            }
             if (route && route->support == IW_ROUTE_READY)
                 (void)request((route_request_t){.kind=REQUEST_OPEN,.argument=target.argument,
                                                 .page_id=target.page_id},false);
-            else {
-                (void)iw_recent_remove(&recent_apps, recent_apps.count - 1u - index);
-                iw_product_set_recent(p->product, &recent_apps);
-            }
+            else recent_mark_unavailable(p, index);
         }
         return;
     }

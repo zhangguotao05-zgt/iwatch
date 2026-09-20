@@ -99,9 +99,9 @@ int main(void)
     assert(!iw_clock_format_offset(841, text, sizeof(text)) && !text[0]);
     assert(!iw_clock_format_offset(0, text, 9) && !text[0]);
     assert(iw_brightness_track_level(INT32_MIN) == 5 && iw_brightness_track_level(INT32_MAX) == 100);
-    assert(iw_brightness_track_level(96) == 5 && iw_brightness_track_level(258) == 100);
-    for (int x = 96; x < 258; x++) assert(iw_brightness_track_level(x) <= iw_brightness_track_level(x + 1));
-    assert(iw_brightness_track_level(177) == 53);
+    assert(iw_brightness_track_level(36) == 5 && iw_brightness_track_level(354) == 100);
+    for (int x = 36; x < 354; x++) assert(iw_brightness_track_level(x) <= iw_brightness_track_level(x + 1));
+    assert(iw_brightness_track_level(195) == 53);
     assert(iw_brightness_step_level(80, INT32_MIN) == 5 && iw_brightness_step_level(80, INT32_MAX) == 100);
     assert(iw_brightness_step_level(5, -5) == 5 && iw_brightness_step_level(100, 5) == 100);
     assert(!iw_time_draft_select(NULL, IW_EDIT_YEAR));

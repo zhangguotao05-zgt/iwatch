@@ -122,6 +122,10 @@ typedef enum {
     IW_TEXT_WATER_LOCK,
     IW_TEXT_DISPLAY_SETTINGS,
     IW_TEXT_OPEN,
+    IW_TEXT_TIMER_CHANGED,
+    IW_TEXT_ALARM_CHANGED,
+    IW_TEXT_APP_UNAVAILABLE,
+    IW_TEXT_INPUT_LOCK_PENDING,
     IW_TEXT_COUNT
 } iw_product_text_id_t;
 
@@ -245,6 +249,10 @@ static const char *const iw_product_texts[] = {
     "水锁",
     "显示设置",
     "打开",
+    "计时器已变化",
+    "闹钟已变化",
+    "应用不可用",
+    "未接入 C",
 };
 _Static_assert(sizeof(iw_product_texts) / sizeof(iw_product_texts[0]) == IW_TEXT_COUNT, "文案编号必须与清单一致");
 

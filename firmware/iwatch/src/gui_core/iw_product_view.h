@@ -12,7 +12,7 @@ typedef struct {
     iw_product_scene_t scene;
     iw_product_action_fn action;
     void *context;
-    int16_t scroll_y, press_y, last_y, pressed, feedback_node;
+    int16_t scroll_y, press_x, last_x, press_y, last_y, pressed, feedback_node;
     uint16_t press_value, press_from, press_to;
     uint32_t press_started;
     int16_t picker_offset, picker_from, picker_parent_scroll;

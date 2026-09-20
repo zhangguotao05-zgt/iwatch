@@ -71,15 +71,29 @@ static bool brightness_control(iw_product_scene_t *s, const iw_product_model_t *
     uint8_t level = m->preview_level ? m->preview_level
                     : m->pending     ? m->brightness.desired
                                      : m->brightness.applied;
-    int width = (level >= 5 && level <= 100) ? (int)(level - 5) * 162 / 95 : 0;
-    return add(s, 18, y, 354, 88, 0, 0, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 24, 0, 0, false, false, "") &&
-           button(s, 18, y, 80, 88, IW_ACTION_DIM, !m->display_available, false, "") &&
-           button(s, 292, y, 80, 88, IW_ACTION_BRIGHTEN, !m->display_available, false, "") &&
-           icon(s, 42, y + 28, 32, IW_ICON_SUN, m->display_available ? IW_PRODUCT_WHITE : IW_PRODUCT_DISABLED, false) &&
-           icon(s, 312, y + 22, 44, IW_ICON_SUN, m->display_available ? IW_PRODUCT_WHITE : IW_PRODUCT_DISABLED, false) &&
-           add(s, 98, y, 194, 88, 0, 0, IW_PRODUCT_WHITE, 0, 0, 0, IW_ACTION_TRACK, false, !m->display_available, "") &&
-           add(s, 114, y + 41, 162, 6, 0, 0, IW_PRODUCT_WHITE, 0x164a26, 3, 0, 0, false, false, "") &&
-           (!width || add(s, 114, y + 41, width, 6, 0, 0, IW_PRODUCT_WHITE, 0x30d158, 3, 0, 0, false, false, ""));
+    int width = (level >= 5 && level <= 100) ? (int)(level - 5) * 318 / 95 : 0;
+    char percent[16];
+    (void)snprintf(percent, sizeof(percent), "%u%%", level);
+    bool disabled = !m->display_available;
+    uint32_t rail = disabled ? IW_PRODUCT_DISABLED_SURFACE : 0x44464d;
+    uint32_t progress = disabled ? IW_PRODUCT_DISABLED : 0xf3f3f7;
+    return add(s, 18, y, 354, 98, 0, 0, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 24, 0, 0, false, false, "") &&
+           label(s, 36, y + 35, 180, 20, disabled ? IW_PRODUCT_DISABLED : IW_PRODUCT_WHITE,
+                 0, false, TEXT(BRIGHTNESS)) &&
+           label(s, 250, y + 35, 104, 20, disabled ? IW_PRODUCT_DISABLED : IW_PRODUCT_SECONDARY,
+                 2, false, percent) &&
+           add(s, 36, y + 48, 318, 40, 0, 0, IW_PRODUCT_WHITE, rail, 20, 0, 0, false, disabled, "") &&
+           (width <= 0 || add(s, 36, y + 48, width, 40, 0, 0, IW_PRODUCT_WHITE,
+                              progress, 20, 0, 0, false, disabled, "")) &&
+           /* 视觉滑条保持 318×40，命中区按冻结稿扩大到 326×56。 */
+           add(s, 32, y + 40, 326, 56, 0, 0, IW_PRODUCT_WHITE, 0, 0, 0,
+               IW_ACTION_TRACK, false, disabled, "") &&
+           add(s, 18, y, 52, 98, 0, 0, IW_PRODUCT_WHITE, 0, 0, 0,
+               IW_ACTION_DIM, false, disabled, "") &&
+           icon(s, 28, y + 33, 32, IW_ICON_SUN, disabled ? IW_PRODUCT_DISABLED : IW_PRODUCT_WHITE, false) &&
+           add(s, 320, y, 52, 98, 0, 0, IW_PRODUCT_WHITE, 0, 0, 0,
+               IW_ACTION_BRIGHTEN, false, disabled, "") &&
+           icon(s, 328, y + 27, 44, IW_ICON_SUN, disabled ? IW_PRODUCT_DISABLED : IW_PRODUCT_WHITE, false);
 }
 
 static bool face(iw_product_scene_t *s, const iw_product_model_t *m) {
@@ -341,19 +355,20 @@ static bool notification_row(iw_product_scene_t *s, int y, const iw_notification
 
 static bool control_center(iw_product_scene_t *s, const iw_product_model_t *m)
 {
-    char lock_text[IW_PRODUCT_TEXT_BYTES];
-    (void)snprintf(lock_text, sizeof(lock_text), "%s %s", TEXT(INPUT_LOCK),
-                   TEXT(NOT_CONNECTED));
     return header(s, m, TEXT(CONTROL_CENTER)) &&
-           brightness_control(s, m, 112) &&
+           brightness_control(s, m, 110) &&
            button(s, 18, 220, 170, 98, IW_PAGE_WATER_LOCK, true, false,
                   TEXT(WATER_LOCK)) &&
            button(s, 202, 220, 170, 98, IW_PAGE_DISPLAY, false, false,
                   TEXT(DISPLAY_SETTINGS)) &&
-           label(s, 30, 290, 146, 20, IW_PRODUCT_DISABLED, 1, false,
+           label(s, 30, 302, 146, 20, IW_PRODUCT_DISABLED, 1, false,
                  TEXT(NOT_CONNECTED)) &&
-           button(s, 18, 330, 354, 96, IW_PAGE_LOCK, true, false,
-                  lock_text);
+           add(s, 18, 330, 354, 96, 0, 0, IW_PRODUCT_DISABLED,
+               IW_PRODUCT_DISABLED_SURFACE, 24, 0, IW_PAGE_LOCK, false, true, "") &&
+           label(s, 95, 370, 250, 20, IW_PRODUCT_DISABLED, 0, false,
+                 TEXT(INPUT_LOCK)) &&
+           label(s, 95, 398, 250, 20, IW_PRODUCT_DISABLED, 0, false,
+                 TEXT(INPUT_LOCK_PENDING));
 }
 
 static bool notification_list(iw_product_scene_t *s, const iw_product_model_t *m)
@@ -445,27 +460,46 @@ static bool smart_stack(iw_product_scene_t *s, const iw_product_model_t *m)
     char timer_text[IW_PRODUCT_TEXT_BYTES], alarm_text[IW_PRODUCT_TEXT_BYTES];
     (void)snprintf(timer_text, sizeof(timer_text), "%s", TEXT(NO_ACTIVE_TIMER));
     (void)snprintf(alarm_text, sizeof(alarm_text), "%s", TEXT(NO_NEXT_ALARM));
+    const iw_timer_view_t *timer = NULL;
     for (unsigned i = 0; i < m->timers.count; i++)
-        if (m->timers.timers[i].state == IW_TIMER_RUNNING && m->timers.timers[i].timer_id) {
-            running = true;
-            char remaining[24];
-            format_elapsed(m->timers.timers[i].remaining_ms, false, remaining, sizeof(remaining));
-            (void)snprintf(timer_text, sizeof(timer_text), "%s  %s", TEXT(TIMER), remaining);
-            break;
-        }
+        if (m->timers.timers[i].timer_id == m->stack_timer_id)
+            timer = &m->timers.timers[i];
+    /* 主机静态场景也能独立构造模型；生产模型始终由控制器填入稳定 ID。 */
+    if (!timer && !m->stack_timer_id && m->timers.count)
+        for (unsigned i = 0; i < m->timers.count; i++)
+            if (m->timers.timers[i].state == IW_TIMER_RUNNING && m->timers.timers[i].timer_id &&
+                (!timer || m->timers.timers[i].remaining_ms < timer->remaining_ms ||
+                 (m->timers.timers[i].remaining_ms == timer->remaining_ms &&
+                  m->timers.timers[i].timer_id < timer->timer_id)))
+                timer = &m->timers.timers[i];
+    if (timer && timer->state == IW_TIMER_RUNNING) {
+        running = true;
+        char remaining[24];
+        format_elapsed(timer->remaining_ms, false, remaining, sizeof(remaining));
+        (void)snprintf(timer_text, sizeof(timer_text), "%s  %s", TEXT(TIMER), remaining);
+    }
+    const iw_alarm_t *next_alarm = NULL;
     for (unsigned i = 0; i < m->alarms.count; i++)
-        if (m->alarms.alarms[i].enabled && m->alarms.alarms[i].next_due_utc_ms) {
+        if (m->alarms.alarms[i].alarm_id == m->stack_alarm_id)
+            next_alarm = &m->alarms.alarms[i];
+    if (!next_alarm && !m->stack_alarm_id)
+        for (unsigned i = 0; i < m->alarms.count; i++)
+            if (m->alarms.alarms[i].enabled && m->alarms.alarms[i].next_due_utc_ms &&
+                (!next_alarm || m->alarms.alarms[i].next_due_utc_ms < next_alarm->next_due_utc_ms ||
+                 (m->alarms.alarms[i].next_due_utc_ms == next_alarm->next_due_utc_ms &&
+                  m->alarms.alarms[i].alarm_id < next_alarm->alarm_id)))
+                next_alarm = &m->alarms.alarms[i];
+    if (next_alarm && next_alarm->enabled && next_alarm->next_due_utc_ms) {
             iw_clock_snapshot_t next = m->clock;
             iw_calendar_fields_t local;
-            next.utc_ms = (int64_t)m->alarms.alarms[i].next_due_utc_ms;
+            next.utc_ms = (int64_t)next_alarm->next_due_utc_ms;
             next.valid = 1;
             if (iw_clock_local_fields(&next, &local)) {
                 (void)snprintf(alarm_text, sizeof(alarm_text), "%s  %02u:%02u", TEXT(ALARM),
                                local.hour, local.minute);
                 alarm = true;
             }
-            break;
-        }
+    }
     return header(s, m, TEXT(SMART_STACK)) &&
            button(s, 18, 112, 354, 134, IW_ACTION_STACK_TIMER, !running, false,
                   timer_text) &&
@@ -479,16 +513,35 @@ static bool app_switcher(iw_product_scene_t *s, const iw_product_model_t *m)
     unsigned count = m->recent_apps ? m->recent_apps->count : 0u;
     if (!count) return label(s, 30, 245, 330, 26, IW_PRODUCT_SECONDARY, 1,
                              false, TEXT(NO_RECENT_APPS));
-    for (unsigned i = 0; i < count && i < 6u; i++) {
-        const iw_recent_entry_t *entry = iw_recent_get(m->recent_apps, count - 1u - i);
-        int y = 110 + (int)i * 286;
-        if (!entry || !button(s, 42, y, 306, 244, IW_ACTION_RECENT_OPEN_BASE + i,
-                              false, false, recent_name(entry->app_id)) ||
-            !button(s, 107, y + 260, 176, 60, IW_ACTION_RECENT_OPEN_BASE + i,
-                    false, false, TEXT(OPEN)) ||
-            !button(s, 286, y + 12, 56, 48, IW_ACTION_RECENT_REMOVE_BASE + i,
-                    false, false, TEXT(DELETE))) return false;
-    }
+    if (count > IW_NAV_HISTORY) count = IW_NAV_HISTORY;
+    unsigned focus = m->recent_index < count ? m->recent_index : count - 1u;
+    const iw_recent_entry_t *entry = iw_recent_get(m->recent_apps, count - 1u - focus);
+    if (!entry) return label(s, 30, 245, 330, 26, IW_PRODUCT_WARNING, 1,
+                             false, TEXT(APP_UNAVAILABLE));
+    const iw_route_descriptor_t *route = iw_route_find(entry->resume.route.page_id);
+    bool available = route && route->support == IW_ROUTE_READY;
+    const char *name = available ? recent_name(entry->app_id) : TEXT(APP_UNAVAILABLE);
+    unsigned open_action = IW_ACTION_RECENT_OPEN_BASE + focus;
+    unsigned remove_action = IW_ACTION_RECENT_REMOVE_BASE + focus;
+    if (!add(s, 42, 110, 306, 244, 260, 30,
+             available ? IW_PRODUCT_WHITE : IW_PRODUCT_DISABLED, IW_PRODUCT_SURFACE, 30, 1,
+             open_action, true, false, name) ||
+        !button(s, 107, 370, 176, 60, open_action, false, true, TEXT(OPEN)) ||
+        !add(s, 292, 122, 56, 56, 0, 0, IW_PRODUCT_SECONDARY, 0, 0, 1,
+             remove_action, true, false, TEXT(DELETE)) ||
+        !add(s, 0, 204, 56, 56, 0, 0, focus ? IW_PRODUCT_WHITE : IW_PRODUCT_DISABLED,
+             0, 0, 0, IW_ACTION_RECENT_PREVIOUS, true, focus == 0u, "") ||
+        !icon(s, 8, 212, 40, IW_ICON_BACK, focus ? IW_PRODUCT_WHITE : IW_PRODUCT_DISABLED, true) ||
+        !add(s, 334, 204, 56, 56, 0, 0, focus + 1u < count ? IW_PRODUCT_WHITE : IW_PRODUCT_DISABLED,
+             0, 0, 0, IW_ACTION_RECENT_NEXT, true, focus + 1u >= count, "") ||
+        !icon(s, 342, 212, 40, IW_ICON_NEXT, focus + 1u < count ? IW_PRODUCT_WHITE : IW_PRODUCT_DISABLED, true))
+        return false;
+    int dots_x = 195 - (int)count * 9;
+    for (unsigned i = 0; i < count; i++)
+        if (!add(s, dots_x + (int)i * 18, 421, 10, 10, 0, 0,
+                 i == focus ? IW_PRODUCT_WHITE : IW_PRODUCT_DISABLED_SURFACE,
+                 i == focus ? IW_PRODUCT_WHITE : IW_PRODUCT_DISABLED_SURFACE, 5, 0, 0,
+                 true, false, "")) return false;
     return true;
 }
 
