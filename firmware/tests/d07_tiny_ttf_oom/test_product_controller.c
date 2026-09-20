@@ -262,6 +262,44 @@ int test_product_controller(size_t loops) {
     (void)iw_product_process();
     assert(!page.request && page.model.timers.count == IW_TIMER_CAPACITY &&
            page.model.message == IW_TEXT_COUNT);
+    /* D13-B：页面显示后实体被删除，点击必须重新取快照并留在当前页。 */
+    before_navigation = navigations;
+    uint32_t stale_timer_id = page.model.timers.timers[0].timer_id;
+    assert(iw_timer_cancel(&model.chronograph, 0, stale_timer_id,
+                           page.model.timers.timers[0].revision) == IW_CHRONO_OK);
+    page.view.action(IW_ACTION_TIMER_OPEN_BASE, 0, true, page.view.context);
+    assert(navigations == before_navigation && page.model.message == IW_TEXT_OPERATION_FAILED);
+    assert(iw_product_destroy(&page));
+
+    /* 叠放入口同样不使用旧缓存：计时器在展示后结束时不得跳入详情页。 */
+    model.chronograph = (iw_chronograph_t){0};
+    assert(iw_chronograph_init(&model.chronograph));
+    iw_timer_view_t created_timer;
+    assert(iw_timer_create(&model.chronograph, 0, 60000u, &created_timer) == IW_CHRONO_OK);
+    memset(&page, 0, sizeof(page));
+    assert(iw_product_create(&page, IW_PAGE_SMART_STACK, 0u, 200007u, true,
+                             navigate, stop, &model));
+    assert(iw_timer_cancel(&model.chronograph, 0, created_timer.timer_id,
+                           created_timer.revision) == IW_CHRONO_OK);
+    before_navigation = navigations;
+    page.view.action(IW_ACTION_STACK_TIMER, 0, true, page.view.context);
+    assert(navigations == before_navigation && page.model.message == IW_TEXT_OPERATION_FAILED);
+    assert(iw_product_destroy(&page));
+
+    /* 通知入口在点击前核对 occurrence；实体消失后只显示变化提示。 */
+    model.alerts = (iw_alerts_t){0};
+    assert(iw_alerts_init(&model.alerts));
+    assert(iw_alerts_note(&model.alerts, IW_ALERT_SOURCE_TIMER, created_timer.timer_id,
+                          1u, 1000u, 0u) == IW_ALERT_OK);
+    memset(&page, 0, sizeof(page));
+    assert(iw_product_create(&page, IW_PAGE_LAUNCHER_LIST, 0u, 200008u, true,
+                             navigate, stop, &model));
+    assert(page.model.selected_alert.entity_id == created_timer.timer_id);
+    assert(iw_alerts_remove_source(&model.alerts, IW_ALERT_SOURCE_TIMER,
+                                   created_timer.timer_id) == IW_ALERT_OK);
+    before_navigation = navigations;
+    page.view.action(IW_ACTION_ALERT_OPEN, 0, true, page.view.context);
+    assert(navigations == before_navigation && page.model.message == IW_TEXT_NOTIFICATION_CHANGED);
     assert(iw_product_destroy(&page));
     assert(iw_font_collect());
     assert(test_font_live_bytes() == bytes && test_font_live_blocks() == blocks);

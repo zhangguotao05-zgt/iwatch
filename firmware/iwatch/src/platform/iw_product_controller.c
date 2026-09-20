@@ -114,6 +114,8 @@ static void alarms_alerts(iw_product_page_t *p) {
     if (p->page_id == IW_PAGE_ALERT_TIMER || p->page_id == IW_PAGE_ALERT_ALARM ||
         p->page_id == IW_PAGE_LAUNCHER_LIST || p->page_id == IW_PAGE_NOTIFICATION_LIST) {
         struct { iw_snapshot_header_t header; iw_alert_snapshot_t model; } value = {0};
+        bool list_page = p->page_id == IW_PAGE_LAUNCHER_LIST ||
+                         p->page_id == IW_PAGE_NOTIFICATION_LIST;
         iw_alert_source_t source = p->page_id == IW_PAGE_ALERT_TIMER ?
                                    IW_ALERT_SOURCE_TIMER : IW_ALERT_SOURCE_ALARM;
         bytes = 0;
@@ -123,7 +125,7 @@ static void alarms_alerts(iw_product_page_t *p) {
             memset(&p->model.selected_alert, 0, sizeof(p->model.selected_alert));
             for (unsigned i = 0; i < value.model.count; i++) {
                 const iw_alert_record_t *record = &value.model.records[i];
-                if (p->page_id == IW_PAGE_LAUNCHER_LIST) {
+                if (list_page) {
                     if (!p->model.selected_alert.entity_id &&
                         record->state != IW_ALERT_SNOOZED)
                         p->model.selected_alert = *record;
@@ -133,6 +135,29 @@ static void alarms_alerts(iw_product_page_t *p) {
             }
         }
     }
+}
+
+/* 点击前重新取实体，避免页面缓存把已删除或已失效对象当成有效目标。 */
+static void refresh_action_snapshots(iw_product_page_t *p) {
+    p->model.timers.count = 0;
+    p->model.alarms.count = 0;
+    p->model.selected_timer = (iw_timer_view_t){0};
+    p->model.selected_alert = (iw_alert_record_t){0};
+    chronographs(p);
+    alarms_alerts(p);
+}
+
+static bool alert_same(const iw_alert_record_t *a, const iw_alert_record_t *b) {
+    return a && b && a->entity_id && a->source_type == b->source_type &&
+           a->entity_id == b->entity_id && a->occurrence == b->occurrence &&
+           a->presentation_epoch == b->presentation_epoch && a->state == b->state;
+}
+
+static bool next_alarm_available(const iw_alarm_snapshot_t *snapshot) {
+    if (!snapshot) return false;
+    for (unsigned i = 0; i < snapshot->count; i++)
+        if (snapshot->alarms[i].enabled && snapshot->alarms[i].next_due_utc_ms) return true;
+    return false;
 }
 
 bool iw_product_set_profile(iw_theme_quality_t quality, bool large_text, bool reduced_motion) {
@@ -311,8 +336,16 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
     }
     if (id >= IW_ACTION_ALARM_OPEN_BASE && id < IW_ACTION_ALARM_OPEN_BASE + IW_ALARM_CAPACITY) {
         unsigned index = id - IW_ACTION_ALARM_OPEN_BASE;
-        if (index < p->model.alarms.count)
-            p->navigate(IW_PAGE_ALARM_EDIT, p->model.alarms.alarms[index].alarm_id, p->context);
+        uint32_t expected_id = index < p->model.alarms.count ?
+                               p->model.alarms.alarms[index].alarm_id : 0u;
+        refresh_action_snapshots(p);
+        if (expected_id && index < p->model.alarms.count &&
+            p->model.alarms.alarms[index].alarm_id == expected_id)
+            p->navigate(IW_PAGE_ALARM_EDIT, expected_id, p->context);
+        else {
+            p->model.message = IW_TEXT_NOTIFICATION_CHANGED;
+            p->dirty = true;
+        }
         return;
     }
     if (id >= IW_ACTION_ALARM_HOUR_MINUS && id <= IW_ACTION_ALARM_MINUTE_PLUS) {
@@ -341,11 +374,23 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
                              IW_OPCODE_ACK_ALERT : IW_OPCODE_SNOOZE_ALERT);
         return;
     }
-    if (id == IW_ACTION_ALERT_OPEN && p->model.selected_alert.entity_id) {
-        const iw_alert_record_t *record = &p->model.selected_alert;
-        p->navigate(record->source_type == IW_ALERT_SOURCE_TIMER ?
-                    IW_PAGE_ALERT_TIMER : IW_PAGE_ALERT_ALARM,
-                    record->entity_id, p->context);
+    if (id == IW_ACTION_ALERT_OPEN) {
+        if (!p->model.selected_alert.entity_id) {
+            p->model.message = IW_TEXT_NOTIFICATION_CHANGED;
+            p->dirty = true;
+            return;
+        }
+        iw_alert_record_t expected = p->model.selected_alert;
+        refresh_action_snapshots(p);
+        if (alert_same(&expected, &p->model.selected_alert)) {
+            const iw_alert_record_t *record = &p->model.selected_alert;
+            p->navigate(record->source_type == IW_ALERT_SOURCE_TIMER ?
+                        IW_PAGE_ALERT_TIMER : IW_PAGE_ALERT_ALARM,
+                        record->entity_id, p->context);
+        } else {
+            p->model.message = IW_TEXT_NOTIFICATION_CHANGED;
+            p->dirty = true;
+        }
         return;
     }
     if (id >= IW_ACTION_NOTIFICATION_OPEN_BASE &&
@@ -373,6 +418,7 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
         return;
     }
     if (id == IW_ACTION_STACK_TIMER) {
+        refresh_action_snapshots(p);
         for (unsigned i = 0; i < p->model.timers.count; i++) {
             const iw_timer_view_t *timer = &p->model.timers.timers[i];
             if (timer->state == IW_TIMER_RUNNING && timer->timer_id) {
@@ -385,7 +431,8 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
         return;
     }
     if (id == IW_ACTION_STACK_ALARM) {
-        if (p->model.alarms.count) p->navigate(IW_PAGE_ALARM_LIST, 0u, p->context);
+        refresh_action_snapshots(p);
+        if (next_alarm_available(&p->model.alarms)) p->navigate(IW_PAGE_ALARM_LIST, 0u, p->context);
         else { p->model.message = IW_TEXT_OPERATION_FAILED; p->dirty = true; }
         return;
     }
@@ -395,8 +442,16 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
         return;
     } else if (id >= IW_ACTION_TIMER_OPEN_BASE && id < IW_ACTION_TIMER_OPEN_BASE + IW_TIMER_CAPACITY) {
         unsigned index = id - IW_ACTION_TIMER_OPEN_BASE;
-        if (index < p->model.timers.count)
-            p->navigate(IW_PAGE_TIMER_DETAIL, p->model.timers.timers[index].timer_id, p->context);
+        uint32_t expected_id = index < p->model.timers.count ?
+                               p->model.timers.timers[index].timer_id : 0u;
+        refresh_action_snapshots(p);
+        if (expected_id && index < p->model.timers.count &&
+            p->model.timers.timers[index].timer_id == expected_id)
+            p->navigate(IW_PAGE_TIMER_DETAIL, expected_id, p->context);
+        else {
+            p->model.message = IW_TEXT_OPERATION_FAILED;
+            p->dirty = true;
+        }
         return;
     } else if (id == IW_ACTION_TIMER_PAUSE || id == IW_ACTION_TIMER_RESUME ||
                id == IW_ACTION_TIMER_CANCEL || id == IW_ACTION_TIMER_RESTART) {

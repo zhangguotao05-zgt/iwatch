@@ -238,8 +238,20 @@ static void d13_scene_boundaries(iw_product_model_t *m)
     m->alarms.count = 0;
     assert(iw_product_scene_build(&scene, IW_PAGE_CONTROL_CENTER, m));
     assert(has_text(&scene, "控制中心") && has_text(&scene, "未接入"));
-    assert(iw_product_scene_hit(&scene, 270, 250, 0) == -1);
-    assert(iw_product_scene_hit(&scene, 110, 340, 0) >= 0);
+    int display_hit = iw_product_scene_hit(&scene, 270, 250, 0);
+    assert(display_hit >= 0 && scene.nodes[display_hit].action == IW_PAGE_DISPLAY);
+    assert(iw_product_scene_hit(&scene, 110, 360, 0) == -1);
+    bool control_geometry = false;
+    for (unsigned i = 0; i < scene.count; i++) {
+        const iw_product_node_t *node = &scene.nodes[i];
+        if (node->action == IW_PAGE_DISPLAY)
+            control_geometry = node->x == 202 && node->y == 220 &&
+                               node->width == 170 && node->height == 98;
+        if (node->action == IW_PAGE_LOCK)
+            assert(node->x == 18 && node->y == 330 && node->width == 354 &&
+                   node->height == 96 && node->disabled);
+    }
+    assert(control_geometry);
     m->notifications = &notifications;
     assert(iw_product_scene_build(&scene, IW_PAGE_NOTIFICATION_LIST, m));
     assert(has_text(&scene, "暂无通知"));
@@ -268,6 +280,11 @@ static void d13_scene_boundaries(iw_product_model_t *m)
     assert(iw_product_scene_scroll_limit(&scene) > 0 && has_text(&scene, "删除"));
     assert(iw_product_scene_build(&scene, IW_PAGE_SMART_STACK, m));
     assert(has_text(&scene, "暂无活动计时器") && has_text(&scene, "暂无下次闹钟"));
+    m->alarms.count = 1u;
+    m->alarms.alarms[0].enabled = 1u;
+    m->alarms.alarms[0].next_due_utc_ms = m->clock.utc_ms + 3600000u;
+    assert(iw_product_scene_build(&scene, IW_PAGE_SMART_STACK, m));
+    assert(has_fragment(&scene, "闹钟") && has_fragment(&scene, ":"));
     m->recent_apps = &recent;
     assert(iw_product_scene_build(&scene, IW_PAGE_SWITCHER, m));
     assert(has_text(&scene, "暂无最近应用"));
@@ -275,6 +292,16 @@ static void d13_scene_boundaries(iw_product_model_t *m)
     assert(iw_recent_record(&recent, &resume));
     assert(iw_product_scene_build(&scene, IW_PAGE_SWITCHER, m));
     assert(has_text(&scene, "秒表"));
+    bool open_geometry = false;
+    bool remove_action = false;
+    for (unsigned i = 0; i < scene.count; i++) {
+        const iw_product_node_t *node = &scene.nodes[i];
+        if (node->action == IW_ACTION_RECENT_OPEN_BASE && !strcmp(node->text, "打开"))
+            open_geometry = node->x == 107 && node->y == 370 &&
+                           node->width == 176 && node->height == 60;
+        if (node->action == IW_ACTION_RECENT_REMOVE_BASE) remove_action = true;
+    }
+    assert(open_geometry && remove_action);
     for (unsigned i = 0; i < scene.count; i++) {
         const iw_product_node_t *n = &scene.nodes[i];
         assert(n->x >= 0 && n->x + n->width <= 390);
