@@ -408,6 +408,22 @@ int test_product_router(lv_display_t *display,size_t loops)
     assert(iw_router_open(IW_PAGE_SWITCHER)); process(); assert(depth == 2);
     route_page_t *switcher = find_page(stack[1].data);
     assert(switcher && switcher->product && switcher->product->model.recent_apps == &recent_apps);
+    /* D13-B：真实触发切换器的删除与失效打开路径，不能只验证页面能创建。 */
+    unsigned recent_before_remove = recent_apps.count;
+    assert(recent_before_remove > 0u);
+    switcher->product->view.action(IW_ACTION_RECENT_REMOVE_BASE, 0, true,
+                                   switcher->product->view.context);
+    assert(recent_apps.count == recent_before_remove - 1u);
+    iw_page_resume_t stale_resume = {.route = {IW_PAGE_STOPWATCH, 0u}};
+    assert(iw_recent_record(&recent_apps, &stale_resume));
+    /* 直接破坏历史摘要，模拟 App 注册表在切换器打开前失效。 */
+    recent_apps.entries[recent_apps.count - 1u].resume.route.page_id = IW_PAGE_ACTIVITY;
+    iw_product_set_recent(switcher->product, &recent_apps);
+    unsigned recent_before_open = recent_apps.count;
+    switcher->product->view.action(IW_ACTION_RECENT_OPEN_BASE, 0, true,
+                                   switcher->product->view.context);
+    process();
+    assert(depth == 2 && recent_apps.count == recent_before_open - 1u);
     assert(iw_router_home()); process(); assert(depth == 1 && !overlay_root_id);
     notify_page(0,GUI_APP_MSG_ONSTOP); process();
     assert(iw_font_collect());
