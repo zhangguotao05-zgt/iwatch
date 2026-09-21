@@ -20,7 +20,7 @@
 </ul></nav><main>
 <section id="scope" class="level1">
 <h1>D13-D 表盘会话与总体收口实施记录</h1>
-<p class="doc-meta">2026-09-22 · Issue #15 · 设计基线 <code>c7617c2</code> · 实现提交 <code>50dee36</code> · 当前状态：主机回归通过；双工具链需按最终提交重建；开发板复核待完成</p>
+<p class="doc-meta">2026-09-22 · Issue #15 · 设计基线 <code>c7617c2</code> · 代码修正 <code>50dee36</code> · 当前状态：主机回归与双工具链归档通过；开发板复核待完成</p>
 <p class="note">本页把 D13 的剩余开发目标写成可执行的验收契约。它记录当前实现和证据边界，不提前宣称 D13 最终收口。代码注释、测试日志和工程文档按项目约定使用中文；外部 SDK 的原始注释不在本页改写。</p>
 <h2>产品目标</h2>
 <p>当前产品目标是一个 390×450、离线可运行的 Apple Watch 风格界面基线：表盘、蜂窝应用列表、控制中心、通知、智能叠放、最近 App、设置、计时器、闹钟和两种输入锁在同一套路由、输入仲裁和资源回收规则下工作。D13 只负责界面会话与覆盖层，不把联网、微信/支付宝、健康传感器算法或生产级 Apple 兼容性写入本阶段完成条件。</p>
@@ -60,8 +60,8 @@
 <table><thead><tr><th>层级</th><th>结果</th><th>证据与限制</th></tr></thead><tbody>
 <tr><td>主机 C 回归</td><td>通过</td><td>产品矩阵包含选择器、长按、编辑布局、取消、revision 冲突、显示能力撤销；组件 OOM、路由、生命周期和像素对照保持通过。</td></tr>
 <tr><td>产品矩阵</td><td>通过</td><td>组件 OOM 37 点、绘制 OOM 47 点、行级失败 5/5/5 点、1000 轮控制器与路由循环通过；表盘路由补充正常确认、请求拒绝、异步无 ONRESUME、根页恢复失败、重复返回和故障回收。</td></tr>
-<tr><td>GCC</td><td>通过</td><td>DEV_A128_NAND，<code>main.bin 1,951,372 B</code>，占 6 MiB 槽 31.016%；精确 SHA-256 以 <code>artifacts/DEV_A128_NAND/gcc/build_identity.json</code> 和同目录镜像为准。</td></tr>
-<tr><td>Keil</td><td>通过</td><td>DEV_A128_NAND，<code>main.bin 1,876,672 B</code>，占 29.829%；精确 SHA-256 以 <code>artifacts/DEV_A128_NAND/keil/build_identity.json</code> 和同目录镜像为准。</td></tr>
+<tr><td>GCC</td><td>通过</td><td>DEV_A128_NAND，<code>main.bin 1,951,900 B</code>，占 6 MiB 槽 31.025%；精确 SHA-256、源码 HEAD 与嵌入身份以 <code>artifacts/DEV_A128_NAND/gcc/build_identity.json</code> 和同目录镜像为准。</td></tr>
+<tr><td>Keil</td><td>通过</td><td>DEV_A128_NAND，<code>main.bin 1,877,096 B</code>，占 29.836%；精确 SHA-256、源码 HEAD 与嵌入身份以 <code>artifacts/DEV_A128_NAND/keil/build_identity.json</code> 和同目录镜像为准。</td></tr>
 <tr><td>完整 Python 门禁</td><td>未宣称通过</td><td>本机原版 SDK 目录仍含 D07 补丁，官方 clean-base 检查会主动阻止运行；没有绕过该门禁，也没有把 C 测试结果冒充完整 Python 门禁。</td></tr>
 </tbody></table>
 <p>最终归档的两个 <code>build_identity.json</code> 都记录固定 SDK <code>421126d9</code> 和构建时仓库 HEAD；构建身份字段以归档文件为准，不由本页手工覆盖。当前构建产物只证明源码、工具链、SDK 和资源预算闭环；它不替代开发板烧录、冷启动、触摸和实物按键验收。</p>
@@ -87,7 +87,7 @@
 
 <section id="next" class="level1"><h2>下一步与收口条件</h2>
 <ol>
-<li>由架构师复核本页目标、提交 <code>50dee36</code>、表盘异步提交测试和双工具链身份。</li>
+<li>由架构师复核本页目标、代码修正 <code>50dee36</code>、表盘异步提交测试和最终双工具链身份归档。</li>
 <li>获准后，用同一 GCC 三件套经 COM9 刷写，COM10 采集完整日志；不操作 J-Link。</li>
 <li>完成表盘会话和 D13-C 实体触摸边界的板上抽查，更新本页“开发板门槛”表。</li>
 <li>架构师确认主机、目标构建、实机三层证据一致后，再推送 <code>main</code> 并决定是否关闭 Issue #15；在此之前不写“D13 全部收口”。</li>
