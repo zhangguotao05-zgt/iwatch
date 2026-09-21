@@ -12,20 +12,25 @@ typedef struct {
 } iw_keys_config_t;
 typedef struct {
     uint32_t pressed_at, released_at, stable_at;
-    bool down, second, pending, held, wait_release, stable;
+    bool down, second, pending, held, unlock_ready, wait_release, stable;
 } iw_key_state_t;
+typedef enum { IW_KEY_LOCK_NONE, IW_KEY_LOCK_INPUT, IW_KEY_LOCK_WATER } iw_key_lock_mode_t;
 typedef struct {
     iw_keys_config_t config;
     iw_key_state_t keys[IW_KEY_COUNT];
     uint32_t last_tick;
     int32_t rotation;
-    bool clock_valid, water_lock;
+    bool clock_valid;
+    iw_key_lock_mode_t lock_mode;
 } iw_keys_t;
 
 /* 纯 C、有界、无堆分配；时间单位由调用方统一，间隔须小于半个 uint32_t 周期。 */
 bool iw_keys_init(iw_keys_t *keys, const iw_keys_config_t *config);
 void iw_keys_cancel(iw_keys_t *keys);
+void iw_keys_set_lock(iw_keys_t *keys, iw_key_lock_mode_t mode);
 void iw_keys_water_lock(iw_keys_t *keys, bool locked);
+/* 返回当前 KEY1 解锁进度；未处于锁定长按时返回 0。 */
+uint8_t iw_keys_unlock_progress(const iw_keys_t *keys, uint32_t now);
 /* out 至少 IW_KEY_OUTPUTS 项；先结算截止事件，再消费边沿。重复边沿不产生新手势。 */
 unsigned iw_keys_edge(iw_keys_t *keys, unsigned key, bool pressed, uint32_t now, iw_key_signal_t *out);
 unsigned iw_keys_advance(iw_keys_t *keys, uint32_t now, iw_key_signal_t *out);

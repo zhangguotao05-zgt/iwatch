@@ -18,6 +18,9 @@ void iw_key_port_process(void);
 void iw_key_port_cancel(void);
 uint32_t iw_key_port_wait_ms(uint32_t other_ms);
 iw_input_context_t iw_key_port_context(void);
+uint8_t iw_key_port_unlock_progress(void);
+/* 只有 KEY1 已完成硬件注册并启用时，产品页才允许进入不可触摸的锁页。 */
+bool iw_key_port_can_unlock(void);
 /* GUI 所有者同步切换；生产者必须使用下方排队接口。 */
 bool iw_key_port_apply_context(iw_input_context_t context);
 /* 线程侧诊断入口与物理输入共用有界队列，不允许从 ISR 查询触摸互斥快照。 */

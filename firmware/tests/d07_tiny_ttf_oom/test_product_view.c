@@ -240,6 +240,7 @@ static iw_product_model_t fixture(void) {
         .message = IW_TEXT_COUNT,
         .display_available = true,
         .time_available = true,
+        .lock_available = true,
         .back = true,
         .hardware = "SF32LB58 A128",
         .firmware = "HOST FIXTURE",
@@ -272,10 +273,11 @@ static void d13_scene_boundaries(iw_product_model_t *m)
     m->timers.count = 0;
     m->alarms.count = 0;
     assert(iw_product_scene_build(&scene, IW_PAGE_CONTROL_CENTER, m));
-    assert(has_text(&scene, "控制中心") && has_text(&scene, "未接入"));
+    assert(has_text(&scene, "控制中心") && has_text(&scene, "按住 KEY1 两秒"));
     int display_hit = iw_product_scene_hit(&scene, 270, 250, 0);
     assert(display_hit >= 0 && scene.nodes[display_hit].action == IW_PAGE_DISPLAY);
-    assert(iw_product_scene_hit(&scene, 110, 360, 0) == -1);
+    int lock_hit = iw_product_scene_hit(&scene, 110, 360, 0);
+    assert(lock_hit >= 0 && scene.nodes[lock_hit].action == IW_PAGE_LOCK);
     bool control_geometry = false;
     bool brightness_geometry = false;
     bool track_visual = false;
@@ -294,7 +296,7 @@ static void d13_scene_boundaries(iw_product_model_t *m)
                                node->width == 170 && node->height == 98;
         if (node->action == IW_PAGE_LOCK)
             assert(node->x == 18 && node->y == 330 && node->width == 354 &&
-                   node->height == 96 && node->disabled);
+                   node->height == 96 && !node->disabled);
         if (node->icon == IW_ICON_SUN) control_suns++;
     }
     assert(control_geometry && brightness_geometry && track_visual && track_hit && control_suns == 0);
@@ -304,6 +306,12 @@ static void d13_scene_boundaries(iw_product_model_t *m)
             assert(node->font_px == 22u && node->radius == 24u);
     }
     assert(iw_product_scene_scroll_limit(&scene) == 0);
+    m->lock_available = false;
+    assert(iw_product_scene_build(&scene, IW_PAGE_CONTROL_CENTER, m));
+    assert(has_text(&scene, "未接入"));
+    assert(iw_product_scene_hit(&scene, 110, 360, 0) == -1);
+    assert(iw_product_scene_hit(&scene, 100, 250, 0) == -1);
+    m->lock_available = true;
     int track_node = iw_product_scene_hit(&scene, 100, 150, 0);
     assert(track_node >= 0 && scene.nodes[track_node].action == IW_ACTION_TRACK);
     assert(iw_product_scene_build(&scene, IW_PAGE_BRIGHTNESS, m));
@@ -318,6 +326,30 @@ static void d13_scene_boundaries(iw_product_model_t *m)
             assert(node->x + node->width <= 98 || node->x >= 292);
     }
     assert(detail_track);
+    m->lock_water = false;
+    m->lock_progress = 50u;
+    assert(iw_product_scene_build(&scene, IW_PAGE_LOCK, m));
+    assert(has_text(&scene, "输入已锁定") && has_text(&scene, "输入锁") &&
+           has_text(&scene, "按住 KEY1 两秒"));
+    bool half_progress = false;
+    for (unsigned i = 0; i < scene.count; i++) {
+        const iw_product_node_t *node = &scene.nodes[i];
+        if (node->x == 46 && node->y == 352 && node->width == 149 &&
+            node->height == 12 && node->fill == IW_PRODUCT_BLUE) half_progress = true;
+        assert(node->action == 0u);
+    }
+    assert(half_progress && iw_product_scene_hit(&scene, 195, 225, 0) == -1);
+    m->lock_water = true;
+    m->lock_progress = 100u;
+    assert(iw_product_scene_build(&scene, IW_PAGE_WATER_LOCK, m));
+    assert(has_text(&scene, "水锁") && has_text(&scene, "松开后解除"));
+    bool full_progress = false;
+    for (unsigned i = 0; i < scene.count; i++) {
+        const iw_product_node_t *node = &scene.nodes[i];
+        if (node->x == 46 && node->y == 352 && node->width == 298 &&
+            node->height == 12 && node->fill == IW_PRODUCT_BLUE) full_progress = true;
+    }
+    assert(full_progress);
     m->notifications = &notifications;
     assert(iw_product_scene_build(&scene, IW_PAGE_NOTIFICATION_LIST, m));
     assert(has_text(&scene, "暂无通知"));

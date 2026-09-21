@@ -22,6 +22,10 @@ bool iw_product_destroy(iw_product_page_t *page);
 bool iw_product_back(iw_product_page_t *page);
 bool iw_product_rotate(iw_product_page_t *page, int32_t steps);
 void iw_product_set_recent(iw_product_page_t *page, const iw_recent_apps_t *recent);
+/* GUI owner 更新锁页进度；输入驱动不直接触碰 LVGL。 */
+void iw_product_set_lock_progress(uint8_t progress);
+/* 启动自检结果控制两种锁入口；失败时入口保持可见但禁止点击。 */
+void iw_product_set_lock_available(bool available);
 /* 普通通知首期只允许 GUI owner 的具名本机生产者；无生产者时保持空态。 */
 bool iw_product_notification_add(iw_notification_source_t source,
                                  const char *text, size_t bytes);

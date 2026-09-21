@@ -15,7 +15,7 @@
 <rect x="18" y="110" width="354" height="98" rx="24" fill="#242426"/><text x="36" y="145" class="small">亮度</text><rect x="36" y="158" width="318" height="40" rx="20" fill="#44464d"/><rect x="36" y="158" width="250" height="40" rx="20" fill="#f3f3f7"/><text x="340" y="145" text-anchor="end" class="note sub">80%</text>
 <rect x="18" y="220" width="170" height="98" rx="24" fill="#303136"/><path d="M103 236c-11 16-18 25-18 35a18 18 0 0 0 36 0c0-10-7-19-18-35z" fill="#91939d"/><text x="103" y="278" text-anchor="middle" class="small muted">水锁</text><text x="103" y="302" text-anchor="middle" class="note muted">未接入 C</text>
 <rect x="202" y="220" width="170" height="98" rx="24" fill="#242426"/><circle cx="287" cy="267" r="19" fill="none" stroke="#fff" stroke-width="3"/><circle cx="287" cy="267" r="9" fill="#fff"/><text x="287" y="309" text-anchor="middle" class="small">显示设置</text>
-<rect x="18" y="330" width="354" height="96" rx="24" fill="#1a1a1d"/><rect x="43" y="363" width="34" height="28" rx="7" fill="none" stroke="#91939d" stroke-width="3"/><path d="M49 363v-7a11 11 0 0 1 22 0v7" fill="none" stroke="#91939d" stroke-width="3"/><text x="95" y="370" class="small muted">输入锁</text><text x="95" y="398" class="note muted">未接入 C</text></svg><figcaption>控制中心：B 阶段水锁和普通输入锁均显示为禁用的真实能力占位，不提供假解锁入口；C 阶段完成对应按键自检后再启用。无线、电池与支付没有来源，不画假开关。</figcaption></figure>
+<rect x="18" y="330" width="354" height="96" rx="24" fill="#1a1a1d"/><rect x="43" y="363" width="34" height="28" rx="7" fill="none" stroke="#91939d" stroke-width="3"/><path d="M49 363v-7a11 11 0 0 1 22 0v7" fill="none" stroke="#91939d" stroke-width="3"/><text x="95" y="370" class="small muted">输入锁</text><text x="95" y="398" class="note muted">能力缺失时未接入</text></svg><figcaption>控制中心：B 阶段历史稿为禁用占位；C 阶段按键能力自检通过后启用水锁和普通输入锁，能力缺失时仍显示“未接入”并禁用。无线、电池与支付没有来源，不画假开关。</figcaption></figure>
 
 <figure id="notification-list"><svg class="watch-screen" viewBox="0 0 390 450" role="img" aria-label="通知列表代表稿"><rect width="390" height="450" rx="42" fill="#000"/><text x="28" y="88" class="title">通知</text><text x="348" y="43" text-anchor="end" class="small">10:09</text>
 <text x="34" y="132" class="note sub">待处理提醒</text><rect x="18" y="146" width="354" height="106" rx="24" fill="#30252a"/><rect x="18" y="146" width="7" height="106" rx="3" fill="#ff453a"/><text x="42" y="186" class="body">计时器结束</text><text x="42" y="224" class="small sub">点开后可停止或稍后</text>
@@ -52,7 +52,7 @@
 </div>
 
 <section id="geometry"><h2>坐标、字号和命中区</h2><table><thead><tr><th>页面</th><th>主要几何（x,y,w,h）</th><th>独立命中与滚动</th><th>主要状态</th></tr></thead><tbody>
-<tr><td>控制中心</td><td>标题基线 (28,88)，亮度卡 (18,110,354,98)，滑条 (36,158,318,40)，水锁／显示 (18/202,220,170,98)，输入锁 (18,330,354,96)</td><td>滑条触摸 (32,150,326,56)；两卡整块 170×98，输入锁整行 354×96；正文视口 y=104…426</td><td>80% 已应用／应用中／显示驱动不可用；B 阶段水锁和输入锁均显示“未接入 C”并禁用，C 阶段自检通过后启用；缺能力时不显示假控制</td></tr>
+<tr><td>控制中心</td><td>标题基线 (28,88)，亮度卡 (18,110,354,98)，滑条 (36,158,318,40)，水锁／显示 (18/202,220,170,98)，输入锁 (18,330,354,96)</td><td>滑条触摸 (32,150,326,56)；两卡整块 170×98，输入锁整行 354×96；正文视口 y=104…426</td><td>80% 已应用／应用中／显示驱动不可用；B 阶段历史稿为禁用占位，C 阶段按键能力自检通过后启用；能力缺失时显示“未接入”并禁用，不画假控制</td></tr>
 <tr><td>显示亮度详情</td><td>亮度卡 (18,276,354,88)；左／右太阳按钮各 80 px；中间可见轨道 (114,317,162,6)</td><td>左减亮 (18,276,80,88)、中间滑条 (98,292,194,56)、右增亮 (292,276,80,88)；三块命中区互不重叠</td><td>沿用 watchOS 滑块的“中心轨道＋两侧调节”结构；轨道和图标分层绘制，避免太阳覆盖轨道</td></tr>
 <tr><td>通知列表／详情</td><td>两类分组 y=132/292；卡 (18,146,354,106) 与 (18,304,354,104)；详情正文 (18,112,354,232)，删除 (18,366,354,60)</td><td>整卡点击，详情正文滚动；删除区 354×60。返回 56×56</td><td>双空态／仅关键／仅普通／已读／旧 ID／UTF-8 长文；关键提醒走 D12 动作</td></tr>
 <tr><td>智能叠放</td><td>第一卡 (18,112,354,134)，第二卡 (18,260,354,132)，页点 y=421</td><td>整卡点击，纵向滚动不触发普通点击；最多 8 卡，屏幕只保留可见和相邻卡</td><td>活动优先、无计时器、RTC 无效、提醒插入、来源失效</td></tr>
@@ -66,7 +66,7 @@
 <section id="differences"><h2>参考差异与后续对照</h2>
 <table><thead><tr><th>差异号</th><th>本项目目标</th><th>原因及验收边界</th></tr></thead><tbody>
 <tr><td>D13-V01 · 尺寸／字体</td><td>390×450 重排，DroidSansFallback Regular 与项目自绘基础图形</td><td>Apple Watch Series 11 46 mm 官方尺寸 416×496；不拉伸整屏，也不嵌入 Apple 字体／图标。字号与视觉重量逐项记录差异。</td></tr>
-<tr><td>D13-V02 · 控制中心</td><td>亮度、水锁、显示设置与普通输入锁；无电池百分比与无线状态假图</td><td>普通输入锁是本项目的防误触入口，B 阶段禁用，C 阶段完成可靠解锁才启用；无线与电池没有可读回 Provider，未来接入后另做页面和能力验收。</td></tr>
+<tr><td>D13-V02 · 控制中心</td><td>亮度、水锁、显示设置与普通输入锁；无电池百分比与无线状态假图</td><td>普通输入锁是本项目的防误触入口，C 阶段按键能力自检通过后启用；解锁只认 KEY1 真实释放。无线与电池没有可读回 Provider，未来接入后另做页面和能力验收。</td></tr>
 <tr><td>D13-V03 · 通知</td><td>32 条本地普通通知＋独立 24 槽关键提醒；没有远程推送内容</td><td>普通通知默认为空，诊断注入标“本机测试”；参考结构可学，不能假冒微信或系统推送。</td></tr>
 <tr><td>D13-V04 · 叠放／切换器</td><td>确定性业务卡排序、图标与名称回退</td><td>不模拟原厂预测能力；不因缩略图失败分配 351,000 B 全屏缓冲。</td></tr>
 <tr><td>D13-V05 · 锁与表盘</td><td>KEY1 长按退出，两个项目自有表盘及会话草稿</td><td>无密码安全、摘腕检测、排水硬件和断电保存；“模块·本地”不是 Apple 原厂资源复制。</td></tr>

@@ -78,12 +78,12 @@
     "--notdef-outline"
   ],
   "expected": {
-    "character_count": 434,
-    "charset_sha256": "a2772e76ab806b42c9019a872a55d0f806be5ca71592ac10e48a4f4213a35183",
+    "character_count": 437,
+    "charset_sha256": "819cca19d1bb8fd6a524ee503a1234a66f1f24da70e6b8f2b30bcbb3e9dedb2f",
     "source_font_bytes": 3939852,
     "source_font_sha256": "05d71b179ef97b82cf1bb91cef290c600a510f77f39b4964359e3ef88378c79d",
-    "subset_font_bytes": 74028,
-    "subset_font_sha256": "9dcb1090b697f4a293d479e56553ad1238d424e2df887df5e554d5813ab3d713"
+    "subset_font_bytes": 74372,
+    "subset_font_sha256": "43eacb86a0c0613d8a286bc11ae6bbe5cfbaa680733663d90ea051d81a7e8419"
   },
   "c_string_sources": [
     {

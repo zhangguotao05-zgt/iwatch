@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="iwatch D13-C 双锁与输入仲裁实施、主机回归及目标构建记录"><title>D13-C 锁与输入仲裁实施记录 · iwatch</title>
+<link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
+<header><h1>D13-C 锁与输入仲裁实施记录</h1><p class="doc-meta">2026-09-21 · Issue #15 · D13-A 基线 <code>c7617c2</code> · C 阶段首个增量 · 待架构复核</p></header>
+<p class="note">本页只记录普通输入锁和水锁的首个 C 阶段增量，不包含表盘编辑、会话草稿提交或 D15 持久化。实现先在主机完成状态、输入和资源回归，再完成 GCC/Keil 目标构建；本页不把主机构造测试当作实机故障注入，也不表示 D13 总体收口。#8 长文／输入性能、#10 显示异常和 D15 <code>flash1</code> 继续独立跟踪。</p>
+<section><h2>范围与验收契约</h2><table><thead><tr><th>项目</th><th>本轮行为</th><th>明确边界</th></tr></thead><tbody>
+<tr><td>普通输入锁</td><td>控制中心底部整行提供正式入口；能力可用时进入锁页，能力缺失时显示“未接入”并禁用。</td><td>不是密码安全功能，不模拟摘腕、支付或防盗；C 阶段暂只支持 KEY1 长按解锁。</td></tr>
+<tr><td>水锁</td><td>控制中心水滴卡进入独立水锁页；触摸和 KEY2 在锁定期间不产生业务动作。</td><td>水锁只屏蔽输入，不代表设备具备防水保证；提醒可以显示摘要，但不能取得触摸输入。</td></tr>
+<tr><td>解锁规则</td><td>KEY1 连续按下达到 2,000 ms 只进入“可解锁”状态；真实释放边沿才产生一次解锁信号。未达到阈值、短按、KEY2、重复释放均不解锁。</td><td>长按期间不提前穿透；取消或切换上下文清理候选手势，并等待真实释放后再接受下一次按下。</td></tr>
+<tr><td>返回规则</td><td>解锁后恢复普通输入并关闭锁页覆盖链，返回进入锁页前的来源页；来源已失效时由路由器回到可用根页。</td><td>锁页没有触摸命中区，不在绘制回调中直接改路由或删除页面。</td></tr>
+</tbody></table></section>
+<section><h2>实现结构</h2><ul>
+<li><code>core/iw_keys</code> 将水锁和普通输入锁统一为 <code>IW_KEY_LOCK_WATER</code>／<code>IW_KEY_LOCK_INPUT</code> 两种模式，共享有界的按键状态机；新增 <code>unlock_ready</code> 记录阈值已到但尚未释放。</li>
+<li><code>platform/iw_key_port</code> 在 GUI owner 线程切换输入上下文，提供按键能力自检和解锁进度查询；中断路径只复制边沿，不执行 LVGL 或路由操作。</li>
+<li><code>platform/iw_router</code> 在锁页恢复／停止时同步输入上下文；锁页按覆盖层处理，但路由描述仍标为可用页面，避免被通用导航能力检查误拒绝。</li>
+<li><code>gui_core/iw_product_scene</code> 绘制控制中心、普通输入锁页和水锁页。锁页仅有标题、锁图形、KEY1 说明和进度条，<code>iw_product_scene_hit</code> 不返回可点击动作。</li>
+<li><code>gui_apps/watch_demo</code> 在收到 GUI 线程中的解锁意图后先恢复普通输入，再通过 <code>iw_router_home()</code> 关闭锁页覆盖链；进度只更新当前可见锁页模型。</li>
+<li>正式字体清单加入本轮三条中文文案，生成子集与清单哈希同时更新，避免目标构建使用过期字体输入。</li>
+</ul></section>
+<section><h2>主机验证</h2><table><thead><tr><th>层级</th><th>结果</th><th>说明</th></tr></thead><tbody>
+<tr><td>核心输入</td><td>通过</td><td>双键时序、长按阈值、真实释放、取消／重新启用、锁模式切换和旋转边界回归通过；既有 D09 1000 轮输入测试保持通过。</td></tr>
+<tr><td>GUI 场景</td><td>通过</td><td>控制中心锁入口、普通锁 50% 进度、水锁 100% 进度、无触摸动作、布局边界和字体文案断言通过。</td></tr>
+<tr><td>故障矩阵</td><td>通过</td><td>D07-A0 产品 OOM 与渲染矩阵通过：37 个产品分配失败点、47 个绘制失败点、5/5/5 行级失败点、1000 轮页面生命周期。</td></tr>
+<tr><td>综合矩阵</td><td>通过</td><td>59 个故障点、1000 轮组件／页面回收、4,046 次像素提交对照、触摸溢出取消和锁重新启用 1000 轮均通过。</td></tr>
+<tr><td>Python 门禁</td><td>环境待隔离</td><td>C 测试和可执行文件矩阵通过；完整 Python 阶段仍受本机原版 SDK 已被补丁污染影响，出现既有的 clean-base 失败／错误，未绕过该检查。</td></tr>
+</tbody></table></section>
+<section><h2>目标构建</h2><p>本轮先以固定 SDK 提交 <code>421126d9</code> 的受控补丁环境执行 GCC 构建，结果为 <code>main.bin 1,948,892 B</code>，占 6 MiB 槽 30.977%，资源预算通过，<code>BUILD IDENTITY OK</code>。Keil 构建和最终提交绑定的双工具链身份将在代码与本文档入库后重新生成；不能把工作树快照身份当作最终归档。</p><p>最终验收必须从同一提交分别生成 GCC／Keil，检查 map 工具链来源、镜像内嵌身份、三件套地址和预算，并保留两套身份文件。构建产物仍按 DEV_A128_NAND profile，不能混用 PRODUCT_N16_NOR 规划。</p></section>
+<section><h2>开发板计划与边界</h2><p>本轮尚未重新烧录或声明实屏通过。架构复核批准后，才可使用 SF32LB58 开发板的 COM9／COM10 完成三件套写入、冷启动、控制中心入口、普通锁／水锁解锁、KEY2 屏蔽、来源返回及重复进入抽查；全程不操作 J-Link。</p><p>板上验证需分别记录“主机通过／构建通过／板上通过”，不能用串口命令受理替代画面和实体按键结果。若出现半黑半白、<code>draw_core timeout</code> 或 <code>flash1</code> 报错，按 #10／D15 原有流程封存，不在本轮掩盖。</p></section>
+<section><h2>后续</h2><ol><li>完成干净基础 SDK 与受控补丁 SDK 的独立 Python 门禁，再由架构师复核本增量。</li><li>复核通过后重新生成 GCC／Keil、身份和预算归档；未经批准不推送 <code>main</code>、不烧录。</li><li>板上锁功能通过后，再进入 D13-C 的表盘选择／编辑会话；表盘草稿原子提交和 D15 持久化保持独立。</li></ol></section>
+</main></body></html>

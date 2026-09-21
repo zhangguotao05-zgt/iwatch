@@ -381,18 +381,38 @@ static bool control_center(iw_product_scene_t *s, const iw_product_model_t *m)
 {
     return header(s, m, TEXT(CONTROL_CENTER)) &&
            brightness_summary(s, m, 110) &&
-           card_button(s, 18, 220, 170, 98, IW_PAGE_WATER_LOCK, true,
+           card_button(s, 18, 220, 170, 98, IW_PAGE_WATER_LOCK, !m->lock_available,
                    TEXT(WATER_LOCK)) &&
            card_button(s, 202, 220, 170, 98, IW_PAGE_DISPLAY, false,
                    TEXT(DISPLAY_SETTINGS)) &&
-           label(s, 30, 302, 146, 20, IW_PRODUCT_DISABLED, 1, false,
-                 TEXT(NOT_CONNECTED)) &&
-           add(s, 18, 330, 354, 96, 0, 0, IW_PRODUCT_DISABLED,
-               IW_PRODUCT_DISABLED_SURFACE, 24, 0, IW_PAGE_LOCK, false, true, "") &&
-           label(s, 95, 370, 250, 20, IW_PRODUCT_DISABLED, 0, false,
+           add(s, 18, 330, 354, 96, 0, 0, IW_PRODUCT_WHITE,
+               m->lock_available ? IW_PRODUCT_SURFACE : IW_PRODUCT_DISABLED_SURFACE,
+               24, 0, IW_PAGE_LOCK, false, !m->lock_available, "") &&
+           label(s, 95, 370, 250, 20,
+                 m->lock_available ? IW_PRODUCT_WHITE : IW_PRODUCT_DISABLED, 0, false,
                  TEXT(INPUT_LOCK)) &&
-           label(s, 95, 398, 250, 20, IW_PRODUCT_DISABLED, 0, false,
-                 TEXT(INPUT_LOCK_PENDING));
+           label(s, 95, 398, 250, 20, IW_PRODUCT_SECONDARY, 0, false,
+                 m->lock_available ? TEXT(HOLD_KEY) : TEXT(NOT_CONNECTED));
+}
+
+/* 锁页不接收触摸和普通按键，只显示 KEY1 的可确认退出规则。 */
+static bool lock_page(iw_product_scene_t *s, const iw_product_model_t *m)
+{
+    int width = (298 * (m->lock_progress > 100u ? 100u : m->lock_progress)) / 100;
+    return label(s, 30, 58, 330, 26, IW_PRODUCT_SECONDARY, 1, false,
+                 TEXT(LOCKED)) &&
+           label(s, 30, 112, 330, 34, IW_PRODUCT_WHITE, 1, false,
+                 m->lock_water ? TEXT(WATER_LOCK) : TEXT(INPUT_LOCK)) &&
+           add(s, 165, 178, 60, 52, 0, 0, IW_PRODUCT_WHITE, 0, 12, 0, 0,
+               false, false, "") &&
+           label(s, 30, 286, 330, 26, IW_PRODUCT_WHITE, 1, false,
+                 TEXT(HOLD_KEY)) &&
+           add(s, 46, 352, 298, 12, 0, 0, IW_PRODUCT_DISABLED_SURFACE,
+               IW_PRODUCT_DISABLED_SURFACE, 6, 0, 0, false, false, "") &&
+           (width == 0 || add(s, 46, 352, width, 12, 0, 0, IW_PRODUCT_BLUE,
+                              IW_PRODUCT_BLUE, 6, 0, 0, false, false, "")) &&
+           label(s, 30, 406, 330, 20, IW_PRODUCT_SECONDARY, 1, false,
+                 TEXT(RELEASE_TO_UNLOCK));
 }
 
 static bool notification_list(iw_product_scene_t *s, const iw_product_model_t *m)
@@ -652,6 +672,10 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
         break;
     case IW_PAGE_SWITCHER:
         ok = app_switcher(s, m);
+        break;
+    case IW_PAGE_LOCK:
+    case IW_PAGE_WATER_LOCK:
+        ok = lock_page(s, m);
         break;
     case IW_PAGE_FACE:
         ok = face(s, m);

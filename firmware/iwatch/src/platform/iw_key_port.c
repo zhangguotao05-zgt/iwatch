@@ -248,12 +248,22 @@ bool iw_key_port_apply_context(iw_input_context_t value)
     if (!ready || (unsigned)value > IW_INPUT_RECOVERY) return false;
     RT_ASSERT(rt_thread_self() == owner);
     context = value;
-    iw_keys_water_lock(&recognizer, context == IW_INPUT_WATER);
+    iw_keys_set_lock(&recognizer, context == IW_INPUT_WATER ? IW_KEY_LOCK_WATER :
+                     context == IW_INPUT_LOCKED ? IW_KEY_LOCK_INPUT : IW_KEY_LOCK_NONE);
     iw_key_port_cancel();
     return true;
 }
 
 iw_input_context_t iw_key_port_context(void) { return context; }
+uint8_t iw_key_port_unlock_progress(void)
+{
+    if (!ready || (context != IW_INPUT_WATER && context != IW_INPUT_LOCKED)) return 0u;
+    return iw_keys_unlock_progress(&recognizer, (uint32_t)rt_tick_get());
+}
+bool iw_key_port_can_unlock(void)
+{
+    return ready && hardware_enabled && handles[IW_KEY_CROWN] >= 0;
+}
 bool iw_key_port_inject(unsigned key, bool pressed)
 {
     return key < IW_KEY_COUNT && post(pressed ? IW_INPUT_PRESS : IW_INPUT_RELEASE, (int32_t)key);

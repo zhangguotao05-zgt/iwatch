@@ -73,9 +73,11 @@ int main(void)
     assert(!iw_key_port_init(NULL));
     enable_failure = 1;
     assert(!iw_key_port_init(&ops) && registered == 2 && !enabled && disabled == 2);
+    assert(!iw_key_port_can_unlock());
     configs[0].button_handler(150, BUTTON_PRESSED); poll(0); assert(!presses);
     enable_failure = -1;
     assert(iw_key_port_init(&ops) && registered == 2 && enabled == 3);
+    assert(iw_key_port_can_unlock());
     thread = (void *)2; assert(!iw_key_port_init(&ops)); thread = (void *)1;
     release_all();
     for (unsigned loop = 0; loop < 1000; loop++) {
@@ -105,8 +107,11 @@ int main(void)
         /* 水锁的解锁同步提交，不能被紧随其后的取消冲掉。 */
         assert(iw_key_port_set_context(IW_INPUT_WATER)); poll(0); release_all();
         edge(0, true, 1); poll(1999); assert(deliveries == base + 6); poll(1);
+        /* 达到阈值只显示进度，必须等真实释放边沿才发送一次解锁。 */
+        assert(deliveries == base + 6 && iw_key_port_context() == IW_INPUT_WATER);
+        edge(0, false, 1);
         assert(deliveries == base + 7 && last_signal.kind == IW_KEY_UNLOCK && iw_key_port_context() == IW_INPUT_NORMAL);
-        edge(0, false, 1); release_all(); poll(300); assert(deliveries == base + 7);
+        release_all(); poll(300); assert(deliveries == base + 7);
         rotated = 0; touching = true; assert(!iw_key_port_rotate(32)); touching = false;
         assert(iw_key_port_rotate(INT32_MAX)); poll(0); assert(rotated == 32);
         assert(iw_key_port_rotate(INT32_MIN)); touching = true; poll(0); assert(rotated == 32); touching = false;

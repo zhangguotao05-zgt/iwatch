@@ -16,6 +16,11 @@ static const iw_ui_command_port_t command_port = {iw_request_allocate, iw_servic
 static iw_ui_commands_t commands = {.port = &command_port};
 static iw_product_page_t *pages;
 static iw_notification_store_t notification_store;
+#ifdef _WIN32
+static bool lock_available = true;
+#else
+static bool lock_available;
+#endif
 
 static void notification_projection(iw_product_model_t *model)
 {
@@ -50,6 +55,29 @@ void iw_product_set_recent(iw_product_page_t *page, const iw_recent_apps_t *rece
     else if (page->model.recent_index >= recent->count)
         page->model.recent_index = (uint8_t)(recent->count - 1u);
     page->dirty = true;
+}
+
+void iw_product_set_lock_progress(uint8_t progress)
+{
+    if (!iw_font_port_is_owner()) return;
+    if (progress > 100u) progress = 100u;
+    for (iw_product_page_t *p = pages; p; p = p->next)
+        if (p->visible && (p->page_id == IW_PAGE_LOCK || p->page_id == IW_PAGE_WATER_LOCK) &&
+            p->model.lock_progress != progress) {
+            p->model.lock_progress = progress;
+            p->dirty = true;
+        }
+}
+
+void iw_product_set_lock_available(bool available)
+{
+    lock_available = available;
+    if (!iw_font_port_is_owner()) return;
+    for (iw_product_page_t *p = pages; p; p = p->next)
+        if (p->model.lock_available != available) {
+            p->model.lock_available = available;
+            p->dirty = true;
+        }
 }
 
 static void refresh_notification_pages(void)
@@ -608,6 +636,8 @@ bool iw_product_create(iw_product_page_t *p, uint16_t id, uint32_t argument,
         .hardware = "SF32LB58 A128 QSPI", .firmware = IW_BUILD_TAG, .quality = profile_quality,
         .large_text = profile_large, .reduced_motion = profile_reduced,
         .notifications = &notification_store};
+    p->model.lock_water = id == IW_PAGE_WATER_LOCK;
+    p->model.lock_available = lock_available;
 #if defined(__ARMCOMPILER_VERSION)
     p->model.toolchain = "Arm Compiler " __VERSION__;
 #elif defined(__GNUC__)

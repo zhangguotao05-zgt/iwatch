@@ -9,6 +9,12 @@
 #include "iw_service_runtime.h"
 #include "iw_router_text.h"
 #include "iw_product_controller.h"
+#ifndef _WIN32
+#include "iw_key_port.h"
+#else
+static iw_input_context_t iw_key_port_context(void) { return IW_INPUT_NORMAL; }
+static bool iw_key_port_apply_context(iw_input_context_t value) { (void)value; return true; }
+#endif
 #include "iw_render_probe.h"
 #include "gui_app_fwk.h"
 #include <rtthread.h>
@@ -67,7 +73,18 @@ static bool primary_overlay(uint16_t id)
 
 static bool overlay_page(uint16_t id)
 {
-    return primary_overlay(id) || id == IW_PAGE_NOTIFICATION_DETAIL;
+    return primary_overlay(id) || id == IW_PAGE_NOTIFICATION_DETAIL ||
+           id == IW_PAGE_LOCK || id == IW_PAGE_WATER_LOCK;
+}
+
+static void sync_input_context(uint16_t page_id)
+{
+    if (page_id == IW_PAGE_LOCK)
+        (void)iw_key_port_apply_context(IW_INPUT_LOCKED);
+    else if (page_id == IW_PAGE_WATER_LOCK)
+        (void)iw_key_port_apply_context(IW_INPUT_WATER);
+    else if (iw_key_port_context() == IW_INPUT_LOCKED || iw_key_port_context() == IW_INPUT_WATER)
+        (void)iw_key_port_apply_context(IW_INPUT_NORMAL);
 }
 
 extern void iw_gui_cancel_input(void);
@@ -293,6 +310,7 @@ static void dispatch_page(route_page_t *page,gui_app_msg_type_t message)
         page->resumed = true;
         (void)restore_root(page);
         if (!page->failed && page->scope.alive) {
+            sync_input_context(page->route.page_id);
             const iw_page_resume_t *resume = iw_nav_resume_find(&navigator, page->route);
             if (resume) page->scroll_y = resume->scroll_y;
             if (page->product) {
@@ -315,6 +333,7 @@ static void dispatch_page(route_page_t *page,gui_app_msg_type_t message)
         break;
     case GUI_APP_MSG_ONSTOP:
         page->stopped = true;
+        sync_input_context(IW_PAGE_FACE);
         if (overlay_root_id && !strcmp(page->sdk_name, overlay_root_name)) {
             overlay_root_id = 0;
             overlay_source[0] = overlay_root_name[0] = '\0';

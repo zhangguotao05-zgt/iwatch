@@ -28,6 +28,7 @@
 #include "iw_font.h"
 #include "iw_gui_owner.h"
 #include "iw_router.h"
+#include "iw_product_controller.h"
 #include "iw_routes.h"
 #include "iw_render_probe.h"
 #include "iw_font_port.h"
@@ -513,7 +514,10 @@ static bool input_signal(iw_key_signal_t signal)
         iw_gui_fault_dismiss();
         (void)iw_key_port_apply_context(IW_INPUT_NORMAL);
         return iw_router_recover();
-    case IW_INTENT_UNLOCK: return iw_key_port_apply_context(IW_INPUT_NORMAL);
+    case IW_INTENT_UNLOCK:
+        if (!iw_key_port_apply_context(IW_INPUT_NORMAL)) return false;
+        /* 锁页是覆盖层模态页，解锁后关闭整条覆盖链并回到进入前来源。 */
+        return iw_router_home();
     case IW_INTENT_NONE: return false;
     default: break;
     }
@@ -543,6 +547,7 @@ static void input_service(void)
     previous = current;
     sampled = true;
     iw_key_port_process();
+    iw_product_set_lock_progress(iw_key_port_unlock_progress());
 }
 
 void button_key_read(uint32_t *last_key, lv_indev_state_t *state)
@@ -833,6 +838,9 @@ void app_watch_entry(void *parameter)
     resource_init();
     gui_app_init(1);
     iw_router_init();
+#ifdef USING_BUTTON_LIB
+    iw_product_set_lock_available(iw_key_port_can_unlock());
+#endif
 
 #ifdef BSP_USING_PM
     button_event_task = lv_timer_create(button_event_task_entry, 30, 0);

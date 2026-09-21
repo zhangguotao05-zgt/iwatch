@@ -126,6 +126,9 @@ typedef enum {
     IW_TEXT_ALARM_CHANGED,
     IW_TEXT_APP_UNAVAILABLE,
     IW_TEXT_INPUT_LOCK_PENDING,
+    IW_TEXT_LOCKED,
+    IW_TEXT_HOLD_KEY,
+    IW_TEXT_RELEASE_TO_UNLOCK,
     IW_TEXT_COUNT
 } iw_product_text_id_t;
 
@@ -253,6 +256,9 @@ static const char *const iw_product_texts[] = {
     "闹钟已变化",
     "应用不可用",
     "未接入 C",
+    "输入已锁定",
+    "按住 KEY1 两秒",
+    "松开后解除",
 };
 _Static_assert(sizeof(iw_product_texts) / sizeof(iw_product_texts[0]) == IW_TEXT_COUNT, "文案编号必须与清单一致");
 

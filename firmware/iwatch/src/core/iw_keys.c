@@ -23,12 +23,20 @@ void iw_keys_cancel(iw_keys_t *keys)
     keys->rotation = 0;
 }
 
+void iw_keys_set_lock(iw_keys_t *keys, iw_key_lock_mode_t mode)
+{
+    if (keys && keys->lock_mode != mode) {
+        bool crown_released = !keys->keys[IW_KEY_CROWN].down;
+        iw_keys_cancel(keys);
+        keys->lock_mode = mode;
+        /* 释放边沿已处理，允许下一次全新 KEY1 按压进入对应上下文。 */
+        if (crown_released) keys->keys[IW_KEY_CROWN].wait_release = false;
+    }
+}
+
 void iw_keys_water_lock(iw_keys_t *keys, bool locked)
 {
-    if (keys && keys->water_lock != locked) {
-        iw_keys_cancel(keys);
-        keys->water_lock = locked;
-    }
+    iw_keys_set_lock(keys, locked ? IW_KEY_LOCK_WATER : IW_KEY_LOCK_NONE);
 }
 
 static bool accept_time(iw_keys_t *keys, uint32_t now)
@@ -45,7 +53,8 @@ static bool accept_time(iw_keys_t *keys, uint32_t now)
 
 static uint32_t hold_ticks(const iw_keys_t *keys, unsigned key)
 {
-    return keys->water_lock && key == IW_KEY_CROWN ? keys->config.unlock_ticks : keys->config.hold_ticks[key];
+    return keys->lock_mode != IW_KEY_LOCK_NONE && key == IW_KEY_CROWN ?
+           keys->config.unlock_ticks : keys->config.hold_ticks[key];
 }
 
 unsigned iw_keys_advance(iw_keys_t *keys, uint32_t now, iw_key_signal_t *out)
@@ -58,7 +67,10 @@ unsigned iw_keys_advance(iw_keys_t *keys, uint32_t now, iw_key_signal_t *out)
         if (state->down && !state->held && now - state->pressed_at >= hold_ticks(keys, i)) {
             state->held = true;
             state->pending = state->second = false;
-            out[count++] = (iw_key_signal_t){i, keys->water_lock && i == IW_KEY_CROWN ? IW_KEY_UNLOCK : IW_KEY_HOLD};
+            if (keys->lock_mode != IW_KEY_LOCK_NONE && i == IW_KEY_CROWN)
+                state->unlock_ready = true;
+            else
+                out[count++] = (iw_key_signal_t){i, IW_KEY_HOLD};
         } else if (state->pending && now - state->released_at >= keys->config.double_ticks) {
             state->pending = false;
             out[count++] = (iw_key_signal_t){i, IW_KEY_SINGLE};
@@ -86,6 +98,12 @@ unsigned iw_keys_edge(iw_keys_t *keys, unsigned key, bool pressed, uint32_t now,
         state->second = state->pending;
         state->pending = state->held = false;
         state->pressed_at = now;
+    } else if (state->held && state->unlock_ready && keys->lock_mode != IW_KEY_LOCK_NONE &&
+               key == IW_KEY_CROWN) {
+        /* 锁定只在阈值达到后的真实释放边沿解除，避免按住时提前穿透。 */
+        state->held = false;
+        state->unlock_ready = false;
+        out[count++] = (iw_key_signal_t){key, IW_KEY_UNLOCK};
     } else if (!state->held) {
         if (state->second) {
             state->second = false;
@@ -96,6 +114,18 @@ unsigned iw_keys_edge(iw_keys_t *keys, unsigned key, bool pressed, uint32_t now,
         }
     }
     return count;
+}
+
+uint8_t iw_keys_unlock_progress(const iw_keys_t *keys, uint32_t now)
+{
+    const iw_key_state_t *state;
+    uint32_t elapsed;
+    if (!keys || keys->lock_mode == IW_KEY_LOCK_NONE) return 0u;
+    state = &keys->keys[IW_KEY_CROWN];
+    if (!state->down || state->wait_release) return 0u;
+    elapsed = now - state->pressed_at;
+    if (elapsed >= keys->config.unlock_ticks) return 100u;
+    return (uint8_t)(((uint64_t)elapsed * 100u) / keys->config.unlock_ticks);
 }
 
 uint32_t iw_keys_wait(const iw_keys_t *keys, uint32_t now)
@@ -153,9 +183,8 @@ iw_input_intent_t iw_keys_intent(iw_key_signal_t signal, iw_input_context_t cont
         (unsigned)context > IW_INPUT_RECOVERY) return IW_INTENT_NONE;
     if (context == IW_INPUT_RECOVERY)
         return signal.key == IW_KEY_CROWN && signal.kind == IW_KEY_SINGLE ? IW_INTENT_RECOVER : IW_INTENT_NONE;
-    if (context == IW_INPUT_WATER)
+    if (context == IW_INPUT_WATER || context == IW_INPUT_LOCKED)
         return signal.key == IW_KEY_CROWN && signal.kind == IW_KEY_UNLOCK ? IW_INTENT_UNLOCK : IW_INTENT_NONE;
-    if (context == IW_INPUT_LOCKED) return IW_INTENT_NONE;
     if (context == IW_INPUT_ALERT || context == IW_INPUT_OVERLAY)
         return signal.kind == IW_KEY_SINGLE ? IW_INTENT_DISMISS : IW_INTENT_NONE;
     if (signal.kind == IW_KEY_SINGLE) return signal.key == IW_KEY_CROWN ? IW_INTENT_HOME : IW_INTENT_CONTROL;

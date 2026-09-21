@@ -117,6 +117,8 @@ typedef struct {
     uint8_t preview_level;
     iw_theme_quality_t quality;
     bool back, large_text, pending, display_available, time_available, reduced_motion;
+    bool lock_water, lock_available;
+    uint8_t lock_progress;
     bool selected_notification_valid;
 } iw_product_model_t;
 /* 固定容量；全部字符串复制。输出不引用页面草稿或临时格式化缓冲。 */

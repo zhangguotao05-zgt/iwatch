@@ -92,16 +92,21 @@ static void arbitration(void)
     assert(!edge(0, false, 0));
     assert(!edge(0, true, 1));
     assert(!iw_keys_advance(&keys, 801, output));
-    assert(iw_keys_advance(&keys, 2001, output) == 1 && output[0].kind == IW_KEY_UNLOCK);
+    assert(iw_keys_advance(&keys, 2001, output) == 0);
+    assert(iw_keys_unlock_progress(&keys, 2001) == 100u);
+    assert(edge(0, false, 2002) == 1 && output[0].kind == IW_KEY_UNLOCK);
     assert(iw_keys_intent(output[0], IW_INPUT_WATER) == IW_INTENT_UNLOCK);
-    assert(!edge(0, false, 2002));
+    iw_keys_set_lock(&keys, IW_KEY_LOCK_INPUT);
+    assert(!edge(0, true, 3000));
+    assert(!iw_keys_advance(&keys, 5000, output));
+    assert(edge(0, false, 5001) == 1 && output[0].kind == IW_KEY_UNLOCK);
+    assert(iw_keys_intent(output[0], IW_INPUT_LOCKED) == IW_INTENT_UNLOCK);
     for (unsigned context = 0; context <= IW_INPUT_RECOVERY; context++) {
         for (unsigned key = 0; key < IW_KEY_COUNT; key++) {
             for (unsigned kind = IW_KEY_SINGLE; kind <= IW_KEY_UNLOCK; kind++) {
                 iw_key_signal_t signal = {key, (iw_key_kind_t)kind};
                 iw_input_intent_t intent = iw_keys_intent(signal, (iw_input_context_t)context);
-                if (context == IW_INPUT_LOCKED) assert(intent == IW_INTENT_NONE);
-                if (context == IW_INPUT_WATER)
+                if (context == IW_INPUT_LOCKED || context == IW_INPUT_WATER)
                     assert(intent == (key == 0 && kind == IW_KEY_UNLOCK ? IW_INTENT_UNLOCK : IW_INTENT_NONE));
                 if (context == IW_INPUT_RECOVERY)
                     assert(intent == (key == 0 && kind == IW_KEY_SINGLE ? IW_INTENT_RECOVER : IW_INTENT_NONE));

@@ -1,6 +1,6 @@
 {
-  "character_count": 434,
-  "charset_sha256": "a2772e76ab806b42c9019a872a55d0f806be5ca71592ac10e48a4f4213a35183",
+  "character_count": 437,
+  "charset_sha256": "819cca19d1bb8fd6a524ee503a1234a66f1f24da70e6b8f2b30bcbb3e9dedb2f",
   "codepoints": [
     "U+0020",
     "U+0021",
@@ -106,6 +106,7 @@
     "U+4E0D",
     "U+4E0E",
     "U+4E13",
+    "U+4E24",
     "U+4E2D",
     "U+4E3A",
     "U+4E3B",
@@ -125,6 +126,7 @@
     "U+4F01",
     "U+4F4D",
     "U+4F4E",
+    "U+4F4F",
     "U+4F53",
     "U+4F5C",
     "U+4F86",
@@ -289,6 +291,7 @@
     "U+673A",
     "U+675F",
     "U+6765",
+    "U+677E",
     "U+677F",
     "U+679C",
     "U+67E5",
@@ -441,15 +444,15 @@
   "inputs": {
     "firmware/iwatch/src/gui_apps/clock/app_clock_status_bar.c": "1e97f21c5637e71c61d14acb697ca73a7c59f8cfb3ec619c4c057bfbda8d04dd",
     "firmware/iwatch/src/gui_core/iw_components_demo_text.h": "9303edd93feab675cbcf7929a340ecae52ffc76a42b6a55e5dc125f60cf17f24",
-    "firmware/iwatch/src/gui_core/iw_product_text.h": "1343734dca1ad3531a2b79c71ebaeb926011ad2c9212bf2423873603b664810b",
+    "firmware/iwatch/src/gui_core/iw_product_text.h": "4c3f00139b4c8af18c5149b8a85caa7fb6515bce35e06fa47b47a27a53154f87",
     "firmware/iwatch/src/gui_core/iw_router_text.h": "4504664996fa12904d44bdad98d3069af877d47795e6935d6180c95186b15e57",
     "firmware/iwatch/src/resource/fonts/DroidSansFallback.source.ttf": "05d71b179ef97b82cf1bb91cef290c600a510f77f39b4964359e3ef88378c79d",
-    "firmware/iwatch/src/resource/fonts/font_charset.json": "121c945ea0ecb05e8fb8c585773b1b03e299cb903b5ed347d999707bb0019db3",
+    "firmware/iwatch/src/resource/fonts/font_charset.json": "7b6dac3d2b93ad9cd055de3db5a95eae87e634cd4128cddafa7dc66e3453fcf1",
     "firmware/iwatch/src/resource/strings/zh_cn.json": "0be2beb9d2a2c03a4703b28385600bd56d26c26585db3d851bb44ee5e52846f8"
   },
   "output": {
-    "bytes": 74028,
-    "sha256": "9dcb1090b697f4a293d479e56553ad1238d424e2df887df5e554d5813ab3d713"
+    "bytes": 74372,
+    "sha256": "43eacb86a0c0613d8a286bc11ae6bbe5cfbaa680733663d90ea051d81a7e8419"
   },
   "schema": 1,
   "subset_options": [
