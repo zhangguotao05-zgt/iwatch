@@ -42,6 +42,13 @@ static bool button(iw_product_scene_t *s, int x, int y, int w, int h, unsigned a
     return add(s, x, y, w, h, y + h / 2 + 9, 26, IW_PRODUCT_WHITE, fill, 30, 1, action, fixed, disabled, text);
 }
 
+static bool card_button(iw_product_scene_t *s, int x, int y, int w, int h, unsigned action,
+                        bool disabled, const char *text) {
+    unsigned fill = disabled ? IW_PRODUCT_DISABLED_SURFACE : IW_PRODUCT_SURFACE;
+    return add(s, x, y, w, h, y + h / 2 + 9, 22, IW_PRODUCT_WHITE, fill, 24, 1, action,
+               false, disabled, text);
+}
+
 static bool icon(iw_product_scene_t *s, int x, int y, int size, unsigned kind, unsigned color, bool fixed) {
     if (!add(s, x, y, size, size, 0, 0, color, 0, 0, 0, 0, fixed, false, "")) return false;
     s->nodes[s->count - 1].icon = (uint8_t)kind;
@@ -67,7 +74,7 @@ static bool header(iw_product_scene_t *s, const iw_product_model_t *m, const cha
                  m->back ? 2u : 0u, true, title);
 }
 
-static bool brightness_control(iw_product_scene_t *s, const iw_product_model_t *m, int y) {
+static bool brightness_summary(iw_product_scene_t *s, const iw_product_model_t *m, int y) {
     uint8_t level = m->preview_level ? m->preview_level
                     : m->pending     ? m->brightness.desired
                                      : m->brightness.applied;
@@ -85,15 +92,32 @@ static bool brightness_control(iw_product_scene_t *s, const iw_product_model_t *
            add(s, 36, y + 48, 318, 40, 0, 0, IW_PRODUCT_WHITE, rail, 20, 0, 0, false, disabled, "") &&
            (width <= 0 || add(s, 36, y + 48, width, 40, 0, 0, IW_PRODUCT_WHITE,
                               progress, 20, 0, 0, false, disabled, "")) &&
-           /* 视觉滑条保持 318×40，命中区按冻结稿扩大到 326×56。 */
+           /* 控制中心按冻结稿使用整宽滑条，不再叠加两侧太阳按钮。 */
            add(s, 32, y + 40, 326, 56, 0, 0, IW_PRODUCT_WHITE, 0, 0, 0,
+               IW_ACTION_TRACK, false, disabled, "");
+}
+
+static bool brightness_control(iw_product_scene_t *s, const iw_product_model_t *m, int y) {
+    uint8_t level = m->preview_level ? m->preview_level
+                    : m->pending     ? m->brightness.desired
+                                     : m->brightness.applied;
+    int width = (level >= 5 && level <= 100) ? (int)(level - 5) * 162 / 95 : 0;
+    bool disabled = !m->display_available;
+    uint32_t rail = disabled ? IW_PRODUCT_DISABLED_SURFACE : 0x164a26;
+    uint32_t progress = disabled ? IW_PRODUCT_DISABLED : 0x30d158;
+    /* 太阳独占两侧 80 px，中间轨道按冻结稿保持 162 px，命中区不与端按钮相交。 */
+    return add(s, 18, y, 354, 88, 0, 0, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 24, 0, 0, false, false, "") &&
+           add(s, 98, y + 16, 194, 56, 0, 0, IW_PRODUCT_WHITE, 0, 0, 0,
                IW_ACTION_TRACK, false, disabled, "") &&
-           add(s, 18, y, 52, 98, 0, 0, IW_PRODUCT_WHITE, 0, 0, 0,
+           add(s, 18, y, 80, 88, 0, 0, IW_PRODUCT_WHITE, 0, 0, 0,
                IW_ACTION_DIM, false, disabled, "") &&
-           icon(s, 28, y + 33, 32, IW_ICON_SUN, disabled ? IW_PRODUCT_DISABLED : IW_PRODUCT_WHITE, false) &&
-           add(s, 320, y, 52, 98, 0, 0, IW_PRODUCT_WHITE, 0, 0, 0,
+           icon(s, 42, y + 28, 32, IW_ICON_SUN, disabled ? IW_PRODUCT_DISABLED : IW_PRODUCT_WHITE, false) &&
+           add(s, 292, y, 80, 88, 0, 0, IW_PRODUCT_WHITE, 0, 0, 0,
                IW_ACTION_BRIGHTEN, false, disabled, "") &&
-           icon(s, 328, y + 27, 44, IW_ICON_SUN, disabled ? IW_PRODUCT_DISABLED : IW_PRODUCT_WHITE, false);
+           icon(s, 312, y + 22, 44, IW_ICON_SUN, disabled ? IW_PRODUCT_DISABLED : IW_PRODUCT_WHITE, false) &&
+           add(s, 114, y + 41, 162, 6, 0, 0, IW_PRODUCT_WHITE, rail, 3, 0, 0, false, disabled, "") &&
+           (width <= 0 || add(s, 114, y + 41, width, 6, 0, 0, IW_PRODUCT_WHITE,
+                              progress, 3, 0, 0, false, disabled, ""));
 }
 
 static bool face(iw_product_scene_t *s, const iw_product_model_t *m) {
@@ -356,11 +380,11 @@ static bool notification_row(iw_product_scene_t *s, int y, const iw_notification
 static bool control_center(iw_product_scene_t *s, const iw_product_model_t *m)
 {
     return header(s, m, TEXT(CONTROL_CENTER)) &&
-           brightness_control(s, m, 110) &&
-           button(s, 18, 220, 170, 98, IW_PAGE_WATER_LOCK, true, false,
-                  TEXT(WATER_LOCK)) &&
-           button(s, 202, 220, 170, 98, IW_PAGE_DISPLAY, false, false,
-                  TEXT(DISPLAY_SETTINGS)) &&
+           brightness_summary(s, m, 110) &&
+           card_button(s, 18, 220, 170, 98, IW_PAGE_WATER_LOCK, true,
+                   TEXT(WATER_LOCK)) &&
+           card_button(s, 202, 220, 170, 98, IW_PAGE_DISPLAY, false,
+                   TEXT(DISPLAY_SETTINGS)) &&
            label(s, 30, 302, 146, 20, IW_PRODUCT_DISABLED, 1, false,
                  TEXT(NOT_CONNECTED)) &&
            add(s, 18, 330, 354, 96, 0, 0, IW_PRODUCT_DISABLED,

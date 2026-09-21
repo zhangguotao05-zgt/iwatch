@@ -6,6 +6,8 @@
 #define LOCAL_MIN_SECONDS (IW_TIME_MIN_UTC_SECONDS - INT64_C(365) * SECONDS_PER_DAY)
 #define TRACK_FIRST 36
 #define TRACK_LAST 354
+#define DETAIL_TRACK_FIRST 114
+#define DETAIL_TRACK_LAST 276
 
 static bool leap(int year) {
     return year % 4 == 0 && (year % 100 != 0 || year % 400 == 0);
@@ -209,6 +211,15 @@ uint8_t iw_brightness_track_level(int32_t x) {
     return (uint8_t)(IW_BRIGHTNESS_MIN +
                      ((unsigned)(x - TRACK_FIRST) * (IW_BRIGHTNESS_MAX - IW_BRIGHTNESS_MIN) + span / 2) /
                          span);
+}
+
+uint8_t iw_brightness_detail_level(int32_t x) {
+    if (x <= DETAIL_TRACK_FIRST) return IW_BRIGHTNESS_MIN;
+    if (x >= DETAIL_TRACK_LAST) return IW_BRIGHTNESS_MAX;
+    unsigned span = DETAIL_TRACK_LAST - DETAIL_TRACK_FIRST;
+    return (uint8_t)(IW_BRIGHTNESS_MIN +
+                     ((unsigned)(x - DETAIL_TRACK_FIRST) * (IW_BRIGHTNESS_MAX - IW_BRIGHTNESS_MIN) +
+                      span / 2) / span);
 }
 
 uint8_t iw_brightness_step_level(uint8_t current, int32_t steps) {

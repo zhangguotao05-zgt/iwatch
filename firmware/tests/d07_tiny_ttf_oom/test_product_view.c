@@ -159,6 +159,14 @@ static void input_cases(lv_display_t *display, iw_product_view_t *view, iw_produ
     lv_indev_reset(input, NULL);
     touch(input, 120, 310, false);
     assert(pointer_finals == 1);
+    pointer_actions = pointer_finals = 0;
+    touch(input, 50, 320, true);
+    touch(input, 50, 320, false);
+    assert(pointer_actions == 1 && pointer_finals == 1 && pointer_action == IW_ACTION_DIM);
+    pointer_actions = pointer_finals = 0;
+    touch(input, 340, 320, true);
+    touch(input, 340, 320, false);
+    assert(pointer_actions == 1 && pointer_finals == 1 && pointer_action == IW_ACTION_BRIGHTEN);
     assert(iw_product_view_destroy(view));
 
     /* 切换器使用横向手势；向左滑动只发出下一项动作，不触发卡片打开。 */
@@ -272,6 +280,7 @@ static void d13_scene_boundaries(iw_product_model_t *m)
     bool brightness_geometry = false;
     bool track_visual = false;
     bool track_hit = false;
+    unsigned control_suns = 0;
     for (unsigned i = 0; i < scene.count; i++) {
         const iw_product_node_t *node = &scene.nodes[i];
         if (node->x == 18 && node->y == 110 && node->width == 354 && node->height == 98)
@@ -286,11 +295,29 @@ static void d13_scene_boundaries(iw_product_model_t *m)
         if (node->action == IW_PAGE_LOCK)
             assert(node->x == 18 && node->y == 330 && node->width == 354 &&
                    node->height == 96 && node->disabled);
+        if (node->icon == IW_ICON_SUN) control_suns++;
     }
-    assert(control_geometry && brightness_geometry && track_visual && track_hit);
+    assert(control_geometry && brightness_geometry && track_visual && track_hit && control_suns == 0);
+    for (unsigned i = 0; i < scene.count; i++) {
+        const iw_product_node_t *node = &scene.nodes[i];
+        if (node->action == IW_PAGE_WATER_LOCK || node->action == IW_PAGE_DISPLAY)
+            assert(node->font_px == 22u && node->radius == 24u);
+    }
     assert(iw_product_scene_scroll_limit(&scene) == 0);
     int track_node = iw_product_scene_hit(&scene, 100, 150, 0);
     assert(track_node >= 0 && scene.nodes[track_node].action == IW_ACTION_TRACK);
+    assert(iw_product_scene_build(&scene, IW_PAGE_BRIGHTNESS, m));
+    bool detail_track = false;
+    for (unsigned i = 0; i < scene.count; i++) {
+        const iw_product_node_t *node = &scene.nodes[i];
+        if (!node->action && node->x == 114 && node->y == 317 &&
+            node->width == 162 && node->height == 6) detail_track = true;
+        if (node->action == IW_ACTION_TRACK)
+            assert(node->x == 98 && node->y == 292 && node->width == 194 && node->height == 56);
+        if (node->icon == IW_ICON_SUN)
+            assert(node->x + node->width <= 98 || node->x >= 292);
+    }
+    assert(detail_track);
     m->notifications = &notifications;
     assert(iw_product_scene_build(&scene, IW_PAGE_NOTIFICATION_LIST, m));
     assert(has_text(&scene, "暂无通知"));

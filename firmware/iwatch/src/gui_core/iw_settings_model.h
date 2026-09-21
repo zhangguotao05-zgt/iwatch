@@ -47,8 +47,10 @@ iw_draft_status_t iw_time_draft_utc(const iw_time_draft_t *draft, int64_t *utc_s
 /* 缓冲不足时返回 false 并清空可写输出；UTC 无效时显示 --:--。 */
 bool iw_clock_format_hm(const iw_clock_snapshot_t *snapshot, char *output, size_t capacity);
 bool iw_clock_format_offset(int16_t minutes, char *output, size_t capacity);
-/* 轨道坐标相对控件左边，端点 96/258；负值和极大值均夹紧。 */
+/* 控制中心整宽轨道使用屏幕坐标 36/354。 */
 uint8_t iw_brightness_track_level(int32_t x);
+/* 显示页中间轨道使用屏幕坐标 114/276，避开两侧太阳按钮。 */
+uint8_t iw_brightness_detail_level(int32_t x);
 uint8_t iw_brightness_step_level(uint8_t current, int32_t steps);
 
 #endif

@@ -406,8 +406,11 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
     }
     uint16_t action = v->pressed >= 0 ? v->scene.nodes[v->pressed].action : 0;
     if (action == IW_ACTION_TRACK) {
-        if (v->action)
-            v->action(action, iw_brightness_track_level(x), code == LV_EVENT_RELEASED, v->context);
+        if (v->action) {
+            uint8_t level = v->scene.page_id == IW_PAGE_CONTROL_CENTER
+                ? iw_brightness_track_level(x) : iw_brightness_detail_level(x);
+            v->action(action, level, code == LV_EVENT_RELEASED, v->context);
+        }
     } else if (code == LV_EVENT_PRESSING) {
         bool horizontal_switcher = v->scene.page_id == IW_PAGE_SWITCHER;
         if (!v->dragging && (horizontal_switcher ?
