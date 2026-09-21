@@ -25,7 +25,7 @@
 <tr><td>COM9 烧录</td><td>Bootloader、GCC main、FTab 三件套写入进度均到 100%，写后校验通过。</td><td>全程未访问 J-Link。</td></tr>
 <tr><td>COM10 启动</td><td>构建身份、CO5300、FT6146 均完成识别；启动后路由和 LCD 恢复路径继续工作。</td><td>已有 <code>flash1</code> 缺失和一次 <code>draw_core timeout</code>，驱动自动恢复，分别继续跟踪 D15／#10。</td></tr>
 <tr><td>页面路由</td><td><code>iw_nav page 258</code> 打开亮度详情，<code>iw_nav page 1280</code> 打开控制中心；两次提交均 <code>busy=0</code>、<code>abort=0</code>，亮度统计可读。</td><td>串口证明路由和服务状态，不等同于像素帧。</td></tr>
-<tr><td>实屏观察</td><td>操作者确认控制中心亮度卡、并排卡片和底部输入锁无重叠。</td><td>开发板无帧缓冲回传，实屏视觉结论保留操作者确认来源。</td></tr>
+<tr><td>实屏观察</td><td>操作者确认控制中心亮度卡、并排卡片和底部输入锁无重叠；亮度详情页确认两侧太阳与中间滑条分开。</td><td>开发板无帧缓冲回传，实屏视觉结论保留操作者确认来源。</td></tr>
 </tbody></table><p>原始串口摘要保存在本机 <code>work/host-visual-brightness-fix/board-visual-serial.log</code>，SHA-256 为 <code>5b87b1e86a379fb70cd7660c8123b895ed24cccb1d65557537e6d932318abdd1</code>；冷启动摘要 <code>board-startup-serial.log</code> 的 SHA-256 为 <code>3dfdc930a1e9098758bd13827a3d53ecff278c75d668ba6c58737987c6f4bb83</code>。这些本机路径不是仓库发布证据。</p></section>
 <section><h2>下一步</h2><ol><li>以本页、源码提交 <code>1f81581</code>、双工具链归档和 COM9／COM10 记录申请 D13-B 增量架构复核。</li><li>架构复核通过后再推送本地提交；D13-C 仍需单独验收两种锁和表盘管理。</li><li>C 阶段再实现两种锁和表盘管理；D13 整体在 B、C 阶段均通过后才收口。</li></ol></section>
 </main></body></html>
