@@ -7,6 +7,7 @@
 #include "iw_service.h"
 #include "iw_router_text.h"
 #include "iw_product_controller.h"
+#include "iw_keys.h"
 #include "iw_render_probe.h"
 #include "src/core/lv_obj_private.h"
 #include "src/core/lv_obj_class_private.h"
@@ -57,6 +58,7 @@ static fake_page_t queued_page;
 static char queued_removal[16];
 static unsigned queued_target_index;
 static bool held_transition, hold_after_resume, reject_send, reject_page;
+static bool drop_queued_back, fail_root_resume, hold_admitted_back;
 static unsigned reject_back, reject_home;
 static const char *active_app = "Main", *next_app;
 static bool display_available = true;
@@ -69,6 +71,10 @@ static bool (*ready_callback)(void);
 static void notify_page(unsigned index, gui_app_msg_type_t event)
 {
     dispatch_index = index;
+    if (!index && event == GUI_APP_MSG_ONRESUME && fail_root_resume) {
+        fail_root_resume = false;
+        return;
+    }
     if (stack[index].handler) stack[index].handler(event, NULL);
     else if (!index && !strcmp(active_app,"iwlist")) iw_router_root_event(IW_PAGE_LAUNCHER_LIST,(unsigned)event);
     else if (!index && !strcmp(active_app,"iwface")) iw_router_root_event(IW_PAGE_FACE,(unsigned)event);
@@ -106,6 +112,10 @@ static int gui_app_goback_to_page(const char *name)
         if (!strcmp(stack[i].name, name)) {
             queued_target_index = i;
             queued = 3;
+            if (hold_admitted_back) {
+                held_transition = true;
+                hold_admitted_back = false;
+            }
             return RT_EOK;
         }
     return -1;
@@ -193,6 +203,9 @@ static void gui_app_process_pending(void)
         }
         active_app=next_app; stack[0].screen=new_screen; memcpy(stack[0].name,"root",5); depth=1;
         notify_page(0,GUI_APP_MSG_ONSTART); notify_page(0,GUI_APP_MSG_ONRESUME);
+    } else if (operation == 3 && drop_queued_back) {
+        drop_queued_back = false;
+        return;
     } else {
         unsigned target = operation == 3 ? queued_target_index : operation == 4 ? 0 : depth - 2;
         if (operation == 4) active_app = next_app;
@@ -372,6 +385,97 @@ int test_product_router(lv_display_t *display,size_t loops)
         assert(iw_router_back()); process(); assert(depth==3);
         assert(iw_router_home()); process(); assert(depth==1 && !strcmp(active_app,"iwlist"));
         assert(iw_router_home()); process(); assert(depth==1 && !strcmp(active_app,"iwface"));
+        /* D13-D 表盘提交时序：请求受理不提交，根页 ONRESUME 成功后才提交。 */
+        assert(iw_router_open(IW_PAGE_FACE_PICKER)); process(); assert(depth == 2);
+        route_page_t *face_picker = find_page(stack[1].data);
+        assert(face_picker && face_picker->product);
+        face_picker->product->view.action(IW_ACTION_FACE_EDITOR_OPEN_BASE + IW_FACE_MODULAR_LOCAL,
+                                           0, true, face_picker->product->view.context);
+        process();
+        assert(depth == 3);
+        route_page_t *face_editor = find_page(stack[2].data);
+        assert(face_editor && face_editor->product);
+        face_editor->product->view.action(IW_ACTION_FACE_COLOR, 0, true,
+                                           face_editor->product->view.context);
+        face_editor->product->view.action(IW_ACTION_FACE_APPLY, 0, true,
+                                           face_editor->product->view.context);
+        assert(face_return_pending == false);
+        process();
+        assert(depth == 1 && !face_return_pending && !face_return_ready);
+
+        /* 请求被 SDK 拒绝时，候选立即回滚，编辑页仍可再次返回。 */
+        assert(iw_router_open(IW_PAGE_FACE_PICKER)); process();
+        face_picker = find_page(stack[1].data);
+        assert(face_picker && face_picker->product);
+        face_picker->product->view.action(IW_ACTION_FACE_EDITOR_OPEN_BASE + IW_FACE_MODULAR_LOCAL,
+                                           0, true, face_picker->product->view.context);
+        process();
+        face_editor = find_page(stack[2].data);
+        assert(face_editor && face_editor->product);
+        face_editor->product->view.action(IW_ACTION_FACE_APPLY, 0, true,
+                                           face_editor->product->view.context);
+        reject_back = 1;
+        process();
+        assert(depth == 3 && !face_return_pending && !face_return_ready);
+        assert(iw_router_back()); process(); assert(depth == 2);
+        assert(iw_router_back()); process(); assert(depth == 1);
+
+        /* 异步返回丢失 ONRESUME 时，候选必须回滚且编辑页仍可退出。 */
+        assert(iw_router_open(IW_PAGE_FACE_PICKER)); process();
+        face_picker = find_page(stack[1].data);
+        assert(face_picker && face_picker->product);
+        face_picker->product->view.action(IW_ACTION_FACE_EDITOR_OPEN_BASE + IW_FACE_MODULAR_LOCAL,
+                                           0, true, face_picker->product->view.context);
+        process();
+        face_editor = find_page(stack[2].data);
+        assert(face_editor && face_editor->product);
+        face_editor->product->view.action(IW_ACTION_FACE_APPLY, 0, true,
+                                           face_editor->product->view.context);
+        drop_queued_back = true;
+        process();
+        assert(depth == 3 && !face_return_pending && !face_return_ready);
+        assert(iw_router_back()); process(); assert(depth == 2);
+        assert(iw_router_back()); process(); assert(depth == 1);
+
+        /* 根页 ONRESUME 失败时，返回仍完成，但候选不得提交。 */
+        assert(iw_router_open(IW_PAGE_FACE_PICKER)); process();
+        face_picker = find_page(stack[1].data);
+        assert(face_picker && face_picker->product);
+        face_picker->product->view.action(IW_ACTION_FACE_EDITOR_OPEN_BASE + IW_FACE_MODULAR_LOCAL,
+                                           0, true, face_picker->product->view.context);
+        process();
+        face_editor = find_page(stack[2].data);
+        assert(face_editor && face_editor->product);
+        face_editor->product->view.action(IW_ACTION_FACE_APPLY, 0, true,
+                                           face_editor->product->view.context);
+        fail_root_resume = true;
+        process();
+        assert(depth == 1 && !face_return_pending && !face_return_ready);
+
+        /* 转场被挂起后发生全局故障，故障回收路径也必须撤销候选。 */
+        assert(iw_router_open(IW_PAGE_FACE_PICKER)); process();
+        face_picker = find_page(stack[1].data);
+        assert(face_picker && face_picker->product);
+        face_picker->product->view.action(IW_ACTION_FACE_EDITOR_OPEN_BASE + IW_FACE_MODULAR_LOCAL,
+                                           0, true, face_picker->product->view.context);
+        process();
+        face_editor = find_page(stack[2].data);
+        assert(face_editor && face_editor->product);
+        hold_admitted_back = true;
+        face_editor->product->view.action(IW_ACTION_FACE_APPLY, 0, true,
+                                           face_editor->product->view.context);
+        process();
+        if (!(depth == 3 && face_return_pending)) {
+            fprintf(stderr, "fault setup depth=%u pending=%u ready=%u queued=%u held=%u nav=%u\n",
+                    depth, (unsigned)face_return_pending, (unsigned)face_return_ready,
+                    queued, (unsigned)held_transition, (unsigned)navigator.state);
+            return 3;
+        }
+        iw_gui_fault_raise();
+        held_transition = false;
+        process();
+        assert(depth == 1 && !face_return_pending && !face_return_ready);
+        iw_gui_fault_dismiss();
         assert(iw_router_open(IW_PAGE_TIME)); process(); assert(depth==2);
         route_page_t *p=find_page(stack[1].data); assert(p && p->product && p->scope.visible);
         p->product->view.action(IW_ACTION_FIELD+IW_EDIT_YEAR,0,true,p->product->view.context);

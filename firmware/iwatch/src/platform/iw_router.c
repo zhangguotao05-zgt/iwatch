@@ -62,9 +62,28 @@ static uint32_t generation, next_argument;
 static uint32_t product_wait=UINT32_MAX;
 static uint32_t alert_scan_tick;
 static iw_alert_record_t hidden_alert;
+/* 表盘候选只能在根页 ONRESUME 成功后提交；请求受理不等于转场成功。 */
+static bool face_return_pending;
+static bool face_return_ready;
+static bool face_return_armed;
+static uint32_t face_return_started_ms;
 
 /* 最近应用点击前必须读取当前能力快照；提前声明避免严格工具链的隐式声明。 */
 static uint32_t capabilities(void);
+
+static void face_transaction_abort(route_page_t *page)
+{
+    if (!face_return_armed && !face_return_pending && !face_return_ready) return;
+    iw_product_face_rollback_pending();
+    face_return_pending = false;
+    face_return_ready = false;
+    face_return_armed = false;
+    face_return_started_ms = 0;
+    if (page && page->product) {
+        page->product->model.message = IW_TEXT_OPERATION_FAILED;
+        page->product->dirty = true;
+    }
+}
 
 static bool primary_overlay(uint16_t id)
 {
@@ -240,7 +259,9 @@ static void product_action(uint16_t id,uint32_t argument,void *context)
         (void)request((route_request_t){0},true);
     }
     else if (id == IW_ACTION_FACE_APPLY) {
-        if (!request((route_request_t){.kind=REQUEST_FACE_HOME}, false))
+        if (request((route_request_t){.kind=REQUEST_FACE_HOME}, false))
+            face_return_armed = true;
+        else
             iw_product_face_cancel_pending();
     }
     else if (initialized && iw_font_port_is_owner())
@@ -310,6 +331,8 @@ static void dispatch_page(route_page_t *page,gui_app_msg_type_t message)
         gui_app_set_exit_anim_type(LV_SWITCHANIM_NONE, 0, 0);
         gui_app_set_anim_prior(LV_SWITCHANIM_PRIOR_HIGHEST, LV_SWITCHANIM_PRIOR_HIGHEST);
         page->failed = !create_view(page);
+        if (page->failed && !strcmp(page->sdk_name, "root"))
+            face_transaction_abort(page);
         break;
     case GUI_APP_MSG_ONRESUME:
         page->resumed = true;
@@ -327,7 +350,13 @@ static void dispatch_page(route_page_t *page,gui_app_msg_type_t message)
             }
             iw_scope_resume(&page->scope);
             iw_nav_resumed(&navigator, navigator.sequence, page->route);
+            /* 仅登记成功恢复，提交动作延后到主循环再次确认快照。 */
+            if (face_return_pending && !strcmp(page->sdk_name, "root") &&
+                page->route.page_id == IW_PAGE_FACE)
+                face_return_ready = true;
         }
+        if (page->failed && !strcmp(page->sdk_name, "root"))
+            face_transaction_abort(page);
         break;
     case GUI_APP_MSG_ONPAUSE:
         page->resumed = false;
@@ -509,6 +538,10 @@ void iw_router_init(void)
     overlay_source[0] = overlay_root_name[0] = overlay_cleanup[0] = '\0';
     overlay_root_id = 0;
     home_has_leaving = false;
+    face_return_pending = false;
+    face_return_ready = false;
+    face_return_armed = false;
+    face_return_started_ms = 0;
     initialized = true;
 }
 
@@ -676,8 +709,12 @@ bool iw_router_process(void)
     requested = (route_request_t){0};
     requested_back = false;
     rt_hw_interrupt_enable(level);
-    if (back || (command.kind != REQUEST_FACE_HOME && command.kind != REQUEST_NONE))
+    if (back || (command.kind != REQUEST_FACE_HOME && command.kind != REQUEST_NONE)) {
+        face_transaction_abort(snapshot_page(&snapshot, false));
         iw_product_face_cancel_pending();
+    }
+    if (fault_unwind || rolling_back)
+        face_transaction_abort(snapshot_page(&snapshot, false));
     if (home_target) {
         /* Home 优先于尚未启动的请求；已启动事务仍正常收尾。 */
         if (command.kind != REQUEST_STAT) command = (route_request_t){0};
@@ -702,12 +739,14 @@ bool iw_router_process(void)
         else if (!snapshot.busy) (void)home_request(true);
     }
     else if (command.kind == REQUEST_FACE_HOME) {
-        /* 表盘编辑成功后关闭选择器和编辑页，恢复已有表盘根页。 */
-        if (!snapshot.busy && iw_product_face_commit_pending() &&
-            gui_app_goback_to_page("root") == RT_EOK) {
+        /* 表盘编辑成功后只发起返回；根页 ONRESUME 且快照稳定后再提交。 */
+        if (!snapshot.busy && gui_app_goback_to_page("root") == RT_EOK) {
+            face_return_pending = true;
+            face_return_ready = false;
+            face_return_started_ms = lv_tick_get();
             iw_gui_cancel_input();
         } else {
-            iw_product_face_rollback_pending();
+            face_transaction_abort(snapshot_page(&snapshot, false));
             route_page_t *page = snapshot_page(&snapshot, false);
             if (page && page->product) {
                 page->product->model.message = IW_TEXT_OPERATION_FAILED;
@@ -763,6 +802,28 @@ bool iw_router_process(void)
     (void)gui_app_get_route_snapshot(&snapshot);
     if (snapshot.busy) gui_app_process_pending();
     (void)gui_app_get_route_snapshot(&snapshot);
+    if (face_return_pending) {
+        route_page_t *root = snapshot_page(&snapshot, false);
+        bool root_ready = face_return_ready && !snapshot.busy && snapshot.resumed &&
+            root && !root->failed && root->scope.alive && root->scope.visible &&
+            root->route.page_id == IW_PAGE_FACE && !strcmp(root->sdk_name, "root");
+        if (root_ready) {
+            if (iw_product_face_commit_pending()) {
+                face_return_pending = false;
+                face_return_ready = false;
+                face_return_armed = false;
+                face_return_started_ms = 0;
+                rt_kprintf("face commit confirmed root_onresume\n");
+            } else {
+                face_transaction_abort(root);
+            }
+        } else if (!snapshot.busy ||
+                   (face_return_started_ms != 0u &&
+                    (uint32_t)(lv_tick_get() - face_return_started_ms) >= 3000u)) {
+            /* 转场已结束但没有健康的根页 ONRESUME，候选必须回滚。 */
+            face_transaction_abort(root);
+        }
+    }
     if (navigator.state == IW_NAV_TRANSITIONING) {
         iw_route_t visible = observed_route(&snapshot, false);
         if (!rolling_back && candidate && candidate->failed && !snapshot.busy) {
