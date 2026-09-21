@@ -2,8 +2,8 @@
 <html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1">
 <meta name="description" content="iwatch D13-B 控制中心、通知、智能叠放和应用切换器实施记录"><title>D13-B 系统覆盖层与通知实施记录 · iwatch</title>
 <link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
-<header><h1>D13-B 系统覆盖层与通知实施记录</h1><p class="doc-meta">2026-09-20 · Issue #15 · 设计基线 <code>c7617c2</code> · 候选实现已完成，待架构复核</p></header>
-<p class="note">本页记录 B 阶段模型、页面、失效路径和本轮整改。它不是 D13 总体验收，也不包含 C 阶段的普通输入锁、全面水锁和表盘会话配置。当前候选已完成 GCC／Keil 本地构建和身份归档，仅供架构复核；不推送、不烧录、不继承旧镜像身份。#8、#10、D15 继续独立跟踪。</p>
+<header><h1>D13-B 系统覆盖层与通知实施记录</h1><p class="doc-meta">2026-09-21 · Issue #15 · 设计基线 <code>c7617c2</code> · 增量基线 <code>1f81581</code> · 已完成开发板抽查，待最终架构复核</p></header>
+<p class="note">本页记录 B 阶段模型、页面、失效路径和亮度布局整改。它不是 D13 总体验收，也不包含 C 阶段的普通输入锁、全面水锁和表盘会话配置。增量固件已完成 GCC／Keil 构建、COM9 三件套写入校验和 COM10 路由日志采集；实屏像素由操作者确认控制中心无重叠。#8、#10、D15 继续独立跟踪。</p>
 <section><h2>已实现范围</h2><table><thead><tr><th>部分</th><th>实现</th><th>边界</th></tr></thead><tbody>
 <tr><td>控制中心</td><td>复用亮度目标、预览和确认状态；显示设置入口可用。</td><td>水锁和普通输入锁入口按 A 阶段要求显示“未接入”并禁用，C 阶段才启用。</td></tr>
 <tr><td>通知中心</td><td>固定 32 条普通通知账本；列表／详情、UTF-8 边界截断、已读、删除和稳定 ID＋revision。</td><td>首期没有联网生产者；诊断注入带“本机测试”来源。D12 的 24 槽关键提醒只做摘要投影，不进入普通账本。</td></tr>
@@ -18,8 +18,14 @@
 <tr><td>核心模型</td><td>普通通知 UTF-8 截断、陈旧 revision、已读优先淘汰、全未读淘汰、计数饱和无副作用通过。</td></tr>
 <tr><td>场景布局</td><td>控制中心冻结几何、326×56 滑条命中区、通知空态／提醒摘要／32 条滚动、详情长文、叠放最早闹钟、切换器横向卡片／56×56 命中区通过；节点均在 390×450 内，切换器无纵向滚动。</td></tr>
 <tr><td>路由与失效</td><td>双计时器失效不跳另一实体、多个闹钟乱序取最早到期、提醒／切换器点击前复核、失效详情回 App 首页或显示“应用不可用”通过；重复操作由既有 OOM／超时矩阵覆盖。</td></tr>
-<tr><td>输入</td><td>亮度拖动使用新命中区；切换器真实左右滑动只发出前进／后退动作，不触发卡片打开。</td></tr>
-<tr><td>回归</td><td>干净基础 SDK <code>C:\OpenSiFli\_workspaces\iwatch-sdk-base-d11</code> 与派生补丁 SDK 均验证通过；D07 主机矩阵共 38 项 Python 测试、59 个字体故障点、1000 轮生命周期和 4046 次像素提交对照全部通过。</td></tr>
-</tbody></table><h2>目标构建基线</h2><p>候选实现已使用干净基础 SDK 与受控补丁 SDK 完成 GCC／Keil 双工具链构建和身份校验，SDK 固定为 <code>421126d9</code>；构建身份、镜像大小、SHA-256 和工具链来源以 <code>firmware/iwatch/project/artifacts/DEV_A128_NAND/{gcc,keil}/build_identity.json</code> 及同目录镜像为准。两套身份绑定同一候选源码提交，当前只作为架构复核证据，本轮未烧录开发板，以下结论不包含实机验收。</p></section>
-<section><h2>下一步</h2><ol><li>以本页、源码候选提交和双工具链归档申请架构复核；复核通过后才允许推送或在开发板上烧录。</li><li>获得批准后，在开发板上抽查控制中心、通知、叠放和切换器的显示、触摸、KEY1 返回，并保留 COM10 原始日志。</li><li>C 阶段再实现两种锁和表盘管理；D13 整体在 B、C 阶段均通过后才收口。</li></ol></section>
+<tr><td>输入</td><td>亮度拖动使用新命中区；左右太阳按钮分别触发减亮／增亮；切换器真实左右滑动只发出前进／后退动作，不触发卡片打开。</td></tr>
+<tr><td>回归</td><td>受控补丁 SDK 下 D07 主机产品矩阵通过：37／47 个组件故障点、3 组 5 点绘制失败、1000 轮页面／控制器／路由循环及全部渲染样本通过；设置模型 1000 轮亮度边界通过。完整核心回归仍有 1 个失败和 1 个错误，均由本机基础 SDK 已被修改为 patched 导致，不能写成干净基础 SDK 通过。</td></tr>
+</tbody></table><h2>目标构建基线</h2><p>增量提交 <code>1f81581</code> 已用固定 SDK <code>421126d9</code> 的受控补丁环境完成双工具链构建和身份校验。GCC main 为 1,947,652 B，Keil main 为 1,872,528 B；两套身份文件、镜像哈希和资源预算位于 <code>firmware/iwatch/project/artifacts/DEV_A128_NAND/{gcc,keil}</code>。</p></section>
+<section><h2>开发板抽查</h2><table><thead><tr><th>证据</th><th>结果</th><th>边界</th></tr></thead><tbody>
+<tr><td>COM9 烧录</td><td>Bootloader、GCC main、FTab 三件套写入进度均到 100%，写后校验通过。</td><td>全程未访问 J-Link。</td></tr>
+<tr><td>COM10 启动</td><td>构建身份、CO5300、FT6146 均完成识别；启动后路由和 LCD 恢复路径继续工作。</td><td>已有 <code>flash1</code> 缺失和一次 <code>draw_core timeout</code>，驱动自动恢复，分别继续跟踪 D15／#10。</td></tr>
+<tr><td>页面路由</td><td><code>iw_nav page 258</code> 打开亮度详情，<code>iw_nav page 1280</code> 打开控制中心；两次提交均 <code>busy=0</code>、<code>abort=0</code>，亮度统计可读。</td><td>串口证明路由和服务状态，不等同于像素帧。</td></tr>
+<tr><td>实屏观察</td><td>操作者确认控制中心亮度卡、并排卡片和底部输入锁无重叠。</td><td>开发板无帧缓冲回传，实屏视觉结论保留操作者确认来源。</td></tr>
+</tbody></table><p>原始串口摘要保存在本机 <code>work/host-visual-brightness-fix/board-visual-serial.log</code>，SHA-256 为 <code>5b87b1e86a379fb70cd7660c8123b895ed24cccb1d65557537e6d932318abdd1</code>；该路径不是仓库发布证据。</p></section>
+<section><h2>下一步</h2><ol><li>以本页、源码提交 <code>1f81581</code>、双工具链归档和 COM9／COM10 记录申请 D13-B 增量架构复核。</li><li>架构复核通过后再推送本地提交；D13-C 仍需单独验收两种锁和表盘管理。</li><li>C 阶段再实现两种锁和表盘管理；D13 整体在 B、C 阶段均通过后才收口。</li></ol></section>
 </main></body></html>
