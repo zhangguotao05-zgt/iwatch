@@ -60,11 +60,11 @@
 <table><thead><tr><th>层级</th><th>结果</th><th>证据与限制</th></tr></thead><tbody>
 <tr><td>主机 C 回归</td><td>通过</td><td>产品矩阵包含选择器、长按、编辑布局、取消、revision 冲突、显示能力撤销；组件 OOM、路由、生命周期和像素对照保持通过。</td></tr>
 <tr><td>产品矩阵</td><td>通过</td><td>组件 OOM 37 点、绘制 OOM 47 点、行级失败 5/5/5 点、1000 轮控制器与路由循环通过。</td></tr>
-<tr><td>GCC</td><td>通过</td><td>DEV_A128_NAND，<code>main.bin 1,951,372 B</code>，占 6 MiB 槽 31.016%；SDK <code>421126d9</code>，构建身份绑定 <code>2473b58</code>，<code>BUILD IDENTITY OK</code>。</td></tr>
-<tr><td>Keil</td><td>通过</td><td>DEV_A128_NAND，<code>main.bin 1,876,672 B</code>，占 29.829%；map 工具链来源和身份绑定 <code>2473b58</code>，<code>BUILD IDENTITY OK</code>。</td></tr>
+<tr><td>GCC</td><td>通过</td><td>DEV_A128_NAND，<code>main.bin 1,951,372 B</code>，占 6 MiB 槽 31.016%；SHA-256 <code>12ec76398727aa79d7ce1d79d0dcd9df1da5ec323aca2dbc13683495c5e856bd</code>。</td></tr>
+<tr><td>Keil</td><td>通过</td><td>DEV_A128_NAND，<code>main.bin 1,876,672 B</code>，占 29.829%；SHA-256 <code>f3111a8d99654e626fe2ee300028c8f2a143546524703787c1fa2727126d2a39</code>。</td></tr>
 <tr><td>完整 Python 门禁</td><td>未宣称通过</td><td>本机原版 SDK 目录仍含 D07 补丁，官方 clean-base 检查会主动阻止运行；没有绕过该门禁，也没有把 C 测试结果冒充完整 Python 门禁。</td></tr>
 </tbody></table>
-<p>当前构建产物只证明源码、工具链、SDK 和资源预算闭环；它不替代开发板烧录、冷启动、触摸和实物按键验收。</p>
+<p>最终归档的两个 <code>build_identity.json</code> 都记录固定 SDK <code>421126d9</code> 和构建时仓库 HEAD；构建身份字段以归档文件为准，不由本页手工覆盖。当前构建产物只证明源码、工具链、SDK 和资源预算闭环；它不替代开发板烧录、冷启动、触摸和实物按键验收。</p>
 </section>
 
 <section id="board" class="level1"><h2>开发板门槛</h2>
