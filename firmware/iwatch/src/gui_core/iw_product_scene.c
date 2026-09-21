@@ -38,7 +38,8 @@ static bool label(iw_product_scene_t *s, int x, int baseline, int w, unsigned px
 static bool button(iw_product_scene_t *s, int x, int y, int w, int h, unsigned action, bool disabled,
                    bool fixed, const char *text) {
     unsigned fill = disabled ? IW_PRODUCT_DISABLED_SURFACE
-                  : action == IW_ACTION_TIME_SAVE || action == IW_ACTION_PICK_CHOOSE ? 0x164a26 : IW_PRODUCT_SURFACE;
+                  : action == IW_ACTION_TIME_SAVE || action == IW_ACTION_PICK_CHOOSE ||
+                    action == IW_ACTION_FACE_APPLY ? 0x164a26 : IW_PRODUCT_SURFACE;
     return add(s, x, y, w, h, y + h / 2 + 9, 26, IW_PRODUCT_WHITE, fill, 30, 1, action, fixed, disabled, text);
 }
 
@@ -120,10 +121,57 @@ static bool brightness_control(iw_product_scene_t *s, const iw_product_model_t *
                               progress, 3, 0, 0, false, disabled, ""));
 }
 
+static uint32_t face_accent(uint8_t color)
+{
+    return color == IW_FACE_COLOR_GREEN ? 0x30d158u :
+           color == IW_FACE_COLOR_ORANGE ? IW_PRODUCT_WARNING : IW_PRODUCT_BLUE;
+}
+
+static const char *face_color_name(uint8_t color)
+{
+    return color == IW_FACE_COLOR_GREEN ? "GREEN" :
+           color == IW_FACE_COLOR_ORANGE ? "ORANGE" : "BLUE";
+}
+
+static const char *face_center_name(uint8_t center)
+{
+    return center == IW_FACE_CENTER_TIMER ? "TIMER" :
+           center == IW_FACE_CENTER_ALARM ? "ALARM" : "NONE";
+}
+
+static const char *face_left_name(uint8_t value)
+{
+    return value == IW_FACE_LEFT_SETTINGS ? "SETTINGS" :
+           value == IW_FACE_LEFT_DISPLAY ? "DISPLAY" : "NONE";
+}
+
+static const char *face_right_name(uint8_t value)
+{
+    return value == IW_FACE_RIGHT_ABOUT ? "ABOUT" : "NONE";
+}
+
+static bool face_shortcut(iw_product_scene_t *s, int cx, unsigned value, bool left,
+                          uint32_t accent)
+{
+    unsigned action = 0u, icon_kind = IW_ICON_NONE;
+    if (left && value == IW_FACE_LEFT_SETTINGS) {
+        action = IW_PAGE_SETTINGS;
+        icon_kind = IW_ICON_SETTINGS;
+    } else if (left && value == IW_FACE_LEFT_DISPLAY) {
+        action = IW_PAGE_DISPLAY;
+        icon_kind = IW_ICON_SUN;
+    } else if (!left && value == IW_FACE_RIGHT_ABOUT) {
+        action = IW_PAGE_ABOUT;
+        icon_kind = IW_ICON_INFO;
+    }
+    return !action || shortcut(s, cx, 365, action, icon_kind, accent);
+}
+
 static bool face(iw_product_scene_t *s, const iw_product_model_t *m) {
     char time[6], date[64], offset[10], source[64];
     iw_calendar_fields_t local;
     bool valid = iw_clock_local_fields(&m->clock, &local);
+    uint32_t accent = face_accent(m->face_session.color);
     (void)iw_clock_format_hm(&m->clock, time, sizeof(time));
     (void)iw_clock_format_offset(m->clock.offset_minutes, offset, sizeof(offset));
     if (valid)
@@ -136,21 +184,99 @@ static bool face(iw_product_scene_t *s, const iw_product_model_t *m) {
                    : m->clock.source == IW_TIME_SOURCE_MANUAL ? "MANUAL"
                                                               : "--",
                    offset);
-    if (!label(s, 30, 50, 320, 26, IW_PRODUCT_WARNING, 2, false, date)) return false;
+    if (!label(s, 30, 50, 320, 26, accent, 2, false, date)) return false;
     static const int centers[] = {160, 208, 244, 280, 328};
     for (unsigned i = 0; i < 5; i++) {
         char digit[2] = {time[i], 0};
         int width = i == 2 ? 24 : 48;
         if (!label(s, centers[i] - width / 2, 157, width, 80, IW_PRODUCT_WHITE, 1, false, digit)) return false;
     }
+    if (m->face_session.active_face_id == IW_FACE_MODULAR_LOCAL) {
+        char center[64];
+        const char *detail = valid ? source : TEXT(TAP_SET_TIME);
+        if (m->face_session.center == IW_FACE_CENTER_TIMER) {
+            const iw_timer_view_t *timer = NULL;
+            for (unsigned i = 0; i < m->timers.count; i++)
+                if (m->timers.timers[i].timer_id == m->stack_timer_id) timer = &m->timers.timers[i];
+            if (timer && timer->state == IW_TIMER_RUNNING) {
+                uint64_t seconds = timer->remaining_ms / 1000u;
+                (void)snprintf(center, sizeof(center), "TIMER  %02u:%02u",
+                               (unsigned)(seconds / 60u), (unsigned)(seconds % 60u));
+                detail = center;
+            } else detail = TEXT(NO_ACTIVE_TIMER);
+        } else if (m->face_session.center == IW_FACE_CENTER_ALARM) {
+            const iw_alarm_t *alarm = NULL;
+            for (unsigned i = 0; i < m->alarms.count; i++)
+                if (m->alarms.alarms[i].alarm_id == m->stack_alarm_id) alarm = &m->alarms.alarms[i];
+            if (alarm && alarm->enabled && alarm->next_due_utc_ms) {
+                iw_clock_snapshot_t next = m->clock;
+                iw_calendar_fields_t fields;
+                next.utc_ms = (int64_t)alarm->next_due_utc_ms;
+                next.valid = 1u;
+                if (iw_clock_local_fields(&next, &fields)) {
+                    (void)snprintf(center, sizeof(center), "ALARM  %02u:%02u", fields.hour, fields.minute);
+                    detail = center;
+                } else detail = TEXT(NO_NEXT_ALARM);
+            } else detail = TEXT(NO_NEXT_ALARM);
+        }
+        return add(s, 30, 188, 330, 122, 214, 22, accent, IW_PRODUCT_SURFACE, 24, 0,
+                   IW_PAGE_TIME, false, false, TEXT(LOCAL_TIME)) &&
+               label(s, 46, 258, 298, 26, valid ? IW_PRODUCT_WHITE : IW_PRODUCT_WARNING,
+                     0, false, valid ? TEXT(TIME_VALID) : TEXT(TIME_INVALID)) &&
+               label(s, 46, 294, 298, 20, IW_PRODUCT_SECONDARY, 0, false, detail) &&
+               face_shortcut(s, 66, m->face_session.left, true, accent) &&
+               face_shortcut(s, 324, m->face_session.right, false, accent);
+    }
     return shortcut(s, 64, 116, IW_PAGE_SETTINGS, IW_ICON_SETTINGS, IW_PRODUCT_SECONDARY) &&
-           add(s, 30, 188, 330, 122, 214, 22, IW_PRODUCT_WARNING, 0, 0, 0, IW_PAGE_TIME, false, false,
+           add(s, 30, 188, 330, 122, 214, 22, accent, 0, 0, 0, IW_PAGE_TIME, false, false,
                TEXT(LOCAL_TIME)) &&
            label(s, 30, 258, 330, 26, valid ? IW_PRODUCT_WHITE : IW_PRODUCT_WARNING, 0, false,
                  valid ? TEXT(TIME_VALID) : TEXT(TIME_INVALID)) &&
            label(s, 30, 294, 330, 20, IW_PRODUCT_SECONDARY, 0, false, valid ? source : TEXT(TAP_SET_TIME)) &&
-           shortcut(s, 66, 365, IW_PAGE_DISPLAY, IW_ICON_SUN, IW_PRODUCT_BLUE) &&
-           shortcut(s, 324, 365, IW_PAGE_ABOUT, IW_ICON_INFO, IW_PRODUCT_BLUE);
+           shortcut(s, 66, 365, IW_PAGE_DISPLAY, IW_ICON_SUN, accent) &&
+           shortcut(s, 324, 365, IW_PAGE_ABOUT, IW_ICON_INFO, accent);
+}
+
+static bool face_picker(iw_product_scene_t *s, const iw_product_model_t *m)
+{
+    uint32_t accent = face_accent(m->face_session.color);
+    if (!header(s, m, "FACE")) return false;
+    static const char *const names[] = {"DIGITAL", "MODULAR"};
+    for (unsigned i = 0; i < 2u; i++) {
+        int x = i ? 202 : 18;
+        uint16_t id = (uint16_t)(IW_FACE_DIGITAL + i);
+        bool active = m->face_session.active_face_id == id;
+        if (!add(s, x, 112, 170, 246, 0, 0, IW_PRODUCT_WHITE,
+                 active ? 0x303136u : IW_PRODUCT_SURFACE, 30, 0,
+                 IW_ACTION_FACE_EDITOR_OPEN_BASE + id, false, false, "") ||
+            !label(s, x + 14, 154, 142, 20, active ? accent : IW_PRODUCT_SECONDARY,
+                   1, false, active ? "ACTIVE" : "") ||
+            !label(s, x + 14, 238, 142, 30, IW_PRODUCT_WHITE, 1, false, "12:45") ||
+            !label(s, x + 14, 326, 142, 22, active ? accent : IW_PRODUCT_WHITE,
+                   1, false, names[i])) return false;
+    }
+    return label(s, 24, 405, 342, 20, IW_PRODUCT_SECONDARY, 1, false,
+                 "LONG PRESS TO OPEN");
+}
+
+static bool face_editor(iw_product_scene_t *s, const iw_product_model_t *m)
+{
+    const iw_face_draft_t *draft = &m->face_draft;
+    char color[32], center[32], left[32], right[32];
+    if (!draft->valid) return false;
+    (void)snprintf(color, sizeof(color), "COLOR  %s", face_color_name(draft->value.color));
+    (void)snprintf(center, sizeof(center), "CENTER  %s", face_center_name(draft->value.center));
+    (void)snprintf(left, sizeof(left), "LEFT  %s", face_left_name(draft->value.left));
+    (void)snprintf(right, sizeof(right), "RIGHT  %s", face_right_name(draft->value.right));
+    bool digital = draft->value.active_face_id == IW_FACE_DIGITAL;
+    return header(s, m, "FACE EDITOR") &&
+           button(s, 18, 108, 354, 56, IW_ACTION_FACE_COLOR, false, false, color) &&
+           button(s, 18, 174, 354, 56, IW_ACTION_FACE_CENTER, digital, false, center) &&
+           button(s, 18, 240, 354, 56, IW_ACTION_FACE_LEFT, digital, false, left) &&
+           button(s, 18, 306, 354, 56, IW_ACTION_FACE_RIGHT, digital, false, right) &&
+           button(s, 18, 374, 170, 58, IW_ACTION_FACE_CANCEL, false, true, TEXT(CANCEL)) &&
+           button(s, 202, 374, 170, 58, IW_ACTION_FACE_APPLY,
+                  !m->display_available, true, TEXT(CHOOSE));
 }
 
 static void format_elapsed(uint64_t value_ms, bool tenths, char *text, size_t bytes) {
@@ -680,6 +806,12 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
     case IW_PAGE_FACE:
         ok = face(s, m);
         break;
+    case IW_PAGE_FACE_PICKER:
+        ok = face_picker(s, m);
+        break;
+    case IW_PAGE_FACE_EDITOR:
+        ok = face_editor(s, m);
+        break;
     case IW_PAGE_LAUNCHER_LIST: {
         /* 与路由共用注册表，只列已经具备真实业务闭环的应用根页。 */
         unsigned count = 0;
@@ -818,7 +950,8 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
             !(id == IW_PAGE_STOPWATCH && m->message == IW_TEXT_LAPS_FULL)) {
         bool overlay = id == IW_PAGE_CONTROL_CENTER || id == IW_PAGE_NOTIFICATION_LIST ||
                        id == IW_PAGE_NOTIFICATION_DETAIL || id == IW_PAGE_SMART_STACK ||
-                       id == IW_PAGE_SWITCHER;
+                       id == IW_PAGE_SWITCHER || id == IW_PAGE_FACE_PICKER ||
+                       id == IW_PAGE_FACE_EDITOR;
         if (overlay) s->clip_bottom = 408;
         /* 覆盖页的错误紧邻操作区显示；长列表底部的提示可能永远不在视野内。 */
         ok = ok && label(s, 18, overlay ? 434 : s->content_height + 36, 354, 20,

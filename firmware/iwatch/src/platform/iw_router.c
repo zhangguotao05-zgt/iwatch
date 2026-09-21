@@ -24,7 +24,8 @@ static bool iw_key_port_apply_context(iw_input_context_t value) { (void)value; r
 
 enum { ROUTE_SLOTS = IW_NAV_MAX_APPS * IW_NAV_MAX_DEPTH };
 typedef enum { REQUEST_NONE, REQUEST_OPEN, REQUEST_STAT, REQUEST_BURST, REQUEST_PROFILE,
-               REQUEST_PROBE, REQUEST_OVERLAY_HOME, REQUEST_TEST_NOTICE } request_kind_t;
+               REQUEST_PROBE, REQUEST_OVERLAY_HOME, REQUEST_FACE_HOME,
+               REQUEST_TEST_NOTICE } request_kind_t;
 typedef struct {
     request_kind_t kind;
     uint32_t argument;
@@ -237,6 +238,10 @@ static void product_action(uint16_t id,uint32_t argument,void *context)
                            p->route.page_id == IW_PAGE_ALERT_ALARM))
             hidden_alert = p->product->model.selected_alert;
         (void)request((route_request_t){0},true);
+    }
+    else if (id == IW_ACTION_FACE_APPLY) {
+        if (!request((route_request_t){.kind=REQUEST_FACE_HOME}, false))
+            iw_product_face_cancel_pending();
     }
     else if (initialized && iw_font_port_is_owner())
         (void)request((route_request_t){.kind=REQUEST_OPEN,.argument=argument,.page_id=id},false);
@@ -671,6 +676,8 @@ bool iw_router_process(void)
     requested = (route_request_t){0};
     requested_back = false;
     rt_hw_interrupt_enable(level);
+    if (back || (command.kind != REQUEST_FACE_HOME && command.kind != REQUEST_NONE))
+        iw_product_face_cancel_pending();
     if (home_target) {
         /* Home 优先于尚未启动的请求；已启动事务仍正常收尾。 */
         if (command.kind != REQUEST_STAT) command = (route_request_t){0};
@@ -693,6 +700,20 @@ bool iw_router_process(void)
             gui_app_goback_to_page(overlay_source) == RT_EOK)
             iw_gui_cancel_input();
         else if (!snapshot.busy) (void)home_request(true);
+    }
+    else if (command.kind == REQUEST_FACE_HOME) {
+        /* 表盘编辑成功后关闭选择器和编辑页，恢复已有表盘根页。 */
+        if (!snapshot.busy && iw_product_face_commit_pending() &&
+            gui_app_goback_to_page("root") == RT_EOK) {
+            iw_gui_cancel_input();
+        } else {
+            iw_product_face_rollback_pending();
+            route_page_t *page = snapshot_page(&snapshot, false);
+            if (page && page->product) {
+                page->product->model.message = IW_TEXT_OPERATION_FAILED;
+                page->product->dirty = true;
+            }
+        }
     }
     else if (command.kind == REQUEST_PROBE) {
         if (command.argument == 2u) {

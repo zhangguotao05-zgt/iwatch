@@ -18,10 +18,10 @@ extern void test_component_capture(lv_display_t *, lv_obj_t *, unsigned);
 extern bool test_component_capture_region_has_ink(lv_display_t *, lv_obj_t *, unsigned,
                                                    unsigned, unsigned, unsigned);
 
-static const uint16_t product_pages[] = {IW_PAGE_FACE,    IW_PAGE_LAUNCHER_LIST, IW_PAGE_SETTINGS,
-                                         IW_PAGE_DISPLAY, IW_PAGE_BRIGHTNESS,    IW_PAGE_TIME,
-                                         IW_PAGE_ABOUT, IW_PAGE_TIMER_LIST,
-                                         IW_PAGE_TIMER_DETAIL, IW_PAGE_STOPWATCH};
+static const uint16_t product_pages[] = {IW_PAGE_FACE, IW_PAGE_FACE_PICKER, IW_PAGE_FACE_EDITOR,
+                                         IW_PAGE_LAUNCHER_LIST, IW_PAGE_SETTINGS, IW_PAGE_DISPLAY,
+                                         IW_PAGE_BRIGHTNESS, IW_PAGE_TIME, IW_PAGE_ABOUT,
+                                         IW_PAGE_TIMER_LIST, IW_PAGE_TIMER_DETAIL, IW_PAGE_STOPWATCH};
 
 static lv_point_t pointer_point;
 static lv_indev_state_t pointer_state;
@@ -169,6 +169,25 @@ static void input_cases(lv_display_t *display, iw_product_view_t *view, iw_produ
     assert(pointer_actions == 1 && pointer_finals == 1 && pointer_action == IW_ACTION_BRIGHTEN);
     assert(iw_product_view_destroy(view));
 
+    /* 表盘长按只打开选择器一次，松手不能再误触发卡片。 */
+    m->face_session = (iw_face_session_t){
+        .schema = IW_FACE_SCHEMA, .active_face_id = IW_FACE_DIGITAL, .revision = 1u,
+        .color = IW_FACE_COLOR_BLUE, .center = IW_FACE_CENTER_NONE,
+        .left = IW_FACE_LEFT_SETTINGS, .right = IW_FACE_RIGHT_ABOUT};
+    m->face_draft = (iw_face_draft_t){.value = m->face_session, .expected_revision = 1u, .valid = true};
+    assert(iw_product_view_create(view, lv_screen_active(), IW_PAGE_FACE, m,
+                                  pointer_action_cb, NULL, NULL));
+    lv_obj_update_layout(view->surface);
+    pointer_actions = pointer_finals = 0;
+    touch(input, 195, 240, true);
+    lv_tick_inc(700);
+    touch(input, 195, 240, true);
+    assert(pointer_actions == 1 && pointer_finals == 1 &&
+           pointer_action == IW_ACTION_FACE_PICKER);
+    touch(input, 195, 240, false);
+    assert(pointer_actions == 1);
+    assert(iw_product_view_destroy(view));
+
     /* 切换器使用横向手势；向左滑动只发出下一项动作，不触发卡片打开。 */
     static iw_recent_apps_t switcher_recent;
     memset(&switcher_recent, 0, sizeof(switcher_recent));
@@ -242,6 +261,10 @@ static iw_product_model_t fixture(void) {
         .time_available = true,
         .lock_available = true,
         .back = true,
+        .face_session = {.schema = IW_FACE_SCHEMA, .active_face_id = IW_FACE_DIGITAL,
+                         .revision = 1u, .color = IW_FACE_COLOR_BLUE,
+                         .center = IW_FACE_CENTER_NONE, .left = IW_FACE_LEFT_SETTINGS,
+                         .right = IW_FACE_RIGHT_ABOUT},
         .hardware = "SF32LB58 A128",
         .firmware = "HOST FIXTURE",
         .toolchain = "HOST ASan"};
@@ -249,6 +272,7 @@ static iw_product_model_t fixture(void) {
                                               .applied = 80,
                                               .flags = IW_BRIGHTNESS_FLAG_DESIRED_VALID |
                                                        IW_BRIGHTNESS_FLAG_APPLIED_VALID};
+    m.face_draft = (iw_face_draft_t){.value = m.face_session, .expected_revision = 1u, .valid = true};
     assert(iw_time_draft_begin(&m.draft, &m.clock));
     return m;
 }
@@ -588,6 +612,53 @@ static void scene_boundaries(iw_product_model_t *m) {
         }
     }
     assert(disabled_save_found);
+
+    /* 表盘选择和编辑使用固定节点；所有节点必须落在 390x450 目标内。 */
+    m->display_available = true;
+    m->face_session = (iw_face_session_t){
+        .schema = IW_FACE_SCHEMA, .active_face_id = IW_FACE_DIGITAL, .revision = 4u,
+        .color = IW_FACE_COLOR_BLUE, .center = IW_FACE_CENTER_NONE,
+        .left = IW_FACE_LEFT_SETTINGS, .right = IW_FACE_RIGHT_ABOUT};
+    m->face_draft = (iw_face_draft_t){.value = m->face_session, .expected_revision = 4u, .valid = true};
+    assert(iw_product_scene_build(&scene, IW_PAGE_FACE_PICKER, m));
+    assert(has_text(&scene, "DIGITAL") && has_text(&scene, "MODULAR") &&
+           has_text(&scene, "LONG PRESS TO OPEN"));
+    unsigned face_cards = 0;
+    for (unsigned i = 0; i < scene.count; i++) {
+        const iw_product_node_t *node = &scene.nodes[i];
+        assert(node->x >= 0 && node->x + node->width <= 390);
+        if (node->fixed) assert(node->y >= 0 && node->y + node->height <= 450);
+        if (node->action >= IW_ACTION_FACE_EDITOR_OPEN_BASE &&
+            node->action < IW_ACTION_FACE_EDITOR_OPEN_BASE + 3u) face_cards++;
+    }
+    assert(face_cards == 2u);
+    m->face_draft.value.active_face_id = IW_FACE_MODULAR_LOCAL;
+    m->face_draft.value.center = IW_FACE_CENTER_TIMER;
+    m->face_draft.value.left = IW_FACE_LEFT_DISPLAY;
+    m->face_draft.value.right = IW_FACE_RIGHT_ABOUT;
+    assert(iw_product_scene_build(&scene, IW_PAGE_FACE_EDITOR, m));
+    bool face_cancel = false, face_apply = false;
+    for (unsigned i = 0; i < scene.count; i++) {
+        if (scene.nodes[i].action == IW_ACTION_FACE_CANCEL) face_cancel = true;
+        if (scene.nodes[i].action == IW_ACTION_FACE_APPLY) face_apply = true;
+    }
+    assert(has_fragment(&scene, "COLOR") && has_fragment(&scene, "CENTER") &&
+           has_fragment(&scene, "LEFT") && has_fragment(&scene, "RIGHT") &&
+           face_cancel && face_apply);
+    for (unsigned i = 0; i < scene.count; i++) {
+        const iw_product_node_t *node = &scene.nodes[i];
+        assert(node->x >= 0 && node->x + node->width <= 390);
+        if (node->fixed) assert(node->y >= 0 && node->y + node->height <= 450);
+    }
+    m->face_session.active_face_id = IW_FACE_MODULAR_LOCAL;
+    m->face_session.center = IW_FACE_CENTER_TIMER;
+    m->timers.count = 1u;
+    m->timers.timers[0] = (iw_timer_view_t){.timer_id = 11u, .state = IW_TIMER_RUNNING,
+                                           .remaining_ms = 90500u};
+    m->stack_timer_id = 11u;
+    assert(iw_product_scene_build(&scene, IW_PAGE_FACE, m));
+    assert(has_fragment(&scene, "TIMER"));
+
     char longest[IW_PRODUCT_TEXT_BYTES];
     memset(longest, 'A', sizeof(longest) - 1);
     longest[sizeof(longest) - 1] = 0;

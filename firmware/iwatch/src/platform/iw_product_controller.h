@@ -33,4 +33,8 @@ bool iw_product_notification_add(iw_notification_source_t source,
 bool iw_product_set_profile(iw_theme_quality_t quality, bool large_text, bool reduced_motion);
 /* 全局客户端持续处理离页结果；返回下一次检查期限，单位毫秒。 */
 uint32_t iw_product_process(void);
+/* 表盘提交采用两阶段事务：路由成功后提交，失败时丢弃候选。 */
+bool iw_product_face_commit_pending(void);
+void iw_product_face_cancel_pending(void);
+void iw_product_face_rollback_pending(void);
 #endif

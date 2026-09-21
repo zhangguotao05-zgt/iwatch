@@ -18,7 +18,8 @@ typedef struct {
     int16_t picker_offset, picker_from, picker_parent_scroll;
     uint32_t picker_started, resumed_ms;
     iw_theme_quality_t quality;
-    bool active, dragging, animating, reduced_motion, picker_snapping, first_draw;
+    bool active, dragging, animating, reduced_motion, picker_snapping, first_draw,
+         face_long_press_fired;
 } iw_product_view_t;
 /* 句柄地址固定，零初始化；父屏幕删除时自动清空并释放字体引用。 */
 bool iw_product_view_create(iw_product_view_t *view, lv_obj_t *parent, uint16_t page_id,

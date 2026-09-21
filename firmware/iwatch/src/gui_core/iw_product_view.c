@@ -157,6 +157,7 @@ static void destructor(const lv_obj_class_t *class_p, lv_obj_t *object) {
     v->picker_snapping = false;
     v->surface = NULL;
     v->pressed = -1;
+    v->face_long_press_fired = false;
     v->press_x = v->last_x = 0;
     for (unsigned i = 0; i < sizeof(sizes); i++)
         (void)iw_font_release(&v->fonts[i]);
@@ -268,6 +269,7 @@ bool iw_product_view_create(iw_product_view_t *v, lv_obj_t *parent, uint16_t pag
     v->animating = false;
     v->picker_snapping = false;
     v->picker_offset = 0;
+    v->face_long_press_fired = false;
     v->action = action;
     v->context = context;
     if (iw_screen_frame_create(&v->frame, parent, IW_FRAME_FULLSCREEN, "", quiesce, context) !=
@@ -384,6 +386,7 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
         feedback(v, false);
         v->pressed = -1;
         v->dragging = false;
+        v->face_long_press_fired = false;
         v->picker_offset = 0;
         v->picker_snapping = false;
         lv_obj_invalidate(&surface->base);
@@ -403,9 +406,16 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
         v->picker_snapping = false;
         v->picker_offset = 0;
         feedback(v, v->pressed >= 0);
+        v->face_long_press_fired = false;
     }
     uint16_t action = v->pressed >= 0 ? v->scene.nodes[v->pressed].action : 0;
-    if (action == IW_ACTION_TRACK) {
+    if (code == LV_EVENT_PRESSING && v->scene.page_id == IW_PAGE_FACE &&
+        !v->dragging && !v->face_long_press_fired &&
+        (uint32_t)(lv_tick_get() - v->press_started) >= 700u) {
+        v->face_long_press_fired = true;
+        feedback(v, false);
+        if (v->action) v->action(IW_ACTION_FACE_PICKER, 0, true, v->context);
+    } else if (action == IW_ACTION_TRACK) {
         if (v->action) {
             uint8_t level = v->scene.page_id == IW_PAGE_CONTROL_CENTER
                 ? iw_brightness_track_level(x) : iw_brightness_detail_level(x);
@@ -430,7 +440,7 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
             iw_product_view_scroll(v, v->last_y - y);
         v->last_y = (int16_t)y;
     } else if (code == LV_EVENT_RELEASED) {
-        bool click = !v->dragging && v->pressed >= 0 &&
+        bool click = !v->dragging && !v->face_long_press_fired && v->pressed >= 0 &&
                      iw_product_scene_hit(&v->scene, x, y, v->scroll_y) == v->pressed;
         v->pressed = -1;
         if (v->dragging && v->scene.page_id == IW_PAGE_SWITCHER) {
@@ -456,6 +466,7 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
         feedback(v, false);
         v->pressed = -1;
         v->dragging = false;
+        v->face_long_press_fired = false;
     }
     lv_obj_invalidate(&surface->base);
 }

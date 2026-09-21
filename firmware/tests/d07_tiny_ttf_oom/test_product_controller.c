@@ -340,6 +340,55 @@ int test_product_controller(size_t loops) {
     page.view.action(IW_ACTION_ALERT_OPEN, 0, true, page.view.context);
     assert(navigations == before_navigation && page.model.message == IW_TEXT_TIMER_CHANGED);
     assert(iw_product_destroy(&page));
+
+    /* D13 表盘会话：草稿可取消，提交只接受当前 revision，能力失效时保留旧配置。 */
+    assert(iw_service_set_capability(&model, IW_CAP_DISPLAY, IW_CAP_STATE_AVAILABLE, 0));
+    memset(&page, 0, sizeof(page));
+    assert(iw_product_create(&page, IW_PAGE_FACE_EDITOR, IW_FACE_MODULAR_LOCAL, 300001u, true,
+                             navigate, stop, &model));
+    uint32_t face_revision = page.model.face_draft.expected_revision;
+    page.view.action(IW_ACTION_FACE_COLOR, 0, true, page.view.context);
+    page.view.action(IW_ACTION_FACE_CENTER, 0, true, page.view.context);
+    page.view.action(IW_ACTION_FACE_CANCEL, 0, true, page.view.context);
+    assert(last_destination == IW_ACTION_BACK && page.model.face_draft.expected_revision == face_revision);
+    assert(iw_product_destroy(&page));
+
+    static iw_product_page_t face_apply, face_stale;
+    memset(&face_apply, 0, sizeof(face_apply));
+    assert(iw_product_create(&face_apply, IW_PAGE_FACE_EDITOR, IW_FACE_MODULAR_LOCAL, 300002u, true,
+                             navigate, stop, &model));
+    face_apply.view.action(IW_ACTION_FACE_COLOR, 0, true, face_apply.view.context);
+    uint32_t before_face_navigation = navigations;
+    face_apply.view.action(IW_ACTION_FACE_APPLY, 0, true, face_apply.view.context);
+    assert(last_destination == IW_ACTION_FACE_APPLY && navigations == before_face_navigation + 1u);
+    assert(iw_product_face_commit_pending());
+    assert(iw_product_destroy(&face_apply));
+
+    /* 两个同时打开的编辑页共享旧 revision，后提交者必须无副作用地冲突。 */
+    memset(&face_apply, 0, sizeof(face_apply));
+    memset(&face_stale, 0, sizeof(face_stale));
+    assert(iw_product_create(&face_apply, IW_PAGE_FACE_EDITOR, IW_FACE_MODULAR_LOCAL, 300003u, true,
+                             navigate, stop, &model));
+    assert(iw_product_create(&face_stale, IW_PAGE_FACE_EDITOR, IW_FACE_MODULAR_LOCAL, 300004u, true,
+                             navigate, stop, &model));
+    face_apply.view.action(IW_ACTION_FACE_APPLY, 0, true, face_apply.view.context);
+    before_face_navigation = navigations;
+    face_stale.view.action(IW_ACTION_FACE_APPLY, 0, true, face_stale.view.context);
+    assert(navigations == before_face_navigation && face_stale.model.message == IW_TEXT_TIME_CONFLICT);
+    iw_product_face_cancel_pending();
+    assert(iw_product_destroy(&face_apply) && iw_product_destroy(&face_stale));
+
+    /* 显示能力撤销不能提交表盘，也不能增加 revision。 */
+    assert(iw_service_set_capability(&model, IW_CAP_DISPLAY, IW_CAP_STATE_ABSENT, 0));
+    memset(&page, 0, sizeof(page));
+    assert(iw_product_create(&page, IW_PAGE_FACE_EDITOR, IW_FACE_MODULAR_LOCAL, 300005u, true,
+                             navigate, stop, &model));
+    before_face_navigation = navigations;
+    page.view.action(IW_ACTION_FACE_APPLY, 0, true, page.view.context);
+    assert(navigations == before_face_navigation && page.model.message == IW_TEXT_DISPLAY_UNAVAILABLE);
+    assert(iw_product_destroy(&page));
+    assert(iw_service_set_capability(&model, IW_CAP_DISPLAY, IW_CAP_STATE_AVAILABLE, 0));
+
     assert(iw_font_collect());
     assert(test_font_live_bytes() == bytes && test_font_live_blocks() == blocks);
     printf("product_controller loops=%zu detached_ack=ok preview_final=ok time_navigation=ok asserts=0 "

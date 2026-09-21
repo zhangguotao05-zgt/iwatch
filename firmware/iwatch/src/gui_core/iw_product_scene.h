@@ -70,8 +70,54 @@ enum {
     IW_ACTION_RECENT_OPEN_BASE = 0x1240,
     IW_ACTION_RECENT_REMOVE_BASE = 0x1280,
     IW_ACTION_RECENT_PREVIOUS = 0x12c0,
-    IW_ACTION_RECENT_NEXT
+    IW_ACTION_RECENT_NEXT,
+    IW_ACTION_FACE_PICKER = 0x1300,
+    IW_ACTION_FACE_EDITOR_OPEN_BASE = 0x1310,
+    IW_ACTION_FACE_COLOR = 0x1320,
+    IW_ACTION_FACE_CENTER,
+    IW_ACTION_FACE_LEFT,
+    IW_ACTION_FACE_RIGHT,
+    IW_ACTION_FACE_CANCEL,
+    IW_ACTION_FACE_APPLY
 };
+enum {
+    IW_FACE_SCHEMA = 1,
+    IW_FACE_DIGITAL = 1,
+    IW_FACE_MODULAR_LOCAL = 2
+};
+typedef enum {
+    IW_FACE_COLOR_BLUE,
+    IW_FACE_COLOR_GREEN,
+    IW_FACE_COLOR_ORANGE,
+    IW_FACE_COLOR_COUNT
+} iw_face_color_t;
+typedef enum {
+    IW_FACE_CENTER_NONE,
+    IW_FACE_CENTER_TIMER,
+    IW_FACE_CENTER_ALARM,
+    IW_FACE_CENTER_COUNT
+} iw_face_center_t;
+typedef enum {
+    IW_FACE_LEFT_NONE,
+    IW_FACE_LEFT_SETTINGS,
+    IW_FACE_LEFT_DISPLAY,
+    IW_FACE_LEFT_COUNT
+} iw_face_left_t;
+typedef enum {
+    IW_FACE_RIGHT_NONE,
+    IW_FACE_RIGHT_ABOUT,
+    IW_FACE_RIGHT_COUNT
+} iw_face_right_t;
+typedef struct {
+    uint16_t schema, active_face_id;
+    uint32_t revision;
+    uint8_t color, center, left, right;
+} iw_face_session_t;
+typedef struct {
+    iw_face_session_t value;
+    uint32_t expected_revision;
+    bool valid;
+} iw_face_draft_t;
 typedef struct {
     int16_t x, y, width, height, baseline;
     uint16_t action;
@@ -107,6 +153,8 @@ typedef struct {
     iw_alert_record_t selected_alert;
     iw_stopwatch_view_model_t stopwatch;
     iw_time_draft_t draft;
+    iw_face_session_t face_session;
+    iw_face_draft_t face_draft;
     const iw_notification_store_t *notifications;
     const iw_recent_apps_t *recent_apps;
     uint8_t recent_index;

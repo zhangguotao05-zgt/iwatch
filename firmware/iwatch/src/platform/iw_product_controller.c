@@ -90,6 +90,81 @@ static void refresh_notification_pages(void)
 }
 static iw_theme_quality_t profile_quality = IW_THEME_Q1;
 static bool profile_large, profile_reduced;
+static void capabilities(iw_product_model_t *m);
+/* 表盘配置只属于 GUI 会话；D15 再决定是否增加持久化回执。 */
+static iw_face_session_t face_session = {
+    .schema = IW_FACE_SCHEMA,
+    .active_face_id = IW_FACE_DIGITAL,
+    .revision = 1u,
+    .color = IW_FACE_COLOR_BLUE,
+    .center = IW_FACE_CENTER_NONE,
+    .left = IW_FACE_LEFT_SETTINGS,
+    .right = IW_FACE_RIGHT_ABOUT
+};
+static iw_face_session_t face_pending;
+static iw_face_session_t face_previous;
+static bool face_pending_valid;
+static bool face_pending_committed;
+
+static bool face_session_valid(const iw_face_session_t *value)
+{
+    return value && value->schema == IW_FACE_SCHEMA &&
+           (value->active_face_id == IW_FACE_DIGITAL || value->active_face_id == IW_FACE_MODULAR_LOCAL) &&
+           value->color < IW_FACE_COLOR_COUNT && value->center < IW_FACE_CENTER_COUNT &&
+           value->left < IW_FACE_LEFT_COUNT && value->right < IW_FACE_RIGHT_COUNT &&
+           (value->active_face_id == IW_FACE_MODULAR_LOCAL ||
+            (value->center == IW_FACE_CENTER_NONE && value->left == IW_FACE_LEFT_SETTINGS &&
+             value->right == IW_FACE_RIGHT_ABOUT));
+}
+
+static bool face_draft_apply(iw_product_page_t *p)
+{
+    iw_face_session_t candidate;
+    if (!p || p->page_id != IW_PAGE_FACE_EDITOR || !p->model.face_draft.valid) return false;
+    candidate = p->model.face_draft.value;
+    if (face_pending_valid ||
+        p->model.face_draft.expected_revision != face_session.revision ||
+        face_session.revision == UINT32_MAX || !face_session_valid(&candidate)) {
+        p->model.message = IW_TEXT_TIME_CONFLICT;
+        p->dirty = true;
+        return false;
+    }
+    capabilities(&p->model);
+    if (!p->model.display_available) {
+        p->model.message = IW_TEXT_DISPLAY_UNAVAILABLE;
+        p->dirty = true;
+        return false;
+    }
+    /* 候选只使用固定枚举和现有根页资源，不分配整屏预览缓冲。 */
+    candidate.revision = face_session.revision + 1u;
+    face_pending = candidate;
+    face_previous = face_session;
+    face_pending_valid = true;
+    face_pending_committed = false;
+    p->navigate(IW_ACTION_FACE_APPLY, 0u, p->context);
+    return true;
+}
+
+bool iw_product_face_commit_pending(void)
+{
+    if (!face_pending_valid) return false;
+    face_session = face_pending;
+    face_pending_committed = true;
+    face_pending_valid = false;
+    return true;
+}
+
+void iw_product_face_cancel_pending(void)
+{
+    face_pending_valid = false;
+    face_pending_committed = false;
+}
+
+void iw_product_face_rollback_pending(void)
+{
+    if (face_pending_committed) face_session = face_previous;
+    iw_product_face_cancel_pending();
+}
 
 /* 叠放只绑定快照中的稳定 ID；数组顺序变化不能改变当前卡片的实体。 */
 static uint32_t select_running_timer(const iw_timer_snapshot_t *snapshot)
@@ -181,7 +256,7 @@ static void alarms_alerts(iw_product_page_t *p) {
     size_t bytes = 0;
     p->model.stack_alarm_id = 0u;
     if (p->page_id == IW_PAGE_ALARM_LIST || p->page_id == IW_PAGE_ALARM_EDIT ||
-        p->page_id == IW_PAGE_SMART_STACK) {
+        p->page_id == IW_PAGE_SMART_STACK || p->page_id == IW_PAGE_FACE) {
         struct { iw_snapshot_header_t header; iw_alarm_snapshot_t model; } value = {0};
         if (iw_snapshot_read(IW_SNAPSHOT_ALARMS, &value, sizeof(value), &bytes) == IW_SNAPSHOT_OK &&
             value.model.count <= IW_ALARM_CAPACITY) {
@@ -418,6 +493,41 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
                     IW_PAGE_SMART_STACK, 0u, p->context);
         return;
     }
+    if (id == IW_ACTION_FACE_PICKER) {
+        p->navigate(IW_PAGE_FACE_PICKER, 0u, p->context);
+        return;
+    }
+    if (id >= IW_ACTION_FACE_EDITOR_OPEN_BASE &&
+        id < IW_ACTION_FACE_EDITOR_OPEN_BASE + IW_FACE_MODULAR_LOCAL + 1u) {
+        uint16_t face_id = (uint16_t)(id - IW_ACTION_FACE_EDITOR_OPEN_BASE);
+        if (face_id == IW_FACE_DIGITAL || face_id == IW_FACE_MODULAR_LOCAL)
+            p->navigate(IW_PAGE_FACE_EDITOR, face_id, p->context);
+        return;
+    }
+    if (id == IW_ACTION_FACE_CANCEL) {
+        p->navigate(IW_ACTION_BACK, 0u, p->context);
+        return;
+    }
+    if (id == IW_ACTION_FACE_APPLY) {
+        (void)face_draft_apply(p);
+        return;
+    }
+    if (p->page_id == IW_PAGE_FACE_EDITOR &&
+        (id == IW_ACTION_FACE_COLOR || id == IW_ACTION_FACE_CENTER ||
+         id == IW_ACTION_FACE_LEFT || id == IW_ACTION_FACE_RIGHT)) {
+        iw_face_session_t *draft = &p->model.face_draft.value;
+        if (!p->model.face_draft.valid) return;
+        if (id == IW_ACTION_FACE_COLOR)
+            draft->color = (uint8_t)((draft->color + 1u) % IW_FACE_COLOR_COUNT);
+        else if (id == IW_ACTION_FACE_CENTER && draft->active_face_id == IW_FACE_MODULAR_LOCAL)
+            draft->center = (uint8_t)((draft->center + 1u) % IW_FACE_CENTER_COUNT);
+        else if (id == IW_ACTION_FACE_LEFT && draft->active_face_id == IW_FACE_MODULAR_LOCAL)
+            draft->left = (uint8_t)((draft->left + 1u) % IW_FACE_LEFT_COUNT);
+        else if (id == IW_ACTION_FACE_RIGHT && draft->active_face_id == IW_FACE_MODULAR_LOCAL)
+            draft->right = (uint8_t)((draft->right + 1u) % IW_FACE_RIGHT_COUNT);
+        p->dirty = true;
+        return;
+    }
     if (id == IW_ACTION_TIME_SAVE) {
         submit_clock_edit(p);
         return;
@@ -635,7 +745,7 @@ bool iw_product_create(iw_product_page_t *p, uint16_t id, uint32_t argument,
     p->model = (iw_product_model_t){.message = IW_TEXT_COUNT, .back = back,
         .hardware = "SF32LB58 A128 QSPI", .firmware = IW_BUILD_TAG, .quality = profile_quality,
         .large_text = profile_large, .reduced_motion = profile_reduced,
-        .notifications = &notification_store};
+        .notifications = &notification_store, .face_session = face_session};
     p->model.lock_water = id == IW_PAGE_WATER_LOCK;
     p->model.lock_available = lock_available;
 #if defined(__ARMCOMPILER_VERSION)
@@ -658,6 +768,18 @@ bool iw_product_create(iw_product_page_t *p, uint16_t id, uint32_t argument,
     if (id == IW_PAGE_TIME && !iw_time_draft_begin(&p->model.draft, &p->model.clock)) return false;
     if (id == IW_PAGE_TIME && p->model.draft.needs_calibration) p->model.message = IW_TEXT_CALIBRATE;
     if (id != IW_PAGE_TIME) p->model.draft.editing = IW_EDIT_NONE;
+    if (id == IW_PAGE_FACE_EDITOR) {
+        p->model.face_draft.value = face_session;
+        p->model.face_draft.expected_revision = face_session.revision;
+        p->model.face_draft.valid = argument == IW_FACE_DIGITAL || argument == IW_FACE_MODULAR_LOCAL;
+        if (!p->model.face_draft.valid) return false;
+        p->model.face_draft.value.active_face_id = (uint16_t)argument;
+        if (argument == IW_FACE_DIGITAL) {
+            p->model.face_draft.value.center = IW_FACE_CENTER_NONE;
+            p->model.face_draft.value.left = IW_FACE_LEFT_SETTINGS;
+            p->model.face_draft.value.right = IW_FACE_RIGHT_ABOUT;
+        }
+    }
     if (id == IW_PAGE_ALARM_EDIT) {
         iw_alarm_edit_t *edit = &p->model.alarm_edit;
         iw_calendar_fields_t local;
@@ -704,6 +826,7 @@ bool iw_product_create(iw_product_page_t *p, uint16_t id, uint32_t argument,
 void iw_product_resume(iw_product_page_t *p, bool visible) {
     if (!p || !iw_font_port_is_owner()) return;
     p->visible = visible;
+    if (p->page_id == IW_PAGE_FACE) p->model.face_session = face_session;
     iw_product_view_activate(&p->view, visible);
     p->dirty = true;
 }
