@@ -20,7 +20,7 @@
 </ul></nav><main>
 <section id="scope" class="level1">
 <h1>D13-D 表盘会话与总体收口实施记录</h1>
-<p class="doc-meta">2026-09-21 · Issue #15 · 设计基线 <code>c7617c2</code> · 实现提交 <code>2473b58</code> · 当前状态：主机、GCC、Keil 已通过；开发板复核待完成</p>
+<p class="doc-meta">2026-09-22 · Issue #15 · 设计基线 <code>c7617c2</code> · 实现提交 <code>50dee36</code> · 当前状态：主机回归通过；双工具链需按最终提交重建；开发板复核待完成</p>
 <p class="note">本页把 D13 的剩余开发目标写成可执行的验收契约。它记录当前实现和证据边界，不提前宣称 D13 最终收口。代码注释、测试日志和工程文档按项目约定使用中文；外部 SDK 的原始注释不在本页改写。</p>
 <h2>产品目标</h2>
 <p>当前产品目标是一个 390×450、离线可运行的 Apple Watch 风格界面基线：表盘、蜂窝应用列表、控制中心、通知、智能叠放、最近 App、设置、计时器、闹钟和两种输入锁在同一套路由、输入仲裁和资源回收规则下工作。D13 只负责界面会话与覆盖层，不把联网、微信/支付宝、健康传感器算法或生产级 Apple 兼容性写入本阶段完成条件。</p>
@@ -28,7 +28,7 @@
 <ol>
 <li>长按当前表盘约 700 ms 只触发一次表盘选择器，松手不会追加点击；选择器提供两个稳定 ID：<code>DIGITAL=1</code>、<code>MODULAR_LOCAL=2</code>。</li>
 <li>编辑器以值复制方式维护草稿，支持强调色、中心信息、左侧快捷入口、右侧快捷入口四项配置；数字表盘不显示不可用的模块字段。</li>
-<li>取消、返回、显示能力缺失、路由失败和 revision 冲突都保留原表盘配置；只有目标页成功创建并完成路由后才提交候选配置。</li>
+<li>取消、返回、显示能力缺失、路由失败和 revision 冲突都保留原表盘配置；只有返回根页完成异步 <code>ONRESUME</code>、快照稳定且页面健康后才提交候选配置。</li>
 <li>覆盖层、页面和字体继续使用既有 owner、固定节点和安全点回收规则，不为预览创建全屏缓存，不引入新的长期堆对象。</li>
 <li>把目标、版本、镜像身份、测试分层和板测门槛写入仓库，架构师可以按同一基线独立复核。</li>
 </ol>
@@ -39,10 +39,10 @@
 <tr><td>进入</td><td>表盘长按或编辑入口</td><td>创建 <code>face_draft</code>，复制当前 session 和 expected_revision</td><td>页面创建失败时保持当前表盘，显示已有应急层</td></tr>
 <tr><td>字段编辑</td><td>颜色、中心、左右快捷入口</td><td>只修改草稿，不增加 session revision</td><td>非法枚举值被拒绝，草稿保持上一个有效值</td></tr>
 <tr><td>取消</td><td>取消按钮、Back、Home 或覆盖层失效</td><td>清空草稿和 pending 事务</td><td>当前表盘配置、revision 和历史均不变</td></tr>
-<tr><td>应用</td><td>选择按钮</td><td>检查显示能力和 expected_revision，建立 pending candidate</td><td>冲突或能力缺失显示“时间设置已变化”/“显示不可用”，留在编辑器</td></tr>
-<tr><td>提交</td><td>目标页成功创建、路由成功</td><td>提交候选配置，revision 单调增加，清空 pending</td><td>任一阶段失败都回滚到 previous session</td></tr>
+<tr><td>应用</td><td>选择按钮</td><td>检查显示能力和 expected_revision，建立 pending candidate，并登记待确认返回</td><td>冲突或能力缺失显示“时间设置已变化”/“显示不可用”，留在编辑器</td></tr>
+<tr><td>提交</td><td>根页异步 <code>ONRESUME</code>、稳定快照、页面健康</td><td>提交候选配置，revision 单调增加，清空 pending</td><td>请求拒绝、异步失败、根页恢复失败、故障回收、超时或重复返回均回滚到 previous session</td></tr>
 </tbody></table>
-<p>应用动作采用两阶段提交：控制器先保存 <code>face_previous</code> 和 <code>face_pending</code>，路由器只在业务页成功进入后调用 commit；路由拒绝、返回或能力竞态调用 rollback。这样不会出现“画面没有切换但表盘已经改变”的半提交状态。</p>
+<p>应用动作采用两阶段提交：控制器先保存 <code>face_previous</code> 和 <code>face_pending</code>，路由器只在根页异步 <code>ONRESUME</code> 完成并再次确认快照后调用 commit；路由拒绝、返回、能力竞态、故障回收和 3 秒未完成的异常转场调用 rollback。这样不会出现“画面没有切换但表盘已经改变”的半提交状态。</p>
 </section>
 
 <section id="implementation" class="level1"><h2>实现与所有权</h2>
@@ -51,7 +51,7 @@
 <tr><td><code>src/gui_core/iw_product_view.[ch]</code></td><td>长按识别、松手抑制和页面生命周期；不在输入回调中直接删除对象。</td></tr>
 <tr><td><code>src/gui_core/iw_routes.c</code></td><td>将 FACE_PICKER、FACE_EDITOR 注册为可用页面。</td></tr>
 <tr><td><code>src/platform/iw_product_controller.[ch]</code></td><td>session 默认值、枚举校验、草稿、revision 冲突和 pending 事务所有权。</td></tr>
-<tr><td><code>src/platform/iw_router.c</code></td><td>提交/回滚与路由结果绑定；请求失败时不遗留半提交状态。</td></tr>
+<tr><td><code>src/platform/iw_router.c</code></td><td>提交/回滚与根页异步生命周期绑定；请求失败、ONRESUME 失败、故障回收和超时不遗留半提交状态。</td></tr>
 </tbody></table>
 <p>本阶段不改变 D13-C 的锁优先级和输入契约：水锁仍先屏蔽触摸和 KEY2，普通输入锁仍要求 KEY1 长按并真实松手。表盘编辑只在解锁后的普通路由上下文中工作。</p>
 </section>
@@ -59,7 +59,7 @@
 <section id="verification" class="level1"><h2>验证结果</h2>
 <table><thead><tr><th>层级</th><th>结果</th><th>证据与限制</th></tr></thead><tbody>
 <tr><td>主机 C 回归</td><td>通过</td><td>产品矩阵包含选择器、长按、编辑布局、取消、revision 冲突、显示能力撤销；组件 OOM、路由、生命周期和像素对照保持通过。</td></tr>
-<tr><td>产品矩阵</td><td>通过</td><td>组件 OOM 37 点、绘制 OOM 47 点、行级失败 5/5/5 点、1000 轮控制器与路由循环通过。</td></tr>
+<tr><td>产品矩阵</td><td>通过</td><td>组件 OOM 37 点、绘制 OOM 47 点、行级失败 5/5/5 点、1000 轮控制器与路由循环通过；表盘路由补充正常确认、请求拒绝、异步无 ONRESUME、根页恢复失败、重复返回和故障回收。</td></tr>
 <tr><td>GCC</td><td>通过</td><td>DEV_A128_NAND，<code>main.bin 1,951,372 B</code>，占 6 MiB 槽 31.016%；精确 SHA-256 以 <code>artifacts/DEV_A128_NAND/gcc/build_identity.json</code> 和同目录镜像为准。</td></tr>
 <tr><td>Keil</td><td>通过</td><td>DEV_A128_NAND，<code>main.bin 1,876,672 B</code>，占 29.829%；精确 SHA-256 以 <code>artifacts/DEV_A128_NAND/keil/build_identity.json</code> 和同目录镜像为准。</td></tr>
 <tr><td>完整 Python 门禁</td><td>未宣称通过</td><td>本机原版 SDK 目录仍含 D07 补丁，官方 clean-base 检查会主动阻止运行；没有绕过该门禁，也没有把 C 测试结果冒充完整 Python 门禁。</td></tr>
@@ -87,7 +87,7 @@
 
 <section id="next" class="level1"><h2>下一步与收口条件</h2>
 <ol>
-<li>由架构师复核本页目标、提交 <code>2473b58</code> 和双工具链身份。</li>
+<li>由架构师复核本页目标、提交 <code>50dee36</code>、表盘异步提交测试和双工具链身份。</li>
 <li>获准后，用同一 GCC 三件套经 COM9 刷写，COM10 采集完整日志；不操作 J-Link。</li>
 <li>完成表盘会话和 D13-C 实体触摸边界的板上抽查，更新本页“开发板门槛”表。</li>
 <li>架构师确认主机、目标构建、实机三层证据一致后，再推送 <code>main</code> 并决定是否关闭 Issue #15；在此之前不写“D13 全部收口”。</li>
