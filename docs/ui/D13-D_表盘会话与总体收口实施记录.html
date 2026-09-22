@@ -20,7 +20,7 @@
 </ul></nav><main>
 <section id="scope" class="level1">
 <h1>D13-D 表盘会话与总体收口实施记录</h1>
-<p class="doc-meta">2026-09-22 · Issue #15 · 设计基线 <code>c7617c2</code> · 代码修正 <code>a2e61fd</code> · 当前状态：主机回归与双工具链归档通过；开发板复核待完成</p>
+<p class="doc-meta">2026-09-22 · Issue #15 · 设计基线 <code>c7617c2</code> · 代码修正 <code>a2e61fd</code> · 当前状态：主机回归、双工具链归档和 COM9/COM10 实机复核完成；等待架构师最终复核</p>
 <p class="note">本页把 D13 的剩余开发目标写成可执行的验收契约。它记录当前实现和证据边界，不提前宣称 D13 最终收口。代码注释、测试日志和工程文档按项目约定使用中文；外部 SDK 的原始注释不在本页改写。</p>
 <h2>产品目标</h2>
 <p>当前产品目标是一个 390×450、离线可运行的 Apple Watch 风格界面基线：表盘、蜂窝应用列表、控制中心、通知、智能叠放、最近 App、设置、计时器、闹钟和两种输入锁在同一套路由、输入仲裁和资源回收规则下工作。D13 只负责界面会话与覆盖层，不把联网、微信/支付宝、健康传感器算法或生产级 Apple 兼容性写入本阶段完成条件。</p>
@@ -65,14 +65,21 @@
 <tr><td>Keil</td><td>通过</td><td>DEV_A128_NAND，<code>main.bin 1,877,184 B</code>，占 6 MiB 槽约 29.837%；精确 SHA-256、源码 HEAD 与嵌入身份以 <code>artifacts/DEV_A128_NAND/keil/build_identity.json</code> 和同目录镜像为准。</td></tr>
 </tbody></table>
 <p>最终归档的两个 <code>build_identity.json</code> 都记录固定 SDK <code>421126d9</code> 和构建时仓库 HEAD；构建身份字段以归档文件为准，不由本页手工覆盖。当前构建产物只证明源码、工具链、SDK 和资源预算闭环；它不替代开发板烧录、冷启动、触摸和实物按键验收。</p>
+<h3>COM9/COM10 实机复核</h3>
+<p>使用与 <code>e324f14</code> 身份归档绑定的 GCC 三件套，经 COM9 写入并校验；全程未访问 J-Link。COM10 原始日志保存在 <code>work/d13d-board-e324/serial.raw</code>，大小 28,798 字节，SHA-256 为 <code>d9d2854aa2c0c0c49d02c86ec2c536194fb0019b8b0038cd65306e40db8303de</code>。</p>
+<ul>
+<li>冷启动识别到 CO5300 显示控制器和 FT6146 触摸控制器；启动过程中没有 HardFault、断言、<code>draw_core timeout</code> 或 LCD timeout。预存的 <code>flash1 is not found</code> 仍属于 D15。</li>
+<li>从 <code>iwface/root</code> 进入表盘选择器和编辑器，修改四项草稿并应用；日志出现两次 <code>face commit confirmed root_onresume</code>，返回后路由稳定为 <code>0001:0</code>，<code>iw_nav stat</code> 显示 <code>state=0</code>、<code>busy=0</code>、<code>pending=0</code>。</li>
+<li>取消编辑后返回表盘未产生提交确认；重复进入和返回没有遗留 pending。采样时输入队列为空，触摸统计为 <code>overflow=0</code>、<code>queued=0</code>、<code>wait_release=0</code>，字体字形池无持续增长。</li>
+</ul>
 </section>
 
 <section id="board" class="level1"><h2>开发板门槛</h2>
 <table><thead><tr><th>项目</th><th>状态</th><th>要求</th></tr></thead><tbody>
-<tr><td>三件套</td><td>待刷写</td><td>只允许同一 <code>DEV_A128_NAND</code> 归档的 Bootloader、GCC main、FTab，经 COM9 写入并回读校验。</td></tr>
-<tr><td>表盘会话</td><td>待实测</td><td>长按进入、两种表盘、四项草稿、取消、应用、冲突/能力失败回滚、重复进出和内存采样。</td></tr>
+<tr><td>三件套</td><td>已完成</td><td>使用同一 <code>DEV_A128_NAND</code> GCC 归档，经 COM9 写入并校验；Bootloader、main 和 FTab 的地址及 SHA-256 与归档一致。</td></tr>
+<tr><td>表盘会话</td><td>实机通过，待架构师复核</td><td>正确的 <code>iwface/root</code> 上完成进入、四项草稿、应用后的根页异步确认、取消、重复进出和状态采样；COM10 原始证据见本节。</td></tr>
 <tr><td>D13-C 实体输入边界</td><td>历史有条件通过</td><td>KEY1/KEY2 路径已有记录；水锁下实体触摸面板需单独确认，诊断注入不能替代手指实测。</td></tr>
-<tr><td>证据采集</td><td>待实测</td><td>COM10 保存原始启动和交互日志，记录镜像哈希、时间、亮度、页面结果；全程不操作 J-Link。</td></tr>
+<tr><td>证据采集</td><td>已完成</td><td>COM10 原始启动和交互日志已封存并计算 SHA-256；记录了镜像身份、路由状态、触摸统计和错误模式。未访问 J-Link。</td></tr>
 </tbody></table>
 </section>
 
@@ -88,9 +95,9 @@
 <section id="next" class="level1"><h2>下一步与收口条件</h2>
 <ol>
 <li>由架构师复核本页目标、代码修正 <code>a2e61fd</code>、表盘异步提交测试和最终双工具链身份归档。</li>
-<li>获准后，用同一 GCC 三件套经 COM9 刷写，COM10 采集完整日志；不操作 J-Link。</li>
-<li>完成表盘会话和 D13-C 实体触摸边界的板上抽查，更新本页“开发板门槛”表。</li>
-<li>架构师确认主机、目标构建、实机三层证据一致后，再推送 <code>main</code> 并决定是否关闭 Issue #15；在此之前不写“D13 全部收口”。</li>
+<li>已用同一 GCC 三件套经 COM9 刷写并由 COM10 完成原始日志采集；本轮未操作 J-Link。</li>
+<li>表盘会话实机抽查已完成；D13-C 的实体触摸仍按“诊断注入与实体面板分开记录”的边界保留。</li>
+<li>等待架构师确认主机、目标构建、实机三层证据一致后，再推送 <code>main</code> 并决定是否关闭 Issue #15；在此之前不写“D13 全部收口”。</li>
 </ol>
 </section>
 </main></div>
