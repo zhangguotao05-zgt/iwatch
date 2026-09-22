@@ -28,8 +28,9 @@
     <main>
 <section id="自研智能手表离线第一阶段-v0.4" class="level1">
 <h1>自研智能手表：离线第一阶段 v0.4</h1>
-<p>更新日期：2026-09-11。本阶段以本版为准，v0.3 的联网/官方应用整机路线保留为后续参考。</p>
+<p>更新日期：2026-09-22。本阶段以本版为准，v0.3 的联网/官方应用整机路线保留为后续参考。当前 UI 复刻和 D13-D 实机验证基线见<a href="../docs/ui/Apple_Watch功能差距与复刻验收矩阵_v1.html">功能差距与复刻验收矩阵</a>。</p>
 <p><strong>推荐：SF32LB58 + 配套 AMOLED + RT-Thread/LVGL + 真实心率血氧模块。先开发板验证，再做自研主板和新外壳。</strong></p>
+<p class="note"><strong>阶段边界：</strong>表盘、系统壳层和离线工具可先做界面与空态；健康、运动、联网、支付、触感和音频必须等对应硬件/Provider 验证后再写成真实能力。当前实机固件验证使用 A128R32N1，文中 N16 仍是采购规划，不能混写。</p>
 <section id="当前做什么" class="level2">
 <h2>当前做什么</h2>
 <ul>
@@ -43,7 +44,7 @@
 </section>
 <section id="主控与第一批采购" class="level2">
 <h2>主控与第一批采购</h2>
-<p>选择 <strong>SF32LB58-DevKit-LCD，N16R32N1，配套 AMOLED 套餐</strong>。这块板适合本阶段的显示、触摸和传感器开发；官方提供资料与 USB 转 UART 烧录/调试方式。<a href="https://wiki.sifli.com/board/sf32lb58x/SF32LB58-DevKit-LCD.html">SF58 开发板官方指南</a></p>
+<p>采购规划选择 <strong>SF32LB58-DevKit-LCD，N16R32N1，配套 AMOLED 套餐</strong>。这块板适合本阶段的显示、触摸和传感器开发；官方提供资料与 USB 转 UART 烧录/调试方式。当前 D13-D 实机证据使用的是 A128R32N1 / A1 变体，构建、分区和资源结论必须绑定实际板卡。<a href="https://wiki.sifli.com/board/sf32lb58x/SF32LB58-DevKit-LCD.html">SF58 开发板官方指南</a></p>
 <p>N16R32N1 使用 16 MB NOR，A128R32N1 使用 128 MB NAND，PSRAM 配置同为 16+16 MB。本阶段优先 NOR 版本，减少首轮文件系统与存储调试工作。现有 SDK 工程应匹配实际板卡版本和屏幕。<a href="https://wiki.sifli.com/silicon/%E6%A8%A1%E7%BB%84%E5%9E%8B%E5%8F%B7%E6%8C%87%E5%8D%97.html">SiFli 模组型号指南</a>，<a href="https://github.com/OpenSiFli/SiFli-SDK">SiFli SDK</a></p>
 <p>采购时应选择包含“DevKit+AMOLED屏”的套餐，并确认配套转接板、排线、触摸驱动、可编译示例和烧录文件。页面截图中的价格与选项不能作为该组合的有效报价。首批物料为板屏套件和数据线，先验证原厂触摸/显示例程；健康模块在显示链路稳定后接入。</p>
 <p>开发板本身不具备心率/血氧测量能力，需要外接健康硬件。</p>

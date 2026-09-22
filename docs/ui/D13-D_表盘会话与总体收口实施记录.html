@@ -71,6 +71,7 @@
 <li>冷启动识别到 CO5300 显示控制器和 FT6146 触摸控制器；启动过程中没有 HardFault、断言、<code>draw_core timeout</code> 或 LCD timeout。预存的 <code>flash1 is not found</code> 仍属于 D15。</li>
 <li>从 <code>iwface/root</code> 进入表盘选择器和编辑器，修改四项草稿并应用；日志出现两次 <code>face commit confirmed root_onresume</code>，返回后路由稳定为 <code>0001:0</code>，<code>iw_nav stat</code> 显示 <code>state=0</code>、<code>busy=0</code>、<code>pending=0</code>。</li>
 <li>取消编辑后返回表盘未产生提交确认；重复进入和返回没有遗留 pending。采样时输入队列为空，触摸统计为 <code>overflow=0</code>、<code>queued=0</code>、<code>wait_release=0</code>，字体字形池无持续增长。</li>
+<li>补验实际点击编辑器左侧“取消”按钮：COM10 原始日志记录 <code>Clicked at 100,405</code>，未出现 <code>face commit confirmed root_onresume</code>；随后回到 <code>iwface/root</code>，最终 <code>state=0</code>、<code>current=0001:0</code>、<code>busy=0</code>、<code>pending=0</code>。补验日志为 <code>work/d13d-board-e324-cancel/serial.raw</code>，大小 6,404 字节，SHA-256 为 <code>ced6b3e63cf97cb0a82e10fba7e7d59825b616cddd5a40f28806a64ce01f8ff3</code>。</li>
 </ul>
 </section>
 

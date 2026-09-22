@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="description" content="iwatch Apple Watch 功能差距、视觉差异和复刻验收矩阵">
+  <title>Apple Watch 功能差距与复刻验收矩阵 v1 · iwatch</title>
+  <link rel="stylesheet" href="../assets/engineering.css">
+  <style>
+    .note { padding: 14px 18px; border-left: 4px solid #6ab2ff; background: #142236; border-radius: 0 10px 10px 0; }
+    .status-a { color: #58d68d; }
+    .status-b { color: #ffd166; }
+    .status-c { color: #8ec5ff; }
+    .status-d { color: #ffb36b; }
+    .status-e { color: #ff8c8c; }
+    td { vertical-align: top; }
+  </style>
+</head>
+<body>
+  <header class="site-header">
+    <a class="brand" href="../../index.html">iwatch</a>
+    <span class="doc-name">Apple Watch 功能差距与复刻验收矩阵 v1</span>
+  </header>
+  <div class="page-shell">
+    <nav class="toc" aria-label="文档目录">
+      <ul>
+        <li><a href="#scope">1. 范围、基线与状态定义</a></li>
+        <li><a href="#inventory">2. 功能差距矩阵</a></li>
+        <li><a href="#visual">3. 当前视觉与交互差异</a></li>
+        <li><a href="#tasks">4. 工程落地顺序</a></li>
+        <li><a href="#evidence">5. 验收与证据规则</a></li>
+        <li><a href="#docs">6. 文档同步要求</a></li>
+      </ul>
+    </nav>
+    <main>
+      <h1>Apple Watch 功能差距与复刻验收矩阵 v1</h1>
+      <p class="doc-meta">2026-09-22 · 盘点基线 <code>2892732</code> · SF32LB58 / 390×450 / 离线 UI · 供 D14–D18 工程开发使用</p>
+
+      <section id="scope">
+        <h2>1. 范围、基线与状态定义</h2>
+        <p class="note"><strong>结论：</strong>当前已完成系统壳层、时间工具和少数离线页面的工程闭环，但不能写成“Apple Watch 功能已完成”。本文把用户提供的知乎文章作为功能盘点索引，把 Apple 官方 watchOS 26 用户指南作为手势、按键和版本行为基准。</p>
+        <p>知乎资料为 2023-11-04 发布的<a href="https://zhuanlan.zhihu.com/p/617055329">《万字详解 Apple Watch 所有自带功能，一次看个爽！》</a>。文章适合确认功能范围，不直接冻结 watchOS 26 的手势；控制中心、程序坞和表冠行为必须以<a href="https://support.apple.com/en-asia/guide/watch/apd1d9d7efca/26/watchos/26">watchOS 26 官方按钮与手势说明</a>为准。</p>
+        <p>当前路由表有 46 个页面描述：24 个 <code>READY</code>、19 个 <code>RESERVED</code>、1 个旧 <code>LEGACY</code>、2 个覆盖层。真实应用列表目前只会展示设置、计时器、秒表和闹钟四个业务入口。资源目录中的旧天气、指南针、照片等图标不等于产品页面已经接入。</p>
+        <p>状态定义如下：</p>
+        <ul>
+          <li><span class="status-a"><strong>A · 已形成闭环</strong></span>：有代码，并有对应主机、目标构建或开发板证据；若任务仍待架构签字，必须保留该限制。</li>
+          <li><span class="status-b"><strong>B · 已有页面但不像</strong></span>：页面或模型存在，视觉、交互或数据深度仍明显偏离 Apple Watch。</li>
+          <li><span class="status-c"><strong>C · 设计/主机/演示</strong></span>：只有设计稿、主机验证、演示 Provider 或旧资源，不能写成板上功能。</li>
+          <li><span class="status-d"><strong>D · 尚未实现</strong></span>：路由保留但为 <code>RESERVED</code>，或页面没有真实业务闭环。</li>
+          <li><span class="status-e"><strong>E · 当前不应承诺</strong></span>：受联网、硬件、安全、授权或 Apple 专有生态限制；可以做离线空态，不能宣称真实能力。</li>
+        </ul>
+      </section>
+
+      <section id="inventory">
+        <h2>2. 功能差距矩阵</h2>
+        <table>
+          <thead><tr><th>文章功能组</th><th>当前项目状态</th><th>仍缺什么</th><th>归属</th></tr></thead>
+          <tbody>
+            <tr><td>表盘、复杂功能</td><td><span class="status-a">A/B</span>：DIGITAL、MODULAR_LOCAL；D13-D 已实现草稿和两阶段提交。</td><td>缺少表盘图库、横向浏览、实时预览、复杂功能槽位、丰富样式、秒针/AOD 状态；配置尚未掉电保存。当前编辑器仍有英文标题和固定 <code>12:45</code> 预览。</td><td>D14、D15</td></tr>
+            <tr><td>主屏、蜂窝/列表、程序坞</td><td><span class="status-b">B</span>：实际产品入口为纵向列表；蜂窝路由还是旧 <code>LEGACY</code>。</td><td>缺少蜂窝网格、列表/网格切换、排列、徽标、完整 App 图标、侧键程序坞、真实缩略图和原页面恢复。</td><td>D14</td></tr>
+            <tr><td>通知中心</td><td><span class="status-b">B/C</span>：本地通知列表、详情、删除和关键提醒投影已存在。</td><td>缺少真实通知生产者、按 App 分组、摘要/详情层级、隐私显示、操作按钮、清除全部、媒体通知和远端同步。</td><td>D13 后续、D14；联网为 E</td></tr>
+            <tr><td>控制中心</td><td><span class="status-b">B</span>：亮度、水锁、显示设置、输入锁。</td><td>缺少 Wi-Fi、蓝牙、电量、低电量、静音、飞行模式、剧院模式、专注/勿扰、手电筒、隔空播放、课堂时间、听觉、状态矩阵和能力未知态。</td><td>D14、D16</td></tr>
+            <tr><td>智能叠放</td><td><span class="status-b">B</span>：只有计时器和闹钟两张确定性卡片。</td><td>缺少天气、活动、日历等卡片，添加/删除/置顶、时间/状态排序和卡片管理。</td><td>D14、D17</td></tr>
+            <tr><td>设置与辅助功能</td><td><span class="status-b">B/D</span>：显示、亮度、时间、关于；文字大小为“未接入”。</td><td>缺少通用、通知、专注、网络、声音、触感、密码、SOS、电池、隐私、健康、放大文字和完整辅助功能深层页。</td><td>D14、D17</td></tr>
+            <tr><td>计时器</td><td><span class="status-a">A/B</span>：后台运行、暂停、继续、取消、到期提醒已闭环。</td><td>自定义时长页面仍为 <code>RESERVED</code>；缺少 Apple 风格圆形倒计时、多个计时器管理和声音/触感输出。</td><td>D14；输出硬件为 E</td></tr>
+            <tr><td>秒表、闹钟</td><td><span class="status-a">A/B</span>：状态机、圈次、重复闹钟、提醒账本已实现。</td><td>缺少 Apple 风格多视图、圆形刻度、闹钟标签/声音/触感/贪睡等完整 UI；当前页面主要是矩形按钮和文本。</td><td>D14、D16</td></tr>
+            <tr><td>健康、运动、活动圆环</td><td><span class="status-d">D</span>：活动、心率、血氧、体能训练路由均保留为 <code>RESERVED</code>。</td><td>缺少真实 Provider、质量/新鲜度、断连、历史、活动圆环、睡眠、噪声、经期、用药等闭环。</td><td>D17；真实传感器需硬件适配</td></tr>
+            <tr><td>离线工具</td><td><span class="status-c">C/D</span>：规划和旧资源存在，产品路由尚未开放。</td><td>日历、计算器、照片、正念、天气、指南针、世界时钟、提醒事项、联系人、播放管理等需逐个建立页面、空态和失败态。</td><td>D17</td></tr>
+            <tr><td>通信、查找、媒体、钱包</td><td><span class="status-e">E/C</span>：天气/钱包/通信仅保留演示入口规划。</td><td>电话、信息、邮件、地图、查找设备/物品、音乐、录音、相机遥控、App Store、Siri、Wallet/Apple Pay 等真实服务不可承诺。</td><td>离线只做展示；真实能力不纳入当前交付</td></tr>
+            <tr><td>低功耗与硬件体验</td><td><span class="status-d">D/E</span>：开发板只完成显示、触摸、KEY1/KEY2 路径。</td><td>缺少 AOD、抬腕、深睡、低电量、表冠、触感、音频、GPS、蓝牙/Wi-Fi/LTE 的完整实机证据。</td><td>D15、D16、D18；部分为 E</td></tr>
+          </tbody>
+        </table>
+      </section>
+
+      <section id="visual">
+        <h2>3. 当前视觉与交互差异</h2>
+        <ol>
+          <li><strong>材质：</strong>当前主要是固定黑底、深色 surface、圆角卡片和 Q0/Q1 透明度近似，不是动态 Liquid Glass；需做背景感知、遮罩和降级对照。</li>
+          <li><strong>字体与图标：</strong>使用 DroidSansFallback Regular，不等同 SF Compact；产品页只有少量基础自绘图标，不能冒充 Apple 图标资源。</li>
+          <li><strong>表盘：</strong>当前包含 RTC/来源等工程信息，选择器使用英文和固定占位时间；需要实时预览、中文正式文案和复杂功能槽位。</li>
+          <li><strong>桌面：</strong>真实产品路径是纵向列表，不是蜂窝网格；旧 <code>app_mainmenu.c</code> 的示例代码不能算当前产品已接入。</li>
+          <li><strong>覆盖层：</strong>通知、控制中心、智能叠放和最近 App 都是简化卡片，缺少 Apple 风格的图标矩阵、层叠、摘要/详情和动态管理。</li>
+          <li><strong>输入和动效：</strong>当前主要是触摸、KEY1、KEY2 和项目自定义时序；表冠、侧键、触感、音频、AOD 和连续转场尚未实机闭环。</li>
+          <li><strong>数据诚实性：</strong>页面设计稿、主机测试、旧资源和路由注册不能替代开发板功能证据；每项必须保留 A/B/C/D/E 状态。</li>
+        </ol>
+      </section>
+
+      <section id="tasks">
+        <h2>4. 工程落地顺序</h2>
+        <table>
+          <thead><tr><th>优先级</th><th>工程师交付</th><th>通过条件</th></tr></thead>
+          <tbody>
+            <tr><td>P0</td><td>D13 最终复核；补水锁下实体手指触摸；D14 实现列表/蜂窝桌面、完整 App 注册表、表盘图库和复杂功能框架。</td><td>页面入口可达，未实现页显示明确状态；主机、双工具链和实屏证据分开归档。</td></tr>
+            <tr><td>P0</td><td>补控制中心、通知、智能叠放、程序坞的状态和视觉层级；移除英文占位、固定 <code>12:45</code> 和诊断文字。</td><td>每页有正常、空、失败、无能力、退出状态；参考图、主机帧和实屏图可对照。</td></tr>
+            <tr><td>P1</td><td>扩展设置深层页；改进计时器、秒表、闹钟的圆形读数、主要动作和操作反馈；建立 Q0/Q1 材质和字体差异清单。</td><td>不引入第二套服务模型，不突破节点、字体、图片和堆预算。</td></tr>
+            <tr><td>P1</td><td>D15 接入 NAND/FAL 与版本化资源；D16 实现灭屏、唤醒、低功耗、亮度恢复和唤醒锁。</td><td>掉电/复位/存储损坏/唤醒竞争均有可恢复结果。</td></tr>
+            <tr><td>P2</td><td>D17 逐个实现离线工具和真实 Provider；D18 做 1000 次导航、长时间压力、帧时延、功耗和佩戴版适配。</td><td>每个 App 独立契约和证据，不用一个“App 已完成”代表整组完成。</td></tr>
+          </tbody>
+        </table>
+        <p><strong>当前不应承诺：</strong>Apple Pay/真实 Wallet、iPhone 配对、电话/信息/邮件/地图/查找联网、真实健康算法、Apple 专有字体/图标/表盘资源，以及表冠、触感、音频、AOD 已完成。</p>
+      </section>
+
+      <section id="evidence">
+        <h2>5. 验收与证据规则</h2>
+        <ul>
+          <li>每个页面必须登记稳定 <code>page_id</code>、<code>app_id</code>、父级、入口、返回路径和支持状态。</li>
+          <li>每个功能必须分别记录主机测试、GCC/Keil 构建身份、开发板操作和原始串口日志；成功构建不能替代实机验证。</li>
+          <li>视觉验收至少保留参考版本、语言/时区/样例数据、主机渲染帧和实屏照片或录像；功能日志不能单独证明“复刻得像”。</li>
+          <li>新增文案、字体、图标和图片必须进入正式资源清单，重新计算字形数、字节数、哈希和运行时预算。</li>
+          <li>GUI 对象只由 <code>app_watch</code> 线程操作；输入回调只采集语义并发送唤醒通知。</li>
+        </ul>
+      </section>
+
+      <section id="docs">
+        <h2>6. 文档同步要求</h2>
+        <p>本文是 D14–D18 的功能差距总入口。以下文档必须链接到本文，并按同一状态更新：</p>
+        <ul>
+          <li><a href="../项目状态.html">项目状态</a>：更新到当前 D13-D 证据和待签字状态。</li>
+          <li><a href="../UI复刻计划_watchOS26.html">watchOS 26 复刻计划</a>：删除“下一步 D07”的过期描述。</li>
+          <li><a href="模块接口与开发任务_v1.html">模块接口与开发任务</a>：同步 D13-D 证据和 D14–D18 入口。</li>
+          <li><a href="功能逻辑与页面契约_v1.html">功能逻辑与页面契约</a>：逐 App 标注 READY/RESERVED 和 A/B/C/D/E。</li>
+          <li><a href="Apple_Watch设计指南研究与项目适配_v1.html">Apple Watch 设计指南研究</a>：记录知乎原文为功能索引，官方 watchOS 26 文档为行为基准。</li>
+          <li><a href="Apple_Watch界面复刻定稿_v2.html">Apple Watch 界面复刻定稿 v2</a>：保留为 D10 历史施工基线，后续页面链接本文。</li>
+        </ul>
+        <p>硬件方案中的联网整机路线与当前 SF32LB58 离线 UI 路线继续分开；A128 当前验证板与 N16 采购规划不能混写。本文不改变 D13、#8、#10、D15 的审批状态。</p>
+      </section>
+    </main>
+  </div>
+  <footer class="site-footer">iwatch 工程文档 · Apple Watch 功能差距与复刻验收矩阵 · 2026-09-22</footer>
+  <script src="../assets/engineering.js"></script>
+</body>
+</html>
