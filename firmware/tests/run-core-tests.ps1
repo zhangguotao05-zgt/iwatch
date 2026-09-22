@@ -106,7 +106,8 @@ try {
     if ($LASTEXITCODE -ne 0) { throw '生命周期测试生成失败。' }
     foreach ($page in @('clock', 'menu', 'status', 'simple', 'dial', 'rotate_bg')) {
         # 替身中的空回调允许未使用参数；AddressSanitizer 检查实际生产回收函数。
-        & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /wd4505 /wd4100 /wd4189 /D_CRT_SECURE_NO_WARNINGS /fsanitize=address /Zi "/Fetest_${page}_lifecycle.exe" "test_${page}_lifecycle.c"
+        # 显式使用发布版 CRT，避免测试夹具依赖不可再分发的 ucrtbased.dll；/Zi 仍保留调试符号。
+        & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /wd4505 /wd4100 /wd4189 /D_CRT_SECURE_NO_WARNINGS /MD /fsanitize=address /Zi "/Fetest_${page}_lifecycle.exe" "test_${page}_lifecycle.c"
         if ($LASTEXITCODE -ne 0) { throw "$page 生命周期测试编译失败。" }
         & "./test_${page}_lifecycle.exe"
         if ($LASTEXITCODE -ne 0) { throw "$page 生命周期测试失败。" }
