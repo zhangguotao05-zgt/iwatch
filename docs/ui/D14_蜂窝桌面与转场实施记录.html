@@ -19,8 +19,8 @@
 </ul></nav><main>
 <section id="scope" class="level1">
 <h1>D14 蜂窝桌面与转场实施记录</h1>
-<p class="doc-meta">2026-09-22 · D14-A0 目标构建通过 · D13-D 已获架构复核并已推送 main · Issue #16 保持打开（D13 为 #15）</p>
-<p class="note">本批先落地可验收的蜂窝桌面闭环，不把旧示例菜单或静态图片当作产品功能。主机测试、目标构建和开发板实测分开记录；目标构建已完成，开发板尚未刷板。</p>
+<p class="doc-meta">2026-09-22 · D14-A1 实机主路径通过 · D13-D 已获架构复核并已推送 main · Issue #16 保持打开（D13 为 #15）</p>
+<p class="note">本批先落地可验收的蜂窝桌面闭环，不把旧示例菜单或静态图片当作产品功能。主机测试、目标构建和开发板实测分开记录；D14-A1 已完成 COM9/COM10 主路径实机验收，D14-B 视觉增量仍未收口。</p>
 <h2>产品目标</h2>
 <p>在 390×450 的离线 UI 上提供 Apple Watch 风格的蜂窝入口：应用列表右上角进入蜂窝桌面，蜂窝桌面只展示已有真实页面的固定注册项，点击磁贴进入对应业务页，返回回到蜂窝桌面，再返回列表。未实现的健康、联网和系统能力继续保持 RESERVED，不显示成可用 App。</p>
 <h2>本批完成条件</h2>
@@ -56,7 +56,7 @@
 <tr><td>蜂窝视图增量</td><td>通过</td><td>蜂窝页面进入页面矩阵，设置磁贴触摸命中产生 <code>IW_PAGE_SETTINGS</code>；磁贴只使用固定节点和自绘图标。</td></tr>
 <tr><td>完整 Python 门禁</td><td>通过（隔离环境）</td><td>使用 <code>work/sdk-clean-base</code>、<code>work/sdk-d07-a0</code> 和 <code>work/font-venv</code>，38 项专项门禁全部通过；默认污染 SDK 不作为 clean-base。</td></tr>
 <tr><td>目标 GCC/Keil</td><td>通过</td><td>使用派生 SDK <code>421126d9</code>，构建身份绑定 <code>c25955c</code>；GCC main.bin 1,952,804 B，SHA-256 <code>053e7efd…e9f8b</code>，Keil main.bin 1,877,944 B，SHA-256 <code>8eeda378…6fb33</code>；两套资源预算和身份校验通过。</td></tr>
-<tr><td>开发板 COM9/COM10</td><td>待执行</td><td>本批尚未刷板，不宣称实屏蜂窝布局和实体输入通过。</td></tr>
+<tr><td>开发板 COM9/COM10</td><td>主路径通过</td><td>GCC 三件套经 COM9 写入并校验；COM10 原始日志 72,277 B，SHA-256 <code>b8d099ef09cfcae5de55ff3b1d1261df36d63f6249f847f106c96c36dce7a768</code>。实体触摸进入四个磁贴并返回蜂窝页，KEY1 返回 <code>iwlist/root</code>；输入 accepted/consumed=26/26、pending=0，触摸 overflow=0、queued=0、down=0。</td></tr>
 </tbody></table>
 </section>
 <section id="boundaries" class="level1"><h2>明确边界</h2>
@@ -69,9 +69,9 @@
 </section>
 <section id="next" class="level1"><h2>下一步</h2>
 <ol>
-<li>补蜂窝页全磁贴像素断言、列表↔蜂窝↔业务页往返和能力失效回退测试。</li>
+<li>A1 主路径实机记录已完成；保留诊断注入的能力失效和快速重复导航证据，后续补视觉稿对应的像素对照。</li>
 <li>目标 GCC/Keil 双工具链、资源预算和身份归档已完成；后续改动必须重新生成身份，不能复用 D13-D 镜像身份。</li>
-<li>架构增量复核通过后，再用对应 GCC 三件套刷 COM9，并用 COM10 封存蜂窝进入、磁贴点击、Back/Home 和异常回退原始日志；全程不操作 J-Link。</li>
+<li>进入 D14-B：按 Apple Watch 风格补圆形图标场、中心聚焦、拖动/缩放和最终 390×450 视觉稿；新增源码后必须重新执行双工具链构建和 A1 相关回归。</li>
 </ol>
 </section>
 </main></div>
