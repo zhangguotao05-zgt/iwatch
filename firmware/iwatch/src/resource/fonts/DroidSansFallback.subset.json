@@ -444,7 +444,7 @@
   "inputs": {
     "firmware/iwatch/src/gui_apps/clock/app_clock_status_bar.c": "1e97f21c5637e71c61d14acb697ca73a7c59f8cfb3ec619c4c057bfbda8d04dd",
     "firmware/iwatch/src/gui_core/iw_components_demo_text.h": "9303edd93feab675cbcf7929a340ecae52ffc76a42b6a55e5dc125f60cf17f24",
-    "firmware/iwatch/src/gui_core/iw_product_text.h": "4c3f00139b4c8af18c5149b8a85caa7fb6515bce35e06fa47b47a27a53154f87",
+    "firmware/iwatch/src/gui_core/iw_product_text.h": "85f602b7d7da9156e9a641ffd1c94fec6698bdc1435c212e3485911d5b6475bd",
     "firmware/iwatch/src/gui_core/iw_router_text.h": "4504664996fa12904d44bdad98d3069af877d47795e6935d6180c95186b15e57",
     "firmware/iwatch/src/resource/fonts/DroidSansFallback.source.ttf": "05d71b179ef97b82cf1bb91cef290c600a510f77f39b4964359e3ef88378c79d",
     "firmware/iwatch/src/resource/fonts/font_charset.json": "7b6dac3d2b93ad9cd055de3db5a95eae87e634cd4128cddafa7dc66e3453fcf1",

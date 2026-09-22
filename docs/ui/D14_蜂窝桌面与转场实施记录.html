@@ -1,0 +1,79 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="description" content="iwatch D14 蜂窝桌面与转场第一批实施记录">
+<title>D14 蜂窝桌面与转场实施记录 · iwatch</title>
+<link rel="stylesheet" href="../assets/engineering.css">
+</head>
+<body>
+<header class="site-header"><a class="brand" href="../../index.html">iwatch</a><span class="doc-name">D14 蜂窝桌面与转场</span></header>
+<div class="page-shell"><nav class="toc" aria-label="文档目录"><ul>
+<li><a href="#scope">范围与目标</a></li>
+<li><a href="#contract">蜂窝桌面契约</a></li>
+<li><a href="#implementation">实现范围</a></li>
+<li><a href="#verification">当前验证</a></li>
+<li><a href="#boundaries">明确边界</a></li>
+<li><a href="#next">下一步</a></li>
+</ul></nav><main>
+<section id="scope" class="level1">
+<h1>D14 蜂窝桌面与转场实施记录</h1>
+<p class="doc-meta">2026-09-22 · D14-A0 实现中 · D13-D 已获架构复核并已推送 main · Issue #15 保持打开</p>
+<p class="note">本批先落地可验收的蜂窝桌面闭环，不把旧示例菜单或静态图片当作产品功能。主机测试、目标构建和开发板实测分开记录；本批尚未刷板。</p>
+<h2>产品目标</h2>
+<p>在 390×450 的离线 UI 上提供 Apple Watch 风格的蜂窝入口：应用列表右上角进入蜂窝桌面，蜂窝桌面只展示已有真实页面的固定注册项，点击磁贴进入对应业务页，返回回到蜂窝桌面，再返回列表。未实现的健康、联网和系统能力继续保持 RESERVED，不显示成可用 App。</p>
+<h2>本批完成条件</h2>
+<ol>
+<li>蜂窝页面使用固定坐标和固定节点，不为每个磁贴分配长期对象或图片缓存。</li>
+<li>磁贴的显示区域与命中区域使用同一坐标，点击设置、计时器、秒表、闹钟分别进入其 READY 根页。</li>
+<li>蜂窝页的 Back 回到应用列表；列表入口不会改变现有业务清单和返回语义。</li>
+<li>转场继续复用现有路由事务、字体 owner、输入取消和安全点回收；构造失败时由既有恢复层接管。</li>
+</ol>
+</section>
+<section id="contract" class="level1"><h2>蜂窝桌面契约</h2>
+<table><thead><tr><th>状态</th><th>行为</th><th>失败处理</th></tr></thead><tbody>
+<tr><td>应用列表</td><td>右上角点阵图标进入蜂窝页，列表中的真实应用顺序和数据不改变。</td><td>路由忙、能力不足或页面创建失败时留在列表，沿用现有错误和恢复层。</td></tr>
+<tr><td>蜂窝正常</td><td>显示四个 READY 根页磁贴：设置、计时器、秒表、闹钟；点按磁贴进入对应页面。</td><td>目标能力在提交前由路由重新校验，失败留在蜂窝页并显示已有不可用结果。</td></tr>
+<tr><td>蜂窝返回</td><td>Back 返回应用列表；从业务页按既有 Home/Back 契约返回，不改变最近 App 账本。</td><td>来源页已销毁时由路由恢复到应用列表或应急层，不保留悬空页面指针。</td></tr>
+<tr><td>资源不足</td><td>不增加全屏图片和动态缓存；字体、节点和对象仍由现有 owner 管理。</td><td>页面构造失败进入既有 UI unavailable/恢复路径，不伪造半成品磁贴。</td></tr>
+</tbody></table>
+</section>
+<section id="implementation" class="level1"><h2>实现范围</h2>
+<table><thead><tr><th>文件</th><th>改动</th></tr></thead><tbody>
+<tr><td><code>src/gui_core/iw_routes.c</code></td><td>将 <code>LAUNCHER_GRID</code> 从旧 LEGACY 描述提升为 READY，并挂在应用列表下。</td></tr>
+<tr><td><code>src/gui_core/iw_product_scene.[ch]</code></td><td>增加蜂窝磁贴布局、列表入口动作、固定节点边界和稳定目标页面 ID。</td></tr>
+<tr><td><code>src/gui_core/iw_product_view.c</code></td><td>增加无图片资源的 3×3 点阵入口图标，并沿用统一绘制故障保护。</td></tr>
+<tr><td><code>src/platform/iw_product_controller.c</code></td><td>处理列表到蜂窝桌面的明确动作，目标页仍由统一路由事务创建。</td></tr>
+<tr><td><code>tests/d07_tiny_ttf_oom/test_product_view.c</code></td><td>把蜂窝页加入页面矩阵，验证首个磁贴的显示命中和设置页动作。</td></tr>
+</tbody></table>
+<p>本批没有接入旧的 <code>app_mainmenu.c</code> 示例，也没有复制另一套 App 注册表。蜂窝页使用现有路由表中的 READY 页面，避免列表、蜂窝和最近 App 的身份分裂。</p>
+</section>
+<section id="verification" class="level1"><h2>当前验证</h2>
+<table><thead><tr><th>层级</th><th>结果</th><th>说明</th></tr></thead><tbody>
+<tr><td>D08/D09 核心回归</td><td>通过</td><td>输入、路由、作用域、最近 App 和既有生命周期测试通过。</td></tr>
+<tr><td>D07-A0 主机矩阵</td><td>通过</td><td>干净基础 SDK、受控派生 SDK、FontTools 4.65.0；59 个字形故障点、1000 轮生命周期、4046 次像素对照及产品矩阵通过。</td></tr>
+<tr><td>蜂窝视图增量</td><td>通过</td><td>蜂窝页面进入页面矩阵，设置磁贴触摸命中产生 <code>IW_PAGE_SETTINGS</code>；磁贴只使用固定节点和自绘图标。</td></tr>
+<tr><td>完整 Python 门禁</td><td>通过（隔离环境）</td><td>使用 <code>work/sdk-clean-base</code>、<code>work/sdk-d07-a0</code> 和 <code>work/font-venv</code>，38 项专项门禁全部通过；默认污染 SDK 不作为 clean-base。</td></tr>
+<tr><td>目标 GCC/Keil</td><td>待执行</td><td>D14 源码尚未生成新的双工具链镜像，不能沿用 D13-D 身份。</td></tr>
+<tr><td>开发板 COM9/COM10</td><td>待执行</td><td>本批尚未刷板，不宣称实屏蜂窝布局和实体输入通过。</td></tr>
+</tbody></table>
+</section>
+<section id="boundaries" class="level1"><h2>明确边界</h2>
+<ul>
+<li>当前四个磁贴只代表已有 READY 页面；健康、运动、联网、钱包和媒体等 RESERVED/E 能力不显示为可用。</li>
+<li>蜂窝图标是项目自绘点阵，不使用 Apple 专有图标或资源；视觉仍需按 390×450 参考稿和实屏结果继续调整。</li>
+<li>列表/蜂窝切换、拖拽排序、徽标、程序坞和复杂表盘预览不在 A0 首批收口，分别进入后续 D14 增量。</li>
+<li>#8 长文输入性能、#10 显示异常、D13-C 水锁实体触摸和 D15 持久化继续独立跟踪。</li>
+</ul>
+</section>
+<section id="next" class="level1"><h2>下一步</h2>
+<ol>
+<li>补蜂窝页全磁贴像素断言、列表↔蜂窝↔业务页往返和能力失效回退测试。</li>
+<li>在 D14 源码稳定后执行 GCC/Keil 双工具链构建、资源预算和身份归档；不得复用 D13-D 镜像身份。</li>
+<li>架构增量复核通过后，再用对应 GCC 三件套刷 COM9，并用 COM10 封存蜂窝进入、磁贴点击、Back/Home 和异常回退原始日志；全程不操作 J-Link。</li>
+</ol>
+</section>
+</main></div>
+</body>
+</html>

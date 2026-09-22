@@ -603,6 +603,10 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
         }
         return;
     }
+    if (id == IW_ACTION_LAUNCHER_GRID) {
+        p->navigate(IW_PAGE_LAUNCHER_GRID, 0u, p->context);
+        return;
+    }
     if (id >= IW_ACTION_NOTIFICATION_OPEN_BASE &&
         id < IW_ACTION_NOTIFICATION_OPEN_BASE + IW_NOTIFICATION_CAPACITY) {
         uint32_t notification_id = p->model.notification_ids[id - IW_ACTION_NOTIFICATION_OPEN_BASE];

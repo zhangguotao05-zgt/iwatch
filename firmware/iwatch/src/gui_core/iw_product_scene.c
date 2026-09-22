@@ -716,6 +716,41 @@ static bool app_switcher(iw_product_scene_t *s, const iw_product_model_t *m)
     return true;
 }
 
+typedef struct {
+    uint16_t page_id;
+    unsigned icon;
+    iw_product_text_id_t text;
+} iw_launcher_tile_t;
+
+static bool launcher_grid_tile(iw_product_scene_t *s, const iw_launcher_tile_t *tile,
+                               int x, int y)
+{
+    return add(s, x, y, 72, 84, 0, 0, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 24, 1,
+               tile->page_id, false, false, "") &&
+           icon(s, x + 18, y + 8, 36, tile->icon, IW_PRODUCT_WHITE, false) &&
+           label(s, x + 4, y + 70, 64, 18, IW_PRODUCT_WHITE, 1, false,
+                 iw_product_texts[tile->text]);
+}
+
+static bool launcher_grid(iw_product_scene_t *s, const iw_product_model_t *m)
+{
+    static const iw_launcher_tile_t tiles[] = {
+        {IW_PAGE_SETTINGS, IW_ICON_SETTINGS, IW_TEXT_SETTINGS},
+        {IW_PAGE_TIMER_LIST, IW_ICON_TIMER, IW_TEXT_TIMER},
+        {IW_PAGE_STOPWATCH, IW_ICON_STOPWATCH, IW_TEXT_STOPWATCH},
+        {IW_PAGE_ALARM_LIST, IW_ICON_ALARM, IW_TEXT_ALARM}
+    };
+    static const int positions[][2] = {{159, 124}, {79, 218}, {239, 218}, {159, 312}};
+    if (!header(s, m, TEXT(APPS)) ||
+        !add(s, 342, 18, 40, 40, 0, 0, IW_PRODUCT_WHITE, 0, 0, 0,
+             0, true, false, "") ||
+        !icon(s, 346, 22, 32, IW_ICON_GRID, IW_PRODUCT_WHITE, true)) return false;
+    /* 当前只展示已有真实页面；RESERVED/LEGACY 路由不会伪装成可用 App。 */
+    for (unsigned i = 0; i < sizeof(tiles) / sizeof(tiles[0]); i++)
+        if (!launcher_grid_tile(s, &tiles[i], positions[i][0], positions[i][1])) return false;
+    return true;
+}
+
 static bool time_page(iw_product_scene_t *s, const iw_product_model_t *m) {
     const iw_time_draft_t *d = &m->draft;
     char text[48];
@@ -799,6 +834,9 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
     case IW_PAGE_SWITCHER:
         ok = app_switcher(s, m);
         break;
+    case IW_PAGE_LAUNCHER_GRID:
+        ok = launcher_grid(s, m);
+        break;
     case IW_PAGE_LOCK:
     case IW_PAGE_WATER_LOCK:
         ok = lock_page(s, m);
@@ -815,7 +853,10 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
     case IW_PAGE_LAUNCHER_LIST: {
         /* 与路由共用注册表，只列已经具备真实业务闭环的应用根页。 */
         unsigned count = 0;
-        ok = true;
+        ok = header(s, m, TEXT(APPS)) &&
+             add(s, 342, 18, 40, 40, 0, 0, IW_PRODUCT_WHITE, 0, 0, 0,
+                 IW_ACTION_LAUNCHER_GRID, true, false, "") &&
+             icon(s, 346, 22, 32, IW_ICON_GRID, IW_PRODUCT_WHITE, true);
         int first_y = 68;
         if (m->selected_alert.entity_id) {
             ok = button(s, 18, 68, 354, 64, IW_ACTION_ALERT_OPEN, false, false,

@@ -127,6 +127,21 @@ static void draw_icon(lv_layer_t *layer, const lv_area_t *a, unsigned icon, uint
         icon_line(layer, a, color, middle, 24, start, 36);
         return;
     }
+    if (icon == IW_ICON_GRID) {
+        /* 蜂窝入口使用 3×3 点阵，保持图标自绘且不引入图片资源。 */
+        static const int points[][2] = {{15, 15}, {24, 15}, {33, 15},
+                                        {15, 24}, {24, 24}, {33, 24},
+                                        {15, 33}, {24, 33}, {33, 33}};
+        int size = lv_area_get_width(a);
+        int radius = size >= 40 ? 4 : 3;
+        for (unsigned i = 0; i < sizeof(points) / sizeof(points[0]) && !iw_gui_fault_pending(); i++) {
+            int cx = a->x1 + points[i][0] * size / 48;
+            int cy = a->y1 + points[i][1] * size / 48;
+            lv_area_t dot = {cx - radius, cy - radius, cx + radius, cy + radius};
+            (void)iw_draw_fill_checked(layer, &dot, color, radius, 255, false, 0);
+        }
+        return;
+    }
     icon_ring(layer, a, color, icon == IW_ICON_SUN ? 9 : icon == IW_ICON_SETTINGS ? 14 : 18);
     if (icon == IW_ICON_SETTINGS) icon_ring(layer, a, color, 6);
     if (icon == IW_ICON_SUN || icon == IW_ICON_SETTINGS) {

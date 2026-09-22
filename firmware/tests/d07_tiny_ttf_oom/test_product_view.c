@@ -19,7 +19,8 @@ extern bool test_component_capture_region_has_ink(lv_display_t *, lv_obj_t *, un
                                                    unsigned, unsigned, unsigned);
 
 static const uint16_t product_pages[] = {IW_PAGE_FACE, IW_PAGE_FACE_PICKER, IW_PAGE_FACE_EDITOR,
-                                         IW_PAGE_LAUNCHER_LIST, IW_PAGE_SETTINGS, IW_PAGE_DISPLAY,
+                                         IW_PAGE_LAUNCHER_LIST, IW_PAGE_LAUNCHER_GRID,
+                                         IW_PAGE_SETTINGS, IW_PAGE_DISPLAY,
                                          IW_PAGE_BRIGHTNESS, IW_PAGE_TIME, IW_PAGE_ABOUT,
                                          IW_PAGE_TIMER_LIST, IW_PAGE_TIMER_DETAIL, IW_PAGE_STOPWATCH};
 
@@ -167,6 +168,16 @@ static void input_cases(lv_display_t *display, iw_product_view_t *view, iw_produ
     touch(input, 340, 320, true);
     touch(input, 340, 320, false);
     assert(pointer_actions == 1 && pointer_finals == 1 && pointer_action == IW_ACTION_BRIGHTEN);
+    assert(iw_product_view_destroy(view));
+
+    /* 蜂窝桌面只把真实 READY 页面做成可点击磁贴，首项命中设置页。 */
+    assert(iw_product_view_create(view, lv_screen_active(), IW_PAGE_LAUNCHER_GRID, m,
+                                  pointer_action_cb, NULL, NULL));
+    lv_obj_update_layout(view->surface);
+    pointer_actions = pointer_finals = 0;
+    touch(input, 195, 160, true);
+    touch(input, 195, 160, false);
+    assert(pointer_actions == 1 && pointer_finals == 1 && pointer_action == IW_PAGE_SETTINGS);
     assert(iw_product_view_destroy(view));
 
     /* 表盘长按只打开选择器一次，松手不能再误触发卡片。 */
