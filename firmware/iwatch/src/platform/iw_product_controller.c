@@ -154,6 +154,13 @@ bool iw_product_face_commit_pending(void)
     return true;
 }
 
+void iw_product_face_sync_root(iw_product_page_t *p)
+{
+    if (!p || p->page_id != IW_PAGE_FACE || !iw_font_port_is_owner()) return;
+    p->model.face_session = face_session;
+    p->dirty = true;
+}
+
 void iw_product_face_cancel_pending(void)
 {
     face_pending_valid = false;

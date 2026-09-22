@@ -64,9 +64,12 @@ static const char *active_app = "Main", *next_app;
 static bool display_available = true;
 static bool flip_display_after_first_read;
 static unsigned capability_reads;
+static uint32_t test_tick_ms;
 static iw_service_t service;
 static iw_time_state_t service_time;
 static bool (*ready_callback)(void);
+
+static uint32_t test_tick_get(void) { return test_tick_ms; }
 
 static void notify_page(unsigned index, gui_app_msg_type_t event)
 {
@@ -397,11 +400,42 @@ int test_product_router(lv_display_t *display,size_t loops)
         assert(face_editor && face_editor->product);
         face_editor->product->view.action(IW_ACTION_FACE_COLOR, 0, true,
                                            face_editor->product->view.context);
+        iw_face_session_t expected_face = face_editor->product->model.face_draft.value;
         face_editor->product->view.action(IW_ACTION_FACE_APPLY, 0, true,
                                            face_editor->product->view.context);
         assert(face_return_pending == false);
         process();
         assert(depth == 1 && !face_return_pending && !face_return_ready);
+        gui_app_route_snapshot_t root_snapshot;
+        (void)gui_app_get_route_snapshot(&root_snapshot);
+        route_page_t *root_page = snapshot_page(&root_snapshot, false);
+        assert(root_page && root_page->product);
+        assert(root_page->product->model.face_session.active_face_id == expected_face.active_face_id);
+        assert(root_page->product->model.face_session.color == expected_face.color);
+        assert(root_page->product->model.face_session.center == expected_face.center);
+        assert(root_page->product->model.face_session.left == expected_face.left);
+        assert(root_page->product->model.face_session.right == expected_face.right);
+        assert(root_page->product->model.face_session.revision == expected_face.revision + 1u);
+
+        /* Apply 与 Home 同周期时，Home 必须撤销候选并清理所有事务标志。 */
+        assert(iw_router_open(IW_PAGE_FACE_PICKER)); process();
+        face_picker = find_page(stack[1].data);
+        assert(face_picker && face_picker->product);
+        face_picker->product->view.action(IW_ACTION_FACE_EDITOR_OPEN_BASE + IW_FACE_MODULAR_LOCAL,
+                                           0, true, face_picker->product->view.context);
+        process();
+        face_editor = find_page(stack[2].data);
+        assert(face_editor && face_editor->product);
+        face_editor->product->view.action(IW_ACTION_FACE_APPLY, 0, true,
+                                           face_editor->product->view.context);
+        assert(face_return_armed && !face_return_started_valid);
+        assert(iw_router_home());
+        process();
+        assert(depth == 1 && !home_target && !face_return_pending &&
+               !face_return_ready && !face_return_armed && !face_return_started_valid);
+        assert(!strcmp(active_app, "iwlist"));
+        assert(iw_router_home()); process();
+        assert(depth == 1 && !home_target && !strcmp(active_app, "iwface"));
 
         /* 请求被 SDK 拒绝时，候选立即回滚，编辑页仍可再次返回。 */
         assert(iw_router_open(IW_PAGE_FACE_PICKER)); process();
@@ -419,6 +453,35 @@ int test_product_router(lv_display_t *display,size_t loops)
         assert(depth == 3 && !face_return_pending && !face_return_ready);
         assert(iw_router_back()); process(); assert(depth == 2);
         assert(iw_router_back()); process(); assert(depth == 1);
+
+        /* tick 从 0 开始时也必须按独立有效标志触发真实的 3 秒超时。 */
+        assert(iw_router_open(IW_PAGE_FACE_PICKER)); process();
+        face_picker = find_page(stack[1].data);
+        assert(face_picker && face_picker->product);
+        face_picker->product->view.action(IW_ACTION_FACE_EDITOR_OPEN_BASE + IW_FACE_MODULAR_LOCAL,
+                                           0, true, face_picker->product->view.context);
+        process();
+        face_editor = find_page(stack[2].data);
+        assert(face_editor && face_editor->product);
+        hold_admitted_back = true;
+        lv_tick_get_cb_t previous_tick_get = lv_tick_get_cb();
+        test_tick_ms = 0u;
+        lv_tick_set_cb(test_tick_get);
+        face_editor->product->view.action(IW_ACTION_FACE_APPLY, 0, true,
+                                           face_editor->product->view.context);
+        process();
+        assert(depth == 3 && face_return_pending && face_return_started_valid &&
+               face_return_started_ms == 0u && held_transition);
+        test_tick_ms = 2999u;
+        process();
+        assert(face_return_pending && face_return_started_valid);
+        test_tick_ms = 3001u;
+        process();
+        assert(!face_return_pending && !face_return_ready && !face_return_armed);
+        lv_tick_set_cb(previous_tick_get);
+        held_transition = false;
+        process();
+        assert(depth == 1);
 
         /* 异步返回丢失 ONRESUME 时，候选必须回滚且编辑页仍可退出。 */
         assert(iw_router_open(IW_PAGE_FACE_PICKER)); process();

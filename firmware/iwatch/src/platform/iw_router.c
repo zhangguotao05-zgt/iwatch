@@ -67,6 +67,7 @@ static bool face_return_pending;
 static bool face_return_ready;
 static bool face_return_armed;
 static uint32_t face_return_started_ms;
+static bool face_return_started_valid;
 
 /* 最近应用点击前必须读取当前能力快照；提前声明避免严格工具链的隐式声明。 */
 static uint32_t capabilities(void);
@@ -79,6 +80,7 @@ static void face_transaction_abort(route_page_t *page)
     face_return_ready = false;
     face_return_armed = false;
     face_return_started_ms = 0;
+    face_return_started_valid = false;
     if (page && page->product) {
         page->product->model.message = IW_TEXT_OPERATION_FAILED;
         page->product->dirty = true;
@@ -542,6 +544,7 @@ void iw_router_init(void)
     face_return_ready = false;
     face_return_armed = false;
     face_return_started_ms = 0;
+    face_return_started_valid = false;
     initialized = true;
 }
 
@@ -716,6 +719,9 @@ bool iw_router_process(void)
     if (fault_unwind || rolling_back)
         face_transaction_abort(snapshot_page(&snapshot, false));
     if (home_target) {
+        /* Home 抢占时撤销尚未完成的表盘事务，避免候选跨页面残留。 */
+        face_transaction_abort(snapshot_page(&snapshot, false));
+        iw_product_face_cancel_pending();
         /* Home 优先于尚未启动的请求；已启动事务仍正常收尾。 */
         if (command.kind != REQUEST_STAT) command = (route_request_t){0};
         back = false;
@@ -744,6 +750,7 @@ bool iw_router_process(void)
             face_return_pending = true;
             face_return_ready = false;
             face_return_started_ms = lv_tick_get();
+            face_return_started_valid = true;
             iw_gui_cancel_input();
         } else {
             face_transaction_abort(snapshot_page(&snapshot, false));
@@ -805,20 +812,22 @@ bool iw_router_process(void)
     if (face_return_pending) {
         route_page_t *root = snapshot_page(&snapshot, false);
         bool root_ready = face_return_ready && !snapshot.busy && snapshot.resumed &&
-            root && !root->failed && root->scope.alive && root->scope.visible &&
+            root && root->product && !root->failed && root->scope.alive && root->scope.visible &&
             root->route.page_id == IW_PAGE_FACE && !strcmp(root->sdk_name, "root");
         if (root_ready) {
             if (iw_product_face_commit_pending()) {
+                iw_product_face_sync_root(root->product);
                 face_return_pending = false;
                 face_return_ready = false;
                 face_return_armed = false;
                 face_return_started_ms = 0;
+                face_return_started_valid = false;
                 rt_kprintf("face commit confirmed root_onresume\n");
             } else {
                 face_transaction_abort(root);
             }
         } else if (!snapshot.busy ||
-                   (face_return_started_ms != 0u &&
+                   (face_return_started_valid &&
                     (uint32_t)(lv_tick_get() - face_return_started_ms) >= 3000u)) {
             /* 转场已结束但没有健康的根页 ONRESUME，候选必须回滚。 */
             face_transaction_abort(root);

@@ -18,6 +18,8 @@ bool iw_product_create(iw_product_page_t *page, uint16_t id, uint32_t argument,
                        void (*navigate)(uint16_t, uint32_t, void *),
                        void (*quiesce)(void *), void *context);
 void iw_product_resume(iw_product_page_t *page, bool visible);
+/* 提交表盘后只同步根页模型，不重新创建或激活视图。 */
+void iw_product_face_sync_root(iw_product_page_t *page);
 bool iw_product_destroy(iw_product_page_t *page);
 bool iw_product_back(iw_product_page_t *page);
 bool iw_product_rotate(iw_product_page_t *page, int32_t steps);
