@@ -31,3 +31,6 @@ hardware/** -text
 hardware/**/*.html text eol=lf
 hardware/**/SHA256SUMS.txt text eol=lf
 docs/assets/vendor/*.min.js binary
+# 冻结设计交接资料保持原始字节，避免换行转换破坏原清单哈希。
+docs/assets/v00-design-handoff/** -text
+docs/assets/v00-design-handoff/assets/raw/*.bin binary

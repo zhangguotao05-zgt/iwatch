@@ -1,0 +1,40 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>V00 跨电脑图片资源交接 · 2026-09-25</title>
+  <link rel="stylesheet" href="../assets/engineering.css">
+</head>
+<body>
+<main>
+<p><a href="../../index.html">返回项目首页</a></p>
+<h1>V00 跨电脑图片资源交接</h1>
+<p>2026-09-25 · 按项目负责人的明确要求，将现有图片交接资料上传至公开 iwatch 仓库。不新建仓库，不重新生成素材，不修改原批准记录。本次只补齐图片资料，不变更固件、字体或验收结论。</p>
+<h2>下载和使用</h2>
+<ul>
+  <li><a href="../assets/V00_设计资源包_v1.zip">下载原始设计资源包 ZIP</a>（1,491,212 B，约 1.49 MB）。</li>
+  <li><a href="../assets/v00-design-handoff/index.html">原始设计交接说明、图标定位和页面规格</a>。</li>
+  <li><a href="../assets/v00-design-handoff/manifest.json">原始 manifest.json</a>：包 ID 为 <code>IW-V00-DESIGN-HANDOFF-1</code>，原视觉批准 ID 为 <code>IW-VISUAL-APPROVAL-20260923-V2</code>。</li>
+  <li><a href="../assets/v00-design-handoff/contract.json">像素格式和接入契约</a>；<a href="../assets/v00-design-handoff/validation.json">原设计包校验记录</a>。</li>
+</ul>
+<p>优先从本交接提交取得 <code>docs/assets/v00-design-handoff/</code>，按同一相对路径放入已有候选。不要用本分支的旧固件基线覆盖正在验收的代码。需要使用 ZIP 时，按压缩包实际目录解压，使 <code>manifest.json</code> 位于上述目录。</p>
+<p>主机使用 37 份 RGB565A8 前景载荷和 1 份 RGB565 背景，共 38 份、1,096,608 B。完整 raw 目录还包含其他编码，共 77 个文件；这不是要求把所有编码链接到固件。文件不含 LVGL 头，继续沿用候选已有资源加载逻辑。</p>
+<p>图片入口为 <code>docs/assets/v00-design-handoff/assets/raw</code>。候选支持时，可设置 <code>IW_V00_ASSET_ROOT</code> 指向这个目录；不要求另一台电脑使用相同盘符。接收方先按原清单核对大小和 SHA-256，再补跑原先缺图而无法执行的 GUI 测试。</p>
+<h2>范围与证据</h2>
+<p>本目录保留原图、导出图、各像素编码、六页规格、六页首屏及两张滚动终点基准图。原清单登记的 169 个文件均已重新核对大小和 SHA-256；主机所需 38 份 raw 均一致。本次没有重新生成图片，没有运行产品 GUI、GCC、Keil 或实机验证。</p>
+<p>原设计交接页、规格和历史校验记录保持原始字节。历史导航可能指向本包之外的设计审阅台、生成工具或后续字体文件；它们不是本次图片交接的内容。本包不包含 SDK、固件镜像、实体设备日志、本地角色登记或完整字体候选，不应称为完整产品环境备份。</p>
+<p>原素材和适用范围未改变时，不为跨电脑传输重新申请同一视觉方案批准。独立验收仍须绑定接收方实际候选；图片传输校验通过不等于固件或实机通过。</p>
+<h2>来源、许可与发布</h2>
+<p>本次上传是项目负责人明确选择的公开托管方式，不是新增的第三方许可证明。25 项 Apple 参考素材的来源链接与“未获得再分发许可”记录保持不变；<code>release_allowed=false</code> 未被改成通过。本仓库不授予这些第三方素材的权利，也不因此宣称整机可商用或已获 Apple 授权。视觉批准、代码验收和第三方权利分别记录。</p>
+<h2>后续合并顺序</h2>
+<ol>
+  <li>补齐资源，在原冻结候选上完成受影响范围的独立验收。</li>
+  <li>把需要保留且允许公开的代码和资料带入正式仓库的开发分支，通过合并申请集成到 <code>main</code>。解决冲突后核对最终候选及受影响回归，不机械重复未受影响的构建。</li>
+  <li>确认 <code>main</code> 已包含必要提交、资料和验收记录；检查临时仓库是否仍有独有分支、Issue、附件或其他待保存内容。</li>
+  <li>最后再执行已获授权的备份归档或删除。删除仓库不会自动合并代码，不能先删再合。</li>
+</ol>
+<p>本次仅发布图片交接分支，不合并待验固件、不删除任何仓库、不关闭产品 Issue。</p>
+</main>
+</body>
+</html>

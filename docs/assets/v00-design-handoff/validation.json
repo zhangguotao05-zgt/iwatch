@@ -1,0 +1,66 @@
+{
+  "schema": 1,
+  "status": "passed",
+  "scope": "仅设计包来源、像素载荷、坐标、浏览器布局与素材复合；非固件/板验",
+  "generated_at": "2026-09-23T07:10:39.386Z",
+  "manifest_sha256": "154065d836dd59d552eb799befec55ce4582072b7a95361bd3b03b840eb61404",
+  "files": 169,
+  "assets": 38,
+  "grid_icons": 17,
+  "real_routes": 4,
+  "screens": 6,
+  "fonts": [
+    "Segoe UI Variable",
+    "Microsoft YaHei UI"
+  ],
+  "recomposition": [
+    {
+      "id": "System.grid",
+      "mean_channel_error": 1.14048,
+      "note": "仅设计素材复合自检，非固件验收"
+    },
+    {
+      "id": "Faces.modular",
+      "mean_channel_error": 0,
+      "note": "仅设计素材复合自检，非固件验收"
+    },
+    {
+      "id": "Timers.home",
+      "mean_channel_error": 0,
+      "note": "仅设计素材复合自检，非固件验收"
+    },
+    {
+      "id": "Alarms.edit",
+      "mean_channel_error": 0.65935,
+      "note": "仅设计素材复合自检，非固件验收"
+    },
+    {
+      "id": "Settings.display",
+      "mean_channel_error": 0,
+      "note": "仅设计素材复合自检，非固件验收"
+    },
+    {
+      "id": "System.control",
+      "mean_channel_error": 0,
+      "note": "仅设计素材复合自检，非固件验收"
+    }
+  ],
+  "viewports": [
+    {
+      "width": 390,
+      "overflow": false
+    },
+    {
+      "width": 768,
+      "overflow": false
+    },
+    {
+      "width": 1440,
+      "overflow": false
+    }
+  ],
+  "errors": [],
+  "firmware_modified": false,
+  "hardware_access": false,
+  "release_allowed": false
+}
