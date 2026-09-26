@@ -1680,8 +1680,155 @@ index c9e3b890..b7129486 100644
  #endif
  #endif
 -
+diff --git a/middleware/lvgl/lv_drivers_v9/lvsf_img_decoder.c b/middleware/lvgl/lv_drivers_v9/lvsf_img_decoder.c
+index 19cd8cf9..971e3db1 100644
+--- a/middleware/lvgl/lv_drivers_v9/lvsf_img_decoder.c
++++ b/middleware/lvgl/lv_drivers_v9/lvsf_img_decoder.c
+@@ -16,6 +16,7 @@
+ #include "../../draw/lv_image_decoder_private.h"
+ #include "../../../lvgl.h"
+ #if (1 == LV_USE_DRAW_EPIC) && defined(LV_USE_EZIP)
++#include "sifli/lv_draw_epic.h"
+ 
+ #include "../../misc/lv_fs_private.h"
+ #include <string.h>
+@@ -79,6 +80,10 @@ static lv_result_t decoder_info(lv_image_decoder_t *decoder, lv_image_decoder_ds
+         const char *fn = src;
+ 
+         lv_fs_file_t *f = lv_malloc(sizeof(lv_fs_file_t));
++        if(f == NULL) {
++            if(!lv_draw_epic_report_error()) LV_ASSERT(f != NULL);
++            return LV_RESULT_INVALID;
++        }
+ 
+         lv_fs_res_t res;
+         res = lv_fs_open(f, fn, LV_FS_MODE_RD);
+@@ -134,7 +139,10 @@ static lv_result_t decoder_open(lv_image_decoder_t *decoder, lv_image_decoder_ds
+         {
+             LV_ASSERT(!dsc->decoded);
+             lv_draw_buf_t *p_decoded = lv_malloc_zeroed(sizeof(lv_draw_buf_t));
+-            LV_ASSERT(p_decoded != NULL);
++            if(p_decoded == NULL) {
++                if(!lv_draw_epic_report_error()) LV_ASSERT(p_decoded != NULL);
++                return LV_RESULT_INVALID;
++            }
+ 
+             memcpy(&p_decoded->header, &dsc->header, sizeof(p_decoded->header));
+             p_decoded->data = (uint8_t *)img_dsc->data;
+@@ -150,7 +158,10 @@ static lv_result_t decoder_open(lv_image_decoder_t *decoder, lv_image_decoder_ds
+         const char *fn = dsc->src;
+ 
+         lv_fs_file_t *f = lv_malloc(sizeof(lv_fs_file_t));
+-        LV_ASSERT(f != NULL);
++        if(f == NULL) {
++            if(!lv_draw_epic_report_error()) LV_ASSERT(f != NULL);
++            return LV_RESULT_INVALID;
++        }
+ 
+         lv_fs_res_t res = lv_fs_open(f, fn, LV_FS_MODE_RD);
+         if (LV_FS_RES_OK != res)
+@@ -175,7 +186,12 @@ static lv_result_t decoder_open(lv_image_decoder_t *decoder, lv_image_decoder_ds
+ 
+         LV_ASSERT(!dsc->decoded);
+         lv_draw_buf_t *p_decoded = lv_malloc_zeroed(sizeof(lv_draw_buf_t));
+-        LV_ASSERT(p_decoded != NULL);
++        if(p_decoded == NULL) {
++            if(!lv_draw_epic_report_error()) LV_ASSERT(p_decoded != NULL);
++            lv_fs_close(f);
++            lv_free(f);
++            return LV_RESULT_INVALID;
++        }
+ 
+         memcpy(&p_decoded->header, &dsc->header, sizeof(p_decoded->header));
+         p_decoded->data_size = file_size - sizeof(lv_image_header_t);
+@@ -184,6 +200,7 @@ static lv_result_t decoder_open(lv_image_decoder_t *decoder, lv_image_decoder_ds
+         p_decoded->data = lv_malloc(p_decoded->data_size);
+         if (p_decoded->data == NULL)
+         {
++            (void)lv_draw_epic_report_error();
+             LV_LOG_WARN("Memory allocation failed for image data\n");
+             lv_free(p_decoded);
+             lv_fs_close(f);
+@@ -243,6 +260,7 @@ static lv_result_t decoder_open(lv_image_decoder_t *decoder, lv_image_decoder_ds
+             p_decoded->data = lv_malloc(p_decoded->data_size);
+             if (p_decoded->data == NULL)
+             {
++                (void)lv_draw_epic_report_error();
+                 LV_LOG_WARN("Memory allocation failed for image data\n");
+                 lv_free(p_decoded);
+                 lv_fs_close(f);
+diff --git a/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic.h b/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic.h
+index 54f3aa58..aadc7526 100644
+--- a/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic.h
++++ b/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic.h
+@@ -48,6 +48,8 @@ void lv_draw_epic_fill(lv_draw_task_t *draw_task, const lv_draw_fill_dsc_t *dsc,
+ 
+ void lv_draw_epic_img(lv_draw_task_t *draw_task, const lv_draw_image_dsc_t *dsc,
+                       const lv_area_t *coords);
++void lv_draw_epic_set_error_cb(void (*callback)(void));
++bool lv_draw_epic_report_error(void);
+ 
+ void lv_draw_epic_layer(lv_draw_task_t *draw_task, const lv_draw_image_dsc_t *draw_dsc,
+                         const lv_area_t *coords);
+diff --git a/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_fill.c b/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_fill.c
+index 159d47fd..d873cd52 100644
+--- a/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_fill.c
++++ b/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_fill.c
+@@ -94,7 +94,7 @@ void lv_draw_epic_fill(lv_draw_task_t *draw_task, const lv_draw_fill_dsc_t *dsc,
+         {
+             ret = drv_epic_fill_ext(NULL, 0, &output_canvas, NULL);
+         }
+-        LV_ASSERT(0 == ret);
++        if(ret != 0 && !lv_draw_epic_report_error()) LV_ASSERT(0 == ret);
+     }
+     else
+     {
+@@ -146,7 +146,7 @@ void lv_draw_epic_fill(lv_draw_task_t *draw_task, const lv_draw_fill_dsc_t *dsc,
+ 
+ 
+         int ret_v = drv_epic_fill_grad(&param, NULL);
+-        LV_ASSERT(0 == ret_v);
++        if(ret_v != 0 && !lv_draw_epic_report_error()) LV_ASSERT(0 == ret_v);
+ 
+     }
+ }
+diff --git a/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_img.c b/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_img.c
+index 2cd429e3..e50ee0b5 100644
+--- a/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_img.c
++++ b/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_img.c
+@@ -52,6 +52,21 @@ static void img_draw_core(lv_draw_task_t *draw_task, const lv_draw_image_dsc_t *
+  **********************/
+ #define _draw_info LV_GLOBAL_DEFAULT()->draw_info
+ 
++static void (*epic_error_cb)(void);
++
++void lv_draw_epic_set_error_cb(void (*callback)(void))
++{
++    epic_error_cb = callback;
++}
++
++bool lv_draw_epic_report_error(void)
++{
++    if(!epic_error_cb) return false;
++    /* 回调只锁存故障；对象和资源由 GUI 循环在绘制空闲后回收。 */
++    epic_error_cb();
++    return true;
++}
++
+ /**********************
+  *      MACROS
+  **********************/
+@@ -341,7 +356,7 @@ static void img_draw_core(lv_draw_task_t *draw_task, const lv_draw_image_dsc_t *
+         }
+ 
+         int ret = drv_epic_blend(input_layers, input_layer_cnt, &output_canvas, NULL);
+-        LV_ASSERT(0 == ret);
++        if(ret != 0 && !lv_draw_epic_report_error()) LV_ASSERT(0 == ret);
+ 
+         if (decoder_res == LV_RESULT_OK)
+         {
 diff --git a/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c b/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c
-index 3d5323e9..4f02fcb4 100644
+index 3d5323e9..b6012d92 100644
 --- a/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c
 +++ b/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c
 @@ -15,6 +15,9 @@
@@ -1719,3 +1866,83 @@ index 3d5323e9..4f02fcb4 100644
  
                      LV_EPIC_LOG("glyph_draw_dsc->bitmap %p, color=%u, w=%u, h=%u, stride=%u",
                                 input_layers[1].data, lv_color_to_u32(glyph_draw_dsc->color),
+@@ -353,7 +363,7 @@ void print_letter_map(uint32_t letter, const uint8_t *map_p, uint16_t box_w, uin
+ #endif
+ 
+                     int ret = drv_epic_cont_blend(input_layers, input_layer_cnt, &output_canvas);
+-                    LV_ASSERT(0 == ret);
++                    if(ret != 0 && !lv_draw_epic_report_error()) LV_ASSERT(0 == ret);
+ 
+                     if (glyph_draw_dsc->_draw_buf) {
+                         lv_draw_buf_destroy(glyph_draw_dsc->_draw_buf);
+diff --git a/middleware/lvgl/lv_drivers_v9/sifli/lv_epic_utils.c b/middleware/lvgl/lv_drivers_v9/sifli/lv_epic_utils.c
+index e8f40884..346f3da1 100644
+--- a/middleware/lvgl/lv_drivers_v9/sifli/lv_epic_utils.c
++++ b/middleware/lvgl/lv_drivers_v9/sifli/lv_epic_utils.c
+@@ -238,7 +238,7 @@ void lv_epic_draw_blend(lv_draw_task_t *draw_task, const lv_draw_sw_blend_dsc_t
+             ret = drv_epic_fill_ext(NULL, 0, &output_canvas, NULL);
+         }
+ 
+-        LV_ASSERT(0 == ret);
++        if(ret != 0 && !lv_draw_epic_report_error()) LV_ASSERT(0 == ret);
+ 
+     }
+     else
+@@ -284,7 +284,7 @@ void lv_epic_draw_blend(lv_draw_task_t *draw_task, const lv_draw_sw_blend_dsc_t
+             ret = drv_epic_blend(input_layers, 2, &output_canvas, NULL);
+         }
+ 
+-        LV_ASSERT(0 == ret);
++        if(ret != 0 && !lv_draw_epic_report_error()) LV_ASSERT(0 == ret);
+     }
+ }
+
+diff --git a/external/lvgl_v9/src/core/lv_obj_style.c b/external/lvgl_v9/src/core/lv_obj_style.c
+index 91cb91e..550b3f4 100644
+--- a/external/lvgl_v9/src/core/lv_obj_style.c
++++ b/external/lvgl_v9/src/core/lv_obj_style.c
+@@ -384,6 +384,10 @@ void lv_obj_set_local_style_prop(lv_obj_t * obj, lv_style_prop_t prop, lv_style_
+     trans_delete(obj, lv_obj_style_get_selector_part(selector), prop, NULL);
+ 
+     lv_style_t * style = get_local_style(obj, selector);
++    if(style == NULL) {
++        LV_PROFILER_STYLE_END;
++        return;
++    }
+     if(selector == LV_PART_MAIN && lv_style_prop_has_flag(prop, LV_STYLE_PROP_FLAG_TRANSFORM)) {
+         lv_obj_invalidate(obj);
+     }
+@@ -723,10 +727,17 @@ static lv_style_t * get_local_style(lv_obj_t * obj, lv_style_selector_t selector
+         }
+     }
+ 
+-    obj->style_cnt++;
+-    LV_ASSERT(obj->style_cnt != 0);
+-    obj->styles = lv_realloc(obj->styles, obj->style_cnt * sizeof(lv_obj_style_t));
+-    LV_ASSERT_MALLOC(obj->styles);
++    if(obj->style_cnt == UINT8_MAX) return NULL;
++    lv_style_t * new_style = lv_malloc_zeroed(sizeof(lv_style_t));
++    if(new_style == NULL) return NULL;
++    uint32_t new_count = obj->style_cnt + 1u;
++    lv_obj_style_t * new_styles = lv_realloc(obj->styles, new_count * sizeof(lv_obj_style_t));
++    if(new_styles == NULL) {
++        lv_free(new_style);
++        return NULL;
++    }
++    obj->styles = new_styles;
++    obj->style_cnt = new_count;
+ 
+     for(i = obj->style_cnt - 1; i > 0 ; i--) {
+         /*Copy only normal styles (not local and transition).
+@@ -736,8 +747,8 @@ static lv_style_t * get_local_style(lv_obj_t * obj, lv_style_selector_t selector
+     }
+ 
+     lv_memzero(&obj->styles[i], sizeof(lv_obj_style_t));
+-    obj->styles[i].style = lv_malloc_zeroed(sizeof(lv_style_t));
+-    lv_style_init((lv_style_t *)obj->styles[i].style);
++    obj->styles[i].style = new_style;
++    lv_style_init(new_style);
+ 
+     obj->styles[i].is_local = 1;
+     obj->styles[i].selector = selector;
+ 

@@ -1,6 +1,6 @@
 {
-  "character_count": 437,
-  "charset_sha256": "819cca19d1bb8fd6a524ee503a1234a66f1f24da70e6b8f2b30bcbb3e9dedb2f",
+  "character_count": 442,
+  "charset_sha256": "d6b688298b7306b15f1cd94de9c9f8139c75392990f5eeab6dd67a9ceed42b4e",
   "codepoints": [
     "U+0020",
     "U+0021",
@@ -110,6 +110,7 @@
     "U+4E2D",
     "U+4E3A",
     "U+4E3B",
+    "U+4E49",
     "U+4E8C",
     "U+4E8E",
     "U+4E94",
@@ -135,6 +136,7 @@
     "U+4FDD",
     "U+4FE1",
     "U+4FEE",
+    "U+5019",
     "U+505C",
     "U+50A8",
     "U+5104",
@@ -248,6 +250,7 @@
     "U+6210",
     "U+6211",
     "U+6237",
+    "U+6240",
     "U+624B",
     "U+6253",
     "U+6270",
@@ -297,6 +300,7 @@
     "U+67E5",
     "U+6807",
     "U+6821",
+    "U+6837",
     "U+6848",
     "U+696D",
     "U+6A21",
@@ -351,6 +355,7 @@
     "U+7ACB",
     "U+7AD9",
     "U+7B49",
+    "U+7C97",
     "U+7CFB",
     "U+7D2B",
     "U+7D2F",
@@ -444,15 +449,16 @@
   "inputs": {
     "firmware/iwatch/src/gui_apps/clock/app_clock_status_bar.c": "1e97f21c5637e71c61d14acb697ca73a7c59f8cfb3ec619c4c057bfbda8d04dd",
     "firmware/iwatch/src/gui_core/iw_components_demo_text.h": "9303edd93feab675cbcf7929a340ecae52ffc76a42b6a55e5dc125f60cf17f24",
-    "firmware/iwatch/src/gui_core/iw_product_text.h": "85f602b7d7da9156e9a641ffd1c94fec6698bdc1435c212e3485911d5b6475bd",
+    "firmware/iwatch/src/gui_core/iw_product_text.h": "44adae44af45e350c7d9c289d1efbb481f462ed335232b987c374a13a136ebff",
     "firmware/iwatch/src/gui_core/iw_router_text.h": "4504664996fa12904d44bdad98d3069af877d47795e6935d6180c95186b15e57",
+    "firmware/iwatch/src/gui_core/iw_v00_scene.c": "0422eb9bbd57d94cb1be233027d2fe6b2e548ff2fb331315458ca6eaf75cae82",
     "firmware/iwatch/src/resource/fonts/DroidSansFallback.source.ttf": "05d71b179ef97b82cf1bb91cef290c600a510f77f39b4964359e3ef88378c79d",
-    "firmware/iwatch/src/resource/fonts/font_charset.json": "7b6dac3d2b93ad9cd055de3db5a95eae87e634cd4128cddafa7dc66e3453fcf1",
-    "firmware/iwatch/src/resource/strings/zh_cn.json": "0be2beb9d2a2c03a4703b28385600bd56d26c26585db3d851bb44ee5e52846f8"
+    "firmware/iwatch/src/resource/fonts/font_charset.json": "2978a66257d3fceb008616af69d06f8779244f828b40634dc9d7f976e18e30f3",
+    "firmware/iwatch/src/resource/strings/zh_cn.json": "bfe765a5440c616e258c1367c6e0c1538839963d3dfc2274b5eb4763a18cb276"
   },
   "output": {
-    "bytes": 74372,
-    "sha256": "43eacb86a0c0613d8a286bc11ae6bbe5cfbaa680733663d90ea051d81a7e8419"
+    "bytes": 75148,
+    "sha256": "4d17c62a0ed13c70840662e811948e0d5a1b4cb79435fc7051b463ef958cf523"
   },
   "schema": 1,
   "subset_options": [

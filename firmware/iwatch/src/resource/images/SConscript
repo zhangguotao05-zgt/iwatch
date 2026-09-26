@@ -12,6 +12,8 @@ objs_large_ezip = []
 
 objs_ezip += Glob('common/ezip/*.png')
 objs_ezip += Glob('common/ezip/*.gif')
+v00_ezip = Glob('common/ezip/v00_*.png')
+objs_ezip = [resource for resource in objs_ezip if resource not in v00_ezip]
 objs_no_ezip = Glob('common/no_ezip/*.png')
 objs_no_ezip += Glob('common/no_ezip/*.gif')
 objs_large_ezip += Glob('common/large_ezip/*.png')
@@ -51,11 +53,20 @@ if GetDepend('BSP_USING_PC_SIMULATOR'):
 else:
     objs = Env.ImgResource(objs_no_ezip, ezip_img_flags+' -cfile 1 -dpt 1')
     objs += Env.ImgResource(objs_ezip, ezip_img_flags+' -cfile 2 -dpt 1')
+    # V00 透明图标禁用调色板转换；调色板解码无法保留透明度。
+    v00_img_flags = '-rgb565  -section ROM3_IMG  -lvgl_version 9 '
+    objs += Env.ImgResource(v00_ezip, v00_img_flags+' -cfile 2 -dpt 1')
     objs += Env.ImgResource(objs_large_ezip, ezip_img_flags+' -cfile 2 -dpt 4 -ers '+ers_v)
     objs += Env.ImgResource(objs_jpeg, jpeg_img_flags+' -cfile 2')
 
 if GetOption('no_cc'):
     objs = []
+else:
+    # 目录与保护器只编译一份，避免实验工作树的重复入口。
+    objs += Glob('iw_v00_resource_catalog.c')
+    objs += Glob('../iw_v00_resource_guard.c')
+    objs += Glob('../iw_v00_control_background.c')
+    objs += Glob('../iw_v00_control_cache.c')
 
 objs = DefineGroup('resource', objs, depend = ['PKG_USING_LITTLEVGL2RTT'])
 

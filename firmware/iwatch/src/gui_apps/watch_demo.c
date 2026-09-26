@@ -56,6 +56,8 @@
 
 extern const unsigned char DroidSansFallback[];
 extern const int DroidSansFallback_size;
+extern const unsigned char IWV00Noto300[], IWV00Noto400[], IWV00Noto500[], IWV00Noto600[];
+extern const int IWV00Noto300_size, IWV00Noto400_size, IWV00Noto500_size, IWV00Noto600_size;
 
 typedef enum
 {
@@ -515,9 +517,8 @@ static bool input_signal(iw_key_signal_t signal)
         (void)iw_key_port_apply_context(IW_INPUT_NORMAL);
         return iw_router_recover();
     case IW_INTENT_UNLOCK:
-        if (!iw_key_port_apply_context(IW_INPUT_NORMAL)) return false;
         /* 锁页是覆盖层模态页，解锁后关闭整条覆盖链并回到进入前来源。 */
-        return iw_router_home();
+        return iw_router_unlock();
     case IW_INTENT_NONE: return false;
     default: break;
     }
@@ -832,6 +833,18 @@ void app_watch_entry(void *parameter)
         LOG_E("font registry initialization failed");
         return;
     }
+#ifdef IW_TARGET_BUILD
+    const iw_font_blob_t v00_fonts[4] = {
+        {IWV00Noto300, (uint32_t)IWV00Noto300_size},
+        {IWV00Noto400, (uint32_t)IWV00Noto400_size},
+        {IWV00Noto500, (uint32_t)IWV00Noto500_size},
+        {IWV00Noto600, (uint32_t)IWV00Noto600_size}
+    };
+    if (!iw_font_v00_init(v00_fonts)) {
+        LOG_E("V00 font registry initialization failed");
+        return;
+    }
+#endif
     (void)iw_display_runtime_set_available(lcd_device != RT_NULL,
                                            lcd_device ? 0 : -RT_ENOSYS);
     lv_ex_data_pool_init();

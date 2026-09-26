@@ -39,3 +39,9 @@ Thumbs.db
 /firmware/iwatch/project/artifacts/
 /firmware/iwatch/project/.iwatch-build.lock
 /firmware/iwatch/project/.iwatch-build-state.json
+
+# V00 受控图像与派生载荷只在本地恢复，许可标记不因忽略而改变。
+/firmware/iwatch/src/resource/images/common/ezip/v00_*.png
+/firmware/tests/v00_target_view/generated/
+/docs/assets/v00-design-handoff/assets/
+/docs/assets/v00-design-handoff/screens/

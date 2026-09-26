@@ -253,7 +253,7 @@ typedef struct { lv_color_t color;int align; } lv_draw_label_dsc_t;
 #define lv_obj_set_style_bg_grad_color(...) ((void)0)
 #define lv_obj_set_style_bg_grad_dir(...) ((void)0)
 #define lv_obj_set_style_radius(...) ((void)0)
-#define IW_FONT_COUNT 11
+#define IW_FONT_COUNT 13
 static iw_font_ref_t page_fonts[IW_FONT_COUNT];
 static const lv_font_t *chinese_font;
 static lv_obj_t *app_clock_main_status_bar,*status_bar_area_up,*status_bar_area_down,*app_clock_tileview;

@@ -7,7 +7,8 @@
 
 typedef enum {
     IW_FONT_16, IW_FONT_18, IW_FONT_20, IW_FONT_22, IW_FONT_24, IW_FONT_26,
-    IW_FONT_28, IW_FONT_30, IW_FONT_64, IW_FONT_80, IW_FONT_96, IW_FONT_COUNT
+    IW_FONT_28, IW_FONT_30, IW_FONT_32, IW_FONT_48, IW_FONT_64, IW_FONT_80, IW_FONT_96,
+    IW_FONT_COUNT
 } iw_font_id_t;
 
 typedef enum {
@@ -29,6 +30,11 @@ typedef struct {
 } iw_font_ref_t;
 
 typedef struct {
+    const void *data;
+    uint32_t bytes;
+} iw_font_blob_t;
+
+typedef struct {
     uint32_t main_used, main_peak, main_total;
     uint32_t ttf_used, ttf_peak, ttf_total;
 } iw_font_memory_t;
@@ -47,7 +53,13 @@ const iw_font_spec_t *iw_font_spec(iw_font_id_t id);
 iw_font_id_t iw_font_find(uint16_t size_px);
 /* 仅在 GUI 线程、lv_init 之后调用；源数据必须保持有效直到服务结束。 */
 bool iw_font_init(const void *data, uint32_t bytes);
+/* V00 四份静态字重均已完整校验后一次注册；只在 GUI owner 调用。 */
+bool iw_font_v00_init(const iw_font_blob_t fonts[4]);
+/* 所有 V00 引用和字体对象均回收后解除注册；源缓冲此后可由调用方释放。 */
+bool iw_font_v00_deinit(void);
 iw_font_result_t iw_font_acquire(iw_font_id_t id, iw_font_ref_t *ref);
+/* 文件身份、字重和字号组成独立缓存键；不会静默回退到旧字库。 */
+iw_font_result_t iw_font_acquire_v00(uint16_t weight, uint16_t size_px, iw_font_ref_t *ref);
 /* 先删除引用此字体的控件，再 release；空句柄重复释放成功。 */
 iw_font_result_t iw_font_release(iw_font_ref_t *ref);
 /* 仅 GUI 线程在 LVGL 回调之外调用；未排空时延后零引用字体的销毁。 */

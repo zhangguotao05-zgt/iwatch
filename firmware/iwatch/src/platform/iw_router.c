@@ -12,8 +12,13 @@
 #ifndef _WIN32
 #include "iw_key_port.h"
 #else
-static iw_input_context_t iw_key_port_context(void) { return IW_INPUT_NORMAL; }
-static bool iw_key_port_apply_context(iw_input_context_t value) { (void)value; return true; }
+static iw_input_context_t router_test_input_context;
+static iw_input_context_t iw_key_port_context(void) { return router_test_input_context; }
+static bool iw_key_port_apply_context(iw_input_context_t value)
+{
+    router_test_input_context = value;
+    return true;
+}
 #endif
 #include "iw_render_probe.h"
 #include "gui_app_fwk.h"
@@ -40,7 +45,7 @@ typedef struct {
     iw_product_page_t *product;
     char sdk_name[16];
     int32_t scroll_y;
-    bool started, resumed, stopped, failed, callbacks_enabled;
+    bool started, resumed, stopped, failed, callbacks_enabled, resume_history;
 } route_page_t;
 
 /* 这里只登记资源所有者，不记录栈顺序；返回目标每次从 SiFli 的快照取得。 */
@@ -49,7 +54,16 @@ static iw_navigator_t navigator;
 static iw_recent_apps_t recent_apps;
 static char overlay_source[16], overlay_root_name[16], pending_overlay_source[16];
 static char overlay_cleanup[16];
+/* 删除事务持有精确实例，SDK 的 void 调用既不是受理确认，也不是完成确认。 */
+static route_page_t *overlay_cleanup_page;
+static uint32_t overlay_cleanup_generation, overlay_cleanup_tick;
+static char overlay_cleanup_app[16];
+static uint8_t overlay_cleanup_attempts;
+static bool overlay_cleanup_blocked;
+enum { OVERLAY_CLEANUP_RETRIES = 3, OVERLAY_CLEANUP_RETRY_MS = 50 };
 static uint16_t overlay_root_id;
+static route_page_t *overlay_root_page;
+static uint32_t overlay_root_generation;
 static route_request_t requested;
 static bool requested_back, initialized, rolling_back, fault_unwind;
 static bool recovery_blocked;
@@ -99,14 +113,26 @@ static bool overlay_page(uint16_t id)
            id == IW_PAGE_LOCK || id == IW_PAGE_WATER_LOCK;
 }
 
+static iw_input_context_t live_lock_context(void)
+{
+    bool input_locked = false;
+    for (unsigned i = 0; i < ROUTE_SLOTS; i++) {
+        const route_page_t *page = pages[i];
+        if (!page || !page->started || page->stopped || page->failed || !page->scope.alive)
+            continue;
+        if (page->route.page_id == IW_PAGE_WATER_LOCK) return IW_INPUT_WATER;
+        if (page->route.page_id == IW_PAGE_LOCK) input_locked = true;
+    }
+    return input_locked ? IW_INPUT_LOCKED : IW_INPUT_NORMAL;
+}
+
 static void sync_input_context(uint16_t page_id)
 {
-    if (page_id == IW_PAGE_LOCK)
-        (void)iw_key_port_apply_context(IW_INPUT_LOCKED);
-    else if (page_id == IW_PAGE_WATER_LOCK)
-        (void)iw_key_port_apply_context(IW_INPUT_WATER);
-    else if (iw_key_port_context() == IW_INPUT_LOCKED || iw_key_port_context() == IW_INPUT_WATER)
-        (void)iw_key_port_apply_context(IW_INPUT_NORMAL);
+    iw_input_context_t desired = live_lock_context();
+    if (page_id == IW_PAGE_LOCK) desired = IW_INPUT_LOCKED;
+    if (page_id == IW_PAGE_WATER_LOCK) desired = IW_INPUT_WATER;
+    if (iw_key_port_context() != desired)
+        (void)iw_key_port_apply_context(desired);
 }
 
 extern void iw_gui_cancel_input(void);
@@ -126,6 +152,31 @@ static route_page_t *find_page(void *identity)
 {
     for (unsigned i = 0; i < ROUTE_SLOTS; i++) if (pages[i] && pages[i] == identity) return pages[i];
     return NULL;
+}
+
+static bool cleanup_matches(const route_page_t *page)
+{
+    return page && page == overlay_cleanup_page &&
+        page->scope.token.generation == overlay_cleanup_generation &&
+        !strcmp(page->sdk_name, overlay_cleanup);
+}
+
+static void cleanup_clear(void)
+{
+    overlay_cleanup_page = NULL;
+    overlay_cleanup_generation = overlay_cleanup_tick = 0;
+    overlay_cleanup[0] = overlay_cleanup_app[0] = '\0';
+    overlay_cleanup_attempts = 0;
+    overlay_cleanup_blocked = false;
+}
+
+static void cleanup_retry(void)
+{
+    /* 明确用户返回/恢复后重新给一次有界预算，不由自动 tick 无限补充。 */
+    if (overlay_cleanup_blocked) {
+        overlay_cleanup_attempts = 0;
+        overlay_cleanup_blocked = false;
+    }
 }
 
 static iw_route_t root_route(const char *app)
@@ -341,8 +392,12 @@ static void dispatch_page(route_page_t *page,gui_app_msg_type_t message)
         (void)restore_root(page);
         if (!page->failed && page->scope.alive) {
             sync_input_context(page->route.page_id);
-            const iw_page_resume_t *resume = iw_nav_resume_find(&navigator, page->route);
-            if (resume) page->scroll_y = resume->scroll_y;
+            /* 返回原页面保留现场；新建页面仅按声明的恢复策略读取历史。 */
+            if (page->resume_history) {
+                const iw_page_resume_t *resume = iw_nav_resume_find(&navigator, page->route);
+                if (resume) page->scroll_y = resume->scroll_y;
+                page->resume_history = false;
+            }
             if (page->product) {
                 page->product->view.scroll_y=(int16_t)page->scroll_y;
                 iw_product_resume(page->product,true);
@@ -370,8 +425,11 @@ static void dispatch_page(route_page_t *page,gui_app_msg_type_t message)
     case GUI_APP_MSG_ONSTOP:
         page->stopped = true;
         sync_input_context(IW_PAGE_FACE);
-        if (overlay_root_id && !strcmp(page->sdk_name, overlay_root_name)) {
+        if (overlay_root_id && page == overlay_root_page &&
+            page->scope.token.generation == overlay_root_generation) {
             overlay_root_id = 0;
+            overlay_root_page = NULL;
+            overlay_root_generation = 0;
             overlay_source[0] = overlay_root_name[0] = '\0';
         }
         iw_scope_stop(&page->scope);
@@ -420,6 +478,11 @@ static void release_page(route_page_t *page)
         if (!iw_product_destroy(page->product)) return;
         rt_free(page->product); page->product=NULL;
     } else if (iw_component_destroy(&page->frame) == IW_COMPONENT_BUSY) return;
+    if (cleanup_matches(page)) {
+        rt_kprintf("nav overlay cleanup completed name=%s generation=%lu\n",
+            overlay_cleanup, (unsigned long)overlay_cleanup_generation);
+        cleanup_clear();
+    }
     for (unsigned i = 0; i < ROUTE_SLOTS; i++) if (pages[i] == page) pages[i] = NULL;
     if (candidate == page) candidate = NULL;
     rt_free(page);
@@ -444,14 +507,16 @@ static uint32_t capabilities(void)
 }
 
 static iw_nav_result_t begin_request(iw_nav_action_t action_kind, uint32_t argument,
-                                     uint16_t target_id,const gui_app_route_snapshot_t *snapshot)
+                                     uint16_t target_id, bool resume_history,
+                                     const gui_app_route_snapshot_t *snapshot)
 {
     iw_nav_observation_t actual = {.current = observed_route(snapshot, false),
         .back = snapshot->back_valid ? observed_route(snapshot, true) : (iw_route_t){0},
         .running_apps = snapshot->running_apps, .depth = snapshot->page_count,
         .busy = snapshot->busy};
     if (action_kind == IW_NAV_PUSH &&
-        ((primary_overlay(target_id) && overlay_root_id && overlay_page(actual.current.page_id)) ||
+        ((primary_overlay(target_id) && overlay_cleanup_page) ||
+         (primary_overlay(target_id) && overlay_root_id && overlay_page(actual.current.page_id)) ||
          (target_id == IW_PAGE_NOTIFICATION_DETAIL &&
           actual.current.page_id != IW_PAGE_NOTIFICATION_LIST))) {
         rt_kprintf("nav overlay rejected target=%04x current=%04x\n", target_id,
@@ -488,6 +553,9 @@ static iw_nav_result_t begin_request(iw_nav_action_t action_kind, uint32_t argum
         route_page_t *page = rt_calloc(1, sizeof(*page));
         if (!page) { iw_nav_abort(&navigator, navigator.sequence); return IW_NAV_FAILED; }
         page->route = navigator.candidate;
+        const iw_route_descriptor_t *policy = iw_route_find(page->route.page_id);
+        page->resume_history = resume_history ||
+            (policy && policy->resume_policy == IW_RESUME_POSITION);
         (void)iw_scope_init(&page->scope, page->route.page_id, ++generation);
         (void)snprintf(page->sdk_name, sizeof(page->sdk_name), "n%08lx", (unsigned long)generation);
         pages[slot] = candidate = page;
@@ -513,6 +581,51 @@ static void print_stat(const gui_app_route_snapshot_t *snapshot)
         navigator.history_count, recent_apps.count,
         (unsigned long)navigator.committed, (unsigned long)navigator.aborted,
         (unsigned)navigator.pending_back);
+    if (overlay_cleanup_page)
+        rt_kprintf("nav overlay cleanup name=%s generation=%lu attempts=%u blocked=%u\n",
+            overlay_cleanup, (unsigned long)overlay_cleanup_generation,
+            overlay_cleanup_attempts, (unsigned)overlay_cleanup_blocked);
+}
+
+static void cleanup_process(const gui_app_route_snapshot_t *snapshot)
+{
+    if (!overlay_cleanup_page || snapshot->busy || !iw_font_port_render_idle() ||
+        navigator.state != IW_NAV_IDLE || home_target || fault_unwind || rolling_back)
+        return;
+    route_page_t *page = find_page(overlay_cleanup_page);
+    if (!cleanup_matches(page)) {
+        /* 内存地址重用不等于旧实例。仅在同 app 根页唯一且空闲时认可整栈回收。 */
+        if (!strcmp(snapshot->app_id, overlay_cleanup_app) && snapshot->page_count == 1u &&
+            !strcmp(snapshot->page_id, "root")) {
+            rt_kprintf("nav overlay cleanup confirmed root-only\n");
+            cleanup_clear();
+        } else if (!overlay_cleanup_blocked) {
+            overlay_cleanup_blocked = true;
+            rt_kprintf("nav overlay cleanup identity mismatch; Home recovers\n");
+        }
+        return;
+    }
+    /* STOP 不等于已完成回收；由 release_page 在安全点关闭事务。 */
+    if (page->stopped || overlay_cleanup_blocked ||
+        strcmp(snapshot->app_id, overlay_cleanup_app) ||
+        snapshot->user_data == page) return;
+    if (overlay_cleanup_attempts &&
+        (uint32_t)(lv_tick_get() - overlay_cleanup_tick) < OVERLAY_CLEANUP_RETRY_MS) return;
+    if (overlay_cleanup_attempts == OVERLAY_CLEANUP_RETRIES) {
+        overlay_cleanup_blocked = true;
+        route_page_t *current = snapshot_page(snapshot, false);
+        if (current && current->product) {
+            current->product->model.message = IW_TEXT_OPERATION_FAILED;
+            current->product->dirty = true;
+        }
+        rt_kprintf("nav overlay cleanup exhausted name=%s; Back/Home retries\n", overlay_cleanup);
+        return;
+    }
+    ++overlay_cleanup_attempts;
+    overlay_cleanup_tick = lv_tick_get();
+    gui_app_remove_page(overlay_cleanup);
+    rt_kprintf("nav overlay cleanup requested name=%s attempt=%u awaiting_STOP\n",
+        overlay_cleanup, overlay_cleanup_attempts);
 }
 
 static bool rollback(bool to_root)
@@ -537,8 +650,11 @@ void iw_router_init(void)
     if (initialized || !iw_font_port_is_owner()) return;
     gui_app_set_resources_ready(iw_font_port_render_idle);
     memset(&recent_apps, 0, sizeof(recent_apps));
-    overlay_source[0] = overlay_root_name[0] = overlay_cleanup[0] = '\0';
+    overlay_source[0] = overlay_root_name[0] = '\0';
+    cleanup_clear();
     overlay_root_id = 0;
+    overlay_root_page = NULL;
+    overlay_root_generation = 0;
     home_has_leaving = false;
     face_return_pending = false;
     face_return_ready = false;
@@ -567,6 +683,7 @@ bool iw_router_back(void)
 static bool home_request(bool recovery)
 {
     if (!initialized || !iw_font_port_is_owner()) return false;
+    cleanup_retry();
     if (home_target && !recovery) return true;
     gui_app_route_snapshot_t snapshot;
     (void)gui_app_get_route_snapshot(&snapshot);
@@ -613,6 +730,17 @@ bool iw_router_home(void)
     if (iw_router_overlay_visible() && overlay_root_id)
         return request((route_request_t){.kind=REQUEST_OVERLAY_HOME}, false);
     return home_request(false);
+}
+bool iw_router_unlock(void)
+{
+    if (!initialized || !iw_font_port_is_owner()) return false;
+    iw_input_context_t context = iw_key_port_context();
+    if ((context != IW_INPUT_LOCKED && context != IW_INPUT_WATER) ||
+        live_lock_context() == IW_INPUT_NORMAL) return false;
+    /* 提醒覆盖锁页时，认可的松手边沿一次关闭整条覆盖链。 */
+    if (overlay_root_id && overlay_source[0])
+        return request((route_request_t){.kind=REQUEST_OVERLAY_HOME}, false);
+    return home_request(true);
 }
 bool iw_router_recover(void) { return home_request(true); }
 
@@ -731,6 +859,7 @@ bool iw_router_process(void)
         recovery_blocked = false;
         rollback_failures = 0;
     }
+    if (back) cleanup_retry();
     if (command.kind == REQUEST_STAT) print_stat(&snapshot);
     else if (command.kind == REQUEST_TEST_NOTICE) {
         static const char diagnostic[] = "本机测试";
@@ -794,7 +923,7 @@ bool iw_router_process(void)
     else if (!fault_unwind && !rolling_back &&
              (command.kind == REQUEST_OPEN || command.kind == REQUEST_BURST)) {
         iw_nav_result_t nav_result = begin_request(IW_NAV_PUSH, command.argument,
-                                                   command.page_id, &snapshot);
+                                                   command.page_id, command.recent_open, &snapshot);
         if (command.recent_open && nav_result == IW_NAV_UNAVAILABLE)
             recent_mark_unavailable(snapshot_page(&snapshot, false), command.recent_index);
         if (command.kind == REQUEST_BURST) back = true;
@@ -802,7 +931,8 @@ bool iw_router_process(void)
     if (iw_nav_take_back(&navigator)) back = true;
     if (back && !fault_unwind && !rolling_back) {
         route_page_t *current=snapshot_page(&snapshot,false);
-        if (!current || !current->product || !iw_product_back(current->product)) begin_request(IW_NAV_BACK,0,0,&snapshot);
+        if (!current || !current->product || !iw_product_back(current->product))
+            begin_request(IW_NAV_BACK, 0, 0, false, &snapshot);
     }
 
     /* 公开的单次推进不会主动打断播放中的动画；观察空闲也覆盖无动画和跳过分支。 */
@@ -867,11 +997,24 @@ bool iw_router_process(void)
             const iw_route_descriptor_t *to = iw_route_find(navigator.candidate.page_id);
             if (to && primary_overlay(to->page_id) && candidate && pending_overlay_source[0]) {
                 overlay_root_id = to->page_id;
+                overlay_root_page = candidate;
+                overlay_root_generation = candidate->scope.token.generation;
                 memcpy(overlay_source, pending_overlay_source, sizeof(overlay_source));
                 memcpy(overlay_root_name, candidate->sdk_name, sizeof(overlay_root_name));
             } else if (from && to && primary_overlay(from->page_id) &&
                        to->app_id != IW_APP_SYSTEM && overlay_root_id && overlay_root_name[0]) {
-                memcpy(overlay_cleanup, overlay_root_name, sizeof(overlay_cleanup));
+                /* 未完成事务不能被后续导航覆盖；名称只作 SDK 参数，身份另行绑定。 */
+                route_page_t *old = find_page(overlay_root_page);
+                if (!overlay_cleanup_page && old && !old->stopped &&
+                    old->scope.token.generation == overlay_root_generation &&
+                    !strcmp(old->sdk_name, overlay_root_name)) {
+                    overlay_cleanup_page = old;
+                    overlay_cleanup_generation = old->scope.token.generation;
+                    memcpy(overlay_cleanup, old->sdk_name, sizeof(overlay_cleanup));
+                    memcpy(overlay_cleanup_app, snapshot.app_id, sizeof(overlay_cleanup_app));
+                    overlay_cleanup_attempts = 0;
+                    overlay_cleanup_blocked = false;
+                }
             }
             if (from && to && (to->page_id == IW_PAGE_SWITCHER ||
                                (to->app_id != IW_APP_SYSTEM && from->app_id != to->app_id)))
@@ -880,21 +1023,25 @@ bool iw_router_process(void)
         print_stat(&snapshot);
         candidate = NULL;
         (void)iw_nav_settle(&navigator);
-        if (overlay_cleanup[0] && !snapshot.busy) {
-            gui_app_remove_page(overlay_cleanup);
-            overlay_cleanup[0] = '\0';
-        }
     } else if (navigator.state == IW_NAV_IDLE && !snapshot.busy) {
         navigator.current = observed_route(&snapshot, false);
         rolling_back = false;
     }
     if (recovery_blocked) home_target = NULL;
     home_process(&snapshot);
+    (void)gui_app_get_route_snapshot(&snapshot);
+    cleanup_process(&snapshot);
     /* SDK 动画由 LVGL 定时器推进；事务仍忙时必须让出绘制，不能等待自身停止的动画。 */
     return (home_target && !snapshot.busy) || (fault_unwind && !recovery_blocked && !snapshot.busy);
 }
 
-uint32_t iw_router_wait_ms(void) { return product_wait; }
+uint32_t iw_router_wait_ms(void)
+{
+    /* 等待下一次有限重试或 STOP 后安全回收，不占住 app_watch 循环。 */
+    if (overlay_cleanup_page && !overlay_cleanup_blocked && product_wait > OVERLAY_CLEANUP_RETRY_MS)
+        return OVERLAY_CLEANUP_RETRY_MS;
+    return product_wait;
+}
 
 static bool parse_argument(const char *text, uint32_t *value)
 {

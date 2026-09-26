@@ -1,6 +1,7 @@
 #include "iw_font.h"
 #include "iw_font_port.h"
 #include "iw_theme.h"
+#include "test_v00_fonts.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -69,6 +70,8 @@ static int registry_oom(size_t point, bool epic)
     if (epic) {
         assert(iw_font_acquire(IW_FONT_96,&ref) == IW_FONT_OK);
         assert(lv_font_get_glyph_dsc(ref.font,&glyph,0x601d,0));
+        /* EPIC 错误回调的首轮自检不计入本次字体分配失败点。 */
+        assert(test_epic_glyph(&glyph) == 0);
     }
     unsigned submitted = test_epic_submissions();
     size_t begin = test_font_allocation_sequence();
@@ -174,6 +177,48 @@ static int registry_lifecycle(size_t loops)
     return 0;
 }
 
+static int registry_v00(size_t loops)
+{
+    static const uint16_t weights[] = {300, 400, 500, 600};
+    static const uint16_t sizes[] = {20, 22, 23, 25, 26, 28, 30, 31, 35, 44, 49, 81};
+    size_t baseline_blocks = test_font_live_blocks();
+    size_t baseline_bytes = test_font_live_bytes();
+    assert(test_v00_fonts_load());
+    for (size_t cycle = 0; cycle < loops; ++cycle) {
+        iw_font_ref_t first = {0}, shared = {0}, other = {0};
+        uint16_t weight = weights[cycle % 4u];
+        uint16_t size_px = sizes[cycle % (sizeof(sizes) / sizeof(sizes[0]))];
+        assert(iw_font_acquire_v00(weight, size_px, &first) == IW_FONT_OK);
+        size_t allocations = test_font_allocation_sequence();
+        assert(iw_font_acquire_v00(weight, size_px, &shared) == IW_FONT_OK);
+        assert(first.font == shared.font && allocations == test_font_allocation_sequence());
+        assert(iw_font_acquire_v00(weights[(cycle + 1u) % 4u], size_px, &other) == IW_FONT_OK);
+        assert(other.font != first.font);
+        assert(!iw_font_v00_deinit());
+        assert(iw_font_release(&first) == IW_FONT_OK);
+        assert(iw_font_release(&shared) == IW_FONT_OK);
+        assert(iw_font_release(&other) == IW_FONT_OK);
+        assert(iw_font_collect());
+        assert(test_font_live_blocks() == baseline_blocks &&
+               test_font_live_bytes() == baseline_bytes);
+    }
+    iw_font_ref_t ref = {0};
+    assert(iw_font_acquire_v00(700, 26, &ref) == IW_FONT_INVALID);
+    assert(iw_font_acquire_v00(400, 0, &ref) == IW_FONT_INVALID);
+    test_owner = false;
+    assert(iw_font_acquire_v00(400, 26, &ref) == IW_FONT_WRONG_OWNER);
+    test_owner = true;
+    test_font_arm_failure(1);
+    assert(iw_font_acquire_v00(400, 26, &ref) == IW_FONT_CREATE_FAILED);
+    test_font_arm_failure(0);
+    assert(iw_font_fault_pending() && !ref.font);
+    assert(iw_font_ack_fault());
+    test_v00_fonts_release();
+    assert(iw_font_acquire_v00(400, 26, &ref) == IW_FONT_NOT_READY);
+    printf("stage=registry_v00 loops=%zu asserts=0 result=ok\n", loops);
+    return 0;
+}
+
 int test_font_service(const void *data, size_t size, const char *stage, size_t number)
 {
     assert(size <= UINT32_MAX);
@@ -184,5 +229,6 @@ int test_font_service(const void *data, size_t size, const char *stage, size_t n
     if (strcmp(stage,"registry_oom") == 0) return registry_oom(number,false);
     if (strcmp(stage,"registry_epic") == 0) return registry_oom(number,true);
     if (strcmp(stage,"registry") == 0) return registry_lifecycle(number);
+    if (strcmp(stage,"registry_v00") == 0) return registry_v00(number);
     return 67;
 }

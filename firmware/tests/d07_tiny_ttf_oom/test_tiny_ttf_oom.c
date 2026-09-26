@@ -1,4 +1,5 @@
 #include "lvgl.h"
+#include "iw_font.h"
 
 #include <stdint.h>
 #include <stdio.h>
@@ -286,6 +287,7 @@ static uint32_t test_utf8_next(const char * text, uint32_t * offset)
 
 int test_epic_glyph(lv_font_glyph_dsc_t *glyph);
 int test_epic_result(void);
+int test_epic_image_faults(void);
 unsigned test_epic_submissions(void);
 
 static int run_epic_oom(const uint8_t *data, size_t size, size_t failure_index)
@@ -295,6 +297,8 @@ static int run_epic_oom(const uint8_t *data, size_t size, size_t failure_index)
     lv_font_t *font = create_font(data, size, 96);
     lv_font_glyph_dsc_t glyph = {0};
     if(!font || !lv_font_get_glyph_dsc(font, &glyph, 0x601d, 0)) return 21;
+    /* 先跑一次独立的 EPIC 故障回调验证，再统计正常或 OOM 绘制提交。 */
+    if(test_epic_glyph(&glyph) != 0) return 22;
     size_t before_sequence = allocation_sequence;
     unsigned before_submissions = test_epic_submissions();
     arm_failure(failure_index);
@@ -414,6 +418,9 @@ static int run_draw_buf_compat(void)
 }
 
 int test_components(const void *data, size_t size, const char *stage, size_t number);
+#ifdef IW_TARGET_BUILD
+int test_target_view(const void *data, size_t size, const char *stage, size_t number);
+#endif
 
 int main(int argc, char ** argv)
 {
@@ -446,12 +453,21 @@ int main(int argc, char ** argv)
     else if(strcmp(argv[2], "metadata") == 0) result = run_metadata(font_data, font_size, (size_t)parsed);
     else if(strcmp(argv[2], "bitmap") == 0) result = run_bitmap(font_data, font_size, (size_t)parsed);
     else if(strcmp(argv[2], "epic") == 0) result = run_epic_oom(font_data, font_size, (size_t)parsed);
+    else if(strcmp(argv[2], "image") == 0) {
+        if(!iw_font_init(font_data, (uint32_t)font_size)) result = 68;
+        else result = test_epic_image_faults();
+        printf("stage=image asserts=%u result=%s\n", assert_count,
+               result == 0 ? "ok" : "failed");
+    }
     else if(strcmp(argv[2], "repeat") == 0) result = run_repeat(font_data, font_size, (size_t)parsed);
     else if(strcmp(argv[2], "evict") == 0) result = run_multi_font_evict(font_data, font_size, (size_t)parsed, false);
     else if(strcmp(argv[2], "pixels") == 0) result = run_multi_font_evict(font_data, font_size, (size_t)parsed, true);
     else if(strcmp(argv[2], "compat") == 0) result = run_draw_buf_compat();
     else if(strncmp(argv[2], "registry", 8) == 0) result = test_font_service(font_data, font_size, argv[2], (size_t)parsed);
     else if(strncmp(argv[2], "component", 9) == 0) result = test_components(font_data, font_size, argv[2], (size_t)parsed);
+#ifdef IW_TARGET_BUILD
+    else if(strncmp(argv[2], "target", 6) == 0) result = test_target_view(font_data, font_size, argv[2], (size_t)parsed);
+#endif
     else result = 67;
 
     lv_tiny_ttf_set_oom_cb(NULL, NULL);

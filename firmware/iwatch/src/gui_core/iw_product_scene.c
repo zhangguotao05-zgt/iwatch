@@ -1,4 +1,5 @@
 #include "iw_product_scene.h"
+#include "iw_v00_scene.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -720,34 +721,52 @@ typedef struct {
     uint16_t page_id;
     unsigned icon;
     iw_product_text_id_t text;
+    uint32_t accent;
 } iw_launcher_tile_t;
 
 static bool launcher_grid_tile(iw_product_scene_t *s, const iw_launcher_tile_t *tile,
-                               int x, int y)
+                               int cx, int cy, int radius, bool focused)
 {
-    return add(s, x, y, 72, 84, 0, 0, IW_PRODUCT_WHITE, IW_PRODUCT_SURFACE, 24, 1,
-               tile->page_id, false, false, "") &&
-           icon(s, x + 18, y + 8, 36, tile->icon, IW_PRODUCT_WHITE, false) &&
-           label(s, x + 4, y + 70, 64, 18, IW_PRODUCT_WHITE, 1, false,
-                 iw_product_texts[tile->text]);
+    int x = cx - radius;
+    int y = cy - radius;
+    int size = radius * 2;
+    /* 蜂窝图标使用固定圆形命中区；缩放只改变绘制尺寸，不改变路由对象所有权。 */
+    if (!add(s, x, y, size, size, 0, 0, IW_PRODUCT_WHITE, tile->accent,
+             (unsigned)radius, 0, tile->page_id, false, false, "") ||
+        !icon(s, cx - (focused ? 24 : 20), cy - (focused ? 24 : 20),
+              focused ? 48 : 40, tile->icon, IW_PRODUCT_WHITE, false))
+        return false;
+    if (focused) {
+        int label_y = cy + radius + 28;
+        if (label_y > 428) label_y = 428;
+        return label(s, cx - 80, label_y, 160, 22, IW_PRODUCT_WHITE, 1, false,
+                     iw_product_texts[tile->text]);
+    }
+    return true;
 }
 
 static bool launcher_grid(iw_product_scene_t *s, const iw_product_model_t *m)
 {
     static const iw_launcher_tile_t tiles[] = {
-        {IW_PAGE_SETTINGS, IW_ICON_SETTINGS, IW_TEXT_SETTINGS},
-        {IW_PAGE_TIMER_LIST, IW_ICON_TIMER, IW_TEXT_TIMER},
-        {IW_PAGE_STOPWATCH, IW_ICON_STOPWATCH, IW_TEXT_STOPWATCH},
-        {IW_PAGE_ALARM_LIST, IW_ICON_ALARM, IW_TEXT_ALARM}
+        {IW_PAGE_SETTINGS, IW_ICON_SETTINGS, IW_TEXT_SETTINGS, 0x3478f6u},
+        {IW_PAGE_TIMER_LIST, IW_ICON_TIMER, IW_TEXT_TIMER, 0xff9f0au},
+        {IW_PAGE_STOPWATCH, IW_ICON_STOPWATCH, IW_TEXT_STOPWATCH, 0x30d158u},
+        {IW_PAGE_ALARM_LIST, IW_ICON_ALARM, IW_TEXT_ALARM, 0xbf5af2u}
     };
-    static const int positions[][2] = {{159, 124}, {79, 218}, {239, 218}, {159, 312}};
+    static const int centers[][2] = {{195, 160}, {115, 260}, {275, 260}, {195, 354}};
+    unsigned focus = m->launcher_focus < sizeof(tiles) / sizeof(tiles[0]) ? m->launcher_focus : 0u;
+    unsigned zoom = m->launcher_zoom > 2u ? 2u : m->launcher_zoom;
     if (!header(s, m, TEXT(APPS)) ||
         !add(s, 342, 18, 40, 40, 0, 0, IW_PRODUCT_WHITE, 0, 0, 0,
              0, true, false, "") ||
         !icon(s, 346, 22, 32, IW_ICON_GRID, IW_PRODUCT_WHITE, true)) return false;
-    /* 当前只展示已有真实页面；RESERVED/LEGACY 路由不会伪装成可用 App。 */
-    for (unsigned i = 0; i < sizeof(tiles) / sizeof(tiles[0]); i++)
-        if (!launcher_grid_tile(s, &tiles[i], positions[i][0], positions[i][1])) return false;
+    /* 平移范围由控制器钳位，避免放大后圆形命中区越过屏幕边界。 */
+    for (unsigned i = 0; i < sizeof(tiles) / sizeof(tiles[0]); i++) {
+        int radius = (i == focus ? 42 : 34) + (int)zoom * (i == focus ? 6 : 5);
+        int cx = centers[i][0] + m->launcher_pan_x;
+        int cy = centers[i][1] + m->launcher_pan_y;
+        if (!launcher_grid_tile(s, &tiles[i], cx, cy, radius, i == focus)) return false;
+    }
     return true;
 }
 
@@ -819,9 +838,30 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
     unsigned body = m->large_text ? 30u : 26u;
     char value[48];
     switch (id) {
+#ifdef IW_V00_HOST_PREVIEW
+    case IW_V00_GRID:
+    case IW_V00_FACE:
+    case IW_V00_TIMER:
+    case IW_V00_ALARM:
+    case IW_V00_DISPLAY:
+    case IW_V00_CONTROL:
+    case IW_V00_CONTROL_RUNTIME:
+    case IW_V00_GRID_RUNTIME:
+    case IW_V00_FACE_RUNTIME:
+    case IW_V00_TIMER_RUNTIME:
+    case IW_V00_ALARM_RUNTIME:
+    case IW_V00_DISPLAY_RUNTIME:
+        /* V00 只走主机预览，不进入现有产品路由。 */
+        return iw_v00_scene_build(s, id, m);
+#endif
     case IW_PAGE_CONTROL_CENTER:
+#ifdef IW_TARGET_BUILD
+        /* 六页沿用同一 V00 组件，控制中心仍保留已批准的绘制路径。 */
+        return iw_v00_scene_build(s, id, m);
+#else
         ok = control_center(s, m);
         break;
+#endif
     case IW_PAGE_NOTIFICATION_LIST:
         ok = notification_list(s, m);
         break;
@@ -835,13 +875,21 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
         ok = app_switcher(s, m);
         break;
     case IW_PAGE_LAUNCHER_GRID:
+#if defined(IW_TARGET_BUILD) || defined(IW_V00_HOST_PREVIEW)
+        return iw_v00_scene_build(s, id, m);
+#else
         ok = launcher_grid(s, m);
         break;
+#endif
     case IW_PAGE_LOCK:
     case IW_PAGE_WATER_LOCK:
         ok = lock_page(s, m);
         break;
     case IW_PAGE_FACE:
+#ifdef IW_TARGET_BUILD
+        if (m->face_session.active_face_id == IW_FACE_MODULAR_LOCAL)
+            return iw_v00_scene_build(s, id, m);
+#endif
         ok = face(s, m);
         break;
     case IW_PAGE_FACE_PICKER:
@@ -903,6 +951,9 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
         }
         break;
     case IW_PAGE_DISPLAY:
+#ifdef IW_TARGET_BUILD
+        return iw_v00_scene_build(s, id, m);
+#else
         ok = header(s, m, TEXT(DISPLAY)) &&
              label(s, 34, 127, 320, 20, IW_PRODUCT_SECONDARY, 0, false, TEXT(APPEARANCE)) &&
              brightness_control(s, m, 144) &&
@@ -912,6 +963,7 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
              label(s, 286, 366, 86, 20, IW_PRODUCT_DISABLED, 2, false, TEXT(NOT_CONNECTED)) &&
              label(s, 34, 426, 320, 20, IW_PRODUCT_SECONDARY, 1, false, TEXT(SESSION_ONLY));
         break;
+#endif
     case IW_PAGE_BRIGHTNESS:
         if (m->brightness.flags & IW_BRIGHTNESS_FLAG_APPLIED_VALID || m->preview_level || m->pending)
             (void)snprintf(value, sizeof(value), "%u%%",
@@ -936,8 +988,12 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
         ok = time_page(s, m);
         break;
     case IW_PAGE_TIMER_LIST:
+#ifdef IW_TARGET_BUILD
+        return iw_v00_scene_build(s, id, m);
+#else
         ok = timer_list(s, m);
         break;
+#endif
     case IW_PAGE_TIMER_DETAIL:
         ok = timer_detail(s, m);
         break;
@@ -948,8 +1004,12 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
         ok = alarm_list(s, m);
         break;
     case IW_PAGE_ALARM_EDIT:
+#ifdef IW_TARGET_BUILD
+        return iw_v00_scene_build(s, id, m);
+#else
         ok = alarm_edit(s, m);
         break;
+#endif
     case IW_PAGE_ALERT_TIMER:
     case IW_PAGE_ALERT_ALARM:
         ok = alert_page(s, m, id == IW_PAGE_ALERT_TIMER);
@@ -1024,6 +1084,18 @@ int iw_product_scene_hit(const iw_product_scene_t *s, int x, int y, int scroll_y
         const iw_product_node_t *n = &s->nodes[i];
         if (!n->action || n->disabled || (!n->fixed && (y < s->clip_top || y >= s->clip_bottom))) continue;
         int ny = n->y - (n->fixed ? 0 : scroll_y);
+        if (((s->page_id == IW_PAGE_LAUNCHER_GRID || s->page_id == IW_V00_GRID) &&
+             n->action >= IW_PAGE_SETTINGS && n->action <= IW_PAGE_ALARM_LIST) ||
+            ((s->page_id == IW_V00_TIMER || s->page_id == IW_PAGE_TIMER_LIST ||
+              s->page_id == IW_PAGE_FACE) && n->width == n->height &&
+             n->radius >= n->width / 2)) {
+            int cx = n->x + n->width / 2;
+            int cy = ny + n->height / 2;
+            int dx = x - cx;
+            int dy = y - cy;
+            int radius = n->width / 2;
+            if (dx * dx + dy * dy > radius * radius) continue;
+        }
         if (x >= n->x && x < n->x + n->width && y >= ny && y < ny + n->height) return i;
     }
     return -1;

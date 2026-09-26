@@ -177,6 +177,8 @@ int test_component_gallery(size_t loops)
             assert(iw_font_acquire(IW_FONT_18, &ref) == IW_FONT_OK);
             if ((loop / 32) & 1u) {
                 assert(lv_font_get_glyph_dsc(ref.font, &glyph, 0x601d, 0));
+                /* EPIC 错误回调自检先完成，再注入本轮字形缓存失败。 */
+                assert(!test_epic_glyph(&glyph));
                 unsigned submitted = test_epic_submissions();
                 test_font_arm_failure(1);
                 assert(!test_epic_glyph(&glyph) && test_epic_submissions() == submitted);

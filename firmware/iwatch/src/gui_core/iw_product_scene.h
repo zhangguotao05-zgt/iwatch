@@ -21,7 +21,18 @@ enum {
     IW_ICON_TIMER,
     IW_ICON_STOPWATCH,
     IW_ICON_ALARM,
-    IW_ICON_GRID
+    IW_ICON_GRID,
+    IW_ICON_V00_CLOSE,
+    IW_ICON_V00_CHECK,
+    IW_ICON_V00_MUSIC,
+    IW_ICON_V00_DIAL,
+    IW_ICON_V00_WIFI,
+    IW_ICON_V00_AIRPLANE,
+    IW_ICON_V00_MOON,
+    IW_ICON_V00_DISPLAY_NEXT,
+    IW_ICON_V00_APP_FIRST = 64,
+    IW_ICON_V00_APP_COUNT = 17,
+    IW_ICON_V00_ASSET_COUNT = 38
 };
 enum {
     IW_ACTION_BACK = 0x1000,
@@ -41,6 +52,8 @@ enum {
     IW_ACTION_TIMER_PRESET_3M,
     IW_ACTION_TIMER_PRESET_5M,
     IW_ACTION_TIMER_PRESET_10M,
+    IW_ACTION_TIMER_PRESET_15M,
+    IW_ACTION_TIMER_PRESET_30M,
     IW_ACTION_TIMER_OPEN_BASE = 0x1120,
     IW_ACTION_TIMER_PAUSE = 0x1140,
     IW_ACTION_TIMER_RESUME,
@@ -55,6 +68,7 @@ enum {
     IW_ACTION_ALARM_HOUR_PLUS,
     IW_ACTION_ALARM_MINUTE_MINUS,
     IW_ACTION_ALARM_MINUTE_PLUS,
+    IW_ACTION_ALARM_WHEEL,
     IW_ACTION_ALARM_WEEKDAY_BASE = 0x11d0,
     IW_ACTION_ALARM_ENABLE = 0x11e0,
     IW_ACTION_ALARM_SAVE,
@@ -80,7 +94,10 @@ enum {
     IW_ACTION_FACE_RIGHT,
     IW_ACTION_FACE_CANCEL,
     IW_ACTION_FACE_APPLY,
-    IW_ACTION_LAUNCHER_GRID
+    IW_ACTION_LAUNCHER_GRID,
+    IW_ACTION_LAUNCHER_PAN,
+    IW_ACTION_LAUNCHER_ZOOM,
+    IW_ACTION_LAUNCHER_ZOOM_DRAG
 };
 enum {
     IW_FACE_SCHEMA = 1,
@@ -128,8 +145,26 @@ typedef struct {
     uint32_t color, fill;
     char text[IW_PRODUCT_TEXT_BYTES];
 } iw_product_node_t;
+#if defined(IW_V00_HOST_PREVIEW) || defined(IW_TARGET_BUILD)
+typedef struct {
+    uint32_t end_color;
+    int16_t image_rotation;
+    uint16_t clip_bottom;
+    uint8_t opacity;
+    int8_t letter_space;
+    uint16_t font_weight;
+    uint8_t fallback_size_px;
+    bool gradient;
+    uint8_t paint;
+} iw_v00_material_t;
+#endif
 typedef struct {
     iw_product_node_t nodes[IW_PRODUCT_NODES];
+#if defined(IW_V00_HOST_PREVIEW) || defined(IW_TARGET_BUILD)
+    /* V00 材质与节点同序；正式固件与主机预览使用相同描述。 */
+    iw_v00_material_t v00_materials[IW_PRODUCT_NODES];
+    bool v00_style;
+#endif
     uint16_t page_id, count, content_height, clip_top, clip_bottom;
     iw_time_field_t picker_field;
     int32_t picker_value;
@@ -165,6 +200,9 @@ typedef struct {
     const char *hardware, *firmware, *toolchain;
     iw_product_text_id_t message;
     uint8_t preview_level;
+    int8_t launcher_pan_x, launcher_pan_y;
+    int8_t launcher_zoom;
+    uint8_t launcher_focus;
     iw_theme_quality_t quality;
     bool back, large_text, pending, display_available, time_available, reduced_motion;
     bool lock_water, lock_available;

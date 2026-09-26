@@ -375,6 +375,45 @@ int test_product_router(lv_display_t *display,size_t loops)
     memcpy(stack[0].name,"root",5); depth=1; active_app="iwlist";
     iw_router_init(); notify_page(0,GUI_APP_MSG_ONSTART); notify_page(0,GUI_APP_MSG_ONRESUME); process();
     for (size_t i=0;i<loops;i++) {
+        if (i == 0u) {
+            const uint16_t locks[] = {IW_PAGE_LOCK, IW_PAGE_WATER_LOCK};
+            const iw_alert_source_t sources[] = {IW_ALERT_SOURCE_TIMER,
+                                                 IW_ALERT_SOURCE_ALARM};
+            lv_tick_get_cb_t previous_tick_get = lv_tick_get_cb();
+            test_tick_ms = 1000u;
+            lv_tick_set_cb(test_tick_get);
+            for (unsigned lock = 0; lock < 2u; lock++) {
+                for (unsigned alert = 0; alert < 2u; alert++) {
+                    iw_input_context_t expected = lock ? IW_INPUT_WATER : IW_INPUT_LOCKED;
+                    uint32_t alert_id = 100u + lock * 2u + alert;
+                    assert(iw_router_open(IW_PAGE_CONTROL_CENTER)); process();
+                    assert(iw_router_open(locks[lock])); process();
+                    assert(depth == 3 && router_test_input_context == expected);
+                    assert(iw_alerts_note(&service.alerts, sources[alert], alert_id,
+                                          1u, 1u, 1u) == IW_ALERT_OK);
+                    assert(iw_alerts_present(&service.alerts, sources[alert],
+                                             alert_id, 1u) == IW_ALERT_OK);
+                    test_tick_ms += 1000u;
+                    process();
+                    assert(depth == 4 && iw_router_alert_visible());
+                    assert(router_test_input_context == expected);
+                    assert(iw_keys_intent((iw_key_signal_t){IW_KEY_SIDE, IW_KEY_SINGLE},
+                                          router_test_input_context) == IW_INTENT_NONE);
+                    assert(iw_keys_intent((iw_key_signal_t){IW_KEY_CROWN, IW_KEY_UNLOCK},
+                                          router_test_input_context) == IW_INTENT_UNLOCK);
+                    assert(iw_router_unlock()); process();
+                    assert(depth == 1 && router_test_input_context == IW_INPUT_NORMAL);
+                    assert(!overlay_root_id && !iw_router_alert_visible());
+                    iw_alert_snapshot_t remaining;
+                    assert(iw_service_alerts_read(&service, &remaining));
+                    assert(remaining.count == 1u &&
+                           remaining.records[0].state == IW_ALERT_PRESENTING);
+                    assert(iw_alerts_ack(&service.alerts, sources[alert],
+                                         alert_id, 1u) == IW_ALERT_OK);
+                }
+            }
+            lv_tick_set_cb(previous_tick_get);
+        }
         char *profile_args[] = {"iw_nav", "profile", "1", "1", "1"};
         iw_nav(5, profile_args); process();
         assert(iw_router_open(IW_PAGE_SETTINGS)); process(); assert(depth==2);
@@ -556,17 +595,33 @@ int test_product_router(lv_display_t *display,size_t loops)
         assert(p && p->product && p->product->view.surface && !p->failed && p->scope.visible);
         assert(iw_font_collect());
     }
+    /* 新开控制中心回顶部；声明为位置恢复的业务页仍使用历史偏移。 */
+    assert(iw_router_open(IW_PAGE_DISPLAY)); process(); assert(depth == 2);
+    route_page_t *positioned = find_page(stack[1].data);
+    assert(positioned && positioned->product);
+    positioned->product->view.scroll_y = 10;
+    assert(iw_router_open(IW_PAGE_BRIGHTNESS)); process(); assert(depth == 3);
+    assert(iw_router_home()); process(); assert(depth == 1);
+    assert(iw_router_open(IW_PAGE_DISPLAY)); process(); assert(depth == 2);
+    positioned = find_page(stack[1].data);
+    assert(positioned && positioned->product && positioned->product->view.scroll_y == 10);
+    assert(iw_router_home()); process(); assert(depth == 1);
     /* 覆盖层的 Home 回原来源；业务跳转确认后删除覆盖页，再按正常栈返回。 */
     assert(iw_router_open(IW_PAGE_SETTINGS)); process(); assert(depth == 2);
     assert(iw_router_open(IW_PAGE_CONTROL_CENTER)); process(); assert(depth == 3);
     assert(overlay_root_id == IW_PAGE_CONTROL_CENTER && iw_router_overlay_visible());
+    route_page_t *control = find_page(stack[2].data);
+    assert(control && control->product);
+    control->product->view.scroll_y = 137;
     assert(iw_router_home()); process(); assert(depth == 2);
     assert(!overlay_root_id && !iw_router_overlay_visible());
     assert(iw_router_open(IW_PAGE_CONTROL_CENTER)); process(); assert(depth == 3);
+    control = find_page(stack[2].data);
+    assert(control && control->product && control->product->view.scroll_y == 0);
     reject_page = true;
     assert(iw_router_open(IW_PAGE_DISPLAY)); process();
     assert(depth == 3 && overlay_root_id == IW_PAGE_CONTROL_CENTER);
-    route_page_t *control = find_page(stack[2].data);
+    control = find_page(stack[2].data);
     assert(control && control->product && control->product->model.message == IW_TEXT_OPERATION_FAILED);
     assert(iw_router_open(IW_PAGE_DISPLAY)); process(); process();
     assert(depth == 3 && !overlay_root_id);

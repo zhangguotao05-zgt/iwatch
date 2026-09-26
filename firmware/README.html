@@ -29,6 +29,7 @@
     <main>
 <section id="iwatch-sf32lb58-固件" class="level1">
 <h1>iwatch SF32LB58 固件</h1>
+<p>V00 当前使用 <a href="../docs/ui/V00_GCC开发基线与资源接入.html">GCC-only 开发基线与本地受控资源入口</a>；以下双工具链和设备状态为历史阶段记录，不作为 V00 新提交的验收结论。</p>
 <p>这里保存本项目可修改、可提交的固件源码。基线来自 SiFli-SDK v2.5.1 的 <code>example/multimedia/lvgl/watch_v9</code>。当前验证平台为 <strong>SF32LB58-DevKit-LCD、A128R32N1、QSPI 屏接口、A1 修订</strong>，CO5300 + FT6146 模组已点亮。DEV_A128_NAND 的 D01–D06 已完成主机、双工具链和开发板验收；D06 的 GCC 三件套已写入并校验，真实亮度、会话复位和输入压力通过。证据见 <a href="../docs/ui/D01-D03_实施记录.html">D01–D03</a>、<a href="../docs/ui/D04-D05_实施记录.html">D04–D05</a> 与 <a href="../docs/ui/D06_显示目标与会话亮度实施记录.html">D06 实施记录</a>。</p>
 <p>D07 已按 9088f52 审批收口，性能遗留跟踪 Issue #8。当前 <a href="../docs/ui/D08_页面作用域与路由实施记录.html">D08 路由实施</a>已按“接受已知风险”收口，验收基线 5c51f54、固件源码 82ab706。基础实现及已验证功能通过，负责人同意继续 D09；半黑半白转入 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/10">#10</a>，未定位、后续未复现，性能遗留继续跟踪 #8。首次异常、采集缺口及原始证据保留；此决定不代表显示异常已修复或产品发布验收通过。此次收口未改固件、未重新烧录。</p>
 <p><a href="../docs/ui/D09_双键语义与输入仲裁实施记录.html">D09 双键与输入仲裁</a>已获架构审批通过，审批基线 042ba6f、固件源码 05fb667，Issue #11 按 completed 收口。Home 动画与水锁穿透已修正，主机、双工具链和当前镜像实体操作分别归档；原始串口 118,780 B。性能 #8、显示异常 #10 保留，允许进入 D10；本次收口不重新烧录。</p>

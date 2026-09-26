@@ -1,10 +1,15 @@
 #include "iw_product_view.h"
+#include "iw_v00_scene.h"
+#include "iw_v00_paint.h"
+#include "test_v00_assets.h"
+#include "test_v00_fonts.h"
 #include "iw_gui_owner.h"
 #include "iw_render_probe.h"
 #include "src/draw/lv_draw_private.h"
 #include "src/draw/sw/lv_draw_sw.h"
 #include "src/draw/sw/lv_draw_sw_mask_private.h"
 #include "src/core/lv_refr_private.h"
+#include "src/misc/lv_text_private.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -29,6 +34,8 @@ static lv_indev_state_t pointer_state;
 static unsigned pointer_actions, pointer_finals;
 static uint16_t pointer_action;
 static int32_t pointer_value;
+static uint32_t pointer_tick_ms;
+static uint32_t pointer_tick_get(void) { return pointer_tick_ms; }
 static void read_pointer(lv_indev_t *input, lv_indev_data_t *data) {
     (void)input;
     data->point = pointer_point;
@@ -139,8 +146,8 @@ static void input_cases(lv_display_t *display, iw_product_view_t *view, iw_produ
         if (strcmp(node->text, wide)) continue;
         lv_point_t measured;
         const lv_font_t *font = NULL;
-        for (unsigned f = 0; f < 5; f++)
-            if (view->fonts[f].font && node->font_px == (unsigned[]){20, 22, 26, 30, 80}[f]) font = view->fonts[f].font;
+        for (unsigned f = 0; f < 7; f++)
+            if (view->fonts[f].font && node->font_px == (unsigned[]){20, 22, 24, 26, 30, 64, 80}[f]) font = view->fonts[f].font;
         assert(font);
         lv_text_get_size(&measured, wide, font, 0, 0, node->width, LV_TEXT_FLAG_NONE);
         assert(node->height == measured.y + 12 && node->height > 150);
@@ -171,14 +178,110 @@ static void input_cases(lv_display_t *display, iw_product_view_t *view, iw_produ
     assert(iw_product_view_destroy(view));
 
     /* 蜂窝桌面只把真实 READY 页面做成可点击磁贴，首项命中设置页。 */
+    assert(test_v00_assets_load());
+    assert(iw_product_view_set_v00_images(view, test_v00_assets_images(),
+                                          IW_ICON_V00_ASSET_COUNT));
     assert(iw_product_view_create(view, lv_screen_active(), IW_PAGE_LAUNCHER_GRID, m,
                                   pointer_action_cb, NULL, NULL));
     lv_obj_update_layout(view->surface);
     pointer_actions = pointer_finals = 0;
-    touch(input, 195, 160, true);
-    touch(input, 195, 160, false);
+    touch(input, 340, 140, true);
+    touch(input, 340, 140, false);
     assert(pointer_actions == 1 && pointer_finals == 1 && pointer_action == IW_PAGE_SETTINGS);
+    /* 蜂窝磁贴是圆形命中区，角落不能误触发；拖动和空白区双击分别平移和缩放。 */
+    assert(view->cellular_icons[6] && view->cellular_bounds[6].action == IW_PAGE_SETTINGS);
+    pointer_actions = pointer_finals = 0;
+    touch(input, view->cellular_bounds[6].x + 2, view->cellular_bounds[6].y + 2, true);
+    touch(input, view->cellular_bounds[6].x + 2, view->cellular_bounds[6].y + 2, false);
+    assert(pointer_actions == 0);
+    touch(input, 30, 120, true);
+    touch(input, 50, 134, true);
+    assert(pointer_actions == 1 && pointer_finals == 0 &&
+           pointer_action == IW_ACTION_LAUNCHER_PAN &&
+           pointer_value == (int32_t)((20u << 16) | 14u));
+    touch(input, 68, 146, true);
+    assert(pointer_actions == 2 && pointer_finals == 0 &&
+           pointer_value == (int32_t)((18u << 16) | 12u));
+    touch(input, 68, 146, false);
+    assert(pointer_actions == 2 && pointer_finals == 0);
+    /* 快速松手也提交最后一段位移；输入取消不得再次提交。 */
+    pointer_actions = pointer_finals = 0;
+    touch(input, 30, 120, true);
+    touch(input, 68, 146, false);
+    assert(pointer_actions == 1 && pointer_finals == 1 &&
+           pointer_action == IW_ACTION_LAUNCHER_PAN);
+    pointer_actions = pointer_finals = 0;
+    touch(input, 30, 120, true);
+    touch(input, 50, 134, true);
+    assert(pointer_actions == 1 && pointer_finals == 0);
+    lv_indev_reset(input, NULL);
+    assert(lv_obj_send_event(view->surface, LV_EVENT_INDEV_RESET, NULL) == LV_RESULT_OK);
+    touch(input, 68, 146, false);
+    assert(pointer_actions == 1 && pointer_finals == 0);
+    pointer_actions = pointer_finals = 0;
+    touch(input, 5, 445, true);
+    touch(input, 5, 445, false);
+    touch(input, 5, 445, true);
+    touch(input, 5, 445, false);
+    assert(pointer_actions == 1 && pointer_finals == 1 && pointer_action == IW_ACTION_LAUNCHER_ZOOM);
+    /* 输入取消必须清除待定双击；tick 为 0 时首个双击也必须有效。 */
+    pointer_actions = pointer_finals = 0;
+    touch(input, 5, 445, true);
+    touch(input, 5, 445, false);
+    assert(view->last_tap_valid);
+    lv_indev_reset(input, NULL);
+    assert(lv_obj_send_event(view->surface, LV_EVENT_INDEV_RESET, NULL) == LV_RESULT_OK);
+    assert(!view->last_tap_valid);
+    touch(input, 5, 445, true);
+    touch(input, 5, 445, false);
+    assert(pointer_actions == 0);
+    lv_indev_reset(input, NULL);
+    assert(lv_obj_send_event(view->surface, LV_EVENT_INDEV_RESET, NULL) == LV_RESULT_OK);
+    lv_tick_get_cb_t previous_tick_get = lv_tick_get_cb();
+    pointer_tick_ms = 0;
+    lv_tick_set_cb(pointer_tick_get);
+    touch(input, 5, 445, true);
+    touch(input, 5, 445, false);
+    pointer_tick_ms = 100;
+    touch(input, 5, 445, true);
+    touch(input, 5, 445, false);
+    assert(pointer_actions == 1 && pointer_finals == 1 && pointer_action == IW_ACTION_LAUNCHER_ZOOM);
+    pointer_actions = pointer_finals = 0;
+    pointer_tick_ms = 200;
+    touch(input, 5, 445, true);
+    touch(input, 5, 445, false);
+    pointer_tick_ms = 250;
+    touch(input, 5, 445, true);
+    touch(input, 5, 415, true);
+    touch(input, 5, 390, true);
+    touch(input, 5, 390, false);
+    assert(pointer_actions >= 2 && pointer_finals == 0 &&
+           pointer_action == IW_ACTION_LAUNCHER_ZOOM_DRAG && pointer_value > 0);
+    lv_tick_set_cb(previous_tick_get);
     assert(iw_product_view_destroy(view));
+
+    m->alarm_edit.hour = 6u;
+    m->alarm_edit.minute = 45u;
+    assert(test_v00_fonts_load());
+    assert(iw_product_view_set_v00_images(view, test_v00_assets_images(),
+                                          IW_ICON_V00_ASSET_COUNT));
+    assert(iw_product_view_create(view, lv_screen_active(), IW_V00_ALARM_RUNTIME,
+                                  m, pointer_action_cb, NULL, NULL));
+    lv_obj_update_layout(view->surface);
+    pointer_actions = pointer_finals = 0;
+    touch(input, 250, 230, true);
+    touch(input, 250, 202, true);
+    touch(input, 250, 174, true);
+    touch(input, 250, 174, false);
+    assert(pointer_actions >= 2 && pointer_finals == 0 &&
+           pointer_action == IW_ACTION_ALARM_WHEEL &&
+           ((uint32_t)pointer_value >> 16) == 1u &&
+           (int16_t)(uint16_t)pointer_value > 0);
+    assert(iw_product_view_destroy(view));
+    assert(iw_product_view_set_v00_images(view, NULL, 0u));
+    test_v00_assets_release();
+    assert(iw_font_collect());
+    test_v00_fonts_release();
 
     /* 表盘长按只打开选择器一次，松手不能再误触发卡片。 */
     m->face_session = (iw_face_session_t){
@@ -286,6 +389,402 @@ static iw_product_model_t fixture(void) {
     m.face_draft = (iw_face_draft_t){.value = m.face_session, .expected_revision = 1u, .valid = true};
     assert(iw_time_draft_begin(&m.draft, &m.clock));
     return m;
+}
+
+typedef struct {
+    uint8_t index;
+    int16_t x, y, width, height;
+} v00_expected_asset_t;
+
+static void v00_assert_assets(const iw_product_scene_t *scene,
+                              const v00_expected_asset_t *expected, unsigned count)
+{
+    for (unsigned i = 0; i < count; i++) {
+        const v00_expected_asset_t *item = &expected[i];
+        bool found = false;
+        for (unsigned j = 0; j < scene->count; j++) {
+            const iw_product_node_t *node = &scene->nodes[j];
+            if (node->icon == IW_ICON_V00_APP_FIRST + item->index &&
+                node->x == item->x && node->y == item->y &&
+                node->width == item->width && node->height == item->height) {
+                found = true;
+                break;
+            }
+        }
+        assert(found);
+        assert((int)test_v00_assets_images()[item->index]->header.w == item->width);
+        assert((int)test_v00_assets_images()[item->index]->header.h == item->height);
+    }
+}
+
+static bool has_text(const iw_product_scene_t *scene, const char *text);
+
+static void v00_render_case(lv_display_t *display, iw_product_view_t *view,
+                            iw_product_model_t *model, size_t number)
+{
+    size_t heap_before = test_font_live_bytes();
+    static const uint16_t pages[] = {
+        IW_V00_GRID, IW_V00_FACE, IW_V00_TIMER,
+        IW_V00_ALARM, IW_V00_DISPLAY, IW_V00_CONTROL,
+        IW_V00_CONTROL_RUNTIME,
+        IW_V00_GRID_RUNTIME, IW_V00_FACE_RUNTIME,
+        IW_V00_TIMER_RUNTIME, IW_V00_ALARM_RUNTIME,
+        IW_V00_DISPLAY_RUNTIME
+    };
+    static const uint16_t routes[] = {
+        IW_PAGE_LAUNCHER_GRID, IW_PAGE_FACE, IW_PAGE_TIMER_LIST,
+        IW_PAGE_ALARM_EDIT, IW_PAGE_DISPLAY, IW_PAGE_CONTROL_CENTER
+    };
+    assert(number < sizeof(pages) / sizeof(pages[0]));
+    for (unsigned i = 0; i < IW_V00_COUNT; i++)
+        assert(iw_v00_route_for_sample(pages[i]) == routes[i]);
+    assert(iw_v00_route_for_sample(IW_V00_CONTROL + 1) == 0);
+    model->clock.utc_ms = INT64_C(1743473340000);
+    model->alarm_edit.hour = 6u;
+    model->alarm_edit.minute = 45u;
+    model->face_session.active_face_id = IW_FACE_MODULAR_LOCAL;
+    model->preview_level = number == 4u ? 65u : 80u;
+    if (number == 6u) {
+        model->display_available = true;
+        model->lock_available = true;
+        model->brightness.desired = 80u;
+    }
+    assert(!iw_product_view_create(view, lv_screen_active(), pages[number],
+                                   model, NULL, NULL, NULL));
+    assert(!view->surface && !view->frame.object);
+    assert(test_v00_assets_load());
+    assert(!iw_product_view_set_v00_images(view,
+        test_v00_assets_images(), IW_ICON_V00_ASSET_COUNT - 1u));
+    assert(iw_product_view_set_v00_images(view,
+        test_v00_assets_images(), IW_ICON_V00_ASSET_COUNT));
+    assert(iw_product_view_create(view, lv_screen_active(), pages[number], model,
+                                  pointer_action_cb, NULL, NULL));
+    assert(view->scene.count > 0 && view->scene.count <= IW_PRODUCT_NODES);
+    for (unsigned i = 0; i < view->scene.count; i++) {
+        const iw_product_node_t *node = &view->scene.nodes[i];
+        assert(node->x >= 0 && node->width > 0 && node->x + node->width <= 390);
+        assert(node->y >= 0 && node->height > 0);
+        if (node->text[0]) {
+            const iw_v00_material_t *style = &view->scene.v00_materials[i];
+            const lv_font_t *font = NULL;
+            if (style->fallback_size_px) {
+                for (unsigned j = 0; j < sizeof(view->fonts) / sizeof(view->fonts[0]); ++j)
+                    if (view->fonts[j].font &&
+                        iw_font_spec(view->fonts[j].id)->size_px == style->fallback_size_px)
+                        font = view->fonts[j].font;
+            } else {
+                for (unsigned j = 0; j < view->v00_font_count; ++j)
+                    if (view->v00_weights[j] == style->font_weight &&
+                        view->v00_sizes[j] == node->font_px)
+                        font = view->v00_fonts[j].font;
+            }
+            assert(font);
+            uint32_t offset = 0;
+            while (node->text[offset]) {
+                uint32_t codepoint = lv_text_encoded_next(node->text, &offset);
+                lv_font_glyph_dsc_t glyph = {0};
+                if (!lv_font_get_glyph_dsc(font, &glyph, codepoint, 0)) {
+                    fprintf(stderr, "V00 missing glyph page=%zu U+%04lX text=%s\n",
+                            number, (unsigned long)codepoint, node->text);
+                    assert(false);
+                }
+            }
+        }
+    }
+    if (number == 10u) {
+        bool repeat_fallback = false;
+        for (unsigned i = 0; i < view->scene.count; ++i)
+            if (!strcmp(view->scene.nodes[i].text, "重复") &&
+                view->scene.v00_materials[i].fallback_size_px)
+                repeat_fallback = true;
+        assert(repeat_fallback);
+    }
+    static const struct {
+        unsigned page;
+        const char *text;
+        uint8_t size_px;
+        uint16_t weight;
+        int8_t tracking_px;
+    } approved_fonts[] = {
+        {1, "10:09", 81, 400, -4}, {1, "周二", 30, 600, 0},
+        {2, "计时器", 26, 500, 0}, {2, "所有计时器", 25, 600, 0},
+        {2, "1", 49, 600, 0}, {2, "自定义", 26, 500, 0},
+        {3, "06", 44, 400, 0}, {3, ":", 35, 300, 0},
+        {4, "文字大小", 26, 400, 0}, {4, "未接入", 20, 400, 0},
+        {5, "96%", 31, 500, 0}
+    };
+    for (unsigned i = 0; i < sizeof(approved_fonts) / sizeof(approved_fonts[0]); ++i) {
+        if (approved_fonts[i].page != number) continue;
+        bool found = false;
+        for (unsigned j = 0; j < view->scene.count; ++j) {
+            const iw_product_node_t *node = &view->scene.nodes[j];
+            const iw_v00_material_t *style = &view->scene.v00_materials[j];
+            if (!strcmp(node->text, approved_fonts[i].text) &&
+                node->font_px == approved_fonts[i].size_px &&
+                style->font_weight == approved_fonts[i].weight &&
+                style->letter_space == approved_fonts[i].tracking_px)
+                found = true;
+        }
+        assert(found);
+    }
+    if (number == 0u) {
+        static const uint8_t sizes[] = {64, 71, 64, 65, 83, 83, 65, 80, 91,
+                                        80, 67, 79, 79, 67, 64, 78, 64};
+        static const int16_t positions[][2] = {
+            {79, 29}, {160, 23}, {247, 29}, {32, 108}, {104, 94},
+            {203, 97}, {294, 111}, {57, 188}, {150, 183}, {252, 188},
+            {26, 283}, {104, 279}, {201, 279}, {290, 282},
+            {70, 364}, {156, 355}, {257, 362}
+        };
+        static const uint16_t actions[] = {
+            0, 0, 0, 0, 0, 0, IW_PAGE_SETTINGS,
+            IW_PAGE_TIMER_LIST, 0, IW_PAGE_STOPWATCH,
+            0, 0, 0, IW_PAGE_ALARM_LIST, 0, 0, 0
+        };
+        assert(view->scene.count == IW_ICON_V00_APP_COUNT);
+        for (unsigned i = 0; i < IW_ICON_V00_APP_COUNT; i++) {
+            const iw_product_node_t *node = &view->scene.nodes[i];
+            assert(node->icon == IW_ICON_V00_APP_FIRST + i);
+            assert(node->width == sizes[i] && node->height == sizes[i]);
+            assert(node->x == positions[i][0] && node->y == positions[i][1]);
+            assert(node->action == actions[i]);
+            assert(test_v00_assets_images()[i]->header.w == sizes[i]);
+        }
+        int found = iw_product_scene_hit(&view->scene, 326, 143, 0);
+        assert(found >= 0 && view->scene.nodes[found].action == IW_PAGE_SETTINGS);
+        assert(iw_product_scene_hit(&view->scene, 294, 111, 0) == -1);
+    } else if (number == 1u) {
+        static const v00_expected_asset_t assets[] = {
+            {17,47,87,59,59}, {18,32,188,25,25},
+            {19,30,228,92,92}, {19,149,228,92,92}, {19,268,228,92,92},
+            {20,44,346,65,65}, {21,286,348,61,61}
+        };
+        v00_assert_assets(&view->scene, assets, sizeof(assets)/sizeof(assets[0]));
+        unsigned dark_dials = 0;
+        for (unsigned i = 0; i < view->scene.count; i++) {
+            const iw_product_node_t *node = &view->scene.nodes[i];
+            if (node->y == 228 && node->width == 92 && node->height == 92 &&
+                node->radius == 46 && node->fill == 0x1c1c1e) dark_dials++;
+        }
+        assert(dark_dials == 3u);
+    } else if (number == 2u) {
+        static const v00_expected_asset_t assets[] = {{22,40,31,26,26}};
+        v00_assert_assets(&view->scene, assets, 1u);
+        assert(iw_product_scene_scroll_limit(&view->scene) == 351);
+        assert(has_text(&view->scene, "15") && has_text(&view->scene, "30") &&
+               has_text(&view->scene, "自定义") && has_text(&view->scene, "未接入"));
+        int found = iw_product_scene_hit(&view->scene, 103, 242, 0);
+        assert(found >= 0 && view->scene.nodes[found].action == IW_ACTION_TIMER_PRESET_1M);
+        assert(iw_product_scene_hit(&view->scene, 26, 164, 0) == -1);
+    } else if (number == 3u) {
+        static const v00_expected_asset_t assets[] = {
+            {23,40,31,26,26}, {24,28,73,333,333},
+            {25,42,382,32,32}, {26,314,380,36,36}
+        };
+        v00_assert_assets(&view->scene, assets, sizeof(assets)/sizeof(assets[0]));
+        unsigned outlined_buttons = 0;
+        for (unsigned i = 0; i < view->scene.count; i++) {
+            const iw_product_node_t *node = &view->scene.nodes[i];
+            if (node->y == 369 && node->width == 58 && node->height == 58 &&
+                node->fill == 0x3a3a3e &&
+                !view->scene.v00_materials[i].gradient) outlined_buttons++;
+        }
+        assert(outlined_buttons == 2u);
+        int found = iw_product_scene_hit(&view->scene, 332, 398, 0);
+        assert(found >= 0 && view->scene.nodes[found].action == IW_ACTION_ALARM_SAVE);
+    } else if (number == 4u) {
+        static const v00_expected_asset_t assets[] = {
+            {23,40,31,26,26}, {27,48,185,28,28}, {28,307,178,43,43}
+        };
+        v00_assert_assets(&view->scene, assets, sizeof(assets)/sizeof(assets[0]));
+        int found = iw_product_scene_hit(&view->scene, 200, 200, 0);
+        assert(found >= 0 && view->scene.nodes[found].action == IW_ACTION_TRACK);
+        assert(iw_product_scene_scroll_limit(&view->scene) == 153);
+        assert(has_text(&view->scene, "全天候显示") &&
+               has_text(&view->scene, "未接入"));
+    } else if (number == 5u) {
+        static const v00_expected_asset_t assets[] = {
+            {37,0,0,390,450}, {29,152,26,24,24}, {30,178,26,24,24},
+            {31,204,26,24,24}, {32,78,100,58,58}, {33,255,100,58,58},
+            {34,255,213,58,58}, {35,78,326,58,58}, {36,255,326,58,58}
+        };
+        v00_assert_assets(&view->scene, assets, sizeof(assets)/sizeof(assets[0]));
+        unsigned painted_tiles = 0, gray_tiles = 0, blue_tiles = 0, purple_tiles = 0;
+        bool battery_font = false;
+        for (unsigned i = 0; i < view->scene.count; i++) {
+            const iw_product_node_t *node = &view->scene.nodes[i];
+            unsigned paint = view->scene.v00_materials[i].paint;
+            if (node->width == 167 && node->height == 103 && paint) {
+                painted_tiles++;
+                gray_tiles += paint == IW_V00_PAINT_CONTROL_GRAY;
+                blue_tiles += paint == IW_V00_PAINT_CONTROL_BLUE;
+                purple_tiles += paint == IW_V00_PAINT_CONTROL_PURPLE;
+            }
+            if (!strcmp(node->text, "96%") && node->font_px == 31 &&
+                view->scene.v00_materials[i].font_weight == 500) battery_font = true;
+        }
+        assert(painted_tiles == 6u && gray_tiles == 4u && blue_tiles == 1u &&
+               purple_tiles == 1u && battery_font);
+    } else if (number == 6u) {
+        assert(iw_product_scene_scroll_limit(&view->scene) == 355);
+        assert(has_text(&view->scene, "水锁") &&
+               has_text(&view->scene, "输入锁") &&
+               has_text(&view->scene, "未接入"));
+        assert(iw_product_scene_hit(&view->scene, 90, 120, 0) == -1);
+        int back = iw_product_scene_hit(&view->scene, 45, 38, 0);
+        assert(back >= 0 && view->scene.nodes[back].action == IW_ACTION_BACK);
+    }
+    test_component_capture(display, view->surface, 600u + (unsigned)number);
+    if (number == 7u) {
+        int center_width = 0;
+        for (unsigned i = 0; i < view->scene.count; ++i)
+            if (view->scene.nodes[i].icon == IW_ICON_V00_APP_FIRST + 8u)
+                center_width = view->scene.nodes[i].width;
+        assert(center_width > 0);
+        model->launcher_pan_x = 64;
+        assert(iw_product_view_update(view, model));
+        test_component_capture(display, view->surface, 808u);
+        model->launcher_pan_x = 0;
+        assert(iw_product_view_update(view, model));
+        model->launcher_zoom = 20;
+        assert(iw_product_view_update(view, model));
+        bool center_grew = false;
+        for (unsigned i = 0; i < view->scene.count; ++i)
+            if (view->scene.nodes[i].icon == IW_ICON_V00_APP_FIRST + 8u)
+                center_grew = view->scene.nodes[i].width > center_width;
+        assert(center_grew);
+        test_component_capture(display, view->surface, 807u);
+        model->launcher_zoom = -20;
+        assert(iw_product_view_update(view, model));
+        bool center_shrank = false;
+        for (unsigned i = 0; i < view->scene.count; ++i)
+            if (view->scene.nodes[i].icon == IW_ICON_V00_APP_FIRST + 8u)
+                center_shrank = view->scene.nodes[i].width < center_width;
+        assert(center_shrank);
+        test_component_capture(display, view->surface, 817u);
+        model->launcher_zoom = 0;
+        assert(iw_product_view_update(view, model));
+    } else if (number == 10u) {
+        model->alarm_edit.minute = 46u;
+        assert(iw_product_view_update(view, model));
+        bool dial_rotated = false;
+        for (unsigned i = 0; i < view->scene.count; i++)
+            if (view->scene.nodes[i].width == 333 &&
+                view->scene.nodes[i].height == 333 &&
+                view->scene.v00_materials[i].image_rotation == 60)
+                dial_rotated = true;
+        assert(dial_rotated);
+        test_component_capture(display, view->surface, 810u);
+        model->alarm_edit.minute = 45u;
+        assert(iw_product_view_update(view, model));
+    }
+    size_t heap_active = test_font_live_bytes();
+    assert(heap_active >= heap_before);
+    printf("v00_page=%zu fonts=%u host_heap_active_delta=%zu\n", number,
+           view->v00_font_count, heap_active - heap_before);
+    if (number == 2u || number == 4u || number == 6u ||
+        number == 9u || number == 10u || number == 11u) {
+        lv_indev_t *input = lv_indev_create();
+        assert(input);
+        lv_indev_set_type(input, LV_INDEV_TYPE_POINTER);
+        lv_indev_set_read_cb(input, read_pointer);
+        lv_obj_update_layout(view->surface);
+        if (number == 10u) {
+            pointer_actions = pointer_finals = 0;
+            touch(input, 245, 250, true);
+            touch(input, 245, 0, true);
+            touch(input, 245, 0, false);
+            assert(pointer_actions == 1 && pointer_finals == 0 &&
+                   pointer_action == IW_ACTION_ALARM_WHEEL &&
+                   (uint32_t)pointer_value >> 16 == 1u &&
+                   (int16_t)(uint16_t)pointer_value == 17);
+            assert(view->scroll_y == 0);
+        }
+        pointer_actions = pointer_finals = 0;
+        touch(input, 195, 350, true);
+        touch(input, 195, 180, true);
+        touch(input, 195, 180, false);
+        assert(view->scroll_y > 0 && pointer_actions == 0);
+        iw_product_view_scroll(view, INT32_MAX);
+        assert(view->scroll_y == (number == 2u || number == 9u ? 351 :
+                                  number == 4u || number == 11u ? 153 :
+                                  number == 10u ? 261 : 355));
+        if (number == 2u) {
+            int left = iw_product_scene_hit(&view->scene, 103, 245, view->scroll_y);
+            int right = iw_product_scene_hit(&view->scene, 285, 245, view->scroll_y);
+            assert(left >= 0 && view->scene.nodes[left].action == IW_V00_ACTION_TIMER_15M);
+            assert(right >= 0 && view->scene.nodes[right].action == IW_V00_ACTION_TIMER_30M);
+            assert(iw_product_scene_hit(&view->scene, 195, 380, view->scroll_y) == -1);
+            touch(input, 103, 245, true);
+            touch(input, 103, 245, false);
+            assert(pointer_actions == 1 && pointer_finals == 1 &&
+                   pointer_action == IW_V00_ACTION_TIMER_15M);
+            touch(input, 285, 245, true);
+            touch(input, 285, 245, false);
+            assert(pointer_actions == 2 && pointer_action == IW_V00_ACTION_TIMER_30M);
+            touch(input, 195, 380, true);
+            touch(input, 195, 380, false);
+            assert(pointer_actions == 2);
+        } else if (number == 4u) {
+            assert(iw_product_scene_hit(&view->scene, 195, 360, view->scroll_y) == -1);
+            touch(input, 195, 360, true);
+            touch(input, 195, 360, false);
+            assert(pointer_actions == 0);
+        } else if (number == 6u) {
+            static const struct { int y; uint16_t action; } cases[] = {
+                {250, IW_PAGE_DISPLAY}, {325, IW_PAGE_WATER_LOCK},
+                {400, IW_PAGE_LOCK}
+            };
+            for (unsigned i = 0; i < sizeof(cases) / sizeof(cases[0]); ++i) {
+                int hit = iw_product_scene_hit(&view->scene, 100, cases[i].y, view->scroll_y);
+                assert(hit >= 0 && view->scene.nodes[hit].action == cases[i].action);
+                pointer_actions = pointer_finals = 0;
+                touch(input, 100, cases[i].y, true);
+                touch(input, 100, cases[i].y, false);
+                assert(pointer_actions == 1 && pointer_finals == 1 &&
+                       pointer_action == cases[i].action);
+            }
+            pointer_actions = pointer_finals = 0;
+            touch(input, 195, 180, true);
+            touch(input, 195, 180, false);
+            assert(pointer_actions >= 2 && pointer_finals == 1 &&
+                   pointer_action == IW_ACTION_TRACK);
+        }
+        test_component_capture(display, view->surface, 700u + (unsigned)number);
+        lv_indev_delete(input);
+    }
+    assert(iw_product_view_destroy(view));
+    assert(iw_product_view_set_v00_images(view, NULL, 0u));
+    test_v00_assets_release();
+}
+
+static void v00_lifecycle(iw_product_view_t *view, iw_product_model_t *model,
+                          size_t cycles, size_t blocks, size_t bytes)
+{
+    static const uint16_t pages[] = {
+        IW_V00_GRID, IW_V00_FACE, IW_V00_TIMER, IW_V00_ALARM,
+        IW_V00_DISPLAY, IW_V00_CONTROL, IW_V00_CONTROL_RUNTIME,
+        IW_V00_GRID_RUNTIME, IW_V00_FACE_RUNTIME, IW_V00_TIMER_RUNTIME,
+        IW_V00_ALARM_RUNTIME, IW_V00_DISPLAY_RUNTIME
+    };
+    assert(test_v00_assets_load());
+    assert(iw_product_view_set_v00_images(view,
+        test_v00_assets_images(), IW_ICON_V00_ASSET_COUNT));
+    for (size_t cycle = 0; cycle < cycles; cycle++) {
+        for (unsigned i = 0; i < sizeof(pages) / sizeof(pages[0]); i++) {
+            assert(iw_product_view_create(view, lv_screen_active(),
+                                          pages[i], model,
+                                          NULL, NULL, NULL));
+            assert(iw_product_view_update(view, model));
+            iw_product_view_activate(view, false);
+            iw_product_view_activate(view, true);
+            assert(iw_product_view_destroy(view) && iw_product_view_destroy(view));
+        }
+        assert(iw_font_collect());
+        assert(test_font_live_blocks() == blocks && test_font_live_bytes() == bytes);
+    }
+    assert(iw_product_view_set_v00_images(view, NULL, 0u));
+    test_v00_assets_release();
 }
 
 static bool has_text(const iw_product_scene_t *scene, const char *text) {
@@ -777,8 +1276,39 @@ int test_product_view(lv_display_t *display, size_t number, unsigned mode) {
     static iw_product_view_t view;
     size_t blocks = test_font_live_blocks(), bytes = test_font_live_bytes();
     size_t allocations = 0;
+    bool grid_assets = mode == 1 || mode == 2;
+    if (grid_assets) {
+        assert(test_v00_assets_load());
+        assert(iw_product_view_set_v00_images(&view,
+            test_v00_assets_images(), IW_ICON_V00_ASSET_COUNT));
+    }
     if (mode == 9) {
         d11_render_case(display, &view, &m, number);
+    } else if (mode == 10) {
+        assert(test_v00_fonts_load());
+        v00_render_case(display, &view, &m, number);
+    } else if (mode == 11) {
+        assert(test_v00_fonts_load());
+        v00_lifecycle(&view, &m, number, blocks, bytes);
+    } else if (mode == 12 || mode == 13 || mode == 14 || mode == 15) {
+        assert(test_v00_fonts_load() && test_v00_assets_load());
+        assert(iw_product_view_set_v00_images(&view,
+            test_v00_assets_images(), IW_ICON_V00_ASSET_COUNT));
+        size_t begin = test_font_allocation_sequence();
+        test_font_arm_failure(number);
+        uint16_t page = mode == 13 ? IW_V00_CONTROL_RUNTIME :
+                        mode == 14 ? IW_V00_ALARM_RUNTIME :
+                        mode == 15 ? IW_PAGE_LAUNCHER_GRID : IW_V00_FACE;
+        bool created = iw_product_view_create(&view, lv_screen_active(), page,
+                                              &m, NULL, NULL, NULL);
+        allocations = test_font_allocation_sequence() - begin;
+        test_font_arm_failure(0);
+        if (!number) assert(created);
+        else assert(!created);
+        if (iw_gui_fault_pending()) assert(!iw_gui_fault_process());
+        assert(iw_product_view_destroy(&view));
+        assert(iw_product_view_set_v00_images(&view, NULL, 0u));
+        test_v00_assets_release();
     } else if (mode == 8) {
         render_probe_cases();
         scene_boundaries(&m);
@@ -836,7 +1366,10 @@ int test_product_view(lv_display_t *display, size_t number, unsigned mode) {
         uint16_t page = product_pages[number % 7];
         m.back = page != IW_PAGE_SETTINGS;
         assert(iw_product_view_create(&view, lv_screen_active(), page, &m, NULL, NULL, NULL));
-        if (page != IW_PAGE_FACE && page != IW_PAGE_LAUNCHER_LIST && m.back) {
+        if (page == IW_PAGE_LAUNCHER_GRID) {
+            assert(view.scene.count == IW_CELLULAR_ICON_COUNT);
+            assert(view.scene.nodes[0].icon == IW_ICON_V00_APP_FIRST);
+        } else if (page != IW_PAGE_FACE && page != IW_PAGE_LAUNCHER_LIST && m.back) {
             assert(view.scene.nodes[0].action == IW_ACTION_BACK && view.scene.nodes[1].fill == 0x242426);
         }
         test_component_capture(display, view.surface, 100u + (unsigned)number);
@@ -859,6 +1392,11 @@ int test_product_view(lv_display_t *display, size_t number, unsigned mode) {
         assert(iw_product_view_destroy(&view));
     }
     assert(iw_font_collect());
+    if (grid_assets) {
+        assert(iw_product_view_set_v00_images(&view, NULL, 0u));
+        test_v00_assets_release();
+    }
+    if (mode >= 10 && mode <= 15) test_v00_fonts_release();
     assert(!view.surface && !view.frame.object && !test_font_assert_count());
     /* 渲染缓存归主机 LVGL，不纳入构造/销毁分配点的泄漏判定。 */
     if (mode != 2) assert(test_font_live_bytes() == bytes && test_font_live_blocks() == blocks);

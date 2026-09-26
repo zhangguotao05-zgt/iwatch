@@ -7,6 +7,7 @@
 **/SConscript text eol=lf
 **/SConstruct text eol=lf
 *.mjs text eol=lf
+*.cjs text eol=lf
 *.md text eol=lf
 *.html text eol=lf
 *.css text eol=lf
@@ -18,6 +19,8 @@ docs/assets/engineering.js text eol=lf
 *.esym text eol=lf
 *.txt text eol=lf
 *.patch text eol=lf -whitespace
+# 保留第三方 OFL 原文中的行尾空格，不改写许可证正文。
+docs/ui/assets/v00/font-candidate/OFL.txt -whitespace
 *.epro binary
 *.xlsx binary
 *.pdf binary

@@ -333,8 +333,9 @@ bool iw_draw_fill_checked(lv_layer_t *layer, const lv_area_t *area, uint32_t col
     return true;
 }
 
-bool iw_draw_text_checked(lv_layer_t *layer, const lv_area_t *area, const char *text,
-    const lv_font_t *font, uint32_t color, lv_text_align_t align, uint8_t opacity)
+bool iw_draw_text_checked_spaced(lv_layer_t *layer, const lv_area_t *area, const char *text,
+    const lv_font_t *font, uint32_t color, lv_text_align_t align, uint8_t opacity,
+    int32_t letter_space)
 {
     if (!text[0] || area->x2 < area->x1 || area->y2 < area->y1) return true;
     lv_area_t clip;
@@ -356,8 +357,15 @@ bool iw_draw_text_checked(lv_layer_t *layer, const lv_area_t *area, const char *
     dsc->color = lv_color_hex(color);
     dsc->align = align;
     dsc->opa = opacity;
+    dsc->letter_space = letter_space;
     lv_draw_finalize_task_creation(layer, task);
     return !iw_gui_fault_pending();
+}
+
+bool iw_draw_text_checked(lv_layer_t *layer, const lv_area_t *area, const char *text,
+    const lv_font_t *font, uint32_t color, lv_text_align_t align, uint8_t opacity)
+{
+    return iw_draw_text_checked_spaced(layer, area, text, font, color, align, opacity, 0);
 }
 
 static uint32_t tone_color(iw_component_state_t state)

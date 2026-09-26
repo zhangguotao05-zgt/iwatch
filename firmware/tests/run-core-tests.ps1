@@ -14,6 +14,12 @@ Import-Module (Join-Path $VisualStudioPath 'Common7\Tools\Microsoft.VisualStudio
 Enter-VsDevShell -VsInstallPath $VisualStudioPath -SkipAutomaticLocation -DevCmdArguments '-arch=x64 -host_arch=x64' | Out-Null
 
 $firmwareDir = Split-Path -Parent $PSScriptRoot
+$cellTransformDir = if ($env:IWATCH_PATCHED_SDK) {
+    Join-Path $env:IWATCH_PATCHED_SDK 'middleware/cell_transform'
+} else { '' }
+if (-not $cellTransformDir -or -not (Test-Path -LiteralPath (Join-Path $cellTransformDir 'cell_transform.h'))) {
+    $cellTransformDir = 'C:\OpenSiFli\SiFli-SDK-v2.5.1-iwatch-locked\middleware\cell_transform'
+}
 $coreDir = Join-Path $firmwareDir 'iwatch\src\core'
 $outputDir = Join-Path $PSScriptRoot 'build'
 New-Item -ItemType Directory -Path $outputDir -Force | Out-Null
@@ -30,6 +36,20 @@ try {
     if ($LASTEXITCODE -ne 0) { throw 'D09 双键状态机测试编译失败。' }
     & ./test_keys.exe
     if ($LASTEXITCODE -ne 0) { throw 'D09 双键状态机测试失败。' }
+    $resourceDir = Join-Path $firmwareDir 'iwatch/src/resource'
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$resourceDir" /Fetest_v00_resource_guard.exe (Join-Path $PSScriptRoot 'test_v00_resource_guard.c') (Join-Path $resourceDir 'iw_v00_resource_guard.c')
+    if ($LASTEXITCODE -ne 0) { throw 'V00 资源完整性校验编译失败。' }
+    & ./test_v00_resource_guard.exe
+    if ($LASTEXITCODE -ne 0) { throw 'V00 资源完整性校验失败。' }
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$resourceDir" /Fetest_v00_control_cache.exe (Join-Path $PSScriptRoot 'test_v00_control_cache.c') (Join-Path $resourceDir 'iw_v00_control_cache.c') (Join-Path $resourceDir 'iw_v00_control_background.c')
+    if ($LASTEXITCODE -ne 0) { throw 'V00 控制中心背景缓存测试编译失败。' }
+    & ./test_v00_control_cache.exe
+    if ($LASTEXITCODE -ne 0) { throw 'V00 控制中心背景缓存测试失败。' }
+    $guiDir = Join-Path $firmwareDir 'iwatch/src/gui_core'
+    & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 /DIW_TARGET_BUILD "/I$guiDir" "/I$coreDir" "/I$(Join-Path $firmwareDir 'iwatch/src/services')" "/I$cellTransformDir" /Fetest_v00_target_scene.exe (Join-Path $PSScriptRoot 'test_v00_target_scene.c') (Join-Path $PSScriptRoot 'cell_transform_host.c') (Join-Path $guiDir 'iw_v00_scene.c') (Join-Path $guiDir 'iw_cellular_layout.c') (Join-Path $guiDir 'iw_v00_components.c') (Join-Path $guiDir 'iw_v00_paint.c') (Join-Path $guiDir 'iw_v00_typography.c')
+    if ($LASTEXITCODE -ne 0) { throw 'V00 正式控制中心场景测试编译失败。' }
+    & ./test_v00_target_scene.exe
+    if ($LASTEXITCODE -ne 0) { throw 'V00 正式控制中心场景测试失败。' }
     & cl.exe /nologo /std:c11 /utf-8 /W4 /WX /Od /Z7 "/I$coreDir" /Fetest_gui_wait.exe (Join-Path $PSScriptRoot 'test_gui_wait.c') (Join-Path $coreDir 'iw_gui_wait.c') (Join-Path $coreDir 'iw_input_queue.c') (Join-Path $coreDir 'iw_display_guard.c')
     if ($LASTEXITCODE -ne 0) { throw 'GUI 等待测试编译失败。' }
     & ./test_gui_wait.exe

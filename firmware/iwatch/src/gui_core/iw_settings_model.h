@@ -51,6 +51,8 @@ bool iw_clock_format_offset(int16_t minutes, char *output, size_t capacity);
 uint8_t iw_brightness_track_level(int32_t x);
 /* 显示页中间轨道使用屏幕坐标 114/276，避开两侧太阳按钮。 */
 uint8_t iw_brightness_detail_level(int32_t x);
+/* V00 显示页的可见轨道为屏幕坐标 121/269。 */
+uint8_t iw_brightness_v00_display_level(int32_t x);
 uint8_t iw_brightness_step_level(uint8_t current, int32_t steps);
 
 #endif
