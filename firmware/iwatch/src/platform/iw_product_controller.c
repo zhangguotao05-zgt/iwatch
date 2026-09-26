@@ -22,6 +22,9 @@ static bool lock_available = true;
 static bool lock_available;
 #endif
 
+enum { IW_ALARM_WHEEL_MAX_EVENT_STEPS = 32,
+       IW_LAUNCHER_PAN_X_LIMIT = 96, IW_LAUNCHER_PAN_Y_LIMIT = 96 };
+
 static void notification_projection(iw_product_model_t *model)
 {
     memset(model->notification_ids, 0, sizeof(model->notification_ids));
@@ -557,6 +560,22 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
         }
         return;
     }
+    if (p->page_id == IW_PAGE_ALARM_EDIT && id == IW_ACTION_ALARM_WHEEL) {
+        int steps = (int16_t)(uint16_t)value;
+        unsigned field = (uint32_t)value >> 16;
+        if (p->model.pending || field > 1u ||
+            steps < -IW_ALARM_WHEEL_MAX_EVENT_STEPS ||
+            steps > IW_ALARM_WHEEL_MAX_EVENT_STEPS) return;
+        unsigned range = field ? 60u : 24u;
+        uint8_t *selected = field ? &p->model.alarm_edit.minute :
+                                    &p->model.alarm_edit.hour;
+        int next = ((int)*selected + steps % (int)range + (int)range) % (int)range;
+        if (next != *selected) {
+            *selected = (uint8_t)next;
+            p->dirty = true;
+        }
+        return;
+    }
     if (id >= IW_ACTION_ALARM_HOUR_MINUS && id <= IW_ACTION_ALARM_MINUTE_PLUS) {
         iw_alarm_edit_t *edit = &p->model.alarm_edit;
         if (id == IW_ACTION_ALARM_HOUR_MINUS) edit->hour = (uint8_t)((edit->hour + 23u) % 24u);
@@ -605,6 +624,37 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
     }
     if (id == IW_ACTION_LAUNCHER_GRID) {
         p->navigate(IW_PAGE_LAUNCHER_GRID, 0u, p->context);
+        return;
+    }
+    if (p->page_id == IW_PAGE_LAUNCHER_GRID && id == IW_ACTION_LAUNCHER_PAN) {
+        int dx = (int16_t)((uint32_t)value >> 16);
+        int dy = (int16_t)(uint16_t)value;
+        int next_x = (int)p->model.launcher_pan_x + dx;
+        int next_y = (int)p->model.launcher_pan_y + dy;
+        /* 保留约一排图标的平移空间；越界时不重复提交相同画面。 */
+        int8_t pan_x = (int8_t)(next_x < -IW_LAUNCHER_PAN_X_LIMIT ? -IW_LAUNCHER_PAN_X_LIMIT :
+                               next_x > IW_LAUNCHER_PAN_X_LIMIT ? IW_LAUNCHER_PAN_X_LIMIT : next_x);
+        int8_t pan_y = (int8_t)(next_y < -IW_LAUNCHER_PAN_Y_LIMIT ? -IW_LAUNCHER_PAN_Y_LIMIT :
+                               next_y > IW_LAUNCHER_PAN_Y_LIMIT ? IW_LAUNCHER_PAN_Y_LIMIT : next_y);
+        if (pan_x == p->model.launcher_pan_x && pan_y == p->model.launcher_pan_y) return;
+        p->model.launcher_pan_x = pan_x;
+        p->model.launcher_pan_y = pan_y;
+        p->dirty = true;
+        return;
+    }
+    if (p->page_id == IW_PAGE_LAUNCHER_GRID && id == IW_ACTION_LAUNCHER_ZOOM) {
+        int next = (int)p->model.launcher_zoom + 15;
+        p->model.launcher_zoom = (int8_t)(next > 30 ? -30 : next);
+        p->dirty = true;
+        return;
+    }
+    if (p->page_id == IW_PAGE_LAUNCHER_GRID && id == IW_ACTION_LAUNCHER_ZOOM_DRAG) {
+        int next = (int)p->model.launcher_zoom + value;
+        next = next < -30 ? -30 : next > 30 ? 30 : next;
+        if (next != p->model.launcher_zoom) {
+            p->model.launcher_zoom = (int8_t)next;
+            p->dirty = true;
+        }
         return;
     }
     if (id >= IW_ACTION_NOTIFICATION_OPEN_BASE &&
@@ -672,8 +722,10 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
         }
         return;
     }
-    if (id >= IW_ACTION_TIMER_PRESET_1M && id <= IW_ACTION_TIMER_PRESET_10M) {
-        static const uint32_t duration[] = {60000u, 180000u, 300000u, 600000u};
+    if (id >= IW_ACTION_TIMER_PRESET_1M && id <= IW_ACTION_TIMER_PRESET_30M) {
+        static const uint32_t duration[] = {
+            60000u, 180000u, 300000u, 600000u, 900000u, 1800000u
+        };
         submit_timer_create(p, duration[id - IW_ACTION_TIMER_PRESET_1M]);
         return;
     } else if (id >= IW_ACTION_TIMER_OPEN_BASE && id < IW_ACTION_TIMER_OPEN_BASE + IW_TIMER_CAPACITY) {

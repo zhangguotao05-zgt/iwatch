@@ -23,6 +23,24 @@ if len(font_data) != expected.get('bytes') or actual_hash != expected.get('sha25
 
 print(f"Font subset: {font_file} ({len(font_data)} bytes, {actual_hash})")
 font_objs = Env.ConvertFont(font_file, 'DroidSansFallback')
+
+# 四份字重与视觉批准样张共用同一哈希；构建前阻止字体漂移。
+budget_file = os.path.normpath(os.path.join(cwd, '..', '..', '..', '..', '..',
+                                            'docs', 'ui', 'assets', 'v00',
+                                            'font-specimens', 'subsets', 'budget.json'))
+with open(budget_file, 'r', encoding='utf-8') as stream:
+    v00_budget = json.load(stream)
+if v00_budget.get('total_with_legacy_bytes', 0) > v00_budget.get('limit_bytes', 0):
+    raise RuntimeError('V00 字体超过批准预算')
+for item in v00_budget['subsets']:
+    weight = item['weight']
+    path = os.path.join(cwd, 'NotoSansSC-v00-only-%d.ttf' % weight)
+    with open(path, 'rb') as stream:
+        data = stream.read()
+    if len(data) != item['bytes'] or hashlib.sha256(data).hexdigest() != item['sha256']:
+        raise RuntimeError('V00 字体文件与批准样张不一致: %d' % weight)
+    font_objs += Env.ConvertFont(path, 'IWV00Noto%d' % weight)
+
 font_objs = DefineGroup('resource', font_objs, depend = ['PKG_USING_LITTLEVGL2RTT'])
 
 

@@ -97,15 +97,35 @@ extract_sdk_function("middleware/app_fwk/gui_app_fwk.c" "static rt_err_t send_ms
 extract_sdk_function("middleware/app_fwk/app_schedule.c" "static rt_err_t app_create_page(" "sdk_create_under_test.inc")
 extract_sdk_function("middleware/app_fwk/app_schedule.c" "void app_schedule_route_snapshot(" "sdk_snapshot_under_test.inc")
 
-add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c test_epic_glyph.c test_font_service.c test_components.c test_component_navigation.c test_touch_input.c test_router.c test_sdk_navigation.c test_product_view.c test_product_controller.c
+# 图像故障测试直接编译锁定 SDK 的回调、解码和 EPIC 绘制入口。
+extract_sdk_function("middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_img.c"
+    "void lv_draw_epic_set_error_cb(" "epic_image_set_error_under_test.inc")
+extract_sdk_function("middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_img.c"
+    "bool lv_draw_epic_report_error(" "epic_image_report_error_under_test.inc")
+extract_sdk_function("middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_img.c"
+    "static void img_draw_core(lv_draw_task_t *draw_task, const lv_draw_image_dsc_t *draw_dsc,\n                          const lv_image_decoder_dsc_t *decoder_dsc, lv_draw_image_sup_t *sup,\n                          const lv_area_t *img_coords, const lv_area_t *clipped_img_area)\n{"
+    "epic_image_core_under_test.inc")
+extract_sdk_function("middleware/lvgl/lv_drivers_v9/lvsf_img_decoder.c"
+    "static lv_result_t decoder_open(lv_image_decoder_t *decoder, lv_image_decoder_dsc_t *dsc)\n{"
+    "ezip_decoder_under_test.inc")
+
+add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c test_epic_glyph.c test_font_service.c test_components.c test_component_navigation.c test_touch_input.c test_router.c test_sdk_navigation.c test_product_view.c test_product_controller.c test_v00_assets.c test_v00_fonts.c test_v00_typography.c
+    "${CMAKE_CURRENT_SOURCE_DIR}/../cell_transform_host.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform/iw_product_controller.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_ui_commands.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_product_view.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_render_probe.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_product_scene.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_v00_components.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_v00_scene.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_v00_paint.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_v00_paint_cache.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_cellular_layout.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_v00_typography.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_settings_model.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/services/iw_service.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core/iw_time.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core/iw_keys.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core/iw_chronograph.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core/iw_notifications.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core/iw_alarms.c"
@@ -120,10 +140,35 @@ add_executable(test_tiny_ttf_oom test_tiny_ttf_oom.c test_epic_glyph.c test_font
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_recent_apps.c"
     "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_navigator.c")
 target_include_directories(test_tiny_ttf_oom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core")
+target_include_directories(test_tiny_ttf_oom PRIVATE "${SDK_ROOT}/middleware/cell_transform")
 target_include_directories(test_tiny_ttf_oom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform")
 target_include_directories(test_tiny_ttf_oom PRIVATE "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/services" "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/core")
 target_include_directories(test_tiny_ttf_oom PRIVATE "${CMAKE_CURRENT_BINARY_DIR}")
 target_compile_features(test_tiny_ttf_oom PRIVATE c_std_11)
+option(IW_TEST_TARGET_VIEW "在主机执行正式 TARGET View 分支" OFF)
+set(IW_TEST_EXECUTABLE_NAME "test_tiny_ttf_oom" CACHE STRING "独立测试制品名称")
+set_target_properties(test_tiny_ttf_oom PROPERTIES OUTPUT_NAME "${IW_TEST_EXECUTABLE_NAME}")
+option(IW_TEST_BAD_RESOURCE "仅夹具首个描述符注入无效 magic" OFF)
+if(IW_TEST_TARGET_VIEW)
+    set(TARGET_FIXTURE "${CMAKE_CURRENT_SOURCE_DIR}/../v00_target_view")
+    file(GLOB TARGET_RESOURCES CONFIGURE_DEPENDS "${TARGET_FIXTURE}/generated/*.c")
+    if(NOT TARGET_RESOURCES)
+        message(FATAL_ERROR "Run prepare_resources.py before configuring TARGET fixture")
+    endif()
+    target_sources(test_tiny_ttf_oom PRIVATE ${TARGET_RESOURCES}
+        "${TARGET_FIXTURE}/test_target_view.c"
+        "../../iwatch/src/resource/images/iw_v00_resource_catalog.c"
+        "../../iwatch/src/resource/iw_v00_resource_guard.c"
+        "../../iwatch/src/resource/iw_v00_control_cache.c"
+        "../../iwatch/src/resource/iw_v00_control_background.c")
+    target_include_directories(test_tiny_ttf_oom PRIVATE "${TARGET_FIXTURE}" "${CMAKE_CURRENT_SOURCE_DIR}")
+    target_compile_definitions(test_tiny_ttf_oom PRIVATE IW_TARGET_BUILD=1 LV_IMAGE_FLAGS_EZIP=LV_IMAGE_FLAGS_USER1)
+    if(IW_TEST_BAD_RESOURCE)
+        target_compile_definitions(test_tiny_ttf_oom PRIVATE IW_TEST_RESOURCE_MAGIC=0)
+    endif()
+else()
+    target_compile_definitions(test_tiny_ttf_oom PRIVATE IW_V00_HOST_PREVIEW=1)
+endif()
 if(MSVC)
     # LVGL 公共头存在固定的窄化转换告警；测试自身其余告警仍按错误处理。
     target_compile_options(test_tiny_ttf_oom PRIVATE /utf-8 /W4 /WX /wd4244 /fsanitize=address)

@@ -107,6 +107,14 @@ int main(void)
     for (int x = 114; x < 276; x++)
         assert(iw_brightness_detail_level(x) <= iw_brightness_detail_level(x + 1));
     assert(iw_brightness_detail_level(195) == 53);
+    assert(iw_brightness_v00_display_level(INT32_MIN) == 5 &&
+           iw_brightness_v00_display_level(INT32_MAX) == 100);
+    assert(iw_brightness_v00_display_level(121) == 5 &&
+           iw_brightness_v00_display_level(269) == 100);
+    for (int x = 121; x < 269; x++)
+        assert(iw_brightness_v00_display_level(x) <=
+               iw_brightness_v00_display_level(x + 1));
+    assert(iw_brightness_v00_display_level(195) == 53);
     assert(iw_brightness_step_level(80, INT32_MIN) == 5 && iw_brightness_step_level(80, INT32_MAX) == 100);
     assert(iw_brightness_step_level(5, -5) == 5 && iw_brightness_step_level(100, 5) == 100);
     assert(!iw_time_draft_select(NULL, IW_EDIT_YEAR));

@@ -11,7 +11,10 @@ def main():
     parser.add_argument('--font', type=Path, required=True)
     args = parser.parse_args()
     executable, font = args.executable.resolve(), args.font.resolve()
+    print(run_case(executable, font, 'image', 0), flush=True)
     for stage in ('component_product_oom', 'component_product_draw_oom',
+                  'component_v00_oom', 'component_v00_control_oom',
+                  'component_v00_runtime_oom', 'component_cellular_oom',
                   'component_product_line_0', 'component_product_line_1', 'component_product_line_2'):
         probe = run_case(executable, font, stage, 0)
         count = int(re.search(r'allocations=(\d+)', probe).group(1))
@@ -32,6 +35,9 @@ def main():
         print(run_case(executable, font, 'component_product_render', variant), flush=True)
     for variant in range(36):
         print(run_case(executable, font, 'component_d11_render', variant), flush=True)
+    for variant in range(12):
+        print(run_case(executable, font, 'component_v00_render', variant), flush=True)
+    print(run_case(executable, font, 'component_v00_lifecycle', 1000, timeout=60), flush=True)
 
 if __name__ == '__main__':
     main()

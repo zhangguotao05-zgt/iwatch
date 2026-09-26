@@ -1,0 +1,67 @@
+{
+  "status": "host_budget_candidate_only",
+  "limit_bytes": 131072,
+  "generator": "fontTools 4.65.0",
+  "source_sha256": "a3041811a78c361b1de50f953c805e0244951c21c5bd412f7232ef0d899af0da",
+  "legacy_font_sha256": "4d17c62a0ed13c70840662e811948e0d5a1b4cb79435fc7051b463ef958cf523",
+  "license_file": "docs\\ui\\assets\\v00\\font-candidate\\OFL.txt",
+  "license_sha256": "1c05c68c34f9708415aada51f17e1b0092d2cea709bf4a94cd38114f9e73d7d9",
+  "legacy_font_bytes": 75148,
+  "subsets": [
+    {
+      "weight": 300,
+      "characters": ":",
+      "character_count": 1,
+      "glyphs": 1,
+      "os2_weight": 300,
+      "has_variable_axes": false,
+      "family_name": "IW V00 Sans",
+      "postscript_name": "IWV00Sans-Light",
+      "bytes": 1540,
+      "sha256": "133b3d4407e9aa9f3e4bf860c5612f758d4f2f2c0a66aae95a4f6c25a5e14a9d",
+      "file": "docs\\ui\\assets\\v00\\font-specimens\\subsets\\NotoSansSC-v00-only-300.ttf"
+    },
+    {
+      "weight": 400,
+      "characters": "%-0123456789:不与中亮体候入全分加可外大天失字小已度开打接文时显未本水用知示粗置观设误败载输钟锁错",
+      "character_count": 55,
+      "glyphs": 55,
+      "os2_weight": 400,
+      "has_variable_axes": false,
+      "family_name": "IW V00 Sans",
+      "postscript_name": "IWV00Sans-Regular",
+      "bytes": 13096,
+      "sha256": "76871acb92aad14000155fa482e72f67e66d9f9762a23b388680ff794c40a8b5",
+      "file": "docs\\ui\\assets\\v00\\font-specimens\\subsets\\NotoSansSC-v00-only-400.ttf"
+    },
+    {
+      "weight": 500,
+      "characters": "%-0123456789:不与中义亮入加取可器失定度接时显未消用知确示自计认误败载错",
+      "character_count": 42,
+      "glyphs": 42,
+      "os2_weight": 500,
+      "has_variable_axes": false,
+      "family_name": "IW V00 Sans",
+      "postscript_name": "IWV00Sans-Medium",
+      "bytes": 10312,
+      "sha256": "3eb34659937c8e08b8150dd9f1ecb3287364fad03cc1f45a78b07f70ec6c3da8",
+      "file": "docs\\ui\\assets\\v00\\font-specimens\\subsets\\NotoSansSC-v00-only-500.ttf"
+    },
+    {
+      "weight": 600,
+      "characters": "%-0123456789:一三不中二五入六加可周器四天失所接日时星有期未用知计误败载错",
+      "character_count": 43,
+      "glyphs": 43,
+      "os2_weight": 600,
+      "has_variable_axes": false,
+      "family_name": "IW V00 Sans",
+      "postscript_name": "IWV00Sans-SemiBold",
+      "bytes": 9688,
+      "sha256": "14907ce05613c97b2af088d30341045e69e0545961ebba43d285a8156d38deb3",
+      "file": "docs\\ui\\assets\\v00\\font-specimens\\subsets\\NotoSansSC-v00-only-600.ttf"
+    }
+  ],
+  "total_with_legacy_bytes": 109784,
+  "headroom_bytes": 21288,
+  "fits_limit": true
+}

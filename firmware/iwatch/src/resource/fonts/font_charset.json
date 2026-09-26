@@ -78,12 +78,12 @@
     "--notdef-outline"
   ],
   "expected": {
-    "character_count": 437,
-    "charset_sha256": "819cca19d1bb8fd6a524ee503a1234a66f1f24da70e6b8f2b30bcbb3e9dedb2f",
+    "character_count": 442,
+    "charset_sha256": "d6b688298b7306b15f1cd94de9c9f8139c75392990f5eeab6dd67a9ceed42b4e",
     "source_font_bytes": 3939852,
     "source_font_sha256": "05d71b179ef97b82cf1bb91cef290c600a510f77f39b4964359e3ef88378c79d",
-    "subset_font_bytes": 74372,
-    "subset_font_sha256": "43eacb86a0c0613d8a286bc11ae6bbe5cfbaa680733663d90ea051d81a7e8419"
+    "subset_font_bytes": 75148,
+    "subset_font_sha256": "4d17c62a0ed13c70840662e811948e0d5a1b4cb79435fc7051b463ef958cf523"
   },
   "c_string_sources": [
     {
@@ -97,6 +97,10 @@
     {
       "path": "firmware/iwatch/src/gui_core/iw_product_text.h",
       "array": "iw_product_texts"
+    },
+    {
+      "path": "firmware/iwatch/src/gui_core/iw_v00_scene.c",
+      "array": "v00_static_texts"
     }
   ]
 }

@@ -5,6 +5,7 @@ import struct
 import sys
 import tempfile
 import unittest
+from unittest.mock import patch
 
 
 FIRMWARE = Path(__file__).resolve().parents[1]
@@ -51,18 +52,31 @@ def gcc_map(font_size=40, image_size=60):
 """.format(font=font_size, image=image_size)
 
 
-def keil_map(font_size=40, image_size=60):
+def keil_map(font_size=40, image_size=60, v00_fonts=False):
+    extra = ""
+    if v00_fonts:
+        for weight in (300, 400, 500, 600):
+            name = "IWV00Noto{}".format(weight)
+            extra += "    {name}  0x00004000   Data       10  {name}.o(.font_data)\n".format(name=name)
+            extra += "    0x00004000   0x00004000   0x0000000a   Data   RO        4    .font_data          {name}.o\n".format(name=name)
+    components = ""
+    if v00_fonts:
+        for weight in (300, 400, 500, 600):
+            components += "         0          0         14          0          0          0   IWV00Noto{}.o\n".format(weight)
     return """Component: ARM Compiler 6.16 Tool: armlink [test]
     DroidSansFallback  0x00001000   Data       {font}  DroidSansFallback.o(.font_data)
     0x00001000   0x00001000   0x{font:x}   Data   RO        1    .font_data          DroidSansFallback.o
+{extra}
     0x00002000   0x00002000   0x{image:x}   Data   RO        2    .ROM3_IMG.test     test.tmp.o
     0x00003000   0x00003000   0x00000010   Data   RO        3    .rodata.glyph_bitmap lv_font_montserrat_20.o
 Image component sizes
       Code (inc. data)   RO Data    RW Data    ZI Data      Debug   Object Name
          0          0         {font_plus}          0          0          0   DroidSansFallback.o
+{components}
          0          0         {image}          0          0          0   test.tmp.o
          0          0         16          0          0          0   lv_font_montserrat_20.o
-""".format(font=font_size, font_plus=font_size + 4, image=image_size)
+""".format(font=font_size, font_plus=font_size + 4, image=image_size,
+           extra=extra, components=components)
 
 
 class ResourceBudgetTests(unittest.TestCase):
@@ -129,6 +143,19 @@ class ResourceBudgetTests(unittest.TestCase):
             self.assertEqual(40, result["subset_ttf_bytes"])
             self.assertEqual(60, result["image_bytes"])
             self.assertEqual(16, result["bitmap_font_bytes"])
+            path.write_text(keil_map(v00_fonts=True), encoding="utf-8")
+            self.assertEqual(80, budget.keil_resources(path)["subset_ttf_bytes"])
+            path.write_text(keil_map(v00_fonts=True).replace(
+                "    IWV00Noto400  0x00004000   Data       10  IWV00Noto400.o(.font_data)\n", ""),
+                encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "symbol and input"):
+                budget.keil_resources(path)
+            path.write_text(keil_map(v00_fonts=True).replace(
+                "Image component sizes",
+                "    0x00005000   0x00005000   0x0000000a   Data   RO        5    .font_data          UnknownFont.o\nImage component sizes"),
+                encoding="utf-8")
+            with self.assertRaisesRegex(ValueError, "unknown sections"):
+                budget.keil_resources(path)
 
     def test_stale_artifact_identity_is_rejected(self):
         with tempfile.TemporaryDirectory() as directory:
@@ -165,18 +192,51 @@ class ResourceBudgetTests(unittest.TestCase):
 
     def test_current_archives_have_expected_pre_a1_baseline(self):
         base = FIRMWARE / "iwatch/project/artifacts/DEV_A128_NAND"
-        if not (base / "gcc/build_identity.json").is_file():
-            self.skipTest("local GCC/Keil archives are not present")
         for toolchain, main_size in (("gcc", 5745568), ("keil", 5671520)):
-            report = budget.build_report(base / toolchain, toolchain)
-            if report["git_head"] == "0828250b856f5502c04335a6930bbcf4fc6fdbd7":
-                self.assertFalse(report["passed"])
-                self.assertEqual(3939852, report["resources"]["subset_ttf_bytes"])
-                self.assertEqual(51335, report["resources"]["bitmap_font_bytes"])
-                self.assertEqual(866577, report["resources"]["image_bytes"])
-                self.assertEqual(main_size, report["resources"]["main_bin_bytes"])
-            else:
-                self.assertGreater(report["resources"]["subset_ttf_bytes"], 0)
+            with self.subTest(toolchain=toolchain):
+                archive = base / toolchain
+                # 只跳过未生成的工具链目录，已有但不完整的归档仍须失败。
+                if not archive.exists():
+                    self.skipTest("local {} archive is not present".format(toolchain))
+                report = budget.build_report(archive, toolchain)
+                if report["git_head"] == "0828250b856f5502c04335a6930bbcf4fc6fdbd7":
+                    self.assertFalse(report["passed"])
+                    self.assertEqual(3939852, report["resources"]["subset_ttf_bytes"])
+                    self.assertEqual(51335, report["resources"]["bitmap_font_bytes"])
+                    self.assertEqual(866577, report["resources"]["image_bytes"])
+                    self.assertEqual(main_size, report["resources"]["main_bin_bytes"])
+                else:
+                    self.assertGreater(report["resources"]["subset_ttf_bytes"], 0)
+
+    def test_local_archive_checks_each_present_toolchain(self):
+        # 单工具链、双工具链与无归档均独立统计，不让 GCC 决定 Keil 是否可测。
+        for present in ((), ("gcc",), ("keil",), ("gcc", "keil")):
+            with self.subTest(present=present), tempfile.TemporaryDirectory() as directory:
+                firmware = Path(directory)
+                base = firmware / "iwatch/project/artifacts/DEV_A128_NAND"
+                for toolchain in present:
+                    (base / toolchain).mkdir(parents=True)
+                report = {"git_head": "fixture", "resources": {"subset_ttf_bytes": 1}}
+                case = ResourceBudgetTests("test_current_archives_have_expected_pre_a1_baseline")
+                result = unittest.TestResult()
+                with patch(__name__ + ".FIRMWARE", firmware), \
+                        patch.object(budget, "build_report", return_value=report) as build_report:
+                    case.run(result)
+                self.assertTrue(result.wasSuccessful(), result.errors + result.failures)
+                self.assertEqual(2 - len(present), len(result.skipped))
+                self.assertEqual(list(present), [call.args[1] for call in build_report.call_args_list])
+
+    def test_local_incomplete_archive_is_not_skipped(self):
+        with tempfile.TemporaryDirectory() as directory:
+            firmware = Path(directory)
+            (firmware / "iwatch/project/artifacts/DEV_A128_NAND/gcc").mkdir(parents=True)
+            case = ResourceBudgetTests("test_current_archives_have_expected_pre_a1_baseline")
+            result = unittest.TestResult()
+            with patch(__name__ + ".FIRMWARE", firmware):
+                case.run(result)
+            self.assertEqual(1, len(result.errors))
+            self.assertIn("FileNotFoundError", result.errors[0][1])
+            self.assertEqual(1, len(result.skipped))
 
 
 if __name__ == "__main__":

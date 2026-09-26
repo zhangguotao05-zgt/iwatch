@@ -11,6 +11,11 @@
       "patched_sha256": "4eaa7a6b24d846eb7d4ff9abe17865b452a05ed3eb64cc0c0b9f13c1fc434880"
     },
     {
+      "path": "external/lvgl_v9/src/core/lv_obj_style.c",
+      "base_sha256": "1bb880078f512c3f914be452755b11b45c0d299fa83a81b5a7ef3d8a445f5642",
+      "patched_sha256": "6f7605243dd2919c4216ea66f099769d7e816eafc6d4bbeb766a33783769e328"
+    },
+    {
       "path": "external/lvgl_v9/src/core/lv_obj_tree.c",
       "base_sha256": "ae99d2dd726d9e35594fcced3e6b2242db93d27d1ec25a22bf5b250631efafc2",
       "patched_sha256": "96cd0af4972faa47c6e18955f3469dc868f7071f7d6942ca918c09e2815a4607"
@@ -151,13 +156,38 @@
       "patched_sha256": "f45b670a68b90435e9d050ccbeba9cc20a733feb3d7a563efee1e2d2fd1133ed"
     },
     {
+      "path": "middleware/lvgl/lv_drivers_v9/lvsf_img_decoder.c",
+      "base_sha256": "396ad4809e664ef3ae3c492e1c6e94d6019e6ed516c8703ac6c36adc95fd95f0",
+      "patched_sha256": "af48e0152579f4823dc361c94d9113fec30cd03fd23b8cfa4381cc3473898617"
+    },
+    {
+      "path": "middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic.h",
+      "base_sha256": "9384a4245221a8d83f1ca5804f675794d4cd1b93771f495abcecdca0adb949ad",
+      "patched_sha256": "442dfd7042cf32dba64cf6fba3bcbd4ca3b257a864ccdfd09e9b240e583f4ac6"
+    },
+    {
+      "path": "middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_fill.c",
+      "base_sha256": "eb5b874d636b1ea711e0703180975519a14a51a4adf5141dce947c7dcf217c90",
+      "patched_sha256": "4193061eb1c261626a1988a6a049737537c60d11fac2bc434c28d0958d2e06e0"
+    },
+    {
+      "path": "middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_img.c",
+      "base_sha256": "89d74d5011d3f812f80df21838c008d9bc15ad87db5cfbd754e49fa1d886c4d2",
+      "patched_sha256": "afe722936617467c664e0c81ab3806c93453e4dc316be2cd13f25eee0c385dc7"
+    },
+    {
       "path": "middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c",
       "base_sha256": "d27462afb03b4a0443b90c64406941229a2cc9a711db42a3f28570a26fb3f4d6",
-      "patched_sha256": "2f3b9687539f362b9423e8b3e8d315c6e3b17a8eac2369fe79e916376f127da6"
+      "patched_sha256": "277401c4c1a6798f6b4f61c14b3a634b46191a0cf6e306758b0d05fb7ff2ac7d"
+    },
+    {
+      "path": "middleware/lvgl/lv_drivers_v9/sifli/lv_epic_utils.c",
+      "base_sha256": "15245b6bc2813eaa072c389db1ae54c57b74407a13a0e8cf7894a1c629b0c081",
+      "patched_sha256": "ffe0f5d2468700f6267956831046cb741fdf96cda55d407912a36c5d1d64429d"
     }
   ],
   "patch_file": "firmware/patches/lvgl-v9-tiny-ttf-oom.patch",
-  "patch_sha256": "52b18a9f4f107962121c2f692c434141c090979658d894da8728eba08381b506",
+  "patch_sha256": "7e2184a9f51a93ce020d08ca359a200f9319b7834184b24546be2e4f9725e3e0",
   "schema": 1,
   "sdk_commit": "421126d9f476ed8e2a6f0b0ca28a9f241c182e65"
 }

@@ -1,0 +1,688 @@
+{
+  "schema": 1,
+  "package_id": "IW-V00-DESIGN-HANDOFF-1",
+  "release_allowed": false,
+  "public_binary_distribution_authorized": false,
+  "resources": [
+    {
+      "id": "ICt_Phone_AppIcon-64x64-1cc081",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 64,
+      "height": 64,
+      "host_raw": {
+        "path": "assets/raw/ICt_Phone_AppIcon-64x64-1cc081.rgb565a8.bin",
+        "bytes": 12288,
+        "sha256": "a5618c419b58f08368b76d3aa559d0160ebf8b8445374008ebf920a7c3d85caf"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Phone_AppIcon_64x64_1cc081.png",
+        "bytes": 5658,
+        "sha256": "4b49057c4548a099a682fa5245f75e507a13212b846343d69f80931e66b492ee"
+      }
+    },
+    {
+      "id": "ICt_Mail_AppIcon-71x71-8651bc",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 71,
+      "height": 71,
+      "host_raw": {
+        "path": "assets/raw/ICt_Mail_AppIcon-71x71-8651bc.rgb565a8.bin",
+        "bytes": 15123,
+        "sha256": "43ebf7bb9239dea21fc964a1447924697488f22efd0a3c7724b77cf846aed616"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Mail_AppIcon_71x71_8651bc.png",
+        "bytes": 7217,
+        "sha256": "5669637a62155cf42422e36072c0121a1ccfdd5f9249141e5ae56bdebfcf3bdc"
+      }
+    },
+    {
+      "id": "ICt_Messages_AppIcon-64x64-f0d6c7",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 64,
+      "height": 64,
+      "host_raw": {
+        "path": "assets/raw/ICt_Messages_AppIcon-64x64-f0d6c7.rgb565a8.bin",
+        "bytes": 12288,
+        "sha256": "88e6ed9fbc8d3120da1ce5a52f20ec9b6a76f3217cfbfc8a85faa708fb0e1c4b"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Messages_AppIcon_64x64_f0d6c7.png",
+        "bytes": 5874,
+        "sha256": "309f019e4748d7fbd50107f614a29ff048599c30408e1ea4af6722e98950eb6d"
+      }
+    },
+    {
+      "id": "ICt_Mindfulness_AppIcon-65x65-dffccf",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 65,
+      "height": 65,
+      "host_raw": {
+        "path": "assets/raw/ICt_Mindfulness_AppIcon-65x65-dffccf.rgb565a8.bin",
+        "bytes": 12675,
+        "sha256": "9ae4e143063a4a30d2d5e36498fcf3792e44d1d1aac542df18bf09353b1b64ad"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Mindfulness_AppIcon_65x65_dffccf.png",
+        "bytes": 7192,
+        "sha256": "ba6bc3854fc5ba8777dedc7db0e8b0e94cef9dcf91c7be84a4c9889f65bd6de7"
+      }
+    },
+    {
+      "id": "ICt_Activity_AppIcon-83x83-2fd12f",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 83,
+      "height": 83,
+      "host_raw": {
+        "path": "assets/raw/ICt_Activity_AppIcon-83x83-2fd12f.rgb565a8.bin",
+        "bytes": 20667,
+        "sha256": "0d795efc9af6d7a71a1feeffcdd767161760ac7631be0f71a9ed358789d5ffa6"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Activity_AppIcon_83x83_2fd12f.png",
+        "bytes": 14854,
+        "sha256": "7a4a087ce8edd618b4c882e1c39e5033256ba3ed5bc0dd1883ef81a9b0040178"
+      }
+    },
+    {
+      "id": "ICt_Workout_AppIcon-83x83-d22dbc",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 83,
+      "height": 83,
+      "host_raw": {
+        "path": "assets/raw/ICt_Workout_AppIcon-83x83-d22dbc.rgb565a8.bin",
+        "bytes": 20667,
+        "sha256": "f6b4c8fb312c21d809d986be0d9331767e07db5ccdb8cb2446603139022aae92"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Workout_AppIcon_83x83_d22dbc.png",
+        "bytes": 9933,
+        "sha256": "d8cdca4b30f3d978a6e8183c16a5d33e908691947a46fa499fbb2b5bf79a13c1"
+      }
+    },
+    {
+      "id": "ICt_Settings_AppIcon-65x65-937ae8",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 65,
+      "height": 65,
+      "host_raw": {
+        "path": "assets/raw/ICt_Settings_AppIcon-65x65-937ae8.rgb565a8.bin",
+        "bytes": 12675,
+        "sha256": "bb3b023799d3855da4077a412fa0296d943282f2b9a18560db953fb409cd289a"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Settings_AppIcon_65x65_937ae8.png",
+        "bytes": 7705,
+        "sha256": "2f890132b07bec13ab11e00b977cfced3e7f1f9508015ff1d2aaf2c321fca192"
+      }
+    },
+    {
+      "id": "ICt_Timers_AppIcon-80x80-bee344",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 80,
+      "height": 80,
+      "host_raw": {
+        "path": "assets/raw/ICt_Timers_AppIcon-80x80-bee344.rgb565a8.bin",
+        "bytes": 19200,
+        "sha256": "803672e9966d92eda69370cb11d2f20d34fe2d29a5690f29b2a11ef7c5a59824"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Timers_AppIcon_80x80_bee344.png",
+        "bytes": 11110,
+        "sha256": "36304eb9b28328a6b67980e3f793ae6a5535b74bf0f2a0add7837f2d2fe9d53c"
+      }
+    },
+    {
+      "id": "ICt_CalendarAppIcon-91x91-9b78bd",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 91,
+      "height": 91,
+      "host_raw": {
+        "path": "assets/raw/ICt_CalendarAppIcon-91x91-9b78bd.rgb565a8.bin",
+        "bytes": 24843,
+        "sha256": "c6e4fb3f8444cfcf3a0a10922fbf3f78919e11f32efa0d29d563304e3c218604"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_CalendarAppIcon_91x91_9b78bd.png",
+        "bytes": 7578,
+        "sha256": "35afd6d80b6a6f0cadc0e6b12530dc4403344cef5f3f834dbc4852b3ca36a09d"
+      }
+    },
+    {
+      "id": "ICt_Stopwatch_AppIcon-80x80-fa169d",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 80,
+      "height": 80,
+      "host_raw": {
+        "path": "assets/raw/ICt_Stopwatch_AppIcon-80x80-fa169d.rgb565a8.bin",
+        "bytes": 19200,
+        "sha256": "f85c90ab359efd52fdedf0beed85e9eef635320914e98eb24b3257d297b5cc70"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Stopwatch_AppIcon_80x80_fa169d.png",
+        "bytes": 11065,
+        "sha256": "a2bfd013e1ea23010d7a6355e1b3dcd3037806394bba5730c254accc03d36f3a"
+      }
+    },
+    {
+      "id": "ICt_WorldClock_AppIcon-67x67-5f14f8",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 67,
+      "height": 67,
+      "host_raw": {
+        "path": "assets/raw/ICt_WorldClock_AppIcon-67x67-5f14f8.rgb565a8.bin",
+        "bytes": 13467,
+        "sha256": "9ab63b093a323f5f63f4ce2e0dffc33806532b4bf91f4ecdd2c2ef31200f7bc4"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_WorldClock_AppIcon_67x67_5f14f8.png",
+        "bytes": 9200,
+        "sha256": "36ee878567630b77242e51edda9dc6c8d46f5f889afe82b7178feaf0c5831861"
+      }
+    },
+    {
+      "id": "ICt_Maps_AppIcon-79x79-b6b7ac",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 79,
+      "height": 79,
+      "host_raw": {
+        "path": "assets/raw/ICt_Maps_AppIcon-79x79-b6b7ac.rgb565a8.bin",
+        "bytes": 18723,
+        "sha256": "294e47634a9f864d04273febeb5cda90760e918580bb51e848a2d87b3cbeb0ad"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Maps_AppIcon_79x79_b6b7ac.png",
+        "bytes": 10683,
+        "sha256": "3201473185536d62fbd1024c25ac394345bda4e477ab2735e22b20a81f728686"
+      }
+    },
+    {
+      "id": "ICt_Weather_AppIcon-79x79-f3e41a",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 79,
+      "height": 79,
+      "host_raw": {
+        "path": "assets/raw/ICt_Weather_AppIcon-79x79-f3e41a.rgb565a8.bin",
+        "bytes": 18723,
+        "sha256": "d45ed2035b9989f1dc4b4689fa90837340e94bece761921bc06cb3d83ac418c5"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Weather_AppIcon_79x79_f3e41a.png",
+        "bytes": 8962,
+        "sha256": "b2b766b44c99a0a8760117ed8bb7556d54dbe3044b81a4ad470d5b2f027aa588"
+      }
+    },
+    {
+      "id": "ICt_Alarms_AppIcon-67x67-f2d14f",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 67,
+      "height": 67,
+      "host_raw": {
+        "path": "assets/raw/ICt_Alarms_AppIcon-67x67-f2d14f.rgb565a8.bin",
+        "bytes": 13467,
+        "sha256": "334fe46d78e7a3806b9ee8200b47e8eb96e2264adff67f820dc3875d87910444"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Alarms_AppIcon_67x67_f2d14f.png",
+        "bytes": 8423,
+        "sha256": "4e9c1f4c725bc7c5286c2534fa1f0c415cf9e5d24f81f061ec55e382bf214d26"
+      }
+    },
+    {
+      "id": "ICt_Compass_AppIcon-64x64-13980a",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 64,
+      "height": 64,
+      "host_raw": {
+        "path": "assets/raw/ICt_Compass_AppIcon-64x64-13980a.rgb565a8.bin",
+        "bytes": 12288,
+        "sha256": "75b059b9ee2fc6e0b70408226516ef1e858c793c6bfb963041caa33b47cd0b5e"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Compass_AppIcon_64x64_13980a.png",
+        "bytes": 6664,
+        "sha256": "813618dcbf406aaf2a2d2447736b5402b35e22221699f89783940ef504741422"
+      }
+    },
+    {
+      "id": "ICt_Photos_AppIcon-78x78-257cb6",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 78,
+      "height": 78,
+      "host_raw": {
+        "path": "assets/raw/ICt_Photos_AppIcon-78x78-257cb6.rgb565a8.bin",
+        "bytes": 18252,
+        "sha256": "c656f31f6d98715a25303dbcc4b980fdd60a92c15142db18459202a7c7febe08"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Photos_AppIcon_78x78_257cb6.png",
+        "bytes": 9950,
+        "sha256": "25b4316e6d3484c026f64e57e2ebfe5221ae06279bf7007a81319144be7e7573"
+      }
+    },
+    {
+      "id": "ICt_Sleep_AppIcon-64x64-944c3e",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 64,
+      "height": 64,
+      "host_raw": {
+        "path": "assets/raw/ICt_Sleep_AppIcon-64x64-944c3e.rgb565a8.bin",
+        "bytes": 12288,
+        "sha256": "c5e74c06c7d40870334ae3c4e1f96250117e40b8c3b4139f67371a379f5968c0"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Sleep_AppIcon_64x64_944c3e.png",
+        "bytes": 5733,
+        "sha256": "68e80eeab3aed64a4c081808b7d66560c2d6b5e031a4aa0fc32a41d8c15a1c00"
+      }
+    },
+    {
+      "id": "music-59x59-4d73be",
+      "kind": "project_vector",
+      "release_allowed": false,
+      "license_status": "项目绘制路径；仍需资源发布核查，不是 SF Symbols 授权包",
+      "width": 59,
+      "height": 59,
+      "host_raw": {
+        "path": "assets/raw/music-59x59-4d73be.rgb565a8.bin",
+        "bytes": 10443,
+        "sha256": "a096e8d68aeb219ac61d3a3228c6bbdc9879215cdea66c9373ede02e2887b1fc"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_music_59x59_4d73be.png",
+        "bytes": 904,
+        "sha256": "5a003be4c470766cc333ad131eacdc109d4d04a041cb5bf84a456d8bfee1b7cb"
+      }
+    },
+    {
+      "id": "restore-25x25-e7a179",
+      "kind": "project_vector",
+      "release_allowed": false,
+      "license_status": "项目绘制路径；仍需资源发布核查，不是 SF Symbols 授权包",
+      "width": 25,
+      "height": 25,
+      "host_raw": {
+        "path": "assets/raw/restore-25x25-e7a179.rgb565a8.bin",
+        "bytes": 1875,
+        "sha256": "7543080bf519bf8b8000140015d630eaf97e7594ec334fcf09b2ef318a34da57"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_restore_25x25_e7a179.png",
+        "bytes": 467,
+        "sha256": "59db33d83cc8a7c1514c26b27eb0f2576147f6061c03f5eab850d2264a737dc5"
+      }
+    },
+    {
+      "id": "decoration-92x92-f49b0e",
+      "kind": "project_vector",
+      "release_allowed": false,
+      "license_status": "项目绘制路径；仍需资源发布核查，不是 SF Symbols 授权包",
+      "width": 92,
+      "height": 92,
+      "host_raw": {
+        "path": "assets/raw/decoration-92x92-f49b0e.rgb565a8.bin",
+        "bytes": 25392,
+        "sha256": "8cf9dd8f218eee548bc1319e95216038221cf264564d99e20573aeace791982b"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_decoration_92x92_f49b0e.png",
+        "bytes": 4248,
+        "sha256": "99cf145db72ffc40aaf572c7fa0b7bcbaf8700af3d9c9e2148bca680d2d6527c"
+      }
+    },
+    {
+      "id": "flower-65x65-e07948",
+      "kind": "project_vector",
+      "release_allowed": false,
+      "license_status": "项目绘制路径；仍需资源发布核查，不是 SF Symbols 授权包",
+      "width": 65,
+      "height": 65,
+      "host_raw": {
+        "path": "assets/raw/flower-65x65-e07948.rgb565a8.bin",
+        "bytes": 12675,
+        "sha256": "71ff3b4017bf03733f0685803cecf7a892cb96dd21802c36cd8d2d3ee1c1011b"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_flower_65x65_e07948.png",
+        "bytes": 1442,
+        "sha256": "d998209517962a4e753e10c9e8c617ebe219a0985e310ebcd58d9ac7e8f7dc40"
+      }
+    },
+    {
+      "id": "run-61x61-9c588c",
+      "kind": "project_vector",
+      "release_allowed": false,
+      "license_status": "项目绘制路径；仍需资源发布核查，不是 SF Symbols 授权包",
+      "width": 61,
+      "height": 61,
+      "host_raw": {
+        "path": "assets/raw/run-61x61-9c588c.rgb565a8.bin",
+        "bytes": 11163,
+        "sha256": "b5d25cd4054aac5f3287ccaa914431fb683fbeefec2908ea9046941f9aa6ddaa"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_run_61x61_9c588c.png",
+        "bytes": 1176,
+        "sha256": "87afcb8a8d28f031a807c45a09aa5267c55c0e70312006ab8f48764a7eed7859"
+      }
+    },
+    {
+      "id": "close-26x26-6150ef",
+      "kind": "project_vector",
+      "release_allowed": false,
+      "license_status": "项目绘制路径；仍需资源发布核查，不是 SF Symbols 授权包",
+      "width": 26,
+      "height": 26,
+      "host_raw": {
+        "path": "assets/raw/close-26x26-6150ef.rgb565a8.bin",
+        "bytes": 2028,
+        "sha256": "632d7b40cd2dc6fe742dcc3b9bb7a7b372fc7556a759acef18eec48810000665"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_close_26x26_6150ef.png",
+        "bytes": 312,
+        "sha256": "ef1a75585d3d2c027012504fe7e2525c3dc463f60c456dd1131494f4cdde39ac"
+      }
+    },
+    {
+      "id": "back-26x26-e153fd",
+      "kind": "project_vector",
+      "release_allowed": false,
+      "license_status": "项目绘制路径；仍需资源发布核查，不是 SF Symbols 授权包",
+      "width": 26,
+      "height": 26,
+      "host_raw": {
+        "path": "assets/raw/back-26x26-e153fd.rgb565a8.bin",
+        "bytes": 2028,
+        "sha256": "fd5b8356482d5a76f09375225b986c300ca59a3d27bfac599245b6a6f4c01f27"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_back_26x26_e153fd.png",
+        "bytes": 323,
+        "sha256": "47a3060eb4e73f9e348e4255931455d3d79fdc7d05ee3ad3a2640a0b478ad956"
+      }
+    },
+    {
+      "id": "decoration-333x333-f15119",
+      "kind": "project_vector",
+      "release_allowed": false,
+      "license_status": "项目绘制路径；仍需资源发布核查，不是 SF Symbols 授权包",
+      "width": 333,
+      "height": 333,
+      "host_raw": {
+        "path": "assets/raw/decoration-333x333-f15119.rgb565a8.bin",
+        "bytes": 332667,
+        "sha256": "00313b488479ef1bb18bc5284e167f6979a2a5b3544ba3b109387fefa90d9e91"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_decoration_333x333_f15119.png",
+        "bytes": 14715,
+        "sha256": "b5c9e69b627ca55410035e5953ff4fce94ddef57aa48c0cdc1df423e55bc0deb"
+      }
+    },
+    {
+      "id": "close-32x32-f30976",
+      "kind": "project_vector",
+      "release_allowed": false,
+      "license_status": "项目绘制路径；仍需资源发布核查，不是 SF Symbols 授权包",
+      "width": 32,
+      "height": 32,
+      "host_raw": {
+        "path": "assets/raw/close-32x32-f30976.rgb565a8.bin",
+        "bytes": 3072,
+        "sha256": "8dd2e419a74cc06631373c1b3f3080a71349fad69b1b32bb30b8d9e68dd686aa"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_close_32x32_f30976.png",
+        "bytes": 354,
+        "sha256": "1968529ebf0f38899d07ece2be65cb8c5b91d8ce1ac7b1198428d4b33bbd178e"
+      }
+    },
+    {
+      "id": "check-36x36-fb2c9e",
+      "kind": "project_vector",
+      "release_allowed": false,
+      "license_status": "项目绘制路径；仍需资源发布核查，不是 SF Symbols 授权包",
+      "width": 36,
+      "height": 36,
+      "host_raw": {
+        "path": "assets/raw/check-36x36-fb2c9e.rgb565a8.bin",
+        "bytes": 3888,
+        "sha256": "480241495decec7959dc48e6ba6a079942d887847479d5966f36127d7eb8e31c"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_check_36x36_fb2c9e.png",
+        "bytes": 428,
+        "sha256": "188e67b9442a831a6ec16d101b18990fd119f9023e5f227c369f8fbaac3dd851"
+      }
+    },
+    {
+      "id": "sun-28x28-40e472",
+      "kind": "project_vector",
+      "release_allowed": false,
+      "license_status": "项目绘制路径；仍需资源发布核查，不是 SF Symbols 授权包",
+      "width": 28,
+      "height": 28,
+      "host_raw": {
+        "path": "assets/raw/sun-28x28-40e472.rgb565a8.bin",
+        "bytes": 2352,
+        "sha256": "552de71a5953e9a8238481b8c84c2d8d6a3bdcbd96fd8ac78e912d51c0e5f61f"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_sun_28x28_40e472.png",
+        "bytes": 549,
+        "sha256": "203c02f06c4379c70e44dc3b40ddd4a7014e9b7fee7b8329588e0f202eb023b7"
+      }
+    },
+    {
+      "id": "sun-43x43-addcf2",
+      "kind": "project_vector",
+      "release_allowed": false,
+      "license_status": "项目绘制路径；仍需资源发布核查，不是 SF Symbols 授权包",
+      "width": 43,
+      "height": 43,
+      "host_raw": {
+        "path": "assets/raw/sun-43x43-addcf2.rgb565a8.bin",
+        "bytes": 5547,
+        "sha256": "810e2516608cd3ba4cb33e10c8e99c148766dcb6853b183958399db6d44e3ed9"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_sun_43x43_addcf2.png",
+        "bytes": 866,
+        "sha256": "cd3cbbfb1e5a29b786b498ac97aaec1bd2ad592d6b7a70531e49f22fdfcbf1d9"
+      }
+    },
+    {
+      "id": "ICt_connectediPhone-24x24-acc9cd",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 24,
+      "height": 24,
+      "host_raw": {
+        "path": "assets/raw/ICt_connectediPhone-24x24-acc9cd.rgb565a8.bin",
+        "bytes": 1728,
+        "sha256": "564d98a34038c6329f5f824bacd930e94eb769399a4c107f43ff2cd0dc284209"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_connectediPhone_24x24_acc9cd.png",
+        "bytes": 327,
+        "sha256": "a16248c10de7207752745ed57440de1844e4b9dce82ba4624b27696fe3384f5e"
+      }
+    },
+    {
+      "id": "ICt_silentMode-24x24-cdf64a",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 24,
+      "height": 24,
+      "host_raw": {
+        "path": "assets/raw/ICt_silentMode-24x24-cdf64a.rgb565a8.bin",
+        "bytes": 1728,
+        "sha256": "e906dccbe8628677c060f2fd5987db087555b02093e858a6797295239b8d45ec"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_silentMode_24x24_cdf64a.png",
+        "bytes": 773,
+        "sha256": "1482330d4ab3ea00a2370e4de0b9d0752b739fda2844b4d2edafbaaa44842b77"
+      }
+    },
+    {
+      "id": "ICt_statusDNDFocus-24x24-20a117",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 24,
+      "height": 24,
+      "host_raw": {
+        "path": "assets/raw/ICt_statusDNDFocus-24x24-20a117.rgb565a8.bin",
+        "bytes": 1728,
+        "sha256": "1f64203da47cb237e3615e29396a2d2026debe360612676f549814119c6cc7fc"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_statusDNDFocus_24x24_20a117.png",
+        "bytes": 584,
+        "sha256": "98fcf899510eb4e52d7c233d657981468be3844a4091def13355ad02b6a81e30"
+      }
+    },
+    {
+      "id": "ICt_Wifi-58x58-0ecb11",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 58,
+      "height": 58,
+      "host_raw": {
+        "path": "assets/raw/ICt_Wifi-58x58-0ecb11.rgb565a8.bin",
+        "bytes": 10092,
+        "sha256": "4d8198476f3d95ea5b0cf8bd8b8d976478e1f7a2ca3680866217e381fbf66b70"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_Wifi_58x58_0ecb11.png",
+        "bytes": 1802,
+        "sha256": "e9db37abc7d63d8b368f1f35206ced876e010dbe558cb50d5f026be7bc5ebb34"
+      }
+    },
+    {
+      "id": "ICt_airplaneMode-58x58-99f564",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 58,
+      "height": 58,
+      "host_raw": {
+        "path": "assets/raw/ICt_airplaneMode-58x58-99f564.rgb565a8.bin",
+        "bytes": 10092,
+        "sha256": "003cfe16eba30c074daef752a80093575a5a5a26cf2e1401f3750ea213b92a7f"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_airplaneMode_58x58_99f564.png",
+        "bytes": 1625,
+        "sha256": "ac228bdda0b0429342f26b2c95921b9c484ec49105a5a17bc61f3fa9fae305b8"
+      }
+    },
+    {
+      "id": "ICt_pingPhone-58x58-78008a",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 58,
+      "height": 58,
+      "host_raw": {
+        "path": "assets/raw/ICt_pingPhone-58x58-78008a.rgb565a8.bin",
+        "bytes": 10092,
+        "sha256": "9b63ad8a18fb2da389c11f8314ae03b1e20eaf6e48ec747ff9e60b935934065e"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_pingPhone_58x58_78008a.png",
+        "bytes": 2265,
+        "sha256": "4eb19cc9b3e9d16076b33464cdaecc1d2dcf9020b21bcec43f564e3e81752b01"
+      }
+    },
+    {
+      "id": "ICt_flashlight-58x58-18dfd7",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 58,
+      "height": 58,
+      "host_raw": {
+        "path": "assets/raw/ICt_flashlight-58x58-18dfd7.rgb565a8.bin",
+        "bytes": 10092,
+        "sha256": "8764f479e0c5a5f60480216f9964e70c54d2caa945e783a1248195a2e1a82a95"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_flashlight_58x58_18dfd7.png",
+        "bytes": 1187,
+        "sha256": "80bd55757b06c858423d352091b2f612cce63acd50842c1c403b7cced3d33097"
+      }
+    },
+    {
+      "id": "ICt_doNotDisturb-58x58-e14f6c",
+      "kind": "apple_reference",
+      "release_allowed": false,
+      "license_status": "未获得再分发许可，本包不授予许可",
+      "width": 58,
+      "height": 58,
+      "host_raw": {
+        "path": "assets/raw/ICt_doNotDisturb-58x58-e14f6c.rgb565a8.bin",
+        "bytes": 10092,
+        "sha256": "cf8e1e6c923d43c7bf1151418a53d77fcad9f801fc098ca5ec330793e94bf2d7"
+      },
+      "target_png": {
+        "path": "firmware/iwatch/src/resource/images/common/ezip/v00_ICt_doNotDisturb_58x58_e14f6c.png",
+        "bytes": 1417,
+        "sha256": "bc8214b12a32c217263435aa130bacdcc32749df7888be667a05dd1baf56bb3a"
+      }
+    },
+    {
+      "id": "control-background-only",
+      "kind": "project_material",
+      "release_allowed": false,
+      "license_status": "项目 CSS 背景；发布仍走项目资源清单",
+      "width": 390,
+      "height": 450,
+      "host_raw": {
+        "path": "assets/raw/control-background-only.rgb565.bin",
+        "bytes": 351000,
+        "sha256": "0025cabda2617ecbe10005837fe7478f277ef84e7fed9cb1fe79954052f1faa7"
+      }
+    }
+  ],
+  "notes": "受控本地导入；许可状态原样保留，不包含私有网络链接。"
+}

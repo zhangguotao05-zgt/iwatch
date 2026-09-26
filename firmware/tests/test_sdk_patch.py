@@ -16,12 +16,20 @@ import sdk_patch
 class SdkPatchTests(unittest.TestCase):
     def test_manifest_has_exact_whitelist_and_valid_patch_hash(self):
         manifest, patch = sdk_patch.load_manifest()
-        self.assertEqual(31, len(manifest["files"]))
+        self.assertEqual(37, len(manifest["files"]))
         self.assertTrue(patch.is_file())
         self.assertIn("external/lvgl_v9/src/libs/tiny_ttf/lv_tiny_ttf.c",
                       {item["path"] for item in manifest["files"]})
+        self.assertIn("external/lvgl_v9/src/core/lv_obj_style.c",
+                      {item["path"] for item in manifest["files"]})
         self.assertIn("middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c",
                       {item["path"] for item in manifest["files"]})
+        self.assertTrue({"middleware/lvgl/lv_drivers_v9/lvsf_img_decoder.c",
+                         "middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic.h",
+                         "middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_img.c",
+                         "middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_fill.c",
+                         "middleware/lvgl/lv_drivers_v9/sifli/lv_epic_utils.c"}.issubset(
+                             {item["path"] for item in manifest["files"]}))
         self.assertTrue({"middleware/app_fwk/app_schedule.c", "middleware/app_fwk/app_schedule_port.c",
                          "middleware/app_fwk/gui_app_fwk.c", "middleware/app_fwk/gui_app_int.h",
                          "middleware/include/gui_app_fwk2.h", "external/lvgl_v9/src/display/lv_display.c"}.issubset({item["path"] for item in manifest["files"]}))

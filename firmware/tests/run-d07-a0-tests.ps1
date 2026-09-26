@@ -69,7 +69,8 @@ $configureLog = Join-Path $outputRoot 'cmake-configure.log'
 $buildLog = Join-Path $outputRoot 'cmake-build.log'
 & $cmake -S (Join-Path $testsDir 'd07_tiny_ttf_oom') -B $resolvedBuild -G Ninja "-DSDK_ROOT=$PatchedSdkPath" *> $configureLog
 if ($LASTEXITCODE -ne 0) { Get-Content $configureLog -Tail 80; throw 'tiny_ttf 主机测试配置失败。' }
-& $cmake --build $resolvedBuild --parallel *> $buildLog
+# MSVC 并发写入同一 PDB 会偶发 C1090；主机门禁使用串行编译保证可复现。
+& $cmake --build $resolvedBuild --parallel 1 *> $buildLog
 if ($LASTEXITCODE -ne 0) { Get-Content $buildLog -Tail 80; throw 'tiny_ttf 主机测试编译失败。' }
 
 & $PythonPath (Join-Path $testsDir 'd07_tiny_ttf_oom\run_oom_matrix.py') `

@@ -1,6 +1,7 @@
 #include "iw_product_controller.h"
 #include "iw_service_runtime.h"
 #include "iw_gui_owner.h"
+#include "test_v00_assets.h"
 #include <assert.h>
 #include <stdio.h>
 #include <string.h>
@@ -388,6 +389,71 @@ int test_product_controller(size_t loops) {
     assert(navigations == before_face_navigation && page.model.message == IW_TEXT_DISPLAY_UNAVAILABLE);
     assert(iw_product_destroy(&page));
     assert(iw_service_set_capability(&model, IW_CAP_DISPLAY, IW_CAP_STATE_AVAILABLE, 0));
+
+    memset(&page, 0, sizeof(page));
+    assert(test_v00_assets_load());
+    assert(iw_product_view_set_v00_images(&page.view,
+        test_v00_assets_images(), IW_ICON_V00_ASSET_COUNT));
+    assert(iw_product_create(&page, IW_PAGE_LAUNCHER_GRID, 0u, 300006u, true,
+                             navigate, stop, &model));
+    assert(page.model.launcher_zoom == 0);
+    page.view.action(IW_ACTION_LAUNCHER_PAN, (60u << 16) | 40u, false,
+                     page.view.context);
+    assert(page.model.launcher_pan_x == 60 && page.model.launcher_pan_y == 40);
+    page.view.action(IW_ACTION_LAUNCHER_PAN, (80u << 16) | 80u, false,
+                     page.view.context);
+    assert(page.model.launcher_pan_x == 96 && page.model.launcher_pan_y == 96);
+    page.dirty = false;
+    page.view.action(IW_ACTION_LAUNCHER_PAN, (1u << 16) | 1u, false,
+                     page.view.context);
+    assert(!page.dirty);
+    page.view.action(IW_ACTION_LAUNCHER_PAN,
+                     (uint32_t)((uint16_t)(int16_t)-120) << 16 |
+                     (uint16_t)(int16_t)-120, false, page.view.context);
+    assert(page.model.launcher_pan_x == -24 && page.model.launcher_pan_y == -24);
+    page.view.action(IW_ACTION_LAUNCHER_ZOOM, 1, true, page.view.context);
+    assert(page.model.launcher_zoom == 15);
+    page.view.action(IW_ACTION_LAUNCHER_ZOOM_DRAG, 100, false, page.view.context);
+    assert(page.model.launcher_zoom == 30);
+    page.view.action(IW_ACTION_LAUNCHER_ZOOM_DRAG, -100, false, page.view.context);
+    assert(page.model.launcher_zoom == -30);
+    assert(iw_product_destroy(&page));
+    assert(iw_product_view_set_v00_images(&page.view, NULL, 0u));
+    test_v00_assets_release();
+
+    memset(&page, 0, sizeof(page));
+    assert(iw_product_create(&page, IW_PAGE_ALARM_EDIT, 0u, 300007u, true,
+                             navigate, stop, &model));
+    uint8_t start_minute = page.model.alarm_edit.minute;
+    page.view.action(IW_ACTION_ALARM_WHEEL, (1 << 16) | 2,
+                     false, page.view.context);
+    assert(page.model.alarm_edit.minute == (start_minute + 2u) % 60u);
+    page.view.action(IW_ACTION_ALARM_WHEEL, (2 << 16) | 1,
+                     false, page.view.context);
+    assert(page.model.alarm_edit.minute == (start_minute + 2u) % 60u);
+    page.model.pending = true;
+    page.view.action(IW_ACTION_ALARM_WHEEL, (1 << 16) | 1,
+                     false, page.view.context);
+    assert(page.model.alarm_edit.minute == (start_minute + 2u) % 60u);
+    page.model.pending = false;
+    uint8_t start_hour = page.model.alarm_edit.hour;
+    page.view.action(IW_ACTION_ALARM_WHEEL, (uint16_t)-1,
+                     false, page.view.context);
+    assert(page.model.alarm_edit.hour == (start_hour + 23u) % 24u);
+    page.view.action(IW_ACTION_ALARM_WHEEL, (1 << 16) | 17,
+                     false, page.view.context);
+    assert(page.model.alarm_edit.minute == (start_minute + 19u) % 60u);
+    page.view.action(IW_ACTION_ALARM_WHEEL, (1 << 16) | (uint16_t)-17,
+                     false, page.view.context);
+    assert(page.model.alarm_edit.minute == (start_minute + 2u) % 60u);
+    page.model.alarm_edit.hour = 0u;
+    page.view.action(IW_ACTION_ALARM_WHEEL, (uint16_t)-32,
+                     false, page.view.context);
+    assert(page.model.alarm_edit.hour == 16u);
+    page.view.action(IW_ACTION_ALARM_WHEEL, 33,
+                     false, page.view.context);
+    assert(page.model.alarm_edit.hour == 16u);
+    assert(iw_product_destroy(&page));
 
     assert(iw_font_collect());
     assert(test_font_live_bytes() == bytes && test_font_live_blocks() == blocks);

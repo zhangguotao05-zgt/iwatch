@@ -27,6 +27,7 @@ extern int test_sdk_navigation(void);
 extern int test_product_view(lv_display_t *display, size_t number, unsigned mode);
 extern int test_product_controller(size_t loops);
 extern int test_product_router(lv_display_t *display,size_t loops);
+extern int test_v00_typography(lv_display_t *display, const void *data, size_t size, size_t index);
 
 static unsigned cancellations, recoveries, quiesced, actions;
 static bool recovery_visible;
@@ -526,7 +527,8 @@ int test_components(const void *data, size_t size, const char *stage, size_t num
     lv_obj_t *warmup = lv_obj_create(lv_display_get_screen_active(display));
     lv_obj_delete(warmup);
     int result;
-    if (!strcmp(stage, "component_product_router")) result = test_product_router(display,number);
+    if (!strcmp(stage, "component_v00_font_specimen")) result = test_v00_typography(display, data, size, number);
+    else if (!strcmp(stage, "component_product_router")) result = test_product_router(display,number);
     else if (!strcmp(stage, "component_product_controller")) result = test_product_controller(number);
     else if (!strcmp(stage, "component_product_oom")) result = test_product_view(display, number, 0);
     else if (!strcmp(stage, "component_product_draw_oom")) result = test_product_view(display, number, 3);
@@ -538,6 +540,12 @@ int test_components(const void *data, size_t size, const char *stage, size_t num
     else if (!strcmp(stage, "component_product")) result = test_product_view(display, number, 1);
     else if (!strcmp(stage, "component_product_render")) result = test_product_view(display, number, 2);
     else if (!strcmp(stage, "component_d11_render")) result = test_product_view(display, number, 9);
+    else if (!strcmp(stage, "component_v00_render")) result = test_product_view(display, number, 10);
+    else if (!strcmp(stage, "component_v00_lifecycle")) result = test_product_view(display, number, 11);
+    else if (!strcmp(stage, "component_v00_oom")) result = test_product_view(display, number, 12);
+    else if (!strcmp(stage, "component_v00_control_oom")) result = test_product_view(display, number, 13);
+    else if (!strcmp(stage, "component_v00_runtime_oom")) result = test_product_view(display, number, 14);
+    else if (!strcmp(stage, "component_cellular_oom")) result = test_product_view(display, number, 15);
     else if (!strcmp(stage, "component_sdk_nav")) result = test_sdk_navigation();
     else if (!strcmp(stage, "component_router")) result = test_router(display, number, false);
     else if (!strcmp(stage, "component_router_oom")) result = test_router(display, number, true);

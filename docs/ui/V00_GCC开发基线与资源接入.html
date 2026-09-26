@@ -1,0 +1,51 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>V00 GCC 开发基线与资源接入</title><link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
+<h1>V00 GCC 开发基线与资源接入</h1>
+<p><a href="../../index.html">工程首页</a> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/16">唯一验收入口 #16</a>。本页说明公开 main 基础上的 V00 开发候选，不代表 V00 最终验收或产品发布。</p>
+<h2>范围与状态边界</h2>
+<p>构建配置／历史平台标识为 SF32LB58-DevKit-LCD / A128R32N1 / QSPI A1，RT-Thread、LVGL v9，配置 DEV_A128_NAND；本次没有物理核实实物 PCB revision。本轮延续 GCC-only 门槛；Keil 后补，不能记为通过。代码包括 V00 页面、蜂窝布局、资源和字体接入、Control 缓存所有权及异步退出保护，以及对应主机夹具。GUI 仍由 app_watch 线程操作。没有调整分区、烧录入口或硬件定义。</p>
+<p>历史候选 658064a2e4b8 已有独立主机证据及 GCC 归档；先前首次烧录／回读／校准、启动亮屏由设备验证负责人记录。公开整理改变构建脚本和文本身份，必须产生新的 GCC 身份，不能把历史镜像认作此提交产物。实体触摸、按键及锁×提醒交叉验证仍未完整完成。37 项控制修复主机用例不是完整 GUI 验收；TARGET 绘制不是实体触摸。最终功能、视觉、Q1–Q6 与允许合并结论由独立验证人在 #16 单列。</p>
+<h2>受控资源与字体许可</h2>
+<p><a href="../../tools/resources/v00-inputs.json">冻结资源清单</a>记录 38 项原素材、37 份构建 PNG 与 38 份主机 raw 的大小和 SHA-256。其中 25 项 apple_reference 明确未获再分发许可；其余 13 项也不据此推定可公开。用户已批准“按此迁移，受限图片保持本地受控”。当前全部图片 payload、生成 C 像素数组、截图与原包留在受控本地，不提交公开仓库。清单和导入器不授予任何再分发许可；公开检出本身不包含完整图片输入，使用已保全本地原包完成导入验证。</p>
+<p>四份 Noto 子集使用 IW V00 Sans 家族名，随仓保留 <a href="assets/v00/font-candidate/OFL.txt">SIL OFL 1.1 许可</a>、<a href="assets/v00/font-specimens/subsets/budget.json">子集预算与哈希</a>。DroidSansFallback 子集保留既有第三方许可与确定性生成清单。导入器只处理图片，不以旧包里的源码、字体或旧清单覆盖当前仓库。</p>
+<h2>一次性本地资源接入</h2>
+<p>从有权访问的本地备份取得 V00-GCC-resources-20260925.zip，以及原交接 51eaec5 解包后的 assets/raw；不需要私有仓库账号或私有下载链接。原 GCC 包 SHA-256：<code>9c2932fa0462462d0bd9e5e54b731cdb930efd5c5e83d16757744843844704a1</code>。原设计包 SHA-256：<code>4074d8cf7972cafa83a96b52fb4ad44c1563a500f62bd3254e6335afc049c8ee</code>。解包前应确认来源和整包哈希，导入时再核验每份实际 payload。</p>
+<pre><code># 在仓库根目录；路径替换为有权使用的本地副本。
+python -X utf8 -B tools/resources/prepare_v00_resources.py --build-pack C:/controlled/V00-GCC-resources-20260925.zip --raw-root C:/controlled/v00-design-handoff/assets/raw --apply
+if ($LASTEXITCODE -ne 0) { throw 'Resource import failed' }
+python -X utf8 -B tools/resources/prepare_v00_resources.py
+if ($LASTEXITCODE -ne 0) { throw 'Resource verification failed' }
+python -X utf8 -B -m unittest discover -s tools/resources -p test_prepare_v00_resources.py -v</code></pre>
+<p>默认仅校验；缺输入返回 2，损坏／冲突返回 1。--apply 验证全部所需输入和既有文件后，仅创建缺失文件；不同内容拒绝覆盖。输出 37 PNG 到被 Git 忽略的生产资源目录，38 raw 到 work/v00-inputs/assets/raw。不会连接网络。磁盘写入异常会保留已创建的正确文件，可修复磁盘问题后重跑。</p>
+<h2>GCC 环境与构建</h2>
+<p>使用已安装的 GCC 14.2.1、SiFli Python 环境（含 SCons、fontTools）和 uv；不需要 Keil。以下命令只激活当前 PowerShell 进程，不永久修改 PATH。SDK 固定提交 421126d9f476ed8e2a6f0b0ca28a9f241c182e65；派生补丁由 firmware/patches/sdk_patch_manifest.json 验证，必须包含当前 37 个补丁文件。不要把业务代码或旧 SDK 覆盖进此检出。</p>
+<pre><code># 替换为已经准备好的 SDK 与已安装 uv 的路径。
+. ./firmware/activate-gcc.ps1 -SdkPath C:/sdk/iwatch-derived -BaseSdkPath C:/sdk/iwatch-base -BootstrapPath C:/tools/uv
+python -X utf8 -B firmware/sdk_patch.py verify-derived --sdk C:/sdk/iwatch-derived
+if ($LASTEXITCODE -ne 0) { throw 'Derived SDK verification failed' }
+python -X utf8 -B firmware/generate_font_subset.py --output firmware/iwatch/src/resource/fonts/DroidSansFallback.ttf --manifest firmware/iwatch/src/resource/fonts/DroidSansFallback.subset.json --check
+if ($LASTEXITCODE -ne 0) { throw 'Font verification failed' }
+./firmware/build-gcc.ps1 -SdkPath C:/sdk/iwatch-derived -BuildProfile DEV_A128_NAND -Jobs 8</code></pre>
+<p>没有派生 SDK 时，先按 firmware/sdk_patch.py 的 prepare 入口从已核验、子模块齐全的基线准备独立派生目录；不要直接改基线 SDK。构建入口会检查 SDK、分区、生成配置、字体、来源身份与资源预算。产物在 firmware/iwatch/project/artifacts/DEV_A128_NAND/gcc；build_identity.json 记录源码、SDK、编译器、ELF／map／镜像哈希。日志与产物只留本地，不能公开原始设备资料。本轮不运行 flash-serial.ps1。</p>
+<h2>主机复验入口</h2>
+<p>基本 Python 门禁不需要图片或设备。MSVC 主机夹具需要已安装的 x64 开发者环境、CMake、Ninja、ASan。正式 TARGET 后端还需要上述本地资源和本次 GCC 生成描述符，不能把 PREVIEW 或 mock 渲染结果当作 TARGET 通过。</p>
+<pre><code>python -X utf8 -B -m unittest discover -s firmware/tests -p test_resource_budget.py -v
+python -X utf8 -B -m unittest discover -s firmware/tests -p test_sdk_patch.py -v
+# 从本次 GCC 构建目录定位 src/resource/images/common/ezip 中的 v00_*.tmp.c。
+# 输出 generated 必须尚不存在；已有证据不要覆盖。
+python -X utf8 -B firmware/tests/v00_target_view/prepare_resources.py C:/path/to/current-gcc-generated/ezip
+$env:IW_V00_ASSET_ROOT = (Resolve-Path work/v00-inputs/assets/raw).Path
+$env:IW_V00_FONT_ROOT = (Resolve-Path firmware/iwatch/src/resource/fonts).Path
+cmake -S firmware/tests/d07_tiny_ttf_oom -B work/v00-target -G Ninja -DSDK_ROOT=C:/sdk/iwatch-derived -DIW_TEST_TARGET_VIEW=ON
+cmake --build work/v00-target
+cmake -S firmware/tests/control_router -B work/v00-router -G Ninja -DSDK_ROOT=C:/sdk/iwatch-derived
+cmake --build work/v00-router</code></pre>
+<p>实际执行用例、环境变量和截图输出应保存在新目录，绑定确切提交与夹具 EXE 哈希；按 #16 的受影响矩阵补测，不重复冒用旧结论。生成描述符只是把 GCC 聚合初始化语法机械转换给 MSVC，保留像素 payload 和输入哈希，目录已被 Git 忽略。tools/design 保留素材管线脚本，历史设计网页／截图为外部受控输入，不属于公开检出的无条件执行门禁。</p>
+<h2>保留项</h2>
+<p>本轮独立验证发现并增量修正三处：Control 胶囊改为 150° 灰／130° 蓝／140° 紫共享材质、2px 环形边框及有界内高光近似；显示设置两处箭头使用专用 1px 向量，不改通用 NEXT；数字根 View 更新为模块表盘前准备完整 ROM 前景目录，目录失败保留旧 scene，数字返回成功后解除借用。字体分配失败仍走原 GUI 故障／销毁恢复，不宣称完整更新事务回滚。</p>
+<p>实现者增量主机测试实测：数字／模块同 View 往返 4 轮并真实绘制；六材质×16 持有者共享 423,340 B；运行灰态 Control 总像素占用 402,604 B（新增 51,604 B）；全部六材质与 Control 背景同时持有测试峰值 774,340 B，不含分配器元数据、字体及其他页面。配置专用图片 PSRAM 堆 2,100,000 B；这不是整机最坏内存证明。逐材质分配失败、系统堆回退拒绝、idle 回收、父删／共享及 OOM 恢复有界验证。根更新目录失败与首次模块字体 OOM 独立增量、端到端交互与最终视觉结论由验证人补齐，不能用成功切换代替失败覆盖。</p>
+<p>资源导入器 8 项、SDK 5 项单测通过；预算单测 10 项中 2 项依赖归档的检查未执行，其余 8 项通过。TARGET／preview 受影响绘制与缓存测试通过；新 GCC 产物及最终独立验收按确切提交记录在 PR／#16。本轮不是零告警宣称：受影响四单元静态分析有 12 条既有枚举组合／受界限内存和格式化 API 诊断，未改行保持并交独立复核；新 paint 和 cache 单元无报告。硬件不由本次主机结果背书。</p>
+<pre><code># target_cache 0 在独立输出目录产生六个 paint-*.rgb565a8 后：
+python -X utf8 -B firmware/tests/check_v00_paint_pixels.py C:/local-evidence/target_cache-0</code></pre>
+<p>#8 性能、#10 显示异常和 D15 持久化分别跟踪，本轮不顺带整改。SDK app_cache_alloc 在专用缓存分配失败时仍可回退 rt_malloc；不能从 flash1 初始化错误直接推断所有 UI 内存分配都会失败。实际预算、分配失败恢复和新增影响必须各自验证，不能据回退路径宣称性能或实体交互已通过。</p>
+</main></body></html>

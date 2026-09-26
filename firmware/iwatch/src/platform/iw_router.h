@@ -11,6 +11,7 @@ bool iw_router_process(void);
 /* Back 只退一层；Home 锁定应用根目标，等待框架安全完成。 */
 bool iw_router_back(void);
 bool iw_router_home(void);
+bool iw_router_unlock(void);
 bool iw_router_overlay_visible(void);
 bool iw_router_alert_visible(void);
 /* 应急返回始终回桌面，禁止因来源是桌面而反向进入表盘。 */

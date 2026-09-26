@@ -158,14 +158,25 @@ def keil_resources(map_path):
     rows = [row for row in parse_keil_input_rows(text) if row[0] and row[1]]
     components = parse_keil_component_sizes(text)
 
-    font_rows = [row for row in rows if row[2] == ".font_data" and row[3] == "DroidSansFallback.o"]
-    if len(font_rows) != 1:
-        raise ValueError("Keil map must contain one DroidSansFallback.o(.font_data)")
-    symbol = re.findall(
-        r"^\s*DroidSansFallback\s+0x[0-9a-fA-F]+\s+Data\s+(\d+)\s+DroidSansFallback\.o\(\.font_data\)\s*$",
-        text, re.M)
-    if len(symbol) != 1 or int(symbol[0]) != font_rows[0][1]:
-        raise ValueError("Keil TTF symbol and input section differ")
+    font_names = ("DroidSansFallback", "IWV00Noto300", "IWV00Noto400",
+                  "IWV00Noto500", "IWV00Noto600")
+    all_font_rows = [row for row in rows if row[2] == ".font_data"]
+    font_rows = {row[3][:-2]: row[1] for row in all_font_rows
+                 if row[3].endswith(".o") and row[3][:-2] in font_names}
+    if len(font_rows) != len(all_font_rows):
+        raise ValueError("Keil font inputs include duplicate or unknown sections")
+    if "DroidSansFallback" not in font_rows or len(font_rows) not in (1, len(font_names)):
+        raise ValueError("Keil font inputs are incomplete")
+    for name, size in font_rows.items():
+        symbol = re.findall(
+            r"^\s*" + re.escape(name) +
+            r"\s+0x[0-9a-fA-F]+\s+Data\s+(\d+)\s+" + re.escape(name) +
+            r"\.o\(\.font_data\)\s*$", text, re.M)
+        if len(symbol) != 1 or int(symbol[0]) != size:
+            raise ValueError("Keil TTF symbol and input section differ: " + name)
+        component = components.get(name + ".o")
+        if not component or component["ro_data"] < size:
+            raise ValueError("Keil TTF component differs: " + name)
 
     image_rows = [row for row in rows if row[2].startswith(".ROM3_IMG")]
     if not image_rows:
@@ -186,7 +197,7 @@ def keil_resources(map_path):
     if not bitmap_input or dict(bitmap_input) != bitmap_component:
         raise ValueError("Keil bitmap map inputs and component table differ")
     return {
-        "subset_ttf_bytes": font_rows[0][1],
+        "subset_ttf_bytes": sum(font_rows.values()),
         "bitmap_font_bytes": sum(bitmap_input.values()),
         "image_bytes": sum(row[1] for row in image_rows),
         "bitmap_objects": dict(sorted(bitmap_input.items())),
