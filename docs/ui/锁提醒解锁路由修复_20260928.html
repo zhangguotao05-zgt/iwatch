@@ -1,0 +1,13 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><title>锁＋提醒解锁路由修复</title><link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
+<h1>锁＋提醒解锁路由修复</h1><p><a href="../../index.html">工程首页</a> · 2026-09-28 · WATER-UNLOCK-ROUTE-FIX-20260928</p>
+<p>基于公开 main 4e9c076（与 03ecd4b34924 同 tree），保留 D13 v2 的解锁后提醒可操作、账本不自动确认契约。旧板上观察为提醒→列表→同提醒快速切换；本次只改应用路由和受影响夹具，不改 SDK、按键协议、DMA／显示驱动、分区或资源。</p>
+<h2>实现与所有权</h2><p>app_watch owner 接到解锁意图后保留前台提醒实例，先回收后台控制中心、再回收锁页；复用既有 gui_app_remove_page、三次有界重试、STOP 后安全释放事务。实例由指针＋generation 校验，原来源按 app 和名称绑定；清理完成前保持锁输入上下文，完成后重新读账本、更新原提醒并取消跨页残留输入，不加载来源中间屏幕。</p>
+<p>不写 hidden_alert，不发 ACK／SNOOZE。提醒业务侧失效后退回来源；来源失效转入既有根页恢复，再按账本展示提醒，恢复不是用户隐藏动作。资源忙时不执行清理；失败耗尽保留锁与原提醒，新的有效长按释放才重新给有界预算。无提醒时沿用原解锁路径。只新增一个固定大小事务状态，无额外页面、图像或后台任务；目标大小以 GCC map 为准。</p>
+<h2>验证与复现</h2><p>局部夹具 <code>firmware/tests/control_router</code> 使用真实 input_signal、生产路由、TARGET View、D12 服务与 LVGL 屏幕事件。新增 runtime_model 让路由、控制器和命令处理共用账本；只替换 RTOS 邮箱／调度与硬件边界。SCREEN_LOADED 事件证明软件没有加载来源屏幕，不等同于面板逐帧验收。</p>
+<p>MSVC 19.44 / x64 / MD / ASan：旧版仅替换路由输入后，在 <code>unlock_source_loads == 0</code> 失败；新实现 modes 0–21 通过。0–9 复用共享清理受影响回归；10–21 为普通锁／水锁 × timer／alarm：保留提醒、跨扫描稳定终态、短按屏蔽、显式隐藏／重进／稍后新 epoch／ACK、删除申请 OOM／邮箱失败／部分失败耗尽与重试、渲染忙、已受理延迟、来源／提醒失效、请求冲突、SDK 忙和非根来源返回。</p>
+<p>配置使用 <code>cmake -S firmware/tests/control_router -B work/host-unlock -G Ninja -DSDK_ROOT=&lt;固定派生SDK&gt; -DCMAKE_BUILD_TYPE=RelWithDebInfo -DCMAKE_C_FLAGS_RELWITHDEBINFO="/Zi /Od" -DCMAKE_MSVC_RUNTIME_LIBRARY=MultiThreadedDLL -DCMAKE_EXPORT_COMPILE_COMMANDS=ON</code>。先按原资源接入入口准备 37 个 generated 描述符；设置 IW_V00_ASSET_ROOT 为受控 raw 目录，IW_V00_FONT_ROOT 为 firmware/iwatch/src/resource/fonts。构建后运行 <code>work/host-unlock/legacy/test_tiny_ttf_oom.exe firmware/iwatch/src/resource/fonts/DroidSansFallback.ttf &lt;mode&gt;</code>。旧版反证在另一构建目录使用 <code>-DIW_ROUTER_SOURCE=&lt;旧版iw_router.c&gt;</code>，不覆盖冻结源码。</p>
+<p>本地证据以 <code>work/fixed07-build</code>（新）、<code>work/negative03-build</code>（旧版反证）为本轮初始有效配对；源码/制品哈希和完整命令见交接封存。首次 negative 因 raw 路径缺失失败，negative02 修正路径后复现缺陷；fixed02–05 的增量对象未可靠追踪 .inc，不能作为新增场景通过证据。已在正确 TARGET_DIRECTORY 显式绑定提取文件依赖，fixed06/07 确认重新编译并实际触发失败注入。历史输出未覆盖。</p>
+<p>相关 clang-tidy 使用真实夹具 compile_commands，仅分析时去掉 /fsanitize=address；初轮旧/新报告 37/40 条：既有 va_list 诊断、SDK 枚举诊断及有界 C 库调用风格提示。净增三条为固定 16 字节名称复制及固定事务结构清零类提示；逐处核对尺寸/所有权，无新增内存或控制流阻断。未屏蔽整个检查器。不是零告警，也不是 MISRA 认证。</p>
+<h2>Q1–Q6 自检与状态</h2><p>Q1：路由负责解锁事务，D12 独占账本；Q2：公共接口和 SDK 不变；Q3：owner、实例 generation 与 STOP/释放界限明确；Q4：局部重试、忙等待、来源失效、提醒失效均有测试；Q5：复用一个清理机制，不加显示延时或新的渲染通道；Q6：同账本真实控制器动作与 SDK 删除/发送提取函数参与，调度模型和物理显示仍有明确边界。</p>
+<p>主机局部自检已完成；独立 D 复验和最终 GCC 构建证据在本地交接中补齐，不预写通过。Keil 未运行；本包不占设备、不刷写、不推送或合并。实屏转场、实体 ACK／触摸和解锁后普通交互仍由 A 在后续授权板验中核对，不能以本页关闭 V00。</p>
+</main></body></html>

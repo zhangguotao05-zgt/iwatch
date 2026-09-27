@@ -12,7 +12,7 @@ int main(int argc, char **argv)
     setvbuf(stdout, NULL, _IONBF, 0);
     if (argc != 3) return 64;
     unsigned mode = (unsigned)strtoul(argv[2], NULL, 10);
-    if (mode > 10) return 65;
+    if (mode > 21) return 65;
     size_t font_size = 0;
     uint8_t *font_data = load_file(argv[1], &font_size);
     if (!font_data) return 66;

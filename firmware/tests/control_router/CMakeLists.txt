@@ -3,11 +3,17 @@ project(control_router_repair LANGUAGES C)
 set(IW_TEST_TARGET_VIEW ON CACHE BOOL "真实 TARGET 分支" FORCE)
 set(BASE "${CMAKE_CURRENT_SOURCE_DIR}/../d07_tiny_ttf_oom")
 add_subdirectory("${BASE}" legacy)
+# 旧版反证只替换被测路由输入，其余夹具与候选相同；不修改旧源码。
+if(DEFINED IW_ROUTER_SOURCE)
+    file(READ "${IW_ROUTER_SOURCE}" ROUTER)
+    string(REGEX REPLACE "#include [^\n]*" "" ROUTER "${ROUTER}")
+    file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/legacy/router_under_test.inc" "${ROUTER}")
+endif()
 # 沿用 D 三组诊断的有状态边界，源码由当前工作副本原样提取。
 get_target_property(SOURCES test_tiny_ttf_oom SOURCES)
-list(FILTER SOURCES EXCLUDE REGEX "(^|/)(test_router|test_tiny_ttf_oom|test_target_view)\\.c$")
+list(FILTER SOURCES EXCLUDE REGEX "(^|/)(test_router|test_tiny_ttf_oom|test_target_view|test_product_controller)\\.c$")
 set_property(TARGET test_tiny_ttf_oom PROPERTY SOURCES "${SOURCES}")
-target_sources(test_tiny_ttf_oom PRIVATE router_model.c entry.c target_model.c)
+target_sources(test_tiny_ttf_oom PRIVATE router_model.c entry.c target_model.c runtime_model.c)
 target_include_directories(test_tiny_ttf_oom PRIVATE "${BASE}" "${CMAKE_CURRENT_BINARY_DIR}")
 function(extract_function path marker output)
     file(READ "${path}" text)
@@ -23,3 +29,7 @@ function(extract_function path marker output)
 endfunction()
 extract_function("${SDK_ROOT}/middleware/app_fwk/gui_app_fwk.c" "void gui_app_remove_page(" sdk_remove.inc)
 extract_function("${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_apps/watch_demo.c" "static bool input_signal(" input_signal.inc)
+# 显式绑定提取文件，避免本地化 /showIncludes 解析差异令增量构建复用旧对象。
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/router_model.c"
+    TARGET_DIRECTORY test_tiny_ttf_oom PROPERTIES OBJECT_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/unlock_cases.inc;${CMAKE_CURRENT_BINARY_DIR}/legacy/router_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/legacy/route_screen_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/legacy/sdk_send_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/sdk_remove.inc;${CMAKE_CURRENT_BINARY_DIR}/input_signal.inc")
