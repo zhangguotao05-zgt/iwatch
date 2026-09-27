@@ -30,7 +30,7 @@ static bool iw_key_port_apply_context(iw_input_context_t value)
 enum { ROUTE_SLOTS = IW_NAV_MAX_APPS * IW_NAV_MAX_DEPTH };
 typedef enum { REQUEST_NONE, REQUEST_OPEN, REQUEST_STAT, REQUEST_BURST, REQUEST_PROFILE,
                REQUEST_PROBE, REQUEST_OVERLAY_HOME, REQUEST_FACE_HOME,
-               REQUEST_TEST_NOTICE } request_kind_t;
+               REQUEST_TEST_NOTICE, REQUEST_UNLOCK_ALERT } request_kind_t;
 typedef struct {
     request_kind_t kind;
     uint32_t argument;
@@ -76,6 +76,13 @@ static uint32_t generation, next_argument;
 static uint32_t product_wait=UINT32_MAX;
 static uint32_t alert_scan_tick;
 static iw_alert_record_t hidden_alert;
+/* 解锁保留前台提醒；后台按控制中心、锁页顺序回收，完成前仍由锁拥有输入。 */
+static struct {
+    route_page_t *alert, *lock, *source;
+    uint32_t alert_generation, lock_generation, source_generation;
+    iw_input_context_t context;
+    char app[16];
+} alert_unlock;
 /* 表盘候选只能在根页 ONRESUME 成功后提交；请求受理不等于转场成功。 */
 static bool face_return_pending;
 static bool face_return_ready;
@@ -128,7 +135,7 @@ static iw_input_context_t live_lock_context(void)
 
 static void sync_input_context(uint16_t page_id)
 {
-    iw_input_context_t desired = live_lock_context();
+    iw_input_context_t desired = alert_unlock.alert ? alert_unlock.context : live_lock_context();
     if (page_id == IW_PAGE_LOCK) desired = IW_INPUT_LOCKED;
     if (page_id == IW_PAGE_WATER_LOCK) desired = IW_INPUT_WATER;
     if (iw_key_port_context() != desired)
@@ -177,6 +184,16 @@ static void cleanup_retry(void)
         overlay_cleanup_attempts = 0;
         overlay_cleanup_blocked = false;
     }
+}
+
+static void cleanup_arm(route_page_t *page, const char *app)
+{
+    overlay_cleanup_page = page;
+    overlay_cleanup_generation = page->scope.token.generation;
+    memcpy(overlay_cleanup, page->sdk_name, sizeof(overlay_cleanup));
+    memcpy(overlay_cleanup_app, app, sizeof(overlay_cleanup_app));
+    overlay_cleanup_attempts = 0;
+    overlay_cleanup_blocked = false;
 }
 
 static iw_route_t root_route(const char *app)
@@ -483,6 +500,8 @@ static void release_page(route_page_t *page)
             overlay_cleanup, (unsigned long)overlay_cleanup_generation);
         cleanup_clear();
     }
+    if (page == alert_unlock.lock && page->scope.token.generation == alert_unlock.lock_generation)
+        alert_unlock.lock = NULL;
     for (unsigned i = 0; i < ROUTE_SLOTS; i++) if (pages[i] == page) pages[i] = NULL;
     if (candidate == page) candidate = NULL;
     rt_free(page);
@@ -734,10 +753,17 @@ bool iw_router_home(void)
 bool iw_router_unlock(void)
 {
     if (!initialized || !iw_font_port_is_owner()) return false;
+    if (alert_unlock.alert) {
+        cleanup_retry();
+        iw_gui_wake(IW_GUI_WAKE_STATE);
+        return true;
+    }
     iw_input_context_t context = iw_key_port_context();
     if ((context != IW_INPUT_LOCKED && context != IW_INPUT_WATER) ||
         live_lock_context() == IW_INPUT_NORMAL) return false;
-    /* 提醒覆盖锁页时，认可的松手边沿一次关闭整条覆盖链。 */
+    /* 提醒保留原屏幕；不借 Home 短暂呈现来源，再等待扫描重建。 */
+    if (iw_router_alert_visible())
+        return request((route_request_t){.kind=REQUEST_UNLOCK_ALERT}, false);
     if (overlay_root_id && overlay_source[0])
         return request((route_request_t){.kind=REQUEST_OVERLAY_HOME}, false);
     return home_request(true);
@@ -785,6 +811,82 @@ static void home_process(const gui_app_route_snapshot_t *snapshot)
     iw_gui_cancel_input();
 }
 
+static bool alert_unlock_begin(const gui_app_route_snapshot_t *snapshot)
+{
+    route_page_t *alert = snapshot_page(snapshot, false);
+    route_page_t *lock = snapshot_page(snapshot, true);
+    route_page_t *control = find_page(overlay_root_page), *source = NULL;
+    if (overlay_cleanup_page || !alert || !alert->product || alert->failed ||
+        (alert->route.page_id != IW_PAGE_ALERT_TIMER && alert->route.page_id != IW_PAGE_ALERT_ALARM) ||
+        !lock || lock->stopped || lock->failed ||
+        (lock->route.page_id != IW_PAGE_LOCK && lock->route.page_id != IW_PAGE_WATER_LOCK) ||
+        !control || control->stopped || control->failed || control->resumed ||
+        control->scope.token.generation != overlay_root_generation || !overlay_source[0]) return false;
+    for (unsigned i = 0; i < ROUTE_SLOTS; ++i) {
+        route_page_t *page = pages[i];
+        if (page && !page->stopped && !page->failed && page->scope.alive &&
+            !strcmp(page->sdk_name, overlay_source) &&
+            (strcmp(overlay_source, "root") || page->route.page_id == root_route(snapshot->app_id).page_id)) {
+            source = page;
+            break;
+        }
+    }
+    if (!source || source == alert || source == lock || source == control) return false;
+    alert_unlock.alert = alert;
+    alert_unlock.lock = lock;
+    alert_unlock.source = source;
+    alert_unlock.alert_generation = alert->scope.token.generation;
+    alert_unlock.lock_generation = lock->scope.token.generation;
+    alert_unlock.source_generation = source->scope.token.generation;
+    alert_unlock.context = iw_key_port_context();
+    memcpy(alert_unlock.app, snapshot->app_id, sizeof(alert_unlock.app));
+    cleanup_arm(control, snapshot->app_id);
+    iw_gui_cancel_input();
+    return true;
+}
+
+static void alert_unlock_recover(void)
+{
+    /* 恢复不是用户隐藏提醒；保留既有隐藏键，让可用根页仍能按账本接回提醒。 */
+    iw_alert_record_t previous_hidden = hidden_alert;
+    (void)home_request(true);
+    hidden_alert = previous_hidden;
+}
+
+static void alert_unlock_process(const gui_app_route_snapshot_t *snapshot)
+{
+    if (!alert_unlock.alert || snapshot->busy || navigator.state != IW_NAV_IDLE) return;
+    route_page_t *alert = find_page(alert_unlock.alert);
+    route_page_t *source = find_page(alert_unlock.source);
+    route_page_t *lock = find_page(alert_unlock.lock);
+    if (home_target || fault_unwind || rolling_back || !alert || !source || alert->failed ||
+        source->failed || source->stopped || !source->scope.alive ||
+        alert->scope.token.generation != alert_unlock.alert_generation ||
+        source->scope.token.generation != alert_unlock.source_generation ||
+        snapshot_page(snapshot, false) != alert || strcmp(snapshot->app_id, alert_unlock.app) ||
+        (alert_unlock.lock && (!lock || lock->scope.token.generation != alert_unlock.lock_generation))) {
+        memset(&alert_unlock, 0, sizeof(alert_unlock));
+        sync_input_context(observed_route(snapshot, false).page_id);
+        if (!home_target && !fault_unwind && !rolling_back) alert_unlock_recover();
+        return;
+    }
+    if (overlay_cleanup_page) return;
+    if (lock) {
+        cleanup_arm(lock, snapshot->app_id);
+        return;
+    }
+    /* STOP 和资源释放都已完成，刷新账本后才允许提醒接收新输入。 */
+    memset(&alert_unlock, 0, sizeof(alert_unlock));
+    alert->product->last_poll = lv_tick_get() - 1000u;
+    alert->product->dirty = true;
+    (void)iw_product_process();
+    sync_input_context(alert->route.page_id);
+    iw_gui_cancel_input();
+    const iw_alert_record_t *record = &alert->product->model.selected_alert;
+    if (!record->entity_id || record->state != IW_ALERT_PRESENTING)
+        (void)request((route_request_t){0}, true);
+}
+
 bool iw_router_process(void)
 {
     if (!initialized || !iw_font_port_is_owner()) return false;
@@ -816,7 +918,7 @@ bool iw_router_process(void)
             }
     }
     rt_base_t level = rt_hw_interrupt_disable();
-    bool work = requested.kind != REQUEST_NONE || requested_back || home_target;
+    bool work = requested.kind != REQUEST_NONE || requested_back || home_target || alert_unlock.alert;
     rt_hw_interrupt_enable(level);
     if ((work || snapshot.busy || navigator.state != IW_NAV_IDLE || fault_unwind) && !iw_font_port_render_idle()) return true;
     if (!iw_font_port_render_idle()) return false;
@@ -840,6 +942,11 @@ bool iw_router_process(void)
     requested = (route_request_t){0};
     requested_back = false;
     rt_hw_interrupt_enable(level);
+    /* 事务状态只在 GUI owner 读取；诊断线程仍只写受中断保护的请求邮箱。 */
+    if (alert_unlock.alert) {
+        back = false;
+        if (command.kind != REQUEST_STAT) command = (route_request_t){0};
+    }
     if (back || (command.kind != REQUEST_FACE_HOME && command.kind != REQUEST_NONE)) {
         face_transaction_abort(snapshot_page(&snapshot, false));
         iw_product_face_cancel_pending();
@@ -866,6 +973,11 @@ bool iw_router_process(void)
         bool added = iw_product_notification_add(IW_NOTIFICATION_DIAGNOSTIC,
                                                   diagnostic, sizeof(diagnostic) - 1u);
         rt_kprintf("notification diagnostic inserted=%u\n", (unsigned)added);
+    }
+    else if (command.kind == REQUEST_UNLOCK_ALERT) {
+        if (snapshot.busy || navigator.state != IW_NAV_IDLE)
+            (void)request(command, false);
+        else if (!alert_unlock_begin(&snapshot)) alert_unlock_recover();
     }
     else if (command.kind == REQUEST_OVERLAY_HOME) {
         if (overlay_root_id && overlay_source[0] && !snapshot.busy &&
@@ -929,7 +1041,7 @@ bool iw_router_process(void)
         if (command.kind == REQUEST_BURST) back = true;
     }
     if (iw_nav_take_back(&navigator)) back = true;
-    if (back && !fault_unwind && !rolling_back) {
+    if (back && !fault_unwind && !rolling_back && !alert_unlock.alert) {
         route_page_t *current=snapshot_page(&snapshot,false);
         if (!current || !current->product || !iw_product_back(current->product))
             begin_request(IW_NAV_BACK, 0, 0, false, &snapshot);
@@ -1008,12 +1120,7 @@ bool iw_router_process(void)
                 if (!overlay_cleanup_page && old && !old->stopped &&
                     old->scope.token.generation == overlay_root_generation &&
                     !strcmp(old->sdk_name, overlay_root_name)) {
-                    overlay_cleanup_page = old;
-                    overlay_cleanup_generation = old->scope.token.generation;
-                    memcpy(overlay_cleanup, old->sdk_name, sizeof(overlay_cleanup));
-                    memcpy(overlay_cleanup_app, snapshot.app_id, sizeof(overlay_cleanup_app));
-                    overlay_cleanup_attempts = 0;
-                    overlay_cleanup_blocked = false;
+                    cleanup_arm(old, snapshot.app_id);
                 }
             }
             if (from && to && (to->page_id == IW_PAGE_SWITCHER ||
@@ -1030,6 +1137,7 @@ bool iw_router_process(void)
     if (recovery_blocked) home_target = NULL;
     home_process(&snapshot);
     (void)gui_app_get_route_snapshot(&snapshot);
+    alert_unlock_process(&snapshot);
     cleanup_process(&snapshot);
     /* SDK 动画由 LVGL 定时器推进；事务仍忙时必须让出绘制，不能等待自身停止的动画。 */
     return (home_target && !snapshot.busy) || (fault_unwind && !recovery_blocked && !snapshot.busy);

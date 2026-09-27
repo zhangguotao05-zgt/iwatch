@@ -73,7 +73,8 @@ static bool display_available = true;
 static bool flip_display_after_first_read;
 static unsigned capability_reads;
 static uint32_t test_tick_ms;
-static iw_service_t service;
+extern iw_service_t *test_router_service(void);
+#define service (*test_router_service())
 static iw_time_state_t service_time;
 static bool (*ready_callback)(void);
 static bool scheduling;
@@ -378,6 +379,8 @@ static route_page_t *current_product(void)
     return page;
 }
 
+#include "unlock_cases.inc"
+
 int dynamic_router_case(lv_display_t *display, unsigned mode)
 {
     test_product_runtime_init();
@@ -394,34 +397,8 @@ int dynamic_router_case(lv_display_t *display, unsigned mode)
     notify_page(0, GUI_APP_MSG_ONSTART);
     notify_page(0, GUI_APP_MSG_ONRESUME);
     settle_dynamic("initial_root");
-    if (mode == 10u) {
-        /* 复用既有四组合判据，新增真实 input_signal 分派边界，不模拟物理消抖。 */
-        const uint16_t locks[] = {IW_PAGE_LOCK, IW_PAGE_WATER_LOCK};
-        const iw_alert_source_t sources[] = {IW_ALERT_SOURCE_TIMER, IW_ALERT_SOURCE_ALARM};
-        for (unsigned lock = 0; lock < 2u; ++lock) for (unsigned alert = 0; alert < 2u; ++alert) {
-            uint32_t alert_id = 100u + lock * 2u + alert;
-            iw_input_context_t expected = lock ? IW_INPUT_WATER : IW_INPUT_LOCKED;
-            assert(input_signal((iw_key_signal_t){IW_KEY_SIDE, IW_KEY_SINGLE}));
-            settle_dynamic("lock_control");
-            assert(iw_router_open(locks[lock]));
-            settle_dynamic("lock_page");
-            assert(depth == 3u && router_test_input_context == expected);
-            assert(iw_alerts_note(&service.alerts, sources[alert], alert_id, 1u, 1u, 1u) == IW_ALERT_OK);
-            assert(iw_alerts_present(&service.alerts, sources[alert], alert_id, 1u) == IW_ALERT_OK);
-            test_tick_ms += 1000u;
-            for (unsigned step = 0; step < 5u; ++step) (void)iw_router_process();
-            assert(depth == 4u && iw_router_alert_visible() && router_test_input_context == expected);
-            assert(!input_signal((iw_key_signal_t){IW_KEY_SIDE, IW_KEY_SINGLE}));
-            assert(depth == 4u && router_test_input_context == expected);
-            assert(input_signal((iw_key_signal_t){IW_KEY_CROWN, IW_KEY_UNLOCK}));
-            settle_dynamic("unlock_input");
-            assert(depth == 1u && router_test_input_context == IW_INPUT_NORMAL && !overlay_root_id);
-            iw_alert_snapshot_t remaining;
-            assert(iw_service_alerts_read(&service, &remaining));
-            assert(remaining.count == 1u && remaining.records[0].state == IW_ALERT_PRESENTING);
-            assert(iw_alerts_ack(&service.alerts, sources[alert], alert_id, 1u) == IW_ALERT_OK);
-            printf("ASSERT lock_input lock=%u alert=%u side_ignored=1 unlock_root=1\n", lock, alert);
-        }
+    if (mode >= 10u) {
+        test_unlock_cases(mode);
         goto teardown;
     }
     assert(input_signal((iw_key_signal_t){IW_KEY_SIDE, IW_KEY_SINGLE}));
