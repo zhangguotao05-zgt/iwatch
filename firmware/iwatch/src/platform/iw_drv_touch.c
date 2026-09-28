@@ -116,6 +116,22 @@ void iw_touch_cancel(void)
     rt_mutex_release(more_data_lock);
 }
 
+static void touch_invalid_sample(void)
+{
+    rt_mutex_take(more_data_lock, RT_WAITING_FOREVER);
+    /* 旧 UP 也已失去可信性；GUI 取消后仍须等本次失败之后的真实释放。 */
+    last_rec.event = TOUCH_EVENT_NONE;
+    touch_count_add(&touch_stats.discarded, touch_queued() + 1u);
+    pos_rec_beg = pos_rec_end = 0;
+    bool notify = !touch_stats.wait_release;
+    if (notify) touch_stats.cancel_pending = true;
+    touch_stats.wait_release = true;
+    rt_mutex_release(more_data_lock);
+    /* 连续失败只保持隔离，不在采样线程操作 LVGL 或重复唤醒。 */
+    if (notify && g_touch_device.rx_indicate)
+        g_touch_device.rx_indicate(&g_touch_device, 1);
+}
+
 static void touch_write_more(rt_uint8_t  event, rt_uint16_t x, rt_uint16_t  y)
 {
     rt_bool_t send_indicate = RT_FALSE;
@@ -602,9 +618,18 @@ static void tp_read_thread_entry(void *parameter)
         //touch->ops->isr_enable(RT_TRUE);
         do
         {
+            /* RT_EEMPTY 可携带末条有效样本；驱动失败时也可能完全不写输出。 */
+            msg = (struct touch_message){0, 0, TOUCH_EVENT_NONE};
             touch_api_lock();
             err = current_driver->ops->read_point(&msg);
             touch_api_unlock();
+            if ((err != RT_EOK && err != RT_EEMPTY) ||
+                (msg.event != TOUCH_EVENT_DOWN && msg.event != TOUCH_EVENT_UP))
+            {
+                touch_invalid_sample();
+                rt_thread_delay(RT_TICK_PER_SECOND / BSP_TOUCH_SAMPLE_HZ);
+                break;
+            }
             switch (msg.event)
             {
             case TOUCH_EVENT_DOWN:

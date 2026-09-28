@@ -30,6 +30,8 @@ SOURCE_CASES = [
     ("platform/iw_router.c", None, "router_under_test.inc"),
 ]
 CMAKE_FILES = [f"firmware/tests/{name}/CMakeLists.txt" for name in ("d07_tiny_ttf_oom", "control_router")]
+# 新触摸夹具的配置输入；本脚本仍只重放原 A1 判据，不把新 SDK 函数套入旧基线。
+SDK_SUPPORT_FILES = ["customer/peripherals/touch_panel/ft6146/ft6146.c"]
 
 
 def sha(path):
@@ -69,6 +71,7 @@ def main():
     protected = {root / path for path in CMAKE_FILES}
     protected.update(root / "firmware/iwatch/src" / path for path, _, _ in SOURCE_CASES)
     protected.update(args.sdk / path for path, _, _ in SDK_CASES)
+    protected.update(args.sdk / path for path in SDK_SUPPORT_FILES)
     protected.add(args.sdk / "middleware/app_fwk/gui_app_fwk.c")
     before_hashes = {str(path): sha(path) for path in protected}
     results = []
@@ -90,7 +93,7 @@ def main():
             shutil.copytree(root / "firmware/tests/v00_target_view/generated",
                             repo / "firmware/tests/v00_target_view/generated", dirs_exist_ok=True)
             shutil.copytree(args.sdk / "external/lvgl_v9/src", sdk / "external/lvgl_v9/src")
-            for relative in {path for path, _, _ in SDK_CASES}:
+            for relative in {path for path, _, _ in SDK_CASES} | set(SDK_SUPPORT_FILES):
                 destination = sdk / relative
                 destination.parent.mkdir(parents=True, exist_ok=True)
                 shutil.copy2(args.sdk / relative, destination)
