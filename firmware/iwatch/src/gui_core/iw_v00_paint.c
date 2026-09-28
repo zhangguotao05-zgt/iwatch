@@ -7,7 +7,9 @@ static const iw_v00_paint_spec_t specs[] = {
     /* 原规格 e007/009/011/013/015/017；CSS 54px 半径按高度收缩到 51.5px。 */
     {167, 103, 103, 150, 167, 103, 0, 0x767776, 0x454448, 0xb8bec7, 117, 56},
     {167, 103, 103, 130, 167, 103, 0, 0x00bde9, 0x0989fb, 0x41d7fb, 255, 255},
-    {167, 103, 103, 140, 167, 103, 0, 0x7860ff, 0x5d40fa, 0x9c8cff, 255, 255}
+    {167, 103, 103, 140, 167, 103, 0, 0x7860ff, 0x5d40fa, 0x9c8cff, 255, 255},
+    {350, 93, 48, 120, 350, 93, 0, 0x29292c, 0x202022, 0, 255, 0},
+    {58, 58, 58, 145, 58, 58, 0, 0x343438, 0x18181c, 0xffffff, 170, 27}
 };
 
 const iw_v00_paint_spec_t *iw_v00_paint_spec(unsigned id)
@@ -93,6 +95,7 @@ bool iw_v00_paint_pixels(unsigned id, uint8_t *pixels, size_t capacity)
     case 120: dx = 28378; dy = 16384; break;
     case 130: dx = 25102; dy = 21063; break;
     case 140: dx = 21063; dy = 25102; break;
+    case 145: dx = 18795; dy = 26842; break;
     case 150: dx = 16384; dy = 28378; break;
     default: return false;
     }
@@ -111,11 +114,16 @@ bool iw_v00_paint_pixels(unsigned id, uint8_t *pixels, size_t capacity)
             unsigned blue = gradient_channel(s->start_color & 255u, s->end_color & 255u, numerator, denominator);
             unsigned alpha = s->fill_opacity;
             unsigned outer = rounded_coverage(s->width, s->height, s->radius_half_px, (int)x, (int)y);
-            if (id >= IW_V00_PAINT_CONTROL_GRAY && outer) {
+            if (id >= IW_V00_PAINT_CONTROL_GRAY && id <= IW_V00_PAINT_CONTROL_PURPLE && outer) {
                 unsigned inner = rounded_coverage(163, 99, 99, (int)x - 2, (int)y - 2);
                 /* 内阴影在填充之上，边框只占 2px 环带；不再叠整块半透明底。 */
                 unsigned highlight = (inset_highlight((int)x, (int)y) * inner + outer / 2u) / outer;
                 alpha = composite(&red, &green, &blue, alpha, 0xffffff, highlight);
+                unsigned border = (s->border_opacity * (outer - inner) + outer / 2u) / outer;
+                alpha = composite(&red, &green, &blue, alpha, s->border_color, border);
+            }
+            if (id == IW_V00_PAINT_NOTIFICATION_TOP && outer) {
+                unsigned inner = rounded_coverage(56, 56, 56, (int)x - 1, (int)y - 1);
                 unsigned border = (s->border_opacity * (outer - inner) + outer / 2u) / outer;
                 alpha = composite(&red, &green, &blue, alpha, s->border_color, border);
             }

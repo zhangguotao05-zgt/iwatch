@@ -30,6 +30,8 @@ enum {
     IW_ICON_V00_AIRPLANE,
     IW_ICON_V00_MOON,
     IW_ICON_V00_DISPLAY_NEXT,
+    IW_ICON_NOTIFICATION_BELL,
+    IW_ICON_NOTIFICATION_TRASH,
     IW_ICON_V00_APP_FIRST = 64,
     IW_ICON_V00_APP_COUNT = 17,
     IW_ICON_V00_ASSET_COUNT = 38
@@ -144,7 +146,7 @@ typedef struct {
     int16_t x, y, width, height, baseline;
     uint16_t action;
     uint8_t font_px, radius, align, icon;
-    bool fixed, disabled, multiline, picker_item;
+    bool fixed, disabled, multiline, picker_item, notification_row;
     uint32_t color, fill;
     char text[IW_PRODUCT_TEXT_BYTES];
 } iw_product_node_t;

@@ -391,6 +391,7 @@ static route_page_t *current_product(void)
 
 #include "unlock_cases.inc"
 #include "notification_router_cases.inc"
+#include "notification_visual_cases.inc"
 
 int dynamic_router_case(lv_display_t *display, unsigned mode)
 {
@@ -408,6 +409,18 @@ int dynamic_router_case(lv_display_t *display, unsigned mode)
     notify_page(0, GUI_APP_MSG_ONSTART);
     notify_page(0, GUI_APP_MSG_ONRESUME);
     settle_dynamic("initial_root");
+    if (mode == 26u) {
+        notification_visual_case(display);
+        goto teardown;
+    }
+    if (mode == 27u) {
+        notification_mixed_visual_case(display);
+        goto teardown;
+    }
+    if (mode == 28u) {
+        notification_paint_failure_case();
+        goto teardown;
+    }
     if (mode >= 23u) {
         test_notification_router_cases(mode);
         goto teardown;

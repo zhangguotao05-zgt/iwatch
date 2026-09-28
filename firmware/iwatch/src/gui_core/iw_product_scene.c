@@ -5,6 +5,7 @@
 #include <string.h>
 
 #define TEXT(id) iw_product_texts[IW_TEXT_##id]
+#include "iw_notification_scene.inc"
 
 static bool add(iw_product_scene_t *s, int x, int y, int w, int h, int baseline, unsigned px, unsigned color,
                 unsigned fill, unsigned radius, unsigned align, unsigned action, bool fixed, bool disabled,
@@ -863,10 +864,18 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
         break;
 #endif
     case IW_PAGE_NOTIFICATION_LIST:
+#if defined(IW_TARGET_BUILD) || defined(IW_V00_HOST_PREVIEW)
+        ok = notice_list(s, m);
+#else
         ok = notification_list(s, m);
+#endif
         break;
     case IW_PAGE_NOTIFICATION_DETAIL:
+#if defined(IW_TARGET_BUILD) || defined(IW_V00_HOST_PREVIEW)
+        ok = notice_detail(s, m);
+#else
         ok = notification_detail(s, m);
+#endif
         break;
     case IW_PAGE_SMART_STACK:
         ok = smart_stack(s, m);
@@ -1053,11 +1062,15 @@ bool iw_product_scene_build(iw_product_scene_t *s, uint16_t id, const iw_product
                        id == IW_PAGE_NOTIFICATION_DETAIL || id == IW_PAGE_SMART_STACK ||
                        id == IW_PAGE_SWITCHER || id == IW_PAGE_FACE_PICKER ||
                        id == IW_PAGE_FACE_EDITOR;
-        if (overlay) s->clip_bottom = 408;
+        bool notification_fullscreen = id == IW_PAGE_NOTIFICATION_LIST && s->clip_top == 0;
+        if (overlay && !notification_fullscreen) s->clip_bottom = 408;
         /* 覆盖页的错误紧邻操作区显示；长列表底部的提示可能永远不在视野内。 */
-        ok = ok && label(s, 18, overlay ? 434 : s->content_height + 36, 354, 20,
+        ok = ok && label(s, 18, notification_fullscreen ? 294 : overlay ? 434 : s->content_height + 36, 354, 20,
                          IW_PRODUCT_WARNING, 1, overlay, iw_product_texts[m->message]);
         if (ok) s->nodes[s->count - 1].multiline = true;
+#if defined(IW_TARGET_BUILD) || defined(IW_V00_HOST_PREVIEW)
+        if (ok && s->v00_style) s->v00_materials[s->count - 1u].font_weight = 400;
+#endif
     }
     if (m->large_text) {
         for (unsigned i = 0; i < s->count; i++) {
@@ -1084,6 +1097,18 @@ int iw_product_scene_hit(const iw_product_scene_t *s, int x, int y, int scroll_y
         const iw_product_node_t *n = &s->nodes[i];
         if (!n->action || n->disabled || (!n->fixed && (y < s->clip_top || y >= s->clip_bottom))) continue;
         int ny = n->y - (n->fixed ? 0 : scroll_y);
+        /* 通知页按可见圆角轮廓命中，圆钮角落不吞掉内容手势。 */
+        if ((s->page_id == IW_PAGE_NOTIFICATION_LIST || s->page_id == IW_PAGE_NOTIFICATION_DETAIL) &&
+            n->radius && x >= n->x && x < n->x + n->width && y >= ny && y < ny + n->height) {
+            int r = n->radius;
+            if (r > n->height / 2) r = n->height / 2;
+            if (r > n->width / 2) r = n->width / 2;
+            int dx = x < n->x + r ? n->x + r - x :
+                     x >= n->x + n->width - r ? x - (n->x + n->width - r - 1) : 0;
+            int dy = y < ny + r ? ny + r - y :
+                     y >= ny + n->height - r ? y - (ny + n->height - r - 1) : 0;
+            if (dx * dx + dy * dy > r * r) continue;
+        }
         if (((s->page_id == IW_PAGE_LAUNCHER_GRID || s->page_id == IW_V00_GRID) &&
              n->action >= IW_PAGE_SETTINGS && n->action <= IW_PAGE_ALARM_LIST) ||
             ((s->page_id == IW_V00_TIMER || s->page_id == IW_PAGE_TIMER_LIST ||

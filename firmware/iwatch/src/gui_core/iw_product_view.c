@@ -29,6 +29,8 @@ static const uint8_t sizes[] = {20, 22, 24, 26, 28, 30, 32, 48, 64, 80};
 #define PICKER_STEP_PX 75
 #define PICKER_TOP 116
 #define PICKER_BOTTOM 326
+#define PAGE_LONG_PRESS_MS 700u
+#define PAGE_DRAG_CANCEL_PX 12
 static void event(const lv_obj_class_t *class_p, lv_event_t *e);
 static void destructor(const lv_obj_class_t *class_p, lv_obj_t *object);
 static bool cellular_native(const iw_product_view_t *view);
@@ -64,6 +66,7 @@ static bool font_covers_text(const lv_font_t *font, const char *text)
     while (text[offset]) {
         uint32_t previous = offset;
         uint32_t codepoint = lv_text_encoded_next(text, &offset);
+        if (codepoint == '\n' || codepoint == '\r') continue;
         lv_font_glyph_dsc_t glyph = {0};
         if (offset <= previous || !lv_font_get_glyph_dsc(font, &glyph, codepoint, 0))
             return false;
@@ -296,6 +299,35 @@ static void icon_ring(lv_layer_t *layer, const lv_area_t *a, uint32_t color, int
 }
 
 static void draw_icon(lv_layer_t *layer, const lv_area_t *a, unsigned icon, uint32_t color) {
+    if (icon == IW_ICON_NOTIFICATION_BELL || icon == IW_ICON_NOTIFICATION_TRASH) {
+        /* 原 48×48 路径按 3.2 单位笔宽量化；铃铛上半圆用受检圆角填充。 */
+        int size = lv_area_get_width(a), width = (size + 7) / 15;
+        if (icon == IW_ICON_NOTIFICATION_BELL) {
+            int cx = a->x1 + 24 * size / 48, cy = a->y1 + 19 * size / 48;
+            int radius = size / 4 + width / 2;
+            lv_area_t old_clip = layer->_clip_area;
+            lv_area_t half = {a->x1, a->y1, a->x2, cy};
+            if (lv_area_intersect(&layer->_clip_area, &old_clip, &half)) {
+                lv_area_t ring = {cx - radius, cy - radius, cx + radius - 1, cy + radius - 1};
+                if (iw_draw_fill_checked(layer, &ring, color, radius, 255, false, 0)) {
+                    ring.x1 += width; ring.x2 -= width;
+                    ring.y1 += width; ring.y2 -= width;
+                    (void)iw_draw_fill_checked(layer, &ring, 0, radius - width, 255, false, 0);
+                }
+            }
+            layer->_clip_area = old_clip;
+            static const int lines[][4] = {{12,19,12,30}, {12,30,7,35}, {7,35,41,35},
+                                           {41,35,36,30}, {36,30,36,19}, {20,40,28,40}};
+            for (unsigned i = 0; i < 6u && !iw_gui_fault_pending(); ++i)
+                icon_line_width(layer, a, color, lines[i][0], lines[i][1], lines[i][2], lines[i][3], width);
+        } else {
+            static const int lines[][4] = {{8,12,40,12}, {19,6,29,6}, {13,12,15,42},
+                                           {15,42,33,42}, {33,42,35,12}, {21,20,21,35}, {27,20,27,35}};
+            for (unsigned i = 0; i < 7u && !iw_gui_fault_pending(); ++i)
+                icon_line_width(layer, a, color, lines[i][0], lines[i][1], lines[i][2], lines[i][3], width);
+        }
+        return;
+    }
     if (icon == IW_ICON_V00_DISPLAY_NEXT) {
         /* 仅显示设置两行：原交接向量轮廓，不能改变通用 NEXT 的命中或外观。 */
         icon_line_width(layer, a, color, 17, 12, 31, 24, 1);
@@ -683,6 +715,10 @@ bool iw_product_view_update(iw_product_view_t *v, const iw_product_model_t *mode
                 iw_gui_fault_raise();
                 return false;
             }
+            if (node->notification_row && !acquire_v00_font(v, 400, 20)) {
+                iw_gui_fault_raise();
+                return false;
+            }
             if (node->text[0] && !font_covers_text(
                     v00_font(v, v->scene.v00_materials[n].font_weight, node->font_px),
                     node->text)) {
@@ -702,6 +738,11 @@ bool iw_product_view_update(iw_product_view_t *v, const iw_product_model_t *mode
                     return false;
                 }
                 v->scene.v00_materials[n].fallback_size_px = sizes[fallback];
+                if (node->notification_row && !v->fonts[font_index(20)].font &&
+                    iw_font_acquire(iw_font_find(20), &v->fonts[font_index(20)]) != IW_FONT_OK) {
+                    iw_gui_fault_raise();
+                    return false;
+                }
             }
             continue;
         }
@@ -718,7 +759,26 @@ bool iw_product_view_update(iw_product_view_t *v, const iw_product_model_t *mode
         iw_product_node_t *n = &v->scene.nodes[i];
         unsigned f = font_index(n->font_px);
 #if defined(IW_V00_HOST_PREVIEW) || defined(IW_TARGET_BUILD)
-        if (is_v00_page(&v->scene)) continue;
+        if (is_v00_page(&v->scene)) {
+            /* 通知详情正文使用真实字体行度量；其他冻结页面不改变重排规则。 */
+            if (v->scene.page_id != IW_PAGE_NOTIFICATION_DETAIL || !n->multiline || n->fixed)
+                continue;
+            const iw_v00_material_t *style = &v->scene.v00_materials[i];
+            const lv_font_t *font = style->fallback_size_px ?
+                v->fonts[font_index(style->fallback_size_px)].font :
+                v00_font(v, style->font_weight, n->font_px);
+            lv_point_t measured;
+            lv_text_get_size(&measured, n->text, font, style->letter_space, 0, n->width, LV_TEXT_FLAG_NONE);
+            if (iw_gui_fault_pending()) return false;
+            int delta = measured.y - n->height;
+            n->height = (int16_t)measured.y;
+            for (unsigned j = i + 1u; j < v->scene.count; ++j) {
+                iw_product_node_t *after = &v->scene.nodes[j];
+                if (!after->fixed) { after->y += (int16_t)delta; after->baseline += (int16_t)delta; }
+            }
+            v->scene.content_height = (uint16_t)((int)v->scene.content_height + delta);
+            continue;
+        }
 #endif
         if (!n->multiline || f == sizeof(sizes)) continue;
         lv_point_t measured;
@@ -780,6 +840,7 @@ bool iw_product_view_create(iw_product_view_t *v, lv_obj_t *parent, uint16_t pag
     bool foreground_page = page_id == IW_PAGE_LAUNCHER_GRID ||
         page_id == IW_PAGE_TIMER_LIST || page_id == IW_PAGE_ALARM_EDIT ||
         page_id == IW_PAGE_DISPLAY ||
+        page_id == IW_PAGE_NOTIFICATION_LIST || page_id == IW_PAGE_NOTIFICATION_DETAIL ||
         (page_id == IW_PAGE_FACE &&
          model->face_session.active_face_id == IW_FACE_MODULAR_LOCAL);
     if (page_id == IW_PAGE_CONTROL_CENTER) {
@@ -862,6 +923,7 @@ bool iw_product_view_destroy(iw_product_view_t *v) {
 void iw_product_view_activate(iw_product_view_t *v, bool active) {
     if (!v || !iw_font_port_is_owner()) return;
     v->active = active;
+    v->notification_hold = false;
     v->resumed_ms = lv_tick_get();
     v->first_draw = active;
     v->pressed = -1;
@@ -967,6 +1029,34 @@ static void draw(iw_product_view_t *v, lv_layer_t *layer) {
 #endif
             break;
         }
+        if (n->notification_row) {
+            /* 一份固定文本保存来源和摘要；绘制任务各自复制，不借用业务账本。 */
+            char title[IW_PRODUCT_TEXT_BYTES];
+            const char *body = strchr(n->text, '\n');
+            if (!body) { iw_gui_fault_raise(); break; }
+            size_t length = (size_t)(body - n->text);
+            memcpy(title, n->text, length); title[length] = 0;
+            const lv_font_t *detail_font = material->fallback_size_px ?
+                v->fonts[font_index(20)].font : v00_font(v, 400, 20);
+            lv_area_t row_clip = layer->_clip_area;
+            lv_area_t text_clip = {area.x1 + 19, area.y1 + 15, area.x1 + 322, area.y1 + 48};
+            if (lv_area_intersect(&layer->_clip_area, &row_clip, &text_clip)) {
+                lv_area_t label = text_clip;
+                label.y1 = origin.y1 + n->baseline - shift - font->line_height + font->base_line;
+                label.y2 = label.y1 + font->line_height - 1;
+                (void)iw_draw_text_checked(layer, &label, title, font, n->color, LV_TEXT_ALIGN_LEFT, 255);
+            }
+            text_clip.y1 = area.y1 + 52; text_clip.y2 = area.y1 + 77;
+            if (!iw_gui_fault_pending() && lv_area_intersect(&layer->_clip_area, &row_clip, &text_clip)) {
+                lv_area_t label = text_clip;
+                label.y1 = area.y1 + 73 - detail_font->line_height + detail_font->base_line;
+                label.y2 = label.y1 + detail_font->line_height - 1;
+                (void)iw_draw_text_checked(layer, &label, body + 1, detail_font, 0xa8a8b1, LV_TEXT_ALIGN_LEFT, 255);
+            }
+            layer->_clip_area = row_clip;
+            if (iw_gui_fault_pending()) break;
+            continue;
+        }
         /* 基线来自字体度量，不能把对象顶部当成文字基线。 */
         area.y1 = origin.y1 + n->baseline - shift - font->line_height + font->base_line;
         if (!n->multiline) area.y2 = area.y1 + font->line_height - 1;
@@ -1009,6 +1099,7 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
         v->pressed = -1;
         v->dragging = false;
         v->face_long_press_fired = false;
+        v->notification_hold = false;
         v->picker_offset = 0;
         v->picker_snapping = false;
         v->launcher_zooming = false;
@@ -1043,6 +1134,19 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
         v->picker_offset = 0;
         feedback(v, v->pressed >= 0 && !cellular_native(v));
         v->face_long_press_fired = false;
+        v->notification_hold = false;
+        if (v->scene.page_id == IW_PAGE_NOTIFICATION_LIST && x >= 20 && x < 370 &&
+            y >= v->scene.clip_top && y < v->scene.clip_bottom) {
+            int first = INT16_MAX, last = 0;
+            for (unsigned i = 0; i < v->scene.count; ++i) {
+                const iw_product_node_t *row = &v->scene.nodes[i];
+                if (row->action < IW_ACTION_NOTIFICATION_OPEN_BASE ||
+                    row->action >= IW_ACTION_NOTIFICATION_OPEN_BASE + IW_NOTIFICATION_CAPACITY) continue;
+                if (row->y < first) first = row->y;
+                if (row->y + row->height > last) last = row->y + row->height;
+            }
+            v->notification_hold = y + v->scroll_y >= first && y + v->scroll_y < last;
+        }
     }
     uint16_t action = v->pressed >= 0 ?
         (cellular_native(v) ? v->cellular_bounds[v->pressed].action :
@@ -1054,9 +1158,24 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
                                action == IW_ACTION_ALARM_MINUTE_MINUS ? 1 : -1;
         v->alarm_wheel_remainder = 0;
     }
-    if (code == LV_EVENT_PRESSING && v->scene.page_id == IW_PAGE_FACE &&
+    /* 必须先看本次位移再判断到时，避免阈值时刻的一次跳动误开确认。 */
+    if (v->notification_hold &&
+        (x - v->press_x > PAGE_DRAG_CANCEL_PX || v->press_x - x > PAGE_DRAG_CANCEL_PX ||
+         y - v->press_y > PAGE_DRAG_CANCEL_PX || v->press_y - y > PAGE_DRAG_CANCEL_PX)) {
+        v->notification_hold = false;
+        v->dragging = true;
+        feedback(v, false);
+    }
+    if (code == LV_EVENT_PRESSING && v->notification_hold && !v->dragging &&
+        !v->face_long_press_fired &&
+        (uint32_t)(lv_tick_get() - v->press_started) >= PAGE_LONG_PRESS_MS) {
+        v->face_long_press_fired = true;
+        v->notification_hold = false;
+        feedback(v, false);
+        if (v->action) v->action(IW_ACTION_NOTIFICATION_CLEAR, 0, true, v->context);
+    } else if (code == LV_EVENT_PRESSING && v->scene.page_id == IW_PAGE_FACE &&
         !v->dragging && !v->face_long_press_fired &&
-        (uint32_t)(lv_tick_get() - v->press_started) >= 700u) {
+        (uint32_t)(lv_tick_get() - v->press_started) >= PAGE_LONG_PRESS_MS) {
         v->face_long_press_fired = true;
         feedback(v, false);
         if (v->action) v->action(IW_ACTION_FACE_PICKER, 0, true, v->context);
@@ -1199,6 +1318,7 @@ static void event(const lv_obj_class_t *class_p, lv_event_t *e) {
         v->pressed = -1;
         v->dragging = false;
         v->face_long_press_fired = false;
+        v->notification_hold = false;
         v->launcher_zooming = false;
         v->alarm_wheel_field = -1;
     }

@@ -24,7 +24,7 @@ if len(font_data) != expected.get('bytes') or actual_hash != expected.get('sha25
 print(f"Font subset: {font_file} ({len(font_data)} bytes, {actual_hash})")
 font_objs = Env.ConvertFont(font_file, 'DroidSansFallback')
 
-# 四份字重与视觉批准样张共用同一哈希；构建前阻止字体漂移。
+# 保留历史批准预算；通知扩字使用独立受控清单，不改写历史样张身份。
 budget_file = os.path.normpath(os.path.join(cwd, '..', '..', '..', '..', '..',
                                             'docs', 'ui', 'assets', 'v00',
                                             'font-specimens', 'subsets', 'budget.json'))
@@ -32,14 +32,26 @@ with open(budget_file, 'r', encoding='utf-8') as stream:
     v00_budget = json.load(stream)
 if v00_budget.get('total_with_legacy_bytes', 0) > v00_budget.get('limit_bytes', 0):
     raise RuntimeError('V00 字体超过批准预算')
-for item in v00_budget['subsets']:
+with open(os.path.join(cwd, 'NotoSansSC-notifications.subset.json'), 'r', encoding='utf-8') as stream:
+    current_budget = json.load(stream)
+if (current_budget.get('schema') != 1 or
+        current_budget.get('legacy_sha256') != actual_hash or
+        current_budget.get('limit_bytes') != v00_budget['limit_bytes'] or
+        current_budget['limit_bytes'] != 131072 or
+        sorted(item['weight'] for item in current_budget['subsets']) != [300, 400, 500, 600]):
+    raise RuntimeError('通知字体清单无效或改变既定预算')
+total_bytes = len(font_data)
+for item in current_budget['subsets']:
     weight = item['weight']
     path = os.path.join(cwd, 'NotoSansSC-v00-only-%d.ttf' % weight)
     with open(path, 'rb') as stream:
         data = stream.read()
     if len(data) != item['bytes'] or hashlib.sha256(data).hexdigest() != item['sha256']:
-        raise RuntimeError('V00 字体文件与批准样张不一致: %d' % weight)
+        raise RuntimeError('字体文件与当前受控清单不一致: %d' % weight)
+    total_bytes += len(data)
     font_objs += Env.ConvertFont(path, 'IWV00Noto%d' % weight)
+if total_bytes != current_budget['total_bytes'] or total_bytes > current_budget['limit_bytes']:
+    raise RuntimeError('实际字体总量不符或超过既定预算')
 
 font_objs = DefineGroup('resource', font_objs, depend = ['PKG_USING_LITTLEVGL2RTT'])
 

@@ -4,6 +4,10 @@
 #undef app_cache_free
 
 static size_t release_calls;
+void dynamic_cache_fail_next(bool enabled)
+{
+    fail_at = enabled ? alloc_calls + 1u : 0u;
+}
 void app_cache_free(void *pixels)
 {
     original_cache_free(pixels);

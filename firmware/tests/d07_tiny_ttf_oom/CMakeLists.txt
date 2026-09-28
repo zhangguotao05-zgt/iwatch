@@ -210,5 +210,7 @@ if(MSVC)
     target_link_options(test_tiny_ttf_oom PRIVATE /fsanitize=address)
 endif()
 target_link_libraries(test_tiny_ttf_oom PRIVATE lvgl_host)
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_product_scene.c"
+    PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_notification_scene.inc")
 set_source_files_properties(test_touch_input.c PROPERTIES OBJECT_DEPENDS
     "${CMAKE_CURRENT_SOURCE_DIR}/touch_invalid_cases.inc;${CMAKE_CURRENT_BINARY_DIR}/touch_driver_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/touch_sampler_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/touch_input_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/input_cancel_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/ft6146_regs_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/ft6146_point_under_test.inc")
