@@ -82,6 +82,9 @@ enum {
     IW_ACTION_FACE_NOTIFICATIONS,
     IW_ACTION_FACE_STACK,
     IW_ACTION_NOTIFICATION_OPEN_BASE = 0x1200,
+    IW_ACTION_NOTIFICATION_CLEAR = 0x1220,
+    IW_ACTION_NOTIFICATION_CLEAR_CANCEL,
+    IW_ACTION_NOTIFICATION_CLEAR_CONFIRM,
     IW_ACTION_RECENT_OPEN_BASE = 0x1240,
     IW_ACTION_RECENT_REMOVE_BASE = 0x1280,
     IW_ACTION_RECENT_PREVIOUS = 0x12c0,
@@ -208,6 +211,7 @@ typedef struct {
     bool lock_water, lock_available;
     uint8_t lock_progress;
     bool selected_notification_valid;
+    bool notification_clear_confirm;
 } iw_product_model_t;
 /* 固定容量；全部字符串复制。输出不引用页面草稿或临时格式化缓冲。 */
 bool iw_product_scene_build(iw_product_scene_t *scene, uint16_t page_id, const iw_product_model_t *model);

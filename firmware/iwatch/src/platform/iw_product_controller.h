@@ -9,6 +9,7 @@ typedef struct iw_product_page {
     void (*quiesce)(void *);
     void *context;
     uint32_t generation, session, request, last_poll, last_preview, argument;
+    uint32_t notification_clear_revision, notification_view_revision;
     uint16_t page_id;
     uint8_t next_level;
     bool queued_level, final_level, visible, dirty, linked, exiting;

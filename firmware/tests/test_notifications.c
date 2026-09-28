@@ -3,8 +3,60 @@
 #include <stdio.h>
 #include <string.h>
 
+static void test_clear(void)
+{
+    static iw_notification_store_t store, before;
+    assert(iw_notification_clear(NULL, 0) == IW_NOTIFICATION_INVALID);
+    before = store;
+    assert(iw_notification_clear(&store, 0) == IW_NOTIFICATION_OK);
+    assert(!memcmp(&before, &store, sizeof(store)));
+    uint32_t first_id;
+    assert(iw_notification_insert(&store, IW_NOTIFICATION_LOCAL,
+        "first", 5, true, 42, &first_id) == IW_NOTIFICATION_OK);
+    uint32_t confirmation = store.last_revision;
+    assert(iw_notification_insert(&store, IW_NOTIFICATION_LOCAL,
+        "second", 6, true, 43, NULL) == IW_NOTIFICATION_OK);
+    before = store;
+    assert(iw_notification_clear(&store, confirmation) == IW_NOTIFICATION_STALE);
+    assert(!memcmp(&before, &store, sizeof(store)));
+    confirmation = store.last_revision;
+    assert(iw_notification_mark_read(&store, first_id, store.records[0].revision) == IW_NOTIFICATION_OK);
+    before = store;
+    assert(iw_notification_clear(&store, confirmation) == IW_NOTIFICATION_STALE);
+    assert(!memcmp(&before, &store, sizeof(store)));
+    confirmation = store.last_revision;
+    assert(iw_notification_delete(&store, first_id, store.records[0].revision) == IW_NOTIFICATION_OK);
+    before = store;
+    assert(iw_notification_clear(&store, confirmation) == IW_NOTIFICATION_STALE);
+    assert(!memcmp(&before, &store, sizeof(store)));
+    /* 成功只清记录；身份和淘汰计数不重置，旧 ID 永不重新指向新通知。 */
+    assert(iw_notification_clear(&store, store.last_revision) == IW_NOTIFICATION_OK);
+    assert(!store.count && store.last_revision == before.last_revision + 1);
+    assert(store.last_id == before.last_id && store.last_sequence == before.last_sequence &&
+           store.evicted == before.evicted);
+    static const iw_notification_t empty[IW_NOTIFICATION_CAPACITY] = {0};
+    assert(!memcmp(store.records, empty, sizeof(empty)));
+    before = store;
+    assert(iw_notification_clear(&store, store.last_revision) == IW_NOTIFICATION_OK);
+    assert(!memcmp(&before, &store, sizeof(store)));
+    uint32_t new_id;
+    assert(iw_notification_insert(&store, IW_NOTIFICATION_LOCAL,
+        "new", 3, false, 0, &new_id) == IW_NOTIFICATION_OK);
+    assert(new_id > before.last_id && !iw_notification_find(&store, first_id));
+    store.last_revision = UINT32_MAX;
+    before = store;
+    assert(iw_notification_clear(&store, UINT32_MAX) == IW_NOTIFICATION_EXHAUSTED);
+    assert(!memcmp(&before, &store, sizeof(store)));
+    store.count = IW_NOTIFICATION_CAPACITY + 1;
+    before = store;
+    assert(iw_notification_clear(&store, UINT32_MAX) == IW_NOTIFICATION_INVALID);
+    assert(!memcmp(&before, &store, sizeof(store)));
+    puts("V01-01 clear: insert/read/delete conflicts, empty, monotonic IDs, exhaustion atomicity passed");
+}
+
 int main(void)
 {
+    test_clear();
     static iw_notification_store_t store;
     uint32_t id = 0;
     const char utf8[] = "中文测试";
