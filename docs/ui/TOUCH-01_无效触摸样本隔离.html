@@ -1,0 +1,28 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>TOUCH-01 无效触摸样本隔离</title><link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
+<h1>TOUCH-01 · FT6146 无效触摸样本隔离</h1>
+<p><a href="../../index.html">工程入口</a> · <a href="../../work/touch-01/index.html">本机冻结证据与最终构建状态</a> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/21">Issue #21</a></p>
+<p>2026-09-28，C 实施记录。基于已接受的有界通知增量 215c2dab，在独立 codex/fix-ft6146-invalid-sample 分支修复本地触摸适配；通知四态最终验收仍独立等待原批准输入。本修复不等同 #10 根因结论或整体 V00 放行。</p>
+<h2>缺陷和最小修复</h2>
+<p>固定 SDK 的 FT6146 read_point 在 I²C 失败、点数超过 2、保留事件时可能不写输出，却与合法末条 DOWN/UP 一样返回 RT_EEMPTY。原采样线程在调用后无条件消费 msg，第一次失败涉及未初始化读取；合法 DOWN 后失败则确定性保留旧样本，去重并不能取消正在进行的手势。</p>
+<p>生产只改 iw_drv_touch.c：每轮完整初始化为 TOUCH_EVENT_NONE；将支持的本轮事件与返回码的继续采样语义分开，RT_EOK/RT_EEMPTY 的 DOWN/UP 均有效。无效输出或非预期错误清空待消费队列，last_rec.event 置 NONE，使旧 UP 不能作为释放证据；进入 cancel_pending/wait_release，复用 GUI 的 reset/wait-release 及读后取消检查。已隔离时连续失败仅撤销释放证据和饱和累计 discarded，不重复唤醒。失败结束当前批读取，保留原采样节流。</p>
+<p>last_rec=NONE 是驱动私有的“未知、不可放行”状态，不排入 GUI 队列；既有 physical_down 快照此时保守为 true，不代表确认了物理按压。恢复需 GUI 已消费取消，且最近一次失效后出现可信 UP，之后没有 DOWN/再失败推翻。没有正常 UP 入队来伪造 click，没有动态分配、新公共接口或统计结构变化；互斥锁外才唤醒，LVGL 仍只由 app_watch 操作。</p>
+<h2>执行链与确定性回归</h2>
+<p>主机原样编译生产完整 tp_read_thread_entry、队列/touch_read、GUI bridge/全局取消、实际 LVGL，以及锁定 SDK read_regs/read_point。I²C 替身只提供 14 字节包/短传输，RTOS 替身只提供互斥检查、有限 IRQ 脚本及交错时点；在下一次阻塞等待处退出测试线程，不改 msg 寿命或生产分支。额外回调适配仅改变“还有点”的返回值，用于 RT_EOK 契约测试，不复制解码算法。</p>
+<table><thead><tr><th>用例</th><th>验证</th></tr></thead><tbody>
+<tr><td>mode 0</td><td>实际 DOWN 已交 LVGL 后连续 I²C 失败，取消、无 click、按下样式清理，合并唤醒；可信释放后下一手势恰好一次动作。旧版同断言失败、新版通过。</td></tr>
+<tr><td>mode 1</td><td>新版首次失败，启动默认 UP 不允许恢复；16 次失败不重复唤醒，之后可信释放恢复。旧版首次未初始化仅作静态事实，不执行 UB 反证。</td></tr>
+<tr><td>mode 2</td><td>实际 DOWN 后超限点数导致未写输出；旧错新对。保留事件无输出也撤销旧 UP；后续 DOWN 不能提前放行。</td></tr>
+<tr><td>mode 3</td><td>取消消费前的失效→UP→DOWN，以及失效→UP→再失效；均继续隔离。水锁通过生产 GUI 输入入口吞掉手势，解除后仍需可信释放。</td></tr>
+<tr><td>mode 4</td><td>touch_read 已取到 UP、返回 LVGL 分发前触发真实采样失败；读后检查先取消，不产生 click。另覆盖 LVGL 已按下后由主循环先处理取消的次序。</td></tr>
+<tr><td>mode 5</td><td>RT_EOK 连续样本与 RT_EEMPTY 末样本保留；CTP_MOVE 实际映射 DOWN。RT_EOK 但无输出仍取消，后续新手势恢复。</td></tr>
+<tr><td>既有 component_touch 100</td><td>队列 wrap 100、溢出循环 300、计数饱和、跨页 100、普通锁/水锁及 SDK 重新 enable 100，全部通过。</td></tr>
+</tbody></table>
+<p>最终主机 run-02 使用 MSVC 19.44.35229、CMake 3.31.6、Ninja 1.12.1、/W4 /WX（既有 /wd4244）、ASan、断言启用。旧版 mode0/2 都在隔离断言失败（日志保留，不计产品通过）；新版六模式及受影响回归全通过。run-01 为新增前四模式的早期通过记录，最终以后续完整矩阵为准。未做真实 RTOS 调度、电气/I²C时序、像素刷新、全型号驱动或 SDK watchdog 合成释放的硬件可靠性验证；“可信 UP”仅指固定驱动此次明确写出的支持事件。</p>
+<h2>变化静态与构建依赖</h2>
+<p>真实 compile_commands 上对触摸翻译单元运行 clang-tidy 19.1.5 / clang-analyzer-*、header-filter=.*、warnings-as-errors。新旧各 exit 1，均 5 条可见诊断：已有夹具 memset 1 条、原 FT6146 关闭调试日志后的死写 3 条、原线程 emouse_id 死写 1 条；无本次新增实现可见诊断。它们仅与旧驱动同夹具反跑对照，门禁仍非零，交 D 独立判读，不自行关闭。没有重跑或清理通知包旧 47 条。MSVC 仅在原样 SDK/线程抽取区局部保留原未用参数/变量告警豁免，未隐藏新隔离函数的编译诊断。</p>
+<p>使用 A1 的 REALPATH+CMAKE_CONFIGURE_DEPENDS：新增线程、SDK 寄存器读取/解码、覆盖驱动来源；绑定 inc→对象依赖。隔离副本四项实际 CMake/Ninja 重配置探针均更新，真实源码/SDK 摘要不变。A1 旧矩阵脚本只补充新配置所需 SDK 文件复制，不重开原24项验收。</p>
+<h2>Q1–Q6</h2>
+<p>Q1：采样线程识别无效样本，队列保护隔离，GUI owner 取消手势，职责未混合。Q2：无公共 API/ABI 改动，固定 SDK 未改，合法末样本兼容。Q3：共享 last_rec/队列/统计均在原互斥锁下变更，唤醒在锁外；借用消息限本轮，无新存储寿命。Q4：未知状态不能由旧 UP 恢复，取消/释放双边界和读后竞态有实际链断言。Q5：复用原队列、计数饱和、取消协议、主机框架及 GCC 工具，无新的服务/通用状态框架。Q6：实际 SDK→采样→队列→GUI 参与；明确限制为软件主机和同候选目标构建，硬件未测。</p>
+<h2>交付与边界</h2>
+<p>稳定源码先提交，再由既有 build-gcc.ps1 在此新候选目录执行一次 GCC、生成新 build_identity/预算；最终提交/tree、dirty 状态、镜像摘要和命令见本机冻结证据。不把旧 GCC 身份移签至本次新生产代码。SF32LB58 HCPU、DEV_A128_NAND、FT6146；分区、时钟、2048 B 触摸线程栈及资源上限未改。Keil、自动/人工硬件均未执行，没有串口/USB/刷写，也没有 push/PR/merge/release。D 按工作卡独立复核，Issue #21 阶段记录不代表最终硬件验收。</p>
+</main></body></html>
