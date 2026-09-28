@@ -1,0 +1,27 @@
+<!doctype html><html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>V01-01 通知路由与失败恢复增量</title><link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
+<h1>V01-01 · 通知路由与失败恢复增量</h1>
+<p><a href="../../index.html">工程入口</a> · <a href="../../work/notification-integration-20260928/index.html">本地原始证据</a> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/19">执行 Issue #19</a></p>
+<p>2026-09-28，C 阶段自测。结论：新增实际 TARGET controller/View、router、input_signal 与服务核心的有界集成检查，mode 23–25 均通过；只改测试夹具和文档，未确认需要修正的本包生产缺陷。待 D 对本次范围独立复验，不代表通知四态最终验收。</p>
+<h2>准确范围</h2>
+<p>基于已获 D 接受的 A1 提交 d904af82e9fbe9da4f6e11abbf446cc72009b5ea，在原 codex/v01-01-notifications 分支继续。新增 notification_router_cases.inc，由已有 router_model.c 编译入真实路由夹具；入口扩展为 mode 23–25，CMake 保留 A1 来源依赖并新增该 inc 到对象依赖。</p>
+<p>夹具仅增加 ONSTART 前的单次分配失败注入，以及收尾的生产字体延迟回收安全点；共享时钟适配改读 service 当前绑定的 time_state，避免 controller 与 router 使用不同固定时钟。无生产测试开关、无 SDK 修改、无资源或接口 ABI 变化。</p>
+<table><thead><tr><th>模式</th><th>执行路径和断言</th><th>边界</th></tr></thead><tbody>
+<tr><td>23</td><td>侧键进入既有控制中心，按真实 scene/hit 选择普通锁／水锁；锁定期间普通通知到达，侧键、表冠单击／双击被真实 input_signal→iw_keys_intent 拦截。解锁后通知列表→详情→返回，确认取消／返回不删除。真实计时器到期与实际闹钟创建／到期分别覆盖确认页；后台通知到达，隐藏列表回调无作用，提醒关闭后恢复原列表，旧确认版本被拒绝。重新确认清除后，alerts、chronograph、alarms、服务统计及 key-port 锁上下文逐项不变。</td><td>入口调用既有 iw_router_open，未模拟物理下拉。通知覆盖层不能再叠加控制中心，因此未伪造“确认页直接进入锁页”的 UI 路径。提醒 ACK 仅在隔离断言完成后作为明确收尾动作执行。</td></tr>
+<tr><td>24</td><td>经真实列表节点／命中进入详情；在真实页面 ONSTART 的 View frame 分配点失败，生命周期标 failed 并回滚原列表；账本版本不变、未提前标已读、未清除。取消注入后重试详情成功，才标已读，再实际返回／退出。</td><td>仅验证一个确定的创建分配点，不是所有内存申请的全矩阵。</td></tr>
+<tr><td>25</td><td>旧列表帧遇新通知，点击触发状态变化提示；在真实 View update 取得新警告字体资源时失败。旧 notification_view_revision 保持，dirty 保留，账本 count/revision 不变；故障期间清除动作无副作用。调用生产 GUI 故障处理与路由恢复，重新进入列表后通知仍在，新 View 正确发布当前版本。</td><td>只验证一个更新资源失败点；没有宣称失败时旧 scene 像素完整保留。按既有故障隔离／重建恢复，不做原地失败帧绘制。</td></tr>
+</tbody></table>
+<h2>真实链与替身限制</h2>
+<p>生产 iw_router.c、watch_demo.c 的 input_signal 及相关 SDK 入口由已修正的 CMake 原样抽取；通知 controller/View/scene/core、keys、服务、计时器与闹钟状态决策实际编译执行。SDK 邮箱／页面调度、时间推进和硬件资源解码为已有有状态适配，不是恒定成功 stub。</p>
+<p>真实 LVGL 页面对象与字体资源参与分配／销毁，但本夹具不调用完整像素刷新，不模拟面板触摸、电气消抖或 RTOS 调度；scene_hit→action 不是物理触摸证据。清除确认仍直接注入既有 controller action，因为批准的最终按钮／命中区未交齐。不得将此结果标为四态最终绘制、截图或清除真实命中通过。</p>
+<h2>结果与失败保留</h2>
+<ul><li>最终 run-05：configure、必要主机增量 build、mode 23、24、25 全部 exit 0。使用 MSVC /W4 /WX（保留项目既有 /wd4244）及 AddressSanitizer，断言启用。三个进程在 lv_deinit 后均为 live_bytes=0、live_blocks=0；不是全产品无泄漏或峰值预算证明。</li>
+<li>run-01 的夹具错误：误把 key port 持久状态等同于 input_signal 临时计算的 OVERLAY；改为清除前后上下文一致断言。初次 Python 默认 GBK 解码构建日志失败，首次 build stdout 不完整；以后用 -X utf8，未伪造缺失日志。</li>
+<li>run-02 的夹具错误：漏掉生产主循环的延迟字体回收安全点，收尾残留 10472 B／140 块；补调用同一 iw_font_collect 后 run-03 通过。保留失败，不当作生产泄漏修复。run-04 恢复严格 assert/oom_count 零值检查后通过；run-05 将新测试的固定字符串复制简化为结构初始化后通过。</li>
+<li>静态 static-03 门禁非零：三翻译单元、真实 compile_commands，clang-analyzer-* 保持启用，header-filter 使新增 inc 纳入报告；47 条可见诊断（45 安全 API 建议、1 va_list、1 SDK 枚举）。新增用例无剩余可见诊断。旧操作行源码对照在 audit.json，不是旧版分析器反跑，也不是 D 的关闭结论。</li></ul>
+<p>静态判读：日志包装的 vprintf 前已有 va_start/va_end；SDK LV_OBJ_FLAG_SCROLLABLE | LV_OBJ_FLAG_CLICKABLE 的位或被报告 EnumCastOutOfRange，当前抽取 inc 与原阶段 SHA-256 完全相同。二者没有被改动，本轮不为关闭分析器而改 SDK 或日志框架；C 仅记录需 D 判读。其余 API 建议来自未修改的固定长度／已有边界代码，不作为新增已确认漏洞，也不声称全部安全审计完成。static-01 漏显示头内诊断，static-02 补头后记录新增固定 memcpy 建议，该处已改为字符串初始化；原报告均保留。</p>
+<h2>Q1–Q6 自检</h2>
+<p>Q1：生产职责不变，新增测试按锁入口、提醒覆盖、创建失败、更新失败划分，不把调度替身变成业务实现。Q2：仅扩充测试模式及依赖，生产接口／编号／ABI 无变化。Q3：GUI owner 和 service 单账本参与；借用页面指针只在相应页面仍存活时断言，故障重建后重新取页面，收尾执行真实字体回收。Q4：验证失败前不标读、不清除、不误发布版本，成功重试／恢复后才继续；失败点数量明确有限。Q5：复用既有抽取、状态调度、分配器和 TARGET 资源，无新库、视觉稿或大重构。Q6：实际路由／输入语义／普通与关键提醒决策参与，真实状态前后断言；未测几何、像素、硬件和最终清除命中区。</p>
+<h2>证据复用与未测</h2>
+<p>主机：本次只执行三个新增模式及必要编译，不重跑账本 ASan 或全部旧路由矩阵。既有 core 与 mode22 的有限通过记录按原身份保留，不重新签署。原 GCC 身份 7e3354998e04 / e9b05ece7289 / gcc 的 327 项 project_inputs 摘要全部与当前一致；本轮测试变更不属于生产输入，故不重编 GCC 或改写旧 build_identity。既有固件资源预算仅按原范围引用。</p>
+<p>目标构建：本轮 GCC／Keil 未运行。自动／人工硬件验证：均未运行，未接设备或请求照片。未改 #21 驱动、锁／提醒业务、SDK、分区、资源上限，未推送／合并。四态批准设计仍缺，不重新搜索、不用旧稿替代。阶段本地提交／tree／清单由本地证据入口记录，交 A 和 D 只验此增量。</p>
+</main></body></html>

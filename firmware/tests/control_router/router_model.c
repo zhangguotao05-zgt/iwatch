@@ -78,6 +78,8 @@ extern iw_service_t *test_router_service(void);
 static iw_time_state_t service_time;
 static bool (*ready_callback)(void);
 static bool scheduling;
+static bool fail_next_page_view;
+static unsigned failed_view_injections;
 static void trace_page(const char *event, unsigned index);
 static void trace_state(const char *event);
 extern void dynamic_cache_stats(size_t *, size_t *, size_t *);
@@ -96,9 +98,17 @@ static void notify_page(unsigned index, gui_app_msg_type_t event)
         fail_root_resume = false;
         return;
     }
+    bool inject_view = event == GUI_APP_MSG_ONSTART && fail_next_page_view;
+    if (inject_view) {
+        fail_next_page_view = false;
+        /* 第一次分配是 product 状态，第二次是正式 View 的 frame 对象。 */
+        test_font_arm_failure(2u);
+        ++failed_view_injections;
+    }
     if (stack[index].handler) stack[index].handler(event, NULL);
     else if (!index && !strcmp(active_app,"iwlist")) iw_router_root_event(IW_PAGE_LAUNCHER_LIST,(unsigned)event);
     else if (!index && !strcmp(active_app,"iwface")) iw_router_root_event(IW_PAGE_FACE,(unsigned)event);
+    if (inject_view) test_font_arm_failure(0);
     trace_page("after_lifecycle", index);
 }
 static void *gui_app_this_page_userdata(void) { return stack[dispatch_index].data; }
@@ -380,6 +390,7 @@ static route_page_t *current_product(void)
 }
 
 #include "unlock_cases.inc"
+#include "notification_router_cases.inc"
 
 int dynamic_router_case(lv_display_t *display, unsigned mode)
 {
@@ -397,6 +408,10 @@ int dynamic_router_case(lv_display_t *display, unsigned mode)
     notify_page(0, GUI_APP_MSG_ONSTART);
     notify_page(0, GUI_APP_MSG_ONRESUME);
     settle_dynamic("initial_root");
+    if (mode >= 23u) {
+        test_notification_router_cases(mode);
+        goto teardown;
+    }
     if (mode >= 10u) {
         test_unlock_cases(mode);
         goto teardown;
@@ -524,6 +539,8 @@ teardown:
     notify_page(0, GUI_APP_MSG_ONSTOP);
     settle_dynamic("fixture_root_teardown");
     for (unsigned i = 0; i < ROUTE_SLOTS; ++i) assert(!pages[i]);
+    /* 产品主循环在安全点回收延迟释放字体；路由夹具显式执行同一收尾。 */
+    if (mode >= 23u) assert(iw_font_collect());
     size_t live, peak, frees;
     dynamic_cache_stats(&live, &peak, &frees);
     assert(live == 0 && !gui_app_mbx.message && !irq_depth && !test_font_assert_count());

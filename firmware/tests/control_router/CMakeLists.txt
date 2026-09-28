@@ -34,4 +34,4 @@ extract_function("${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_apps/watch_de
 # 显式绑定提取文件，避免本地化 /showIncludes 解析差异令增量构建复用旧对象。
 set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/router_model.c"
     TARGET_DIRECTORY test_tiny_ttf_oom PROPERTIES OBJECT_DEPENDS
-    "${CMAKE_CURRENT_SOURCE_DIR}/unlock_cases.inc;${CMAKE_CURRENT_BINARY_DIR}/legacy/router_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/legacy/route_screen_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/legacy/sdk_send_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/sdk_remove.inc;${CMAKE_CURRENT_BINARY_DIR}/input_signal.inc")
+    "${CMAKE_CURRENT_SOURCE_DIR}/unlock_cases.inc;${CMAKE_CURRENT_SOURCE_DIR}/notification_router_cases.inc;${CMAKE_CURRENT_BINARY_DIR}/legacy/router_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/legacy/route_screen_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/legacy/sdk_send_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/sdk_remove.inc;${CMAKE_CURRENT_BINARY_DIR}/input_signal.inc")

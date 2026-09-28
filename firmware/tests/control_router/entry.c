@@ -13,7 +13,7 @@ int main(int argc, char **argv)
     setvbuf(stdout, NULL, _IONBF, 0);
     if (argc != 3) return 64;
     unsigned mode = (unsigned)strtoul(argv[2], NULL, 10);
-    if (mode > 22) return 65;
+    if (mode > 25) return 65;
     size_t font_size = 0;
     uint8_t *font_data = load_file(argv[1], &font_size);
     if (!font_data) return 66;
@@ -25,7 +25,7 @@ int main(int argc, char **argv)
     lv_tiny_ttf_set_oom_cb(NULL, NULL);
     /* 显式销毁由路由用例完成，字库必须活到 LVGL 完成反初始化。 */
     lv_deinit();
-    if (mode == 22) {
+    if (mode >= 22) {
         printf("notification LVGL deinit live_bytes=%zu live_blocks=%zu\n", live_bytes, live_blocks);
         assert(!live_bytes && !live_blocks);
     }
