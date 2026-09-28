@@ -22,6 +22,7 @@ extern int test_component_navigation(size_t loops);
 extern int test_component_gallery(size_t loops);
 extern int test_component_gallery_render(lv_display_t *display, unsigned variant);
 extern int test_touch_input(size_t loops);
+extern int test_touch_invalid(size_t mode);
 extern int test_router(lv_display_t *display, size_t number, bool failure);
 extern int test_sdk_navigation(void);
 extern int test_product_view(lv_display_t *display, size_t number, unsigned mode);
@@ -551,6 +552,7 @@ int test_components(const void *data, size_t size, const char *stage, size_t num
     else if (!strcmp(stage, "component_router_oom")) result = test_router(display, number, true);
     else if (!strcmp(stage, "component_navigation")) result = test_component_navigation(number);
     else if (!strcmp(stage, "component_touch")) result = test_touch_input(number);
+    else if (!strcmp(stage, "component_touch_invalid")) result = test_touch_invalid(number);
     else if (!strcmp(stage, "component_gallery")) result = test_component_gallery(number);
     else if (!strcmp(stage, "component_gallery_render")) result = test_component_gallery_render(display, (unsigned)number);
     else if (!strcmp(stage, "component_fill")) result = fill_oom_case(false, number);

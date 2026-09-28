@@ -102,3 +102,17 @@ iw_notification_result_t iw_notification_delete(iw_notification_store_t *store,
     store->last_revision++;
     return IW_NOTIFICATION_OK;
 }
+
+iw_notification_result_t iw_notification_clear(iw_notification_store_t *store,
+    uint32_t expected_revision)
+{
+    if (!store || store->count > IW_NOTIFICATION_CAPACITY) return IW_NOTIFICATION_INVALID;
+    if (store->last_revision != expected_revision) return IW_NOTIFICATION_STALE;
+    if (!store->count) return IW_NOTIFICATION_OK;
+    if (store->last_revision == UINT32_MAX) return IW_NOTIFICATION_EXHAUSTED;
+    memset(store->records, 0, sizeof(store->records));
+    store->count = 0;
+    store->last_revision++;
+    /* ID、序列和淘汰计数保持单调，旧详情不得命中新到达的通知。 */
+    return IW_NOTIFICATION_OK;
+}

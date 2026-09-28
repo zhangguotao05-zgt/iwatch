@@ -35,6 +35,9 @@ iw_notification_result_t iw_notification_mark_read(iw_notification_store_t *stor
     uint32_t id, uint32_t expected_revision);
 iw_notification_result_t iw_notification_delete(iw_notification_store_t *store,
     uint32_t id, uint32_t expected_revision);
+/* 确认绑定整个普通通知账本版本；期间任何变化均拒绝，不影响其他业务账本。 */
+iw_notification_result_t iw_notification_clear(iw_notification_store_t *store,
+    uint32_t expected_revision);
 const iw_notification_t *iw_notification_find(const iw_notification_store_t *store, uint32_t id);
 
 #endif

@@ -32,6 +32,8 @@ static void notification_projection(iw_product_model_t *model)
         model->notification_ids[i] = notification_store.records[notification_store.count - 1u - i].id;
 }
 
+static void refresh_notification_pages(void);
+
 bool iw_product_notification_add(iw_notification_source_t source,
                                  const char *text, size_t bytes)
 {
@@ -42,11 +44,7 @@ bool iw_product_notification_add(iw_notification_source_t source,
     if (iw_notification_insert(&notification_store, source, text, bytes, time_valid,
                                time_valid ? (uint32_t)(clock.utc_ms / 1000) : 0u,
                                NULL) != IW_NOTIFICATION_OK) return false;
-    for (iw_product_page_t *p = pages; p; p = p->next)
-        if (p->page_id == IW_PAGE_NOTIFICATION_LIST) {
-            notification_projection(&p->model);
-            p->dirty = true;
-        }
+    refresh_notification_pages();
     return true;
 }
 
@@ -88,6 +86,11 @@ static void refresh_notification_pages(void)
     for (iw_product_page_t *p = pages; p; p = p->next)
         if (p->page_id == IW_PAGE_NOTIFICATION_LIST) {
             notification_projection(&p->model);
+            p->dirty = true;
+        } else if (p->page_id == IW_PAGE_NOTIFICATION_DETAIL) {
+            const iw_notification_t *entry = iw_notification_find(&notification_store, p->argument);
+            p->model.selected_notification_valid = entry != NULL;
+            p->model.selected_notification = entry ? *entry : (iw_notification_t){0};
             p->dirty = true;
         }
 }
@@ -494,6 +497,10 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
         if (!iw_product_back(p)) p->navigate(id, 0u, p->context);
         return;
     }
+    /* 确认子态只接受取消、确认或返回；重复进入不得偷换确认版本。 */
+    if (p->page_id == IW_PAGE_NOTIFICATION_LIST && p->model.notification_clear_confirm &&
+        id != IW_ACTION_NOTIFICATION_CLEAR_CANCEL && id != IW_ACTION_NOTIFICATION_CLEAR_CONFIRM)
+        return;
     if (id == IW_ACTION_TIME_CANCEL) {
         p->navigate(IW_ACTION_BACK, 0u, p->context);
         return;
@@ -657,10 +664,43 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
         }
         return;
     }
-    if (id >= IW_ACTION_NOTIFICATION_OPEN_BASE &&
+    if (p->page_id == IW_PAGE_NOTIFICATION_LIST && id == IW_ACTION_NOTIFICATION_CLEAR) {
+        if (p->notification_view_revision != notification_store.last_revision) {
+            p->model.message = IW_TEXT_NOTIFICATION_CHANGED;
+            p->dirty = true;
+            return;
+        }
+        if (notification_store.count) {
+            p->notification_clear_revision = notification_store.last_revision;
+            p->model.notification_clear_confirm = true;
+            p->model.message = IW_TEXT_COUNT;
+            p->dirty = true;
+        }
+        return;
+    }
+    if (p->page_id == IW_PAGE_NOTIFICATION_LIST && id == IW_ACTION_NOTIFICATION_CLEAR_CANCEL) {
+        p->model.notification_clear_confirm = false;
+        p->model.message = IW_TEXT_COUNT;
+        p->dirty = true;
+        return;
+    }
+    if (p->page_id == IW_PAGE_NOTIFICATION_LIST && id == IW_ACTION_NOTIFICATION_CLEAR_CONFIRM) {
+        if (!p->model.notification_clear_confirm) return;
+        iw_notification_result_t result = iw_notification_clear(&notification_store,
+                                                                 p->notification_clear_revision);
+        p->model.notification_clear_confirm = false;
+        p->model.message = result == IW_NOTIFICATION_OK ? IW_TEXT_COUNT :
+                           result == IW_NOTIFICATION_STALE ? IW_TEXT_NOTIFICATION_CHANGED :
+                           IW_TEXT_OPERATION_FAILED;
+        refresh_notification_pages();
+        return;
+    }
+    if (p->page_id == IW_PAGE_NOTIFICATION_LIST && id >= IW_ACTION_NOTIFICATION_OPEN_BASE &&
         id < IW_ACTION_NOTIFICATION_OPEN_BASE + IW_NOTIFICATION_CAPACITY) {
         uint32_t notification_id = p->model.notification_ids[id - IW_ACTION_NOTIFICATION_OPEN_BASE];
-        if (iw_notification_find(&notification_store, notification_id))
+        /* 账本投影已变化但旧帧尚未重绘时，不能把旧行点击映射到新对象。 */
+        if (p->notification_view_revision == notification_store.last_revision &&
+            iw_notification_find(&notification_store, notification_id))
             p->navigate(IW_PAGE_NOTIFICATION_DETAIL, notification_id, p->context);
         else {
             p->model.message = IW_TEXT_NOTIFICATION_CHANGED;
@@ -668,7 +708,7 @@ static void action(uint16_t id, int32_t value, bool final, void *context) {
         }
         return;
     }
-    if (id == IW_ACTION_NOTIFICATION_DELETE) {
+    if (p->page_id == IW_PAGE_NOTIFICATION_DETAIL && id == IW_ACTION_NOTIFICATION_DELETE) {
         iw_notification_t *selected = &p->model.selected_notification;
         if (!p->model.selected_notification_valid ||
             iw_notification_delete(&notification_store, selected->id,
@@ -823,9 +863,10 @@ bool iw_product_create(iw_product_page_t *p, uint16_t id, uint32_t argument,
     if (id == IW_PAGE_NOTIFICATION_LIST) notification_projection(&p->model);
     if (id == IW_PAGE_NOTIFICATION_DETAIL) {
         const iw_notification_t *selected = iw_notification_find(&notification_store, argument);
-        if (!selected) return false;
-        p->model.selected_notification = *selected;
-        p->model.selected_notification_valid = true;
+        if (selected) {
+            p->model.selected_notification = *selected;
+            p->model.selected_notification_valid = true;
+        }
     }
     capabilities(&p->model);
     if (id == IW_PAGE_TIME && !iw_time_draft_begin(&p->model.draft, &p->model.clock)) return false;
@@ -869,7 +910,9 @@ bool iw_product_create(iw_product_page_t *p, uint16_t id, uint32_t argument,
     }
     p->exiting = false;
     if (!iw_product_view_create(&p->view, lv_screen_active(), id, &p->model, action, stop, p)) return false;
-    if (id == IW_PAGE_NOTIFICATION_DETAIL && !p->model.selected_notification.read) {
+    if (id == IW_PAGE_NOTIFICATION_LIST) p->notification_view_revision = notification_store.last_revision;
+    if (id == IW_PAGE_NOTIFICATION_DETAIL && p->model.selected_notification_valid &&
+        !p->model.selected_notification.read) {
         iw_notification_t *selected = &p->model.selected_notification;
         if (iw_notification_mark_read(&notification_store, selected->id,
                                       selected->revision) == IW_NOTIFICATION_OK) {
@@ -910,6 +953,12 @@ bool iw_product_destroy(iw_product_page_t *p) {
 }
 
 bool iw_product_back(iw_product_page_t *p) {
+    if (p && p->page_id == IW_PAGE_NOTIFICATION_LIST && p->model.notification_clear_confirm) {
+        p->model.notification_clear_confirm = false;
+        p->model.message = IW_TEXT_COUNT;
+        p->dirty = true;
+        return true;
+    }
     if (p && p->page_id == IW_PAGE_TIME && p->model.draft.editing != IW_EDIT_NONE) {
         iw_time_draft_cancel_field(&p->model.draft);
         p->dirty = true;
@@ -1016,7 +1065,11 @@ uint32_t iw_product_process(void) {
         }
         if (p->dirty && iw_font_port_render_idle() && !iw_gui_fault_pending()) {
             (void)iw_brightness_read(&p->model.brightness);
-            if (iw_product_view_update(&p->view, &p->model)) p->dirty = false;
+            if (iw_product_view_update(&p->view, &p->model)) {
+                if (p->page_id == IW_PAGE_NOTIFICATION_LIST)
+                    p->notification_view_revision = notification_store.last_revision;
+                p->dirty = false;
+            }
         }
     }
     return wait;

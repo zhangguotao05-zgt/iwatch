@@ -21,6 +21,23 @@ target_include_directories(lvgl_host PUBLIC
 )
 
 # 编译真实字形适配及连续混合函数；仅替换硬件边界，不复制被测算法。
+function(iw_track_extracted_source path)
+    # 父子工程可能通过不同 ../ 路径读取同一文件，先统一路径，避免 Ninja 重复输出。
+    get_filename_component(source "${path}" REALPATH)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${source}")
+endfunction()
+foreach(source IN ITEMS
+    "${SDK_ROOT}/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c"
+    "${SDK_ROOT}/rtos/rtthread/bsp/sifli/drivers/drv_epic_single.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_apps/component_gallery/iw_components_demo.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_apps/watch_demo.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform/iw_drv_touch.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform/iw_touch_input.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform/iw_router.c"
+    "${SDK_ROOT}/middleware/app_fwk/app_schedule_port.c")
+    iw_track_extracted_source("${source}")
+endforeach()
+# file(READ) 在配置阶段执行；原文件变化必须先重新配置，再由 inc 依赖触发编译。
 file(READ "${SDK_ROOT}/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c" EPIC_LABEL)
 string(REGEX REPLACE "#include [^\n]*" "" EPIC_LABEL "${EPIC_LABEL}")
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/epic_label_under_test.inc" "${EPIC_LABEL}")
@@ -50,7 +67,9 @@ string(SUBSTRING "${FRAME_REST}" 0 ${FRAME_LENGTH} FRAME_FUNCTION)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/gui_frame_under_test.inc" "${FRAME_FUNCTION}")
 
 # 原样提取触摸生产队列和 GUI 取消函数；测试仅替换 RTOS/设备边界。
-file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform/iw_drv_touch.c" TOUCH_DRIVER)
+set(IW_TOUCH_DRIVER_SOURCE "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform/iw_drv_touch.c" CACHE FILEPATH "触摸驱动反证输入，默认真实候选")
+iw_track_extracted_source("${IW_TOUCH_DRIVER_SOURCE}")
+file(READ "${IW_TOUCH_DRIVER_SOURCE}" TOUCH_DRIVER)
 string(FIND "${TOUCH_DRIVER}" "#define MAX_TOUCH_REC" TOUCH_START)
 string(FIND "${TOUCH_DRIVER}" "static rt_list_t driver_list;" TOUCH_END)
 math(EXPR TOUCH_LENGTH "${TOUCH_END} - ${TOUCH_START}")
@@ -60,6 +79,15 @@ string(FIND "${TOUCH_DRIVER}" "static rt_err_t control(" TOUCH_READ_END)
 math(EXPR TOUCH_READ_LENGTH "${TOUCH_READ_END} - ${TOUCH_READ_START}")
 string(SUBSTRING "${TOUCH_DRIVER}" ${TOUCH_READ_START} ${TOUCH_READ_LENGTH} TOUCH_READ)
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/touch_driver_under_test.inc" "${TOUCH_QUEUE}\n${TOUCH_READ}")
+# 整段真实采样线程参与；旧版反证只替换驱动来源，不修改其未初始化行为。
+string(FIND "${TOUCH_DRIVER}" "#else /*!REMOTE_TOUCH_INPUT_DEVICE*/" SAMPLER_START)
+string(FIND "${TOUCH_DRIVER}" "static void tp_poweron_thread_entry(" SAMPLER_END)
+if(SAMPLER_START LESS 0 OR SAMPLER_END LESS SAMPLER_START)
+    message(FATAL_ERROR "Cannot locate production touch sampling thread")
+endif()
+math(EXPR SAMPLER_LENGTH "${SAMPLER_END} - ${SAMPLER_START}")
+string(SUBSTRING "${TOUCH_DRIVER}" ${SAMPLER_START} ${SAMPLER_LENGTH} SAMPLER)
+file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/touch_sampler_under_test.inc" "#if 0\n${SAMPLER}")
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform/iw_touch_input.c" TOUCH_INPUT)
 string(REGEX REPLACE "#include [^\n]*" "" TOUCH_INPUT "${TOUCH_INPUT}")
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/touch_input_under_test.inc" "${TOUCH_INPUT}")
@@ -82,6 +110,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/route_screen_under_test.inc" "${SCREEN_F
 
 # SDK 受理、真实栈和快照直接编译生产函数；不复制其分支逻辑。
 function(extract_sdk_function source marker output)
+    iw_track_extracted_source("${SDK_ROOT}/${source}")
     file(READ "${SDK_ROOT}/${source}" text)
     string(FIND "${text}" "${marker}" begin)
     if(begin LESS 0)
@@ -93,6 +122,12 @@ function(extract_sdk_function source marker output)
     string(SUBSTRING "${rest}" 0 ${length} body)
     file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/${output}" "${body}")
 endfunction()
+extract_sdk_function("customer/peripherals/touch_panel/ft6146/ft6146.c"
+    "static rt_err_t read_regs(rt_uint8_t reg, rt_uint8_t len, rt_uint8_t *buf)\n{"
+    "ft6146_regs_under_test.inc")
+extract_sdk_function("customer/peripherals/touch_panel/ft6146/ft6146.c"
+    "static rt_err_t read_point(touch_msg_t p_msg)\n{"
+    "ft6146_point_under_test.inc")
 extract_sdk_function("middleware/app_fwk/gui_app_fwk.c" "static rt_err_t send_msg_to_gui_app_task(" "sdk_send_under_test.inc")
 extract_sdk_function("middleware/app_fwk/app_schedule.c" "static rt_err_t app_create_page(" "sdk_create_under_test.inc")
 extract_sdk_function("middleware/app_fwk/app_schedule.c" "void app_schedule_route_snapshot(" "sdk_snapshot_under_test.inc")
@@ -175,3 +210,7 @@ if(MSVC)
     target_link_options(test_tiny_ttf_oom PRIVATE /fsanitize=address)
 endif()
 target_link_libraries(test_tiny_ttf_oom PRIVATE lvgl_host)
+set_source_files_properties("${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_product_scene.c"
+    PROPERTIES OBJECT_DEPENDS "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_core/iw_notification_scene.inc")
+set_source_files_properties(test_touch_input.c PROPERTIES OBJECT_DEPENDS
+    "${CMAKE_CURRENT_SOURCE_DIR}/touch_invalid_cases.inc;${CMAKE_CURRENT_BINARY_DIR}/touch_driver_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/touch_sampler_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/touch_input_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/input_cancel_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/ft6146_regs_under_test.inc;${CMAKE_CURRENT_BINARY_DIR}/ft6146_point_under_test.inc")

@@ -1,0 +1,34 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><title>V01-01 通知业务增量（未完成候选）</title></head><body><main>
+<h1>V01-01 通知业务增量（未完成候选）</h1>
+<p>2026-09-28。基线 72cf8494d322b496d8ddd9b8fff4176a69f24348，分支 codex/v01-01-notifications。<a href="../../index.html">工程入口</a> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/16#issuecomment-5865998307">授权工作卡</a>。</p>
+<p><strong>仅为 C 的阶段实现／自测，不是四态交付，不是 D 验收。</strong>原批准绘制源、逐页参数及目标图缺失，四态视觉与最终字体映射暂缓。没有添加替代视觉、清除按钮或确认画面；新增清除动作目前只能由测试调用控制器边界。正式候选必须补完实际命中区、锁输入集成、整页绘制并重做最终身份绑定。</p>
+<h2>业务语义与责任边界</h2>
+<ul>
+<li>复用 0501 通知列表、0502 通知详情与既有 RAM 普通通知账本；确认是列表模型子态，没有新服务／路由／生产假通知。</li>
+<li>进入确认记录整个普通账本 revision，不删除。期间新增、删除、首次标已读或淘汰使确认陈旧；确认失败逐字节不改账本，退出确认并显示通知变化。再次显式进入才能绑定新版本。重复进入不会偷偷换令牌。</li>
+<li>取消或 Back 只关闭确认；没有确认的直接确认无效。成功清除记录、count，并增加 revision；ID、sequence、evicted 保持单调。空账本成功不变，版本饱和且非空时失败不变。</li>
+<li>通知变化会刷新存活详情，删除／淘汰后 selected_notification_valid 为 false；打开已失效 ID 可显示既有失效提示，不转向另一条记录。只有详情 View 成功创建才尝试标已读。</li>
+<li>记录实际已构造 View 的账本版本。新通知到达而旧帧尚未更新时，拒绝按旧行号打开新的对象或进入清除；安全点重绘后可重试。</li>
+<li>操作仍归 app_watch GUI 所有者。清除无动态分配、无服务命令、无 ACK/STOP，不修改锁、计时器、闹钟或关键提醒；固定清零 32 槽记录。两个页面版本字段增加 8 字节（结构对齐及目标占用以 GCC 结果为准）。</li>
+</ul>
+<h2>阶段检查与未覆盖</h2>
+<p>普通账本：MSVC /W4 /WX、ASan 通过；覆盖新增／已读／删除冲突、取消等价无操作、空账本、记录清零、身份单调、版本饱和与无效 count。真实 TARGET 主机夹具新增 mode 22：复用生产 View／controller／store 与有状态 service，覆盖现有列表真实场景命中、陈旧行、取消／Back、重复动作、三种版本变化、详情删除／失效／淘汰及关键提醒／计时／闹钟状态隔离。</p>
+<p>生命周期：冷启动 8658 B／91 块，首次页面后 8730 B／92 块；首次 LVGL 共享初始化增加 72 B。业务路径结束回到暖态；另 20 次进出均无增长，LVGL deinit 后 0 B／0 块。结论仅适用于该测试窗口，不概括全产品无泄漏。首次冷暖不等断言及原始日志保留。</p>
+<p>清除使用真实控制器回调，但没有批准视觉控件，因此不声称清除触摸／输入仲裁、锁上下文实际联动或四态绘制通过。View 创建资源失败时不标已读的结构顺序已检查，新增故障注入矩阵尚未执行。计时器／闹钟实体隔离检查包含快照对比，但本阶段没有完整运行实体到期链；最终路由矩阵继续补齐。</p>
+<p>字体：只读 cmap／轮廓检查确认现有通知文案由 DroidSansFallback 子集覆盖；当前通知 scene 非 V00 字体路径。Noto 四子集均缺“通、清、除、没”，Droid 子集缺“清、没”。未生成新字体、未换映射、未扩预算；最终确认文案／新映射接入前必须按既有合法生成链补覆盖。有限子集不保证任意动态 Unicode；本阶段没有以 cmap 代替整页渲染验收。</p>
+<p>静态：基于 TARGET 主机 compile_commands，对 iw_notifications.c、iw_product_controller.c、notification_cases.c 执行 clang-tidy 19.1.5 的 clang-analyzer-*；严格 warnings-as-errors 门禁报告 11 项 DeprecatedOrUnsafeBufferHandling，非零退出，不写成零告警通过。9 项既有调用；新增两项为固定大小的 records 清零与测试 page 清零。未禁用任何 checker，逐项说明见下节。未运行 MISRA／全仓分析。</p>
+<p>GCC：本阶段兼容性构建结果另存本地证据入口，不能移签到未来视觉候选。Keil 不执行。硬件：未访问、未烧录、未验证。D：尚未收到可验收的完整冻结候选。</p>
+<h2>静态发现的局部判读</h2>
+<p>规则统一为 clang-analyzer-security.insecureAPI.DeprecatedOrUnsafeBufferHandling，建议 Annex K 的 *_s 接口，并非分析器报告具体越界路径。C 为本阶段判读责任人；保留原始告警，D 最终独立判断，不通过改行为或屏蔽规则换取绿灯。</p>
+<ul>
+<li>iw_notifications.c:59、69、99、101（既有）：count 已校验不大于 32；移动的索引来自有效条目或容量淘汰选择；kept 小于 256；尾槽清零用 sizeof(*entry)。</li>
+<li>iw_notifications.c:113（新增）：非空 store、count 与 revision 验证后，目的为完整 records 数组，长度正好 sizeof(store-&gt;records)；不是外部长度。</li>
+<li>iw_product_controller.c:30、245、293（既有）：各自固定数组／结构清零，sizeof 对应目的对象；894、905（既有）：闹钟草稿标签与源标签均为 IW_ALARM_LABEL_BYTES 的既有固定契约。</li>
+<li>notification_cases.c:32（新增、仅主机夹具）：测试自有静态 page，在销毁后用 sizeof(*page) 重置，不在生产运行。</li>
+</ul>
+<h2>Q1–Q6 自检</h2>
+<p>Q1：核心账本处理版本与清除，controller 管确认／投影，不混入提醒业务。Q2：只新增普通账本 API 与列表动作编号；0x1200–0x121f 行动作、0x1220–0x1222 清除动作、0x1240 最近应用起始不冲突。Q3：GUI 单所有者，既有页面释放入口不变；两个版本分别绑定确认与最后构造画面，未复制第二份账本。Q4：陈旧、无效、饱和拒绝先于写入；失败不部分清除，取消可重复；重入验证见 mode22。Q5：复用已有 notification_projection／refresh_notification_pages、View 和路由，没有新图片／字体体系；动作尚待批准视觉接线，不能作完成功能发布。Q6：使用真实产品控制器／View／账本／服务，不用常量成功结果替代状态；清除回调的直接注入、导航记录适配、无物理绘制／锁输入矩阵的覆盖缺口明确保留。</p>
+<h2>复现与证据</h2>
+<p>本地原始记录入口为 <a href="../../work/v01-01/index.html">阶段证据</a>（受控工作目录，不保证公开副本包含日志）。核心命令使用 firmware/tests/test_notifications.c＋core/iw_notifications.c；TARGET 主机沿用 firmware/tests/control_router，mode 22；字体只读检查复用 generate_font_subset.verify_committed／font_metrics。失败记录包括首次编码、Python 模块选择、主机夹具编译问题和冷暖基线断言，均保留；未把失败日志覆盖成成功。</p>
+</main></body></html>

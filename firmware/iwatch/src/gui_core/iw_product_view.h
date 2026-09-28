@@ -36,7 +36,7 @@ typedef struct {
     int16_t last_tap_x, last_tap_y;
     iw_theme_quality_t quality;
     bool active, dragging, animating, reduced_motion, picker_snapping, first_draw,
-         face_long_press_fired, last_tap_valid, launcher_zooming;
+         face_long_press_fired, last_tap_valid, launcher_zooming, notification_hold;
 } iw_product_view_t;
 /* 句柄地址固定、零初始化；父删忙态保留缓存引用，调用者须等 idle 后 destroy 成功才回收句柄。 */
 bool iw_product_view_create(iw_product_view_t *view, lv_obj_t *parent, uint16_t page_id,

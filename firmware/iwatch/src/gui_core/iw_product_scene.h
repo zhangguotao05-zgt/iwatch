@@ -30,6 +30,8 @@ enum {
     IW_ICON_V00_AIRPLANE,
     IW_ICON_V00_MOON,
     IW_ICON_V00_DISPLAY_NEXT,
+    IW_ICON_NOTIFICATION_BELL,
+    IW_ICON_NOTIFICATION_TRASH,
     IW_ICON_V00_APP_FIRST = 64,
     IW_ICON_V00_APP_COUNT = 17,
     IW_ICON_V00_ASSET_COUNT = 38
@@ -82,6 +84,9 @@ enum {
     IW_ACTION_FACE_NOTIFICATIONS,
     IW_ACTION_FACE_STACK,
     IW_ACTION_NOTIFICATION_OPEN_BASE = 0x1200,
+    IW_ACTION_NOTIFICATION_CLEAR = 0x1220,
+    IW_ACTION_NOTIFICATION_CLEAR_CANCEL,
+    IW_ACTION_NOTIFICATION_CLEAR_CONFIRM,
     IW_ACTION_RECENT_OPEN_BASE = 0x1240,
     IW_ACTION_RECENT_REMOVE_BASE = 0x1280,
     IW_ACTION_RECENT_PREVIOUS = 0x12c0,
@@ -141,7 +146,7 @@ typedef struct {
     int16_t x, y, width, height, baseline;
     uint16_t action;
     uint8_t font_px, radius, align, icon;
-    bool fixed, disabled, multiline, picker_item;
+    bool fixed, disabled, multiline, picker_item, notification_row;
     uint32_t color, fill;
     char text[IW_PRODUCT_TEXT_BYTES];
 } iw_product_node_t;
@@ -208,6 +213,7 @@ typedef struct {
     bool lock_water, lock_available;
     uint8_t lock_progress;
     bool selected_notification_valid;
+    bool notification_clear_confirm;
 } iw_product_model_t;
 /* 固定容量；全部字符串复制。输出不引用页面草稿或临时格式化缓冲。 */
 bool iw_product_scene_build(iw_product_scene_t *scene, uint16_t page_id, const iw_product_model_t *model);

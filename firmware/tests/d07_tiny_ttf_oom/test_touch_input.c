@@ -28,6 +28,8 @@ struct rt_device_rect_info { uint16_t x, y, width, height; };
 static struct rt_device g_touch_device;
 static unsigned mutex_depth, thread_id = 1, wakes, notifications;
 static bool inject_after_read;
+static bool inject_invalid_after_read;
+static void inject_invalid_read(void);
 #define RT_EOK 0
 #define RT_FALSE 0
 #define RT_TRUE 1
@@ -36,6 +38,7 @@ static bool inject_after_read;
 #define TOUCH_EVENT_UP 1
 #define TOUCH_EVENT_DOWN 2
 #define TOUCH_EVENT_MOVE 3
+#define TOUCH_EVENT_NONE 0x80
 #define DBG_LEVEL 0
 #define DBG_LOG 1
 #define IW_GUI_WAKE_INPUT 1u
@@ -74,6 +77,10 @@ static void fill_queue(void)
 static rt_size_t rt_device_read(rt_device_t device, rt_off_t pos, void *buffer, rt_size_t size)
 {
     rt_size_t result = touch_read(device, pos, buffer, size);
+    if (inject_invalid_after_read) {
+        inject_invalid_after_read = false;
+        inject_invalid_read();
+    }
     if (inject_after_read) {
         inject_after_read = false;
         /* GUI 已取到旧 UP，分发之前生产端恰好再次溢出。 */
@@ -195,6 +202,8 @@ static void pointer_read(lv_indev_t *pointer)
 {
     assert(thread_id == 1); lv_tick_inc(10); lv_indev_read(pointer); assert(!mutex_depth);
 }
+
+#include "touch_invalid_cases.inc"
 
 int test_touch_input(size_t loops)
 {

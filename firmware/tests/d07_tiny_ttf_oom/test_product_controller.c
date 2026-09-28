@@ -35,7 +35,8 @@ iw_ack_status_t iw_result_ack(const iw_result_token_t *t) {
     return iw_service_result_ack(&model, t);
 }
 bool iw_clock_read(iw_clock_snapshot_t *v) {
-    return iw_time_read(&clock_model, v);
+    /* 路由夹具可重新绑定同一服务的时钟，控制器不能读另一份固定时间。 */
+    return iw_time_read(model.time_state, v);
 }
 bool iw_brightness_read(iw_brightness_snapshot_t *v) {
     return iw_service_brightness_read(&model, v);
