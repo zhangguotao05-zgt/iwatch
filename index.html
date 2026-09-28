@@ -165,6 +165,7 @@ docs/           项目状态、资料来源及复现说明</code></pre>
 </section><section><h2>D14 蜂窝桌面与转场</h2><p><a href="docs/ui/D14_蜂窝桌面与转场实施记录.html">D14-A0 实施记录</a>已开始落地：应用列表进入蜂窝网格，四个 READY 磁贴复用统一路由进入设置、计时器、秒表和闹钟，Back 返回列表。主机增量、D07-A0 隔离门禁、正式字体校验、GCC/Keil 目标构建及 COM9/COM10 蜂窝主路径实机记录通过（身份绑定 c25955c；GCC 1,952,804 B，Keil 1,877,944 B）；最终蜂窝视觉、复杂表盘和性能样例仍待后续复核，未宣称 D14 收口；过程与验收见 <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/16">Issue #16</a>。</p></section>
 <section><h2>V00 GCC 开发候选</h2><p><a href="docs/ui/V00_GCC开发基线与资源接入.html">开发基线、受控资源接入与 GCC 复现入口</a>：源码／夹具／字体及许可收拢到公开 main 基础，图片保留本地受控输入；主机、目标构建和实物结论分开。GCC-only，Keil 后补；最终独立验收与允许合并结论见 Issue #16，不代表 V00 最终关闭。</p></section>
 <section><h2>V01-01 通知业务增量</h2><p><a href="docs/ui/V01-01_通知业务增量记录.html">版本绑定清除与详情失效记录</a>：C 阶段自测，原批准四态视觉资料待补，未完成清除命中区／锁输入集成，未冻结可验收候选，不代表 D 通过。</p></section>
+<section><h2>A1 测试构建依赖</h2><p><a href="docs/ui/A1_CMake抽取依赖修正.html">CMake 抽取依赖修正</a>：仅测试链小修，24 组旧错新对的实际增量抽取断言通过；未重编 GCC、未运行产品全量测试或访问硬件，待 D 独立复验。</p></section>
 </main>
   </div>
   <footer class="site-footer">iwatch 工程文档 · SF32LB58 / RT-Thread / LVGL</footer>

@@ -1,0 +1,25 @@
+<!doctype html>
+<html lang="zh-CN"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>A1 · CMake 抽取依赖修正</title><link rel="stylesheet" href="../assets/engineering.css"></head><body><main>
+<h1>A1 · CMake 抽取依赖修正</h1>
+<p><a href="../../index.html">工程入口</a> · <a href="https://github.com/zhangguotao05-zgt/iwatch/issues/20">架构评估 #20</a> · <a href="../../work/configure-dependencies-20260928/index.html">本地原始证据入口</a></p>
+<p>2026-09-28，C 实施。结论：已修正两个测试工程的配置阶段源码抽取依赖；24 组真实 CMake/Ninja 增量断言均实现旧错新对。只改测试构建脚本、自动回归及文档，不改生产固件、SDK、资源或预算；等待 D 独立复验。</p>
+<h2>原因与最小修改</h2>
+<p>旧工程在 configure 时用 file(READ) 读取生产／SDK 文件并写出 inc，但未登记原文件的 CMAKE_CONFIGURE_DEPENDS。原文件变化不会自动重新运行抽取；inc 到对象的 OBJECT_DEPENDS 不能弥补前半段缺失。</p>
+<p>d07_tiny_ttf_oom 增加 iw_track_extracted_source，将路径归一为 REALPATH 后登记目录配置依赖，覆盖 8 个直接读取路径及 extract_sdk_function 的全部来源。control_router 复用该助手，覆盖 extract_function 和 IW_ROUTER_SOURCE。原有 inc 到 router_model 对象的 OBJECT_DEPENDS 原样保留；未改变抽取算法、编译选项或目标 ABI。</p>
+<p>首次直接登记未经归一的路径时，父子目录通过不同 ../ 形式指向 watch_demo.c，Ninja 报重复输出；该失败记录保留。REALPATH 消除路径别名后，默认和覆盖来源均通过。</p>
+<h2>回归范围和结果</h2>
+<table><thead><tr><th>实际工程</th><th>抽取更新断言</th><th>旧脚本</th><th>修正版</th></tr></thead><tbody>
+<tr><td>d07_tiny_ttf_oom</td><td>16：SDK 字形／EPIC／调度／解码函数，component demo、主循环、取消输入、触摸队列／输入、路由</td><td>16 失败</td><td>16 通过</td></tr>
+<tr><td>control_router 默认来源</td><td>5：SDK remove、input_signal、主循环、触摸队列、路由</td><td>5 失败</td><td>5 通过</td></tr>
+<tr><td>control_router 覆盖来源</td><td>3：SDK remove、input_signal、独立 IW_ROUTER_SOURCE</td><td>3 失败</td><td>3 通过</td></tr>
+</tbody></table>
+<p>旧版仅取 <code>7e3354998e04b97d62be11a3cbcd19047c01a1f6</code> 的两个 CMakeLists，其余输入与修正版相同。六个隔离副本首次配置后，每次仅在一个被抽取源的抽取区内插入可识别注释，然后执行 <code>cmake --build &lt;build&gt; --target build.ninja</code>，检查实际生成 inc 包含标记且 SHA-256 变化。没有手工再次调用 cmake -S；不是独立 Python 模型。</p>
+<p>回归程序整体通过要求：旧版全部复现未更新，修正版全部更新，原始源码／SDK 内容摘要不变。原始命令、stdout/stderr、生成图和各次 inc 摘要均保留；未覆盖旧 target-host 或 V01 封存。使用现有 CMake 3.31.6-msvc6、Ninja 和 MSVC 19.44.35229.0；MSVC 只参与 CMake 环境探测，没有编译或运行产品测试程序。</p>
+<h2>复现</h2>
+<p>在现有 MSVC x64 Developer PowerShell 中运行；SDK 指向已配置的受控副本，项目需有既有 v00_target_view/generated 输入。输出目录必须尚不存在，程序保留隔离副本供检查，不自动删除或覆盖。</p>
+<pre>python -B firmware/tests/test_configure_dependencies.py --sdk &lt;SDK目录&gt; --output &lt;全新输出目录&gt; --baseline 7e3354998e04b97d62be11a3cbcd19047c01a1f6</pre>
+<p>源码入口：<a href="../../firmware/tests/test_configure_dependencies.py">回归脚本</a>。新增脚本不读取工程 config.json；仓库现有三个 config.json 属于硬件绘图工具，与本测试链无关。</p>
+<h2>验证边界</h2>
+<ul><li>主机：构建依赖回归通过；产品功能、ASan 全矩阵未重跑。</li><li>静态：人工检查最小 diff、生成 Ninja 依赖及 git diff --check；不复述既有静态告警为本次通过。</li><li>目标构建：GCC、Keil 均未运行；生产输入未改变，不生成新的固件身份。</li><li>实物：自动和人工硬件验证均未执行；未访问串口／USB，不刷写。</li></ul>
+<p>没有修改通知实现、#21 触摸问题或三项非阻断结构债务。D 接受此小修后，再按 A 工作卡继续 #19 的必要通知集成／失败路径检查；缺失视觉稿不自行替代。</p>
+</main></body></html>

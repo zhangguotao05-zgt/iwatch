@@ -21,6 +21,23 @@ target_include_directories(lvgl_host PUBLIC
 )
 
 # 编译真实字形适配及连续混合函数；仅替换硬件边界，不复制被测算法。
+function(iw_track_extracted_source path)
+    # 父子工程可能通过不同 ../ 路径读取同一文件，先统一路径，避免 Ninja 重复输出。
+    get_filename_component(source "${path}" REALPATH)
+    set_property(DIRECTORY APPEND PROPERTY CMAKE_CONFIGURE_DEPENDS "${source}")
+endfunction()
+foreach(source IN ITEMS
+    "${SDK_ROOT}/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c"
+    "${SDK_ROOT}/rtos/rtthread/bsp/sifli/drivers/drv_epic_single.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_apps/component_gallery/iw_components_demo.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/gui_apps/watch_demo.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform/iw_drv_touch.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform/iw_touch_input.c"
+    "${CMAKE_CURRENT_SOURCE_DIR}/../../iwatch/src/platform/iw_router.c"
+    "${SDK_ROOT}/middleware/app_fwk/app_schedule_port.c")
+    iw_track_extracted_source("${source}")
+endforeach()
+# file(READ) 在配置阶段执行；原文件变化必须先重新配置，再由 inc 依赖触发编译。
 file(READ "${SDK_ROOT}/middleware/lvgl/lv_drivers_v9/sifli/lv_draw_epic_label.c" EPIC_LABEL)
 string(REGEX REPLACE "#include [^\n]*" "" EPIC_LABEL "${EPIC_LABEL}")
 file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/epic_label_under_test.inc" "${EPIC_LABEL}")
@@ -82,6 +99,7 @@ file(WRITE "${CMAKE_CURRENT_BINARY_DIR}/route_screen_under_test.inc" "${SCREEN_F
 
 # SDK 受理、真实栈和快照直接编译生产函数；不复制其分支逻辑。
 function(extract_sdk_function source marker output)
+    iw_track_extracted_source("${SDK_ROOT}/${source}")
     file(READ "${SDK_ROOT}/${source}" text)
     string(FIND "${text}" "${marker}" begin)
     if(begin LESS 0)
